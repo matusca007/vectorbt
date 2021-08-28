@@ -1641,9 +1641,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             size_type (SizeType or array_like): See `vectorbt.portfolio.enums.SizeType`.
                 See `vectorbt.portfolio.enums.Order.size_type`. Will broadcast.
 
-                !!! note
-                    `SizeType.Percent` does not support position reversal. Switch to a single direction.
-
                 !!! warning
                     Be cautious using `SizeType.Percent` with `call_seq` set to 'auto'.
                     To execute sell orders before buy orders, the value of each order in the group
@@ -1713,7 +1710,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     will change the initial cash, so be aware when indexing.
             cash_sharing (bool): Whether to share cash within the same group.
 
-                If `group_by` is None, `group_by` becomes True to form a single group with cash sharing.
+                If `group_by` is None and `cash_sharing` is True, `group_by` becomes True to form a single
+                group with cash sharing.
 
                 !!! warning
                     Introduces cross-asset dependencies.
@@ -3011,18 +3009,53 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
 
     @classmethod
-    def from_holding(cls: tp.Type[PortfolioT], close: tp.ArrayLike, **kwargs) -> PortfolioT:
-        """Simulate portfolio from holding.
+    def from_holding(cls: tp.Type[PortfolioT],
+                     close: tp.ArrayLike,
+                     size: tp.Optional[tp.ArrayLike] = None,
+                     base_method: tp.Optional[str] = None,
+                     **kwargs) -> PortfolioT:
+        """Simulate portfolio from plain holding.
 
-        Based on `Portfolio.from_signals`.
+        Has two base methods:
+
+        * 'from_signals': Based on `Portfolio.from_signals`. Faster than the second method and allows
+            using the native broadcasting mechanism of the underlying class method, but has less
+            sizers available (e.g., there is no support for `vectorbt.portfolio.enums.SizeType.TargetPercent`).
+        * 'from_orders': Based on `Portfolio.from_orders`. Allows using all implemented sizers,
+            but requires conversion of `close` to pandas prior to broadcasting and must broadcast `size`
+            to `close` to set all elements after the first timestamp to `np.nan`.
+
+        `**kwargs` are passed to the underlying class method.
+
+        For the default base method, see `portfolio.holding_base_method` in `vectorbt._settings.settings`.
+
+        ## Example
 
         ```python-repl
         >>> close = pd.Series([1, 2, 3, 4, 5])
-        >>> pf = vbt.Portfolio.from_holding(close)
+        >>> pf = vbt.Portfolio.from_holding(close, base_method='from_signals')
+        >>> pf.final_value()
+        500.0
+
+        >>> pf = vbt.Portfolio.from_holding(close, base_method='from_orders')
         >>> pf.final_value()
         500.0
         ```"""
-        return cls.from_signals(close, entries=True, exits=False, **kwargs)
+        from vectorbt._settings import settings
+        portfolio_cfg = settings['portfolio']
+
+        if base_method is None:
+            base_method = portfolio_cfg['holding_base_method']
+        if base_method.lower() == 'from_signals':
+            return cls.from_signals(close, entries=True, exits=False, accumulate=False, size=size, **kwargs)
+        elif base_method.lower() == 'from_orders':
+            if size is None:
+                size = portfolio_cfg['size']
+            close = to_pd_array(close)
+            size = broadcast_to(size, close, require_kwargs=dict(requirements='W'))
+            size.iloc[1:] = np.nan
+            return cls.from_orders(close, size=size, **kwargs)
+        raise ValueError(f"Unknown base method '{base_method}'")
 
     @classmethod
     def from_random_signals(cls: tp.Type[PortfolioT],

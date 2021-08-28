@@ -3363,6 +3363,10 @@ class TestFromHolding:
             vbt.Portfolio.from_holding(price).order_records,
             vbt.Portfolio.from_signals(price, True, False, accumulate=False).order_records
         )
+        record_arrays_close(
+            vbt.Portfolio.from_holding(price, base_method='from_signals').order_records,
+            vbt.Portfolio.from_holding(price, base_method='from_orders').order_records
+        )
 
 
 # ############# from_random_signals ############# #

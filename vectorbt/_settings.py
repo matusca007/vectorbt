@@ -512,6 +512,7 @@ settings = SettingsConfig(
             seed=None,
             freq=None,
             attach_call_seq=False,
+            holding_base_method='from_signals',
             fillna_close=True,
             trades_type='exittrades',
             stats=Config(  # flex
