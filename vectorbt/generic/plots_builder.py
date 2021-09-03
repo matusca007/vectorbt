@@ -15,7 +15,7 @@ from vectorbt.utils.template import deep_substitute
 from vectorbt.utils.tags import match_tags
 from vectorbt.utils.attr import get_dict_attr
 from vectorbt.utils.figure import make_subplots, get_domain
-from vectorbt.base.array_wrapper import Wrapping
+from vectorbt.base.wrapping import Wrapping
 
 
 class MetaPlotsBuilderMixin(type):
@@ -30,7 +30,7 @@ class MetaPlotsBuilderMixin(type):
 class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
     """Mixin that implements `PlotsBuilderMixin.plots`.
 
-    Required to be a subclass of `vectorbt.base.array_wrapper.Wrapping`."""
+    Required to be a subclass of `vectorbt.base.wrapping.Wrapping`."""
 
     def __init__(self):
         checks.assert_instance_of(self, Wrapping)

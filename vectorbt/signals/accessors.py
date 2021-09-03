@@ -203,7 +203,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.template import RepEval
 from vectorbt.base import reshape_fns
-from vectorbt.base.array_wrapper import ArrayWrapper
+from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic import plotting
@@ -519,7 +519,7 @@ class SignalsAccessor(GenericAccessor):
             shape = (shape[0], 1)
 
         if n is not None and prob is not None:
-            raise ValueError("Either n or prob should be set, not both")
+            raise ValueError("Either n or prob must be provided, not both")
         if n is not None:
             n = np.broadcast_to(n, shape[1])
             result = nb.generate_rand_nb(shape, n, seed=seed)
@@ -527,7 +527,7 @@ class SignalsAccessor(GenericAccessor):
             prob = np.broadcast_to(prob, shape)
             result = nb.generate_rand_by_prob_nb(shape, prob, pick_first, flex_2d, seed=seed)
         else:
-            raise ValueError("At least n or prob should be set")
+            raise ValueError("At least n or prob must be provided")
 
         if cls.is_series():
             if shape[1] > 1:
@@ -610,7 +610,7 @@ class SignalsAccessor(GenericAccessor):
             shape = (shape[0], 1)
 
         if n is not None and (entry_prob is not None or exit_prob is not None):
-            raise ValueError("Either n or any of the entry_prob and exit_prob should be set, not both")
+            raise ValueError("Either n or any of the entry_prob and exit_prob must be provided, not both")
         if n is not None:
             n = np.broadcast_to(n, shape[1])
             entries, exits = nb.generate_rand_enex_nb(shape, n, entry_wait, exit_wait, seed=seed)
@@ -629,7 +629,7 @@ class SignalsAccessor(GenericAccessor):
                 seed=seed
             )
         else:
-            raise ValueError("At least n, or entry_prob and exit_prob should be set")
+            raise ValueError("At least n, or entry_prob and exit_prob must be provided")
 
         if cls.is_series():
             if shape[1] > 1:

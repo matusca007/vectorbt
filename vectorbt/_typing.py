@@ -10,6 +10,8 @@ from typing import *
 from datetime import datetime, timedelta, tzinfo
 from mypy_extensions import VarArg, KwArg
 from pandas.tseries.offsets import DateOffset
+from pandas.core.groupby import GroupBy as PandasGroupBy
+from pandas.core.resample import Resampler as PandasResampler
 from plotly.graph_objects import Figure, FigureWidget
 from plotly.basedatatypes import BaseFigure, BaseTraceType
 from numba.core.registry import CPUDispatcher
@@ -94,6 +96,7 @@ PandasIndexingFunc = Callable[[SeriesFrame], MaybeSeriesFrame]
 # Grouping
 GroupByLike = Union[None, bool, MaybeLevelSequence, IndexLike]
 PandasGroupByLike = Union[Label, Labels, Callable, Mapping[Label, Any]]
+GroupMap = Tuple[Array1d, Array1d]
 
 # Wrapping
 NameIndex = Union[None, Any, Index]
@@ -118,21 +121,22 @@ TraceNames = MaybeSequence[TraceName]
 # Generic
 I = TypeVar("I")
 R = TypeVar("R")
-ApplyFunc = Callable[[int, Array1d, VarArg()], MaybeArray]
-RowApplyFunc = Callable[[int, Array1d, VarArg()], MaybeArray]
-RollApplyFunc = Callable[[int, int, Array1d, VarArg()], Scalar]
-RollMatrixApplyFunc = Callable[[int, Array2d, VarArg()], MaybeArray]
-GroupByApplyFunc = Callable[[Array1d, int, Array1d, VarArg()], Scalar]
-GroupByMatrixApplyFunc = Callable[[Array1d, Array2d, VarArg()], MaybeArray]
-ApplyMapFunc = Callable[[int, int, I, VarArg()], Scalar]
-FilterFunc = Callable[[int, int, I, VarArg()], bool]
-ReduceFunc = Callable[[int, Array1d, VarArg()], Scalar]
-ReduceArrayFunc = Callable[[int, Array1d, VarArg()], Array1d]
-GroupReduceFunc = Callable[[int, Array2d, VarArg()], Scalar]
-FlatGroupReduceFunc = Callable[[int, Array1d, VarArg()], Scalar]
-GroupReduceArrayFunc = Callable[[int, Array2d, VarArg()], Array1d]
-FlatGroupReduceArrayFunc = Callable[[int, Array1d, VarArg()], Array1d]
-GroupSqueezeFunc = Callable[[int, int, Array1d, VarArg()], R]
+MapFunc = Callable[[Scalar, VarArg()], Scalar]
+MapMetaFunc = Callable[[int, int, Scalar, VarArg()], Scalar]
+ApplyFunc = Callable[[Array1d, VarArg()], MaybeArray]
+ApplyMetaFunc = Callable[[int, VarArg()], MaybeArray]
+RollApplyMetaFunc = Callable[[int, int, int, VarArg()], Scalar]
+GroupByApplyMetaFunc = Callable[[Array1d, int, int, VarArg()], Scalar]
+ReduceFunc = Callable[[Array1d, VarArg()], Scalar]
+ReduceMetaFunc = Callable[[int, VarArg()], Scalar]
+ReduceToArrayFunc = Callable[[Array1d, VarArg()], Array1d]
+ReduceToArrayMetaFunc = Callable[[int, VarArg()], Array1d]
+ReduceGroupedFunc = Callable[[Array2d, VarArg()], Scalar]
+ReduceGroupedMetaFunc = Callable[[int, int, int, VarArg()], Scalar]
+ReduceGroupedToArrayFunc = Callable[[Array2d, VarArg()], Array1d]
+ReduceGroupedToArrayMetaFunc = Callable[[int, int, int, VarArg()], Array1d]
+GroupSqueezeFunc = Callable[[Array1d, VarArg()], Scalar]
+GroupSqueezeMetaFunc = Callable[[int, int, int, int, VarArg()], Scalar]
 
 # Signals
 ChoiceFunc = Callable[[int, int, int, VarArg()], Array1d]

@@ -75,7 +75,7 @@ For example, the `periods` and `trading_year_days` arguments default to the annu
 produced by quantstats and vectorbt at least somewhat similar.
 
 ```python-repl
->>> vbt.settings.array_wrapper['freq'] = 'h'
+>>> vbt.settings.wrapping['freq'] = 'h'
 >>> vbt.settings.returns['year_freq'] = '365d'
 
 >>> rets.vbt.returns.sharpe_ratio()  # ReturnsAccessor

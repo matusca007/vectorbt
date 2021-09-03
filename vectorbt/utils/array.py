@@ -4,9 +4,9 @@
 """Utilities for working with arrays."""
 
 import numpy as np
-from numba import njit
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 
 
 def is_sorted(a: tp.Array1d) -> np.bool_:
@@ -14,7 +14,7 @@ def is_sorted(a: tp.Array1d) -> np.bool_:
     return np.all(a[:-1] <= a[1:])
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_sorted_nb(a: tp.Array1d) -> bool:
     """Numba-compiled version of `is_sorted`."""
     for i in range(a.size - 1):
@@ -23,7 +23,7 @@ def is_sorted_nb(a: tp.Array1d) -> bool:
     return True
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def insert_argsort_nb(A: tp.Array1d, I: tp.Array1d) -> None:
     """Perform argsort using insertion sort.
 
@@ -59,7 +59,7 @@ def get_ranges_arr(starts: tp.ArrayLike, ends: tp.ArrayLike) -> tp.Array1d:
     return id_arr.cumsum()
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def uniform_summing_to_one_nb(n: int) -> tp.Array1d:
     """Generate random floats summing to one.
 
@@ -81,7 +81,7 @@ def renormalize(a: tp.MaybeArray[float], from_range: tp.Tuple[float, float],
     return (to_delta * (a - from_range[0]) / from_delta) + to_range[0]
 
 
-renormalize_nb = njit(cache=True)(renormalize)
+renormalize_nb = register_jit(cache=True)(renormalize)
 """Numba-compiled version of `renormalize`."""
 
 
@@ -121,7 +121,7 @@ def max_rel_rescale(a: tp.Array, to_range: tp.Tuple[float, float]) -> tp.Array:
     return renormalize(a, from_range, to_range)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def rescale_float_to_int_nb(floats: tp.Array, int_range: tp.Tuple[float, float], total: float) -> tp.Array:
     """Rescale a float array into an int array."""
     ints = np.floor(renormalize_nb(floats, [0., 1.], int_range))

@@ -6,8 +6,8 @@ from datetime import datetime
 
 import vectorbt as vbt
 from vectorbt.base import (
-    array_wrapper,
-    column_grouper,
+    wrapping,
+    grouping,
     combine_fns,
     index_fns,
     indexing,
@@ -72,7 +72,7 @@ def teardown_module():
     vbt.settings.reset()
 
 
-# ############# column_grouper.py ############# #
+# ############# grouping.py ############# #
 
 
 grouped_columns = pd.MultiIndex.from_arrays([
@@ -84,22 +84,22 @@ grouped_columns = pd.MultiIndex.from_arrays([
 
 class TestColumnGrouper:
     def test_group_by_to_index(self):
-        assert not column_grouper.group_by_to_index(grouped_columns, group_by=False)
-        assert column_grouper.group_by_to_index(grouped_columns, group_by=None) is None
+        assert not grouping.group_by_to_index(grouped_columns, group_by=False)
+        assert grouping.group_by_to_index(grouped_columns, group_by=None) is None
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(grouped_columns, group_by=True),
+            grouping.group_by_to_index(grouped_columns, group_by=True),
             pd.Index(['group'] * len(grouped_columns))
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(grouped_columns, group_by=0),
+            grouping.group_by_to_index(grouped_columns, group_by=0),
             pd.Int64Index([1, 1, 1, 1, 0, 0, 0, 0], dtype='int64', name='first')
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(grouped_columns, group_by='first'),
+            grouping.group_by_to_index(grouped_columns, group_by='first'),
             pd.Int64Index([1, 1, 1, 1, 0, 0, 0, 0], dtype='int64', name='first')
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(grouped_columns, group_by=[0, 1]),
+            grouping.group_by_to_index(grouped_columns, group_by=[0, 1]),
             pd.MultiIndex.from_tuples([
                 (1, 3),
                 (1, 3),
@@ -112,7 +112,7 @@ class TestColumnGrouper:
             ], names=['first', 'second'])
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(grouped_columns, group_by=['first', 'second']),
+            grouping.group_by_to_index(grouped_columns, group_by=['first', 'second']),
             pd.MultiIndex.from_tuples([
                 (1, 3),
                 (1, 3),
@@ -125,24 +125,24 @@ class TestColumnGrouper:
             ], names=['first', 'second'])
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(
+            grouping.group_by_to_index(
                 grouped_columns, group_by=np.array([3, 2, 1, 1, 1, 0, 0, 0])),
             pd.Int64Index([3, 2, 1, 1, 1, 0, 0, 0], dtype='int64')
         )
         pd.testing.assert_index_equal(
-            column_grouper.group_by_to_index(
+            grouping.group_by_to_index(
                 grouped_columns, group_by=pd.Index([3, 2, 1, 1, 1, 0, 0, 0], name='fourth')),
             pd.Int64Index([3, 2, 1, 1, 1, 0, 0, 0], dtype='int64', name='fourth')
         )
 
     def test_get_groups_and_index(self):
-        a, b = column_grouper.get_groups_and_index(grouped_columns, group_by=None)
+        a, b = grouping.get_groups_and_index(grouped_columns, group_by=None)
         np.testing.assert_array_equal(a, np.array([0, 1, 2, 3, 4, 5, 6, 7]))
         pd.testing.assert_index_equal(b, grouped_columns)
-        a, b = column_grouper.get_groups_and_index(grouped_columns, group_by=0)
+        a, b = grouping.get_groups_and_index(grouped_columns, group_by=0)
         np.testing.assert_array_equal(a, np.array([0, 0, 0, 0, 1, 1, 1, 1]))
         pd.testing.assert_index_equal(b, pd.Int64Index([1, 0], dtype='int64', name='first'))
-        a, b = column_grouper.get_groups_and_index(grouped_columns, group_by=[0, 1])
+        a, b = grouping.get_groups_and_index(grouped_columns, group_by=[0, 1])
         np.testing.assert_array_equal(a, np.array([0, 0, 1, 1, 2, 2, 3, 3]))
         pd.testing.assert_index_equal(b, pd.MultiIndex.from_tuples([
             (1, 3),
@@ -153,203 +153,203 @@ class TestColumnGrouper:
 
     def test_get_group_lens_nb(self):
         np.testing.assert_array_equal(
-            column_grouper.get_group_lens_nb(np.array([0, 0, 0, 0, 1, 1, 1, 1])),
+            grouping.get_group_lens_nb(np.array([0, 0, 0, 0, 1, 1, 1, 1])),
             np.array([4, 4])
         )
         np.testing.assert_array_equal(
-            column_grouper.get_group_lens_nb(np.array([0, 1])),
+            grouping.get_group_lens_nb(np.array([0, 1])),
             np.array([1, 1])
         )
         np.testing.assert_array_equal(
-            column_grouper.get_group_lens_nb(np.array([0, 0])),
+            grouping.get_group_lens_nb(np.array([0, 0])),
             np.array([2])
         )
         np.testing.assert_array_equal(
-            column_grouper.get_group_lens_nb(np.array([0])),
+            grouping.get_group_lens_nb(np.array([0])),
             np.array([1])
         )
         np.testing.assert_array_equal(
-            column_grouper.get_group_lens_nb(np.array([])),
+            grouping.get_group_lens_nb(np.array([])),
             np.array([])
         )
         with pytest.raises(Exception):
-            column_grouper.get_group_lens_nb(np.array([1, 1, 0, 0]))
+            grouping.get_group_lens_nb(np.array([1, 1, 0, 0]))
         with pytest.raises(Exception):
-            column_grouper.get_group_lens_nb(np.array([0, 1, 0, 1]))
+            grouping.get_group_lens_nb(np.array([0, 1, 0, 1]))
 
     def test_is_grouped(self):
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouped()
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouped(group_by=True)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouped(group_by=1)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouped(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouped()
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouped(group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouped(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouped(group_by=False)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouped()
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouped(group_by=True)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouped(group_by=1)
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouped(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_grouped()
+        assert grouping.Grouper(grouped_columns).is_grouped(group_by=0)
+        assert grouping.Grouper(grouped_columns).is_grouped(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_grouped(group_by=False)
+        assert grouping.Grouper(grouped_columns, group_by=0) \
             .is_grouped(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_is_grouping_enabled(self):
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_enabled()
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=1)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_enabled()
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_enabled(group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_enabled(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_enabled(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_enabled()
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=True)
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=1)
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_enabled(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_grouping_enabled()
+        assert grouping.Grouper(grouped_columns).is_grouping_enabled(group_by=0)
+        assert grouping.Grouper(grouped_columns).is_grouping_enabled(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_grouping_enabled(group_by=False)
+        assert not grouping.Grouper(grouped_columns, group_by=0) \
             .is_grouping_enabled(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_is_grouping_disabled(self):
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_disabled()
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=1)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_disabled()
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_disabled(group_by=0)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_disabled(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_disabled(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_disabled()
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=True)
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=1)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_disabled(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_grouping_disabled()
+        assert not grouping.Grouper(grouped_columns).is_grouping_disabled(group_by=0)
+        assert not grouping.Grouper(grouped_columns).is_grouping_disabled(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_grouping_disabled(group_by=False)
+        assert not grouping.Grouper(grouped_columns, group_by=0) \
             .is_grouping_disabled(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_is_grouping_modified(self):
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_modified()
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_modified(group_by=True)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_modified(group_by=1)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_modified(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_modified()
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_modified(group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_modified(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_modified(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_modified()
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_modified(group_by=True)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_modified(group_by=1)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_modified(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_grouping_modified()
+        assert grouping.Grouper(grouped_columns).is_grouping_modified(group_by=0)
+        assert grouping.Grouper(grouped_columns).is_grouping_modified(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_grouping_modified(group_by=False)
+        assert not grouping.Grouper(grouped_columns, group_by=0) \
             .is_grouping_modified(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_is_grouping_changed(self):
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_changed()
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_changed(group_by=True)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_changed(group_by=1)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_grouping_changed(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_changed()
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_changed(group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns).is_grouping_changed(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_grouping_changed(group_by=False)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_grouping_changed()
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_changed(group_by=True)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_changed(group_by=1)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_grouping_changed(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_grouping_changed()
+        assert grouping.Grouper(grouped_columns).is_grouping_changed(group_by=0)
+        assert grouping.Grouper(grouped_columns).is_grouping_changed(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_grouping_changed(group_by=False)
+        assert grouping.Grouper(grouped_columns, group_by=0) \
             .is_grouping_changed(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_is_group_count_changed(self):
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_group_count_changed()
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_group_count_changed(group_by=True)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_group_count_changed(group_by=1)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0).is_group_count_changed(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_group_count_changed()
-        assert column_grouper.ColumnGrouper(grouped_columns).is_group_count_changed(group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns).is_group_count_changed(group_by=True)
-        assert not column_grouper.ColumnGrouper(grouped_columns).is_group_count_changed(group_by=False)
-        assert not column_grouper.ColumnGrouper(grouped_columns, group_by=0) \
+        assert not grouping.Grouper(grouped_columns, group_by=0).is_group_count_changed()
+        assert grouping.Grouper(grouped_columns, group_by=0).is_group_count_changed(group_by=True)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_group_count_changed(group_by=1)
+        assert grouping.Grouper(grouped_columns, group_by=0).is_group_count_changed(group_by=False)
+        assert not grouping.Grouper(grouped_columns).is_group_count_changed()
+        assert grouping.Grouper(grouped_columns).is_group_count_changed(group_by=0)
+        assert grouping.Grouper(grouped_columns).is_group_count_changed(group_by=True)
+        assert not grouping.Grouper(grouped_columns).is_group_count_changed(group_by=False)
+        assert not grouping.Grouper(grouped_columns, group_by=0) \
             .is_group_count_changed(group_by=grouped_columns.get_level_values(0) + 1)  # only labels
 
     def test_check_group_by(self):
-        column_grouper.ColumnGrouper(grouped_columns, group_by=None, allow_enable=True).check_group_by(group_by=0)
+        grouping.Grouper(grouped_columns, group_by=None, allow_enable=True).check_group_by(group_by=0)
         with pytest.raises(Exception):
-            column_grouper.ColumnGrouper(grouped_columns, group_by=None, allow_enable=False).check_group_by(group_by=0)
-        column_grouper.ColumnGrouper(grouped_columns, group_by=0, allow_disable=True).check_group_by(group_by=False)
+            grouping.Grouper(grouped_columns, group_by=None, allow_enable=False).check_group_by(group_by=0)
+        grouping.Grouper(grouped_columns, group_by=0, allow_disable=True).check_group_by(group_by=False)
         with pytest.raises(Exception):
-            column_grouper.ColumnGrouper(grouped_columns, group_by=0, allow_disable=False).check_group_by(
+            grouping.Grouper(grouped_columns, group_by=0, allow_disable=False).check_group_by(
                 group_by=False)
-        column_grouper.ColumnGrouper(grouped_columns, group_by=0, allow_modify=True).check_group_by(group_by=1)
-        column_grouper.ColumnGrouper(grouped_columns, group_by=0, allow_modify=False).check_group_by(
+        grouping.Grouper(grouped_columns, group_by=0, allow_modify=True).check_group_by(group_by=1)
+        grouping.Grouper(grouped_columns, group_by=0, allow_modify=False).check_group_by(
             group_by=np.array([2, 2, 2, 2, 3, 3, 3, 3]))
         with pytest.raises(Exception):
-            column_grouper.ColumnGrouper(grouped_columns, group_by=0, allow_modify=False).check_group_by(group_by=1)
+            grouping.Grouper(grouped_columns, group_by=0, allow_modify=False).check_group_by(group_by=1)
 
     def test_resolve_group_by(self):
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=None).resolve_group_by() is None  # default
+        assert grouping.Grouper(grouped_columns, group_by=None).resolve_group_by() is None  # default
         pd.testing.assert_index_equal(
-            column_grouper.ColumnGrouper(grouped_columns, group_by=None).resolve_group_by(group_by=0),  # overrides
+            grouping.Grouper(grouped_columns, group_by=None).resolve_group_by(group_by=0),  # overrides
             pd.Int64Index([1, 1, 1, 1, 0, 0, 0, 0], dtype='int64', name='first')
         )
         pd.testing.assert_index_equal(
-            column_grouper.ColumnGrouper(grouped_columns, group_by=0).resolve_group_by(),  # default
+            grouping.Grouper(grouped_columns, group_by=0).resolve_group_by(),  # default
             pd.Int64Index([1, 1, 1, 1, 0, 0, 0, 0], dtype='int64', name='first')
         )
         pd.testing.assert_index_equal(
-            column_grouper.ColumnGrouper(grouped_columns, group_by=0).resolve_group_by(group_by=1),  # overrides
+            grouping.Grouper(grouped_columns, group_by=0).resolve_group_by(group_by=1),  # overrides
             pd.Int64Index([3, 3, 2, 2, 1, 1, 0, 0], dtype='int64', name='second')
         )
 
     def test_get_groups(self):
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_groups(),
+            grouping.Grouper(grouped_columns).get_groups(),
             np.array([0, 1, 2, 3, 4, 5, 6, 7])
         )
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_groups(group_by=0),
+            grouping.Grouper(grouped_columns).get_groups(group_by=0),
             np.array([0, 0, 0, 0, 1, 1, 1, 1])
         )
 
-    def test_get_columns(self):
+    def test_get_index(self):
         pd.testing.assert_index_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_columns(),
-            column_grouper.ColumnGrouper(grouped_columns).columns
+            grouping.Grouper(grouped_columns).get_index(),
+            grouping.Grouper(grouped_columns).index
         )
         pd.testing.assert_index_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_columns(group_by=0),
+            grouping.Grouper(grouped_columns).get_index(group_by=0),
             pd.Int64Index([1, 0], dtype='int64', name='first')
         )
 
     def test_get_group_lens(self):
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_lens(),
+            grouping.Grouper(grouped_columns).get_group_lens(),
             np.array([1, 1, 1, 1, 1, 1, 1, 1])
         )
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_lens(group_by=0),
+            grouping.Grouper(grouped_columns).get_group_lens(group_by=0),
             np.array([4, 4])
         )
 
     def test_get_group_start_idxs(self):
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_start_idxs(),
+            grouping.Grouper(grouped_columns).get_group_start_idxs(),
             np.array([0, 1, 2, 3, 4, 5, 6, 7])
         )
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_start_idxs(group_by=0),
+            grouping.Grouper(grouped_columns).get_group_start_idxs(group_by=0),
             np.array([0, 4])
         )
 
     def test_get_group_end_idxs(self):
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_end_idxs(),
+            grouping.Grouper(grouped_columns).get_group_end_idxs(),
             np.array([1, 2, 3, 4, 5, 6, 7, 8])
         )
         np.testing.assert_array_equal(
-            column_grouper.ColumnGrouper(grouped_columns).get_group_end_idxs(group_by=0),
+            grouping.Grouper(grouped_columns).get_group_end_idxs(group_by=0),
             np.array([4, 8])
         )
 
     def test_eq(self):
-        assert column_grouper.ColumnGrouper(grouped_columns) == column_grouper.ColumnGrouper(grouped_columns)
-        assert column_grouper.ColumnGrouper(grouped_columns, group_by=0) == column_grouper.ColumnGrouper(
+        assert grouping.Grouper(grouped_columns) == grouping.Grouper(grouped_columns)
+        assert grouping.Grouper(grouped_columns, group_by=0) == grouping.Grouper(
             grouped_columns, group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns) != 0
-        assert column_grouper.ColumnGrouper(grouped_columns) != column_grouper.ColumnGrouper(grouped_columns,
+        assert grouping.Grouper(grouped_columns) != 0
+        assert grouping.Grouper(grouped_columns) != grouping.Grouper(grouped_columns,
                                                                                              group_by=0)
-        assert column_grouper.ColumnGrouper(grouped_columns) != column_grouper.ColumnGrouper(pd.Index([0]))
-        assert column_grouper.ColumnGrouper(grouped_columns) != column_grouper.ColumnGrouper(
+        assert grouping.Grouper(grouped_columns) != grouping.Grouper(pd.Index([0]))
+        assert grouping.Grouper(grouped_columns) != grouping.Grouper(
             grouped_columns, allow_enable=False)
-        assert column_grouper.ColumnGrouper(grouped_columns) != column_grouper.ColumnGrouper(
+        assert grouping.Grouper(grouped_columns) != grouping.Grouper(
             grouped_columns, allow_disable=False)
-        assert column_grouper.ColumnGrouper(grouped_columns) != column_grouper.ColumnGrouper(
+        assert grouping.Grouper(grouped_columns) != grouping.Grouper(
             grouped_columns, allow_modify=False)
 
 
-# ############# array_wrapper.py ############# #
+# ############# wrapping.py ############# #
 
 
-sr2_wrapper = array_wrapper.ArrayWrapper.from_obj(sr2)
-df2_wrapper = array_wrapper.ArrayWrapper.from_obj(df2)
-df4_wrapper = array_wrapper.ArrayWrapper.from_obj(df4)
+sr2_wrapper = wrapping.ArrayWrapper.from_obj(sr2)
+df2_wrapper = wrapping.ArrayWrapper.from_obj(df2)
+df4_wrapper = wrapping.ArrayWrapper.from_obj(df4)
 
 sr2_wrapper_co = sr2_wrapper.replace(column_only_select=True)
 df4_wrapper_co = df4_wrapper.replace(column_only_select=True)
@@ -363,12 +363,12 @@ df4_grouped_wrapper_co = df4_grouped_wrapper.replace(column_only_select=True, gr
 
 class TestArrayWrapper:
     def test_config(self, tmp_path):
-        assert array_wrapper.ArrayWrapper.loads(sr2_wrapper.dumps()) == sr2_wrapper
-        assert array_wrapper.ArrayWrapper.loads(sr2_wrapper_co.dumps()) == sr2_wrapper_co
-        assert array_wrapper.ArrayWrapper.loads(sr2_grouped_wrapper.dumps()) == sr2_grouped_wrapper
-        assert array_wrapper.ArrayWrapper.loads(sr2_grouped_wrapper_co.dumps()) == sr2_grouped_wrapper_co
+        assert wrapping.ArrayWrapper.loads(sr2_wrapper.dumps()) == sr2_wrapper
+        assert wrapping.ArrayWrapper.loads(sr2_wrapper_co.dumps()) == sr2_wrapper_co
+        assert wrapping.ArrayWrapper.loads(sr2_grouped_wrapper.dumps()) == sr2_grouped_wrapper
+        assert wrapping.ArrayWrapper.loads(sr2_grouped_wrapper_co.dumps()) == sr2_grouped_wrapper_co
         sr2_grouped_wrapper_co.save(tmp_path / 'sr2_grouped_wrapper_co')
-        assert array_wrapper.ArrayWrapper.load(tmp_path / 'sr2_grouped_wrapper_co') == sr2_grouped_wrapper_co
+        assert wrapping.ArrayWrapper.load(tmp_path / 'sr2_grouped_wrapper_co') == sr2_grouped_wrapper_co
 
     def test_indexing_func_meta(self):
         # not grouped
@@ -622,17 +622,17 @@ class TestArrayWrapper:
             pd.Index(['g1', 'g1', 'g2'], dtype='object'))
 
     def test_from_obj(self):
-        assert array_wrapper.ArrayWrapper.from_obj(sr2) == sr2_wrapper
-        assert array_wrapper.ArrayWrapper.from_obj(df4) == df4_wrapper
-        assert array_wrapper.ArrayWrapper.from_obj(sr2, column_only_select=True) == sr2_wrapper_co
-        assert array_wrapper.ArrayWrapper.from_obj(df4, column_only_select=True) == df4_wrapper_co
+        assert wrapping.ArrayWrapper.from_obj(sr2) == sr2_wrapper
+        assert wrapping.ArrayWrapper.from_obj(df4) == df4_wrapper
+        assert wrapping.ArrayWrapper.from_obj(sr2, column_only_select=True) == sr2_wrapper_co
+        assert wrapping.ArrayWrapper.from_obj(df4, column_only_select=True) == df4_wrapper_co
 
     def test_from_shape(self):
-        assert array_wrapper.ArrayWrapper.from_shape((3,)) == \
-               array_wrapper.ArrayWrapper(
+        assert wrapping.ArrayWrapper.from_shape((3,)) == \
+               wrapping.ArrayWrapper(
                    pd.RangeIndex(start=0, stop=3, step=1), pd.RangeIndex(start=0, stop=1, step=1), 1)
-        assert array_wrapper.ArrayWrapper.from_shape((3, 3)) == \
-               array_wrapper.ArrayWrapper.from_obj(pd.DataFrame(np.empty((3, 3))))
+        assert wrapping.ArrayWrapper.from_shape((3, 3)) == \
+               wrapping.ArrayWrapper.from_obj(pd.DataFrame(np.empty((3, 3))))
 
     def test_columns(self):
         pd.testing.assert_index_equal(df4_wrapper.columns, df4.columns)
@@ -642,7 +642,7 @@ class TestArrayWrapper:
     def test_name(self):
         assert sr2_wrapper.name == 'a2'
         assert df4_wrapper.name is None
-        assert array_wrapper.ArrayWrapper.from_obj(pd.Series([0])).name is None
+        assert wrapping.ArrayWrapper.from_obj(pd.Series([0])).name is None
         assert sr2_grouped_wrapper.name == 'a2'
         assert sr2_grouped_wrapper.get_name() == 'g1'
         assert df4_grouped_wrapper.name is None
@@ -693,7 +693,7 @@ class TestArrayWrapper:
     def test_to_timedelta(self):
         sr = pd.Series([1, 2, np.nan], index=['x', 'y', 'z'], name='name')
         pd.testing.assert_series_equal(
-            array_wrapper.ArrayWrapper.from_obj(sr, freq='1 days').to_timedelta(sr),
+            wrapping.ArrayWrapper.from_obj(sr, freq='1 days').to_timedelta(sr),
             pd.Series(
                 np.array([86400000000000, 172800000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=sr.index,
@@ -702,7 +702,7 @@ class TestArrayWrapper:
         )
         df = sr.to_frame()
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper.from_obj(df, freq='1 days').to_timedelta(df),
+            wrapping.ArrayWrapper.from_obj(df, freq='1 days').to_timedelta(df),
             pd.DataFrame(
                 np.array([86400000000000, 172800000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=df.index,
@@ -712,39 +712,39 @@ class TestArrayWrapper:
 
     def test_wrap(self):
         pd.testing.assert_series_equal(
-            array_wrapper.ArrayWrapper(index=sr1.index, columns=[0], ndim=1).wrap(a1),  # empty
+            wrapping.ArrayWrapper(index=sr1.index, columns=[0], ndim=1).wrap(a1),  # empty
             pd.Series(a1, index=sr1.index, name=None)
         )
         pd.testing.assert_series_equal(
-            array_wrapper.ArrayWrapper(index=sr1.index, columns=[sr1.name], ndim=1).wrap(a1),
+            wrapping.ArrayWrapper(index=sr1.index, columns=[sr1.name], ndim=1).wrap(a1),
             pd.Series(a1, index=sr1.index, name=sr1.name)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=sr1.index, columns=[sr1.name], ndim=2).wrap(a1),
+            wrapping.ArrayWrapper(index=sr1.index, columns=[sr1.name], ndim=2).wrap(a1),
             pd.DataFrame(a1, index=sr1.index, columns=[sr1.name])
         )
         pd.testing.assert_series_equal(
-            array_wrapper.ArrayWrapper(index=sr2.index, columns=[sr2.name], ndim=1).wrap(a2),
+            wrapping.ArrayWrapper(index=sr2.index, columns=[sr2.name], ndim=1).wrap(a2),
             pd.Series(a2, index=sr2.index, name=sr2.name)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=sr2.index, columns=[sr2.name], ndim=2).wrap(a2),
+            wrapping.ArrayWrapper(index=sr2.index, columns=[sr2.name], ndim=2).wrap(a2),
             pd.DataFrame(a2, index=sr2.index, columns=[sr2.name])
         )
         pd.testing.assert_series_equal(
-            array_wrapper.ArrayWrapper(index=df2.index, columns=df2.columns, ndim=1).wrap(a2),
+            wrapping.ArrayWrapper(index=df2.index, columns=df2.columns, ndim=1).wrap(a2),
             pd.Series(a2, index=df2.index, name=df2.columns[0])
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=df2.index, columns=df2.columns, ndim=2).wrap(a2),
+            wrapping.ArrayWrapper(index=df2.index, columns=df2.columns, ndim=2).wrap(a2),
             pd.DataFrame(a2, index=df2.index, columns=df2.columns)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper.from_obj(df2).wrap(a2, index=df4.index),
+            wrapping.ArrayWrapper.from_obj(df2).wrap(a2, index=df4.index),
             pd.DataFrame(a2, index=df4.index, columns=df2.columns)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2).wrap(
+            wrapping.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2).wrap(
                 np.array([[0, 0, np.nan], [1, np.nan, 1], [2, 2, np.nan]]),
                 fillna=-1
             ),
@@ -755,7 +755,7 @@ class TestArrayWrapper:
             ], index=df4.index, columns=df4.columns)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2).wrap(
+            wrapping.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2).wrap(
                 np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2]]),
                 to_index=True
             ),
@@ -766,7 +766,7 @@ class TestArrayWrapper:
             ], index=df4.index, columns=df4.columns)
         )
         pd.testing.assert_frame_equal(
-            array_wrapper.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2, freq='d').wrap(
+            wrapping.ArrayWrapper(index=df4.index, columns=df4.columns, ndim=2, freq='d').wrap(
                 np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2]]),
                 to_timedelta=True
             ),
@@ -958,11 +958,11 @@ class TestArrayWrapper:
         )
 
 
-sr2_wrapping = array_wrapper.Wrapping(sr2_wrapper)
-df4_wrapping = array_wrapper.Wrapping(df4_wrapper)
+sr2_wrapping = wrapping.Wrapping(sr2_wrapper)
+df4_wrapping = wrapping.Wrapping(df4_wrapper)
 
-sr2_grouped_wrapping = array_wrapper.Wrapping(sr2_grouped_wrapper)
-df4_grouped_wrapping = array_wrapper.Wrapping(df4_grouped_wrapper)
+sr2_grouped_wrapping = wrapping.Wrapping(sr2_grouped_wrapper)
+df4_grouped_wrapping = wrapping.Wrapping(df4_grouped_wrapper)
 
 
 class TestWrapping:
@@ -2316,7 +2316,7 @@ class H(PandasIndexer, ParamIndexer):
         tuple_mapper = pd.Series(tuple_mapper, index=new_columns)
 
         # Tile a to match the length of new_columns
-        a = array_wrapper.ArrayWrapper(a.index, new_columns, 2).wrap(reshape_fns.tile(a.values, 4, axis=1))
+        a = wrapping.ArrayWrapper(a.index, new_columns, 2).wrap(reshape_fns.tile(a.values, 4, axis=1))
         return cls(a, param1_mapper, param2_mapper, tuple_mapper, level_names)
 
 

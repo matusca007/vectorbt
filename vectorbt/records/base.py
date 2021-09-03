@@ -197,7 +197,7 @@ can be anything from positions or names of column levels, to a NumPy array with 
 
 There are multiple ways of define grouping:
 
-* When creating `Records`, pass `group_by` to `vectorbt.base.array_wrapper.ArrayWrapper`:
+* When creating `Records`, pass `group_by` to `vectorbt.base.wrapping.ArrayWrapper`:
 
 ```python-repl
 >>> group_by = np.array(['first', 'first', 'second'])
@@ -243,7 +243,7 @@ dtype: float64
 
 ## Indexing
 
-Like any other class subclassing `vectorbt.base.array_wrapper.Wrapping`, we can do pandas indexing
+Like any other class subclassing `vectorbt.base.wrapping.Wrapping`, we can do pandas indexing
 on a `Records` instance, which forwards indexing operation to each object with columns:
 
 ```python-repl
@@ -267,7 +267,7 @@ on a `Records` instance, which forwards indexing operation to each object with c
     Changing index (time axis) is not supported. The object should be treated as a Series
     rather than a DataFrame; for example, use `some_field.iloc[0]` instead of `some_field.iloc[:, 0]`.
 
-    Indexing behavior depends solely upon `vectorbt.base.array_wrapper.ArrayWrapper`.
+    Indexing behavior depends solely upon `vectorbt.base.wrapping.ArrayWrapper`.
     For example, if `group_select` is enabled indexing will be performed on groups,
     otherwise on single columns.
 
@@ -400,7 +400,7 @@ from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.attr import get_dict_attr
 from vectorbt.base.reshape_fns import to_1d_array
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.records import nb
@@ -447,7 +447,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
     Args:
         wrapper (ArrayWrapper): Array wrapper.
 
-            See `vectorbt.base.array_wrapper.ArrayWrapper`.
+            See `vectorbt.base.wrapping.ArrayWrapper`.
         records_arr (array_like): A structured NumPy array of records.
 
             Must have the fields `id` (record index) and `col` (column index).

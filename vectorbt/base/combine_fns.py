@@ -9,10 +9,10 @@ large spaces of hyperparameters, concatenating the results of each hyperparamete
 a single DataFrame is important. All functions are available in both Python and Numba-compiled form."""
 
 import numpy as np
-from numba import njit
 from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 from vectorbt.base import reshape_fns
 
 
@@ -31,7 +31,7 @@ def apply_and_concat_none(n: int,
         apply_func(i, *args, **kwargs)
 
 
-@njit
+@register_jit
 def apply_and_concat_none_nb(n: int, apply_func_nb: tp.Callable, *args) -> None:
     """A Numba-compiled version of `apply_and_concat_none`.
 
@@ -63,7 +63,7 @@ def apply_and_concat_one(n: int,
     return np.column_stack(outputs)
 
 
-@njit
+@register_jit
 def to_2d_one_nb(a: tp.Array) -> tp.Array2d:
     """Expand the dimensions of array `a` along axis 1.
 
@@ -74,7 +74,7 @@ def to_2d_one_nb(a: tp.Array) -> tp.Array2d:
     return np.expand_dims(a, axis=1)
 
 
-@njit
+@register_jit
 def apply_and_concat_one_nb(n: int, apply_func_nb: tp.Callable, *args) -> tp.Array2d:
     """A Numba-compiled version of `apply_and_concat_one`.
 
@@ -110,7 +110,7 @@ def apply_and_concat_multiple(n: int,
     return list(map(np.column_stack, list(zip(*outputs))))
 
 
-@njit
+@register_jit
 def to_2d_multiple_nb(a: tp.Iterable[tp.Array]) -> tp.List[tp.Array2d]:
     """Expand the dimensions of each array in `a` along axis 1.
 
@@ -123,7 +123,7 @@ def to_2d_multiple_nb(a: tp.Iterable[tp.Array]) -> tp.List[tp.Array2d]:
     return lst
 
 
-@njit
+@register_jit
 def apply_and_concat_multiple_nb(n: int, apply_func_nb: tp.Callable, *args) -> tp.List[tp.Array2d]:
     """A Numba-compiled version of `apply_and_concat_multiple`.
 
@@ -164,7 +164,7 @@ def combine_and_concat(obj: tp.Any,
     return apply_and_concat_one(len(others), select_and_combine, obj, others, combine_func, *args, **kwargs)
 
 
-@njit
+@register_jit
 def select_and_combine_nb(i: int, obj: tp.Any, others: tp.Sequence, combine_func_nb: tp.Callable, *args) -> tp.Array:
     """A Numba-compiled version of `select_and_combine`.
 
@@ -177,7 +177,7 @@ def select_and_combine_nb(i: int, obj: tp.Any, others: tp.Sequence, combine_func
     return combine_func_nb(obj, others[i], *args)
 
 
-@njit
+@register_jit
 def combine_and_concat_nb(obj: tp.Any, others: tp.Sequence, combine_func_nb: tp.Callable, *args) -> tp.Array2d:
     """A Numba-compiled version of `combine_and_concat`."""
     return apply_and_concat_one_nb(len(others), select_and_combine_nb, obj, others, combine_func_nb, *args)
@@ -191,7 +191,7 @@ def combine_multiple(objs: tp.Sequence, combine_func: tp.Callable, *args, **kwar
     return result
 
 
-@njit
+@register_jit
 def combine_multiple_nb(objs: tp.Sequence, combine_func_nb: tp.Callable, *args) -> tp.Array:
     """A Numba-compiled version of `combine_multiple`.
 

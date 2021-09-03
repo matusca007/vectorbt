@@ -4,15 +4,14 @@
 """Math utilities."""
 
 import numpy as np
-from numba import njit
 
-from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 
 rel_tol = 1e-9  # 1,000,000,000 == 1,000,000,001
 abs_tol = 1e-12  # 0.000000000001 == 0.000000000002
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_close_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
     """Tell whether two values are approximately equal."""
     if np.isnan(a) or np.isnan(b):
@@ -24,7 +23,7 @@ def is_close_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = a
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_close_or_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
     """Tell whether the first value is approximately less than or equal to the second value."""
     if is_close_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
@@ -32,7 +31,7 @@ def is_close_or_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: f
     return a < b
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
     """Tell whether the first value is approximately less than the second value."""
     if is_close_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
@@ -40,7 +39,7 @@ def is_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = ab
     return a < b
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_addition_zero_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
     """Tell whether addition of two values yields zero."""
     if np.sign(a) != np.sign(b):
@@ -48,7 +47,7 @@ def is_addition_zero_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: f
     return is_close_nb(a + b, 0., rel_tol=rel_tol, abs_tol=abs_tol)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def add_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> float:
     """Add two floats."""
     if is_addition_zero_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):

@@ -178,7 +178,7 @@ symbol         RANDNX1     RANDNX2
 
 ## Indexing
 
-Like any other class subclassing `vectorbt.base.array_wrapper.Wrapping`, we can do pandas indexing
+Like any other class subclassing `vectorbt.base.wrapping.Wrapping`, we can do pandas indexing
 on a `Data` instance, which forwards indexing operation to each Series/DataFrame:
 
 ```python-repl
@@ -267,7 +267,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.datetime import is_tz_aware, to_timezone
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic import plotting
@@ -483,7 +483,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 See `vectorbt.utils.datetime.to_timezone`.
             missing_index (str): See `Data.align_index`.
             missing_columns (str): See `Data.align_columns`.
-            wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper`.
+            wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         For defaults, see `data` in `vectorbt._settings.settings`."""
@@ -674,12 +674,18 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         if len(self.symbols) > 1:
             new_data = {c: pd.DataFrame(
                 index=index,
-                columns=pd.Index(self.symbols, name=level_name)
+                columns=pd.Index(self.symbols, name=level_name),
+                dtype=self.data[self.symbols[0]].dtype
+                if isinstance(self.data[self.symbols[0]], pd.Series)
+                else self.data[self.symbols[0]][c].dtype
             ) for c in columns}
         else:
             new_data = {c: pd.Series(
                 index=index,
-                name=self.symbols[0]
+                name=self.symbols[0],
+                dtype=self.data[self.symbols[0]].dtype
+                if isinstance(self.data[self.symbols[0]], pd.Series)
+                else self.data[self.symbols[0]][c].dtype
             ) for c in columns}
         for c in columns:
             for s in self.symbols:

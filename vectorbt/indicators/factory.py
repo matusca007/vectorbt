@@ -1059,7 +1059,7 @@ custom_price_above           1.5           2.5
 ## Indexing
 
 `IndicatorFactory` attaches pandas indexing to the indicator class thanks to
-`vectorbt.base.array_wrapper.ArrayWrapper`. Supported are `iloc`, `loc`,
+`vectorbt.base.wrapping.ArrayWrapper`. Supported are `iloc`, `loc`,
 `*param_name*_loc`, `xs`, and `__getitem__`.
 
 This makes possible accessing rows and columns by labels, integer positions, and parameters.
@@ -1183,7 +1183,7 @@ from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.docs import to_doc
 from vectorbt.base import index_fns, reshape_fns, combine_fns
 from vectorbt.base.indexing import build_param_indexer
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.accessors import BaseAccessor
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
@@ -1471,7 +1471,7 @@ def run_pipeline(
             when stacking parameter and input column levels.
         return_raw (bool): Whether to return raw output without post-processing and hashed parameter tuples.
         use_raw (bool): Takes the raw results and uses them instead of running `custom_func`.
-        wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper`.
+        wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
         seed (int): Set seed to make output deterministic.
         **kwargs: Keyword arguments passed to the `custom_func`.
 

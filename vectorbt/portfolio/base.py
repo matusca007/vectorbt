@@ -379,7 +379,7 @@ Name: total_profit, dtype: float64
 
 ## Indexing
 
-Like any other class subclassing `vectorbt.base.array_wrapper.Wrapping`, we can do pandas indexing
+Like any other class subclassing `vectorbt.base.wrapping.Wrapping`, we can do pandas indexing
 on a `Portfolio` instance, which forwards indexing operation to each object with columns:
 
 ```python-repl
@@ -404,7 +404,7 @@ Combined portfolio is indexed by group:
     Changing index (time axis) is not supported. The object should be treated as a Series
     rather than a DataFrame; for example, use `pf.iloc[0]` instead of `pf.iloc[:, 0]`.
 
-    Indexing behavior depends solely upon `vectorbt.base.array_wrapper.ArrayWrapper`.
+    Indexing behavior depends solely upon `vectorbt.base.wrapping.ArrayWrapper`.
     For example, if `group_select` is enabled indexing will be performed on groups,
     otherwise on single columns. You can pass wrapper arguments with `wrapper_kwargs`.
 
@@ -1425,7 +1425,7 @@ from vectorbt.utils.random import set_seed
 from vectorbt.utils.colors import adjust_opacity
 from vectorbt.utils.figure import get_domain
 from vectorbt.base.reshape_fns import to_1d_array, to_2d_array, broadcast, broadcast_to, to_pd_array
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.drawdowns import Drawdowns
@@ -1499,7 +1499,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     Args:
         wrapper (ArrayWrapper): Array wrapper.
 
-            See `vectorbt.base.array_wrapper.ArrayWrapper`.
+            See `vectorbt.base.wrapping.ArrayWrapper`.
         close (array_like): Last asset price at each time step.
         order_records (array_like): A structured NumPy array of order records.
         log_records (array_like): A structured NumPy array of log records.
@@ -1761,9 +1761,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Set to a lower number if you run out of memory.
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
-            group_by (any): Group columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
-            wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper`.
+            wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
             attach_call_seq (bool): Whether to pass `call_seq` to the constructor.
 
@@ -2684,7 +2684,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ls_mode = short_entries is not None or short_exits is not None
         signal_func_mode = signal_func_nb is not nb.no_signal_func_nb
         if (entries is not None or exits is not None or ls_mode) and signal_func_mode:
-            raise ValueError("Either any of the signal arrays or signal_func_nb should be set, not both")
+            raise ValueError("Either any of the signal arrays or signal_func_nb must be provided, not both")
         if entries is None:
             if exits is None and not ls_mode:
                 entries = True
@@ -3135,7 +3135,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             run_kwargs = {}
 
         if n is not None and (entry_prob is not None or exit_prob is not None):
-            raise ValueError("Either n or entry_prob and exit_prob should be set")
+            raise ValueError("Either n or entry_prob and exit_prob must be provided")
         if n is not None:
             rand = RANDNX.run(
                 n=n,
@@ -3161,7 +3161,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             entries = rprobnx.entries
             exits = rprobnx.exits
         else:
-            raise ValueError("At least n or entry_prob and exit_prob should be set")
+            raise ValueError("At least n or entry_prob and exit_prob must be provided")
 
         return cls.from_signals(close, entries, exits, seed=seed, **kwargs)
 
@@ -4003,7 +4003,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def regroup(self: PortfolioT, group_by: tp.GroupByLike, **kwargs) -> PortfolioT:
         """Regroup this object.
 
-        See `vectorbt.base.array_wrapper.Wrapping.regroup`.
+        See `vectorbt.base.wrapping.Wrapping.regroup`.
 
         !!! note
             All cached objects will be lost."""
@@ -4899,7 +4899,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             free (bool): Whether to plot the flow of the free cash.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
@@ -5002,7 +5002,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             free (bool): Whether to plot the flow of the free cash.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
@@ -5060,7 +5060,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             direction (Direction): See `vectorbt.portfolio.enums.Direction`.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
@@ -5115,7 +5115,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             free (bool): Whether to plot free cash flow.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
@@ -5165,7 +5165,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             benchmark_rets (array_like): Benchmark returns.
 
                 If None, will use `Portfolio.benchmark_returns`.
@@ -5213,7 +5213,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             **kwargs: Keyword arguments passed to `vectorbt.generic.drawdowns.Drawdowns.plot`.
         """
         from vectorbt._settings import settings
@@ -5240,7 +5240,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
@@ -5292,7 +5292,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             direction (Direction): See `vectorbt.portfolio.enums.Direction`.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
@@ -5347,7 +5347,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Args:
             column (str): Name of the column/group to plot.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             xref (str): X coordinate axis.
             yref (str): Y coordinate axis.
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.

@@ -16,7 +16,7 @@ from vectorbt.utils.config import Config, merge_dicts, get_func_arg_names
 from vectorbt.utils.template import deep_substitute
 from vectorbt.utils.tags import match_tags
 from vectorbt.utils.attr import get_dict_attr
-from vectorbt.base.array_wrapper import Wrapping
+from vectorbt.base.wrapping import Wrapping
 
 
 class MetaStatsBuilderMixin(type):
@@ -31,7 +31,7 @@ class MetaStatsBuilderMixin(type):
 class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
     """Mixin that implements `StatsBuilderMixin.stats`.
 
-    Required to be a subclass of `vectorbt.base.array_wrapper.Wrapping`."""
+    Required to be a subclass of `vectorbt.base.wrapping.Wrapping`."""
 
     def __init__(self) -> None:
         checks.assert_instance_of(self, Wrapping)
@@ -140,7 +140,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                     and return whatever is acceptable to be returned by `calc_func`. Defaults to None.
                 * `fill_wrap_kwargs`: Whether to fill `wrap_kwargs` with `to_timedelta` and `silence_warnings`.
                     Defaults to False.
-                * `apply_to_timedelta`: Whether to apply `vectorbt.base.array_wrapper.ArrayWrapper.to_timedelta`
+                * `apply_to_timedelta`: Whether to apply `vectorbt.base.wrapping.ArrayWrapper.to_timedelta`
                     on the result. To disable this globally, pass `to_timedelta=False` in `settings`.
                     Defaults to False.
                 * `pass_{arg}`: Whether to pass any argument from the settings (see below). Defaults to True if
@@ -184,7 +184,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                     all columns first and only then selects the column 'a'. The first method is preferred
                     when you have a lot of data or caching is disabled. The second method is preferred when
                     most attributes have already been cached.
-            group_by (any): Group or ungroup columns. See `vectorbt.base.column_grouper.ColumnGrouper`.
+            group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             agg_func (callable): Aggregation function to aggregate statistics across all columns.
                 Defaults to mean.
 
@@ -594,7 +594,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 warnings.warn(f"Object has multiple columns. Aggregating using {agg_func}. "
                               f"Pass column to select a single column/group.", stacklevel=2)
             return pd.Series(stats_dct, name='agg_func_' + agg_func.__name__)
-        new_index = reself.wrapper.grouper.get_columns(group_by=group_by)
+        new_index = reself.wrapper.grouper.get_index(group_by=group_by)
         stats_df = pd.DataFrame(stats_dct, index=new_index)
         return stats_df
 

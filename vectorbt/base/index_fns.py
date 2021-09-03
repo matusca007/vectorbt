@@ -8,10 +8,10 @@ and cleansing MultiIndex levels. "Index" in pandas context is referred to both i
 
 import numpy as np
 import pandas as pd
-from numba import njit
 from datetime import datetime, timedelta
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 from vectorbt.utils import checks
 
 
@@ -234,7 +234,7 @@ def drop_duplicate_levels(index: tp.Index, keep: tp.Optional[str] = None) -> tp.
     return index.droplevel(levels_to_drop)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def _align_index_to_nb(a: tp.Array1d, b: tp.Array1d) -> tp.Array1d:
     """Return indices required to align `a` to `b`."""
     idxs = np.empty(b.shape[0], dtype=np.int_)

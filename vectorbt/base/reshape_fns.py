@@ -9,14 +9,14 @@ and unstacking."""
 import numpy as np
 from numpy.lib.stride_tricks import _broadcast_shape
 import pandas as pd
-from numba import njit
 from collections.abc import Sequence
 import functools
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 from vectorbt.utils import checks
 from vectorbt.utils.config import resolve_dict
-from vectorbt.base import index_fns, array_wrapper
+from vectorbt.base import index_fns, wrapping
 
 
 def to_any_array(arg: tp.ArrayLike, raw: bool = False) -> tp.AnyArray:
@@ -114,13 +114,13 @@ def repeat(arg: tp.ArrayLike, n: int, axis: int = 1, raw: bool = False) -> tp.An
     arg = to_any_array(arg, raw=raw)
     if axis == 0:
         if checks.is_pandas(arg):
-            return array_wrapper.ArrayWrapper.from_obj(arg).wrap(
+            return wrapping.ArrayWrapper.from_obj(arg).wrap(
                 np.repeat(arg.values, n, axis=0), index=index_fns.repeat_index(arg.index, n))
         return np.repeat(arg, n, axis=0)
     elif axis == 1:
         arg = to_2d(arg)
         if checks.is_pandas(arg):
-            return array_wrapper.ArrayWrapper.from_obj(arg).wrap(
+            return wrapping.ArrayWrapper.from_obj(arg).wrap(
                 np.repeat(arg.values, n, axis=1), columns=index_fns.repeat_index(arg.columns, n))
         return np.repeat(arg, n, axis=1)
     else:
@@ -133,17 +133,17 @@ def tile(arg: tp.ArrayLike, n: int, axis: int = 1, raw: bool = False) -> tp.AnyA
     if axis == 0:
         if arg.ndim == 2:
             if checks.is_pandas(arg):
-                return array_wrapper.ArrayWrapper.from_obj(arg).wrap(
+                return wrapping.ArrayWrapper.from_obj(arg).wrap(
                     np.tile(arg.values, (n, 1)), index=index_fns.tile_index(arg.index, n))
             return np.tile(arg, (n, 1))
         if checks.is_pandas(arg):
-            return array_wrapper.ArrayWrapper.from_obj(arg).wrap(
+            return wrapping.ArrayWrapper.from_obj(arg).wrap(
                 np.tile(arg.values, n), index=index_fns.tile_index(arg.index, n))
         return np.tile(arg, n)
     elif axis == 1:
         arg = to_2d(arg)
         if checks.is_pandas(arg):
-            return array_wrapper.ArrayWrapper.from_obj(arg).wrap(
+            return wrapping.ArrayWrapper.from_obj(arg).wrap(
                 np.tile(arg.values, (1, n)), columns=index_fns.tile_index(arg.columns, n))
         return np.tile(arg, (1, n))
     else:
@@ -911,7 +911,7 @@ def unstack_to_df(arg: tp.SeriesFrame,
     return df
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def flex_choose_i_and_col_nb(a: tp.Array, flex_2d: bool = True) -> tp.Tuple[int, int]:
     """Choose selection index and column based on the array's shape.
 
@@ -944,7 +944,7 @@ def flex_choose_i_and_col_nb(a: tp.Array, flex_2d: bool = True) -> tp.Tuple[int,
     return i, col
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, flex_2d: bool = True) -> tp.Any:
     """Select element of `a` as if it has been broadcast."""
     if flex_i == -1:
@@ -960,7 +960,7 @@ def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, fl
     return a[flex_i, flex_col]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def flex_select_auto_nb(a: tp.Array, i: int, col: int, flex_2d: bool = True) -> tp.Any:
     """Combines `flex_choose_i_and_col_nb` and `flex_select_nb`."""
     flex_i, flex_col = flex_choose_i_and_col_nb(a, flex_2d)

@@ -25,10 +25,10 @@ These only accept NumPy arrays and other Numba-compatible types.
 
     Returned indices should be absolute."""
 
-from numba import njit
 import numpy as np
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 from vectorbt.utils.array import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
 from vectorbt.base.reshape_fns import flex_select_auto_nb
 from vectorbt.generic.enums import range_dt, RangeStatus
@@ -38,7 +38,7 @@ from vectorbt.signals.enums import StopType
 # ############# Generation ############# #
 
 
-@njit
+@register_jit
 def generate_nb(shape: tp.Shape,
                 pick_first: bool,
                 choice_func_nb: tp.ChoiceFunc, *args) -> tp.Array2d:
@@ -91,7 +91,7 @@ def generate_nb(shape: tp.Shape,
     return out
 
 
-@njit
+@register_jit
 def generate_ex_nb(entries: tp.Array2d,
                    wait: int,
                    until_next: bool,
@@ -155,7 +155,7 @@ def generate_ex_nb(entries: tp.Array2d,
     return exits
 
 
-@njit
+@register_jit
 def generate_enex_nb(shape: tp.Shape,
                      entry_wait: int,
                      exit_wait: int,
@@ -253,7 +253,7 @@ def generate_enex_nb(shape: tp.Shape,
 # ############# Filtering ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def clean_enex_1d_nb(entries: tp.Array1d,
                      exits: tp.Array1d,
                      entry_first: bool) -> tp.Tuple[tp.Array1d, tp.Array1d]:
@@ -279,7 +279,7 @@ def clean_enex_1d_nb(entries: tp.Array1d,
     return entries_out, exits_out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def clean_enex_nb(entries: tp.Array2d,
                   exits: tp.Array2d,
                   entry_first: bool) -> tp.Tuple[tp.Array2d, tp.Array2d]:
@@ -295,7 +295,7 @@ def clean_enex_nb(entries: tp.Array2d,
 # ############# Random ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def rand_choice_nb(from_i: int, to_i: int, col: int, n: tp.MaybeArray[int]) -> tp.Array1d:
     """`choice_func_nb` to randomly pick `n` values from range `[from_i, to_i)`.
 
@@ -305,7 +305,7 @@ def rand_choice_nb(from_i: int, to_i: int, col: int, n: tp.MaybeArray[int]) -> t
     return from_i + np.random.choice(to_i - from_i, size=size, replace=False)
 
 
-@njit
+@register_jit
 def generate_rand_nb(shape: tp.Shape, n: tp.MaybeArray[int], seed: tp.Optional[int] = None) -> tp.Array2d:
     """Create a boolean matrix of `shape` and pick a number of signals randomly.
 
@@ -321,7 +321,7 @@ def generate_rand_nb(shape: tp.Shape, n: tp.MaybeArray[int], seed: tp.Optional[i
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def rand_by_prob_choice_nb(from_i: int,
                            to_i: int,
                            col: int,
@@ -343,7 +343,7 @@ def rand_by_prob_choice_nb(from_i: int,
     return temp_idx_arr[:j]
 
 
-@njit
+@register_jit
 def generate_rand_by_prob_nb(shape: tp.Shape,
                              prob: tp.MaybeArray[float],
                              pick_first: bool,
@@ -367,7 +367,7 @@ def generate_rand_by_prob_nb(shape: tp.Shape,
 
 # ############# Random exits ############# #
 
-@njit
+@register_jit
 def generate_rand_ex_nb(entries: tp.Array2d,
                         wait: int,
                         until_next: bool,
@@ -388,7 +388,7 @@ def generate_rand_ex_nb(entries: tp.Array2d,
     )
 
 
-@njit
+@register_jit
 def generate_rand_ex_by_prob_nb(entries: tp.Array2d,
                                 prob: tp.MaybeArray[float],
                                 wait: int,
@@ -413,7 +413,7 @@ def generate_rand_ex_by_prob_nb(entries: tp.Array2d,
     )
 
 
-@njit
+@register_jit
 def generate_rand_enex_nb(shape: tp.Shape,
                           n: tp.MaybeArray[int],
                           entry_wait: int,
@@ -521,7 +521,7 @@ def rand_enex_apply_nb(input_shape: tp.Shape,
     return generate_rand_enex_nb(input_shape, n, entry_wait, exit_wait)
 
 
-@njit
+@register_jit
 def generate_rand_enex_by_prob_nb(shape: tp.Shape,
                                   entry_prob: tp.MaybeArray[float],
                                   exit_prob: tp.MaybeArray[float],
@@ -552,7 +552,7 @@ def generate_rand_enex_by_prob_nb(shape: tp.Shape,
 # ############# Stop exits ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def first_choice_nb(from_i: int, to_i: int, col: int, a: tp.Array2d) -> tp.Array1d:
     """`choice_func_nb` that returns the index of the first signal in `a`."""
     out = np.empty((1,), dtype=np.int_)
@@ -563,7 +563,7 @@ def first_choice_nb(from_i: int, to_i: int, col: int, a: tp.Array2d) -> tp.Array
     return out[:0]  # empty
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def stop_choice_nb(from_i: int,
                    to_i: int,
                    col: int,
@@ -637,7 +637,7 @@ def stop_choice_nb(from_i: int,
     return temp_idx_arr[:j]
 
 
-@njit
+@register_jit
 def generate_stop_ex_nb(entries: tp.Array2d,
                         ts: tp.ArrayLike,
                         stop: tp.MaybeArray[float],
@@ -692,7 +692,7 @@ def generate_stop_ex_nb(entries: tp.Array2d,
     )
 
 
-@njit
+@register_jit
 def generate_stop_enex_nb(entries: tp.Array2d,
                           ts: tp.Array,
                           stop: tp.MaybeArray[float],
@@ -720,7 +720,7 @@ def generate_stop_enex_nb(entries: tp.Array2d,
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def ohlc_stop_choice_nb(from_i: int,
                         to_i: int,
                         col: int,
@@ -872,7 +872,7 @@ def ohlc_stop_choice_nb(from_i: int,
     return temp_idx_arr[:j]
 
 
-@njit
+@register_jit
 def generate_ohlc_stop_ex_nb(entries: tp.Array2d,
                              open: tp.ArrayLike,
                              high: tp.ArrayLike,
@@ -978,7 +978,7 @@ def generate_ohlc_stop_ex_nb(entries: tp.Array2d,
     )
 
 
-@njit
+@register_jit
 def generate_ohlc_stop_enex_nb(entries: tp.Array2d,
                                open: tp.ArrayLike,
                                high: tp.ArrayLike,
@@ -1033,7 +1033,7 @@ def generate_ohlc_stop_enex_nb(entries: tp.Array2d,
 # ############# Map and reduce ranges ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def between_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `a`."""
     range_records = np.empty(a.shape[0] * a.shape[1], dtype=range_dt)
@@ -1054,7 +1054,7 @@ def between_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
     return range_records[:ridx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def between_two_ranges_nb(a: tp.Array2d, b: tp.Array2d, from_other: bool = False) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `a` and `b`.
 
@@ -1096,7 +1096,7 @@ def between_two_ranges_nb(a: tp.Array2d, b: tp.Array2d, from_other: bool = False
     return range_records[:ridx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each partition of signals in `a`."""
     range_records = np.empty(a.shape[0] * a.shape[1], dtype=range_dt)
@@ -1131,7 +1131,7 @@ def partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
     return range_records[:ridx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def between_partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two partitions in `a`."""
     range_records = np.empty(a.shape[0] * a.shape[1], dtype=range_dt)
@@ -1159,7 +1159,7 @@ def between_partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
 
 # ############# Ranking ############# #
 
-@njit
+@register_jit
 def rank_nb(a: tp.Array2d,
             reset_by: tp.Optional[tp.Array1d],
             after_false: bool,
@@ -1197,7 +1197,7 @@ def rank_nb(a: tp.Array2d,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def sig_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_start_i: int,
                     sig_pos_temp: tp.Array1d, allow_gaps: bool) -> int:
     """`rank_func_nb` that returns the rank of each signal by its position in the partition."""
@@ -1209,7 +1209,7 @@ def sig_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_s
     return sig_pos_temp[col]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def part_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_start_i: int,
                      part_pos_temp: tp.Array1d) -> int:
     """`rank_func_nb` that returns the rank of each partition by its position in the series."""
@@ -1223,7 +1223,7 @@ def part_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_
 # ############# Index ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def nth_index_1d_nb(a: tp.Array1d, n: int) -> int:
     """Get the index of the n-th True value.
 
@@ -1246,7 +1246,7 @@ def nth_index_1d_nb(a: tp.Array1d, n: int) -> int:
     return -1
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def nth_index_nb(a: tp.Array2d, n: int) -> tp.Array1d:
     """2-dim version of `nth_index_1d_nb`."""
     out = np.empty(a.shape[1], dtype=np.int_)
@@ -1255,14 +1255,14 @@ def nth_index_nb(a: tp.Array2d, n: int) -> tp.Array1d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def norm_avg_index_1d_nb(a: tp.Array1d) -> float:
     """Get mean index normalized to (-1, 1)."""
     mean_index = np.mean(np.flatnonzero(a))
     return renormalize_nb(mean_index, (0, len(a) - 1), (-1, 1))
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def norm_avg_index_nb(a: tp.Array2d) -> tp.Array1d:
     """2-dim version of `norm_avg_index_1d_nb`."""
     out = np.empty(a.shape[1], dtype=np.float_)

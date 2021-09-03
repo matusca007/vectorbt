@@ -146,7 +146,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.datetime import freq_to_timedelta, DatetimeIndexes
 from vectorbt.base.reshape_fns import to_1d_array, to_2d_array, broadcast, broadcast_to
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.drawdowns import Drawdowns
 from vectorbt.generic.accessors import (
     GenericAccessor,
@@ -272,7 +272,7 @@ class ReturnsAccessor(GenericAccessor):
         """Get annualization factor."""
         if self.wrapper.freq is None:
             raise ValueError("Index frequency is None. "
-                             "Pass it as `freq` or define it globally under `settings.array_wrapper`.")
+                             "Pass it as `freq` or define it globally under `settings.wrapping`.")
         if self.year_freq is None:
             raise ValueError("Year frequency is None. "
                              "Pass `year_freq` or define it globally under `settings.returns`.")
@@ -890,7 +890,7 @@ class ReturnsAccessor(GenericAccessor):
                      silence_warnings: bool = False) -> ReturnsAccessorT:
         """Resolve self.
 
-        See `vectorbt.base.array_wrapper.Wrapping.resolve_self`.
+        See `vectorbt.base.wrapping.Wrapping.resolve_self`.
 
         Creates a copy of this instance `year_freq` is different in `cond_kwargs`."""
         if cond_kwargs is None:

@@ -71,8 +71,8 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod, attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.config import merge_dicts, get_func_arg_names
 from vectorbt.base import combine_fns, index_fns, reshape_fns
-from vectorbt.base.column_grouper import ColumnGrouper
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.grouping import Grouper
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 
 BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 
@@ -88,7 +88,7 @@ class BaseAccessor(Wrapping):
     we will convert any Series to a DataFrame and perform matrix computation on it. Afterwards,
     by using `BaseAccessor.wrapper`, we will convert the 2-dim output back to a Series.
 
-    `**kwargs` will be passed to `vectorbt.base.array_wrapper.ArrayWrapper`."""
+    `**kwargs` will be passed to `vectorbt.base.wrapping.ArrayWrapper`."""
 
     def __init__(self, obj: tp.SeriesFrame, wrapper: tp.Optional[ArrayWrapper] = None, **kwargs) -> None:
         checks.assert_instance_of(obj, (pd.Series, pd.DataFrame))
@@ -96,7 +96,7 @@ class BaseAccessor(Wrapping):
         self._obj = obj
 
         wrapper_arg_names = get_func_arg_names(ArrayWrapper.__init__)
-        grouper_arg_names = get_func_arg_names(ColumnGrouper.__init__)
+        grouper_arg_names = get_func_arg_names(Grouper.__init__)
         wrapping_kwargs = dict()
         for k in list(kwargs.keys()):
             if k in wrapper_arg_names or k in grouper_arg_names:
@@ -144,12 +144,27 @@ class BaseAccessor(Wrapping):
         return self._obj
 
     @class_or_instancemethod
+    def ndim(cls_or_self) -> int:
+        raise NotImplementedError
+
+    @class_or_instancemethod
     def is_series(cls_or_self) -> bool:
         raise NotImplementedError
 
     @class_or_instancemethod
     def is_frame(cls_or_self) -> bool:
         raise NotImplementedError
+
+    @classmethod
+    def resolve_shape(cls, shape: tp.RelaxedShape) -> tp.Shape:
+        """Resolve shape."""
+        if not isinstance(shape, tuple):
+            shape = (shape, 1)
+        elif isinstance(shape, tuple) and len(shape) == 1:
+            shape = (shape[0], 1)
+        if cls.is_series() and shape[1] > 1:
+            raise ValueError("Use DataFrame accessor")
+        return shape
 
     # ############# Creation ############# #
 
@@ -321,9 +336,6 @@ class BaseAccessor(Wrapping):
         ## Example
 
         ```python-repl
-        >>> import vectorbt as vbt
-        >>> import pandas as pd
-
         >>> df1 = pd.DataFrame([[1, 2], [3, 4]], index=['x', 'y'], columns=['a', 'b'])
         >>> df1
            a  b
@@ -399,7 +411,7 @@ class BaseAccessor(Wrapping):
                 Can be Numba-compiled.
             keep_pd (bool): Whether to keep inputs as pandas objects, otherwise convert to NumPy arrays.
             to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
-            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper.wrap`.
+            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
 
         !!! note
@@ -408,9 +420,6 @@ class BaseAccessor(Wrapping):
         ## Example
 
         ```python-repl
-        >>> import vectorbt as vbt
-        >>> import pandas as pd
-
         >>> sr = pd.Series([1, 2], index=['x', 'y'])
         >>> sr2.vbt.apply(apply_func=lambda x: x ** 2)
         i2
@@ -445,9 +454,6 @@ class BaseAccessor(Wrapping):
         ## Example
 
         ```python-repl
-        >>> import vectorbt as vbt
-        >>> import pandas as pd
-
         >>> sr = pd.Series([1, 2], index=['x', 'y'])
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
         >>> sr.vbt.concat(df, keys=['c', 'd'])
@@ -495,7 +501,7 @@ class BaseAccessor(Wrapping):
                 Only works with `numba_loop` set to False and `concat` is set to True.
                 See `vectorbt.base.combine_fns.ray_apply` for related keyword arguments.
             keys (index_like): Outermost column level.
-            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper.wrap`.
+            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
 
         !!! note
@@ -504,9 +510,6 @@ class BaseAccessor(Wrapping):
         ## Example
 
         ```python-repl
-        >>> import vectorbt as vbt
-        >>> import pandas as pd
-
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
         >>> df.vbt.apply_and_concat(3, [1, 2, 3],
         ...     apply_func=lambda i, a, b: a * b[i], keys=['c', 'd', 'e'])
@@ -590,7 +593,7 @@ class BaseAccessor(Wrapping):
             broadcast (bool): Whether to broadcast all inputs.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
             keys (index_like): Outermost column level.
-            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.array_wrapper.ArrayWrapper.wrap`.
+            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
 
         !!! note
@@ -603,9 +606,6 @@ class BaseAccessor(Wrapping):
         ## Example
 
         ```python-repl
-        >>> import vectorbt as vbt
-        >>> import pandas as pd
-
         >>> sr = pd.Series([1, 2], index=['x', 'y'])
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
 
@@ -719,6 +719,10 @@ class BaseSRAccessor(BaseAccessor):
         BaseAccessor.__init__(self, obj, **kwargs)
 
     @class_or_instancemethod
+    def ndim(cls_or_self) -> int:
+        return 1
+
+    @class_or_instancemethod
     def is_series(cls_or_self) -> bool:
         return True
 
@@ -736,6 +740,10 @@ class BaseDFAccessor(BaseAccessor):
         checks.assert_instance_of(obj, pd.DataFrame)
 
         BaseAccessor.__init__(self, obj, **kwargs)
+
+    @class_or_instancemethod
+    def ndim(cls_or_self) -> int:
+        return 2
 
     @class_or_instancemethod
     def is_series(cls_or_self) -> bool:

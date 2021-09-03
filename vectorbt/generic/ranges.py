@@ -121,7 +121,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.base.reshape_fns import to_pd_array, to_2d_array
-from vectorbt.base.array_wrapper import ArrayWrapper
+from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.enums import RangeStatus, range_dt
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic import nb

@@ -6,7 +6,7 @@
 from vectorbt import _typing as tp
 from vectorbt.utils.decorators import cached_property, cached_method
 from vectorbt.base.reshape_fns import to_1d_array
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.records import nb
 
 

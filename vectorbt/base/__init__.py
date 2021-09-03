@@ -3,7 +3,7 @@
 
 """Modules with base classes and utilities for pandas objects, such as broadcasting."""
 
-from vectorbt.base.array_wrapper import ArrayWrapper
+from vectorbt.base.wrapping import ArrayWrapper
 
 __all__ = [
     'ArrayWrapper'

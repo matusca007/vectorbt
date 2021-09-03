@@ -537,12 +537,12 @@ reduce the memory footprint, and you as a user always have 90-95% control over m
 (just like a market order, but you can easily build upon it to implement limit and stop orders).
 This means order execution is effectively state-less - it simply receives a command with inputs and gives you the
 result of the execution including the new cash balance and other metrics. There is no list of pending orders.
-
-    Update: `Portfolio.from_signals` now supports stop orders.
+**Update**: `Portfolio.from_signals` now supports stop orders.
 - *One order limit*: Only one order command per symbol and bar - although this can (and probably will) be expanded.
-
-    Update: `Portfolio.from_order_func` with `flexible` option supports multiple orders.
+**Update**: `Portfolio.from_order_func` with `flexible` option supports multiple orders.
 - *Limited support for parallelization*: Read [this](https://github.com/polakowo/vectorbt/issues/129#issuecomment-823596039).
+**Update**: Parallelization with Numba can now be turned on/off and all functions
+by default release GIL to be used by a multi-threading backend.
 - *Python skills required*: Having an intermediate knowledge of Pandas, NumPy, and broadcasting principles is a must.
 
 ## Resources
@@ -626,6 +626,7 @@ __version__ = _version
 # Most important modules
 from vectorbt.generic import nb, plotting
 from vectorbt._settings import settings
+from vectorbt.nb_registry import register_jit, register_generated_jit
 
 # Most important classes
 from vectorbt.utils import *

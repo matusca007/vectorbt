@@ -402,7 +402,7 @@ class BinanceData(Data):
         """Override `vectorbt.data.base.Data.download` to instantiate a Binance client."""
         from binance.client import Client
         from vectorbt._settings import settings
-        binance_cfg = settings['data']['binance']
+        binance_cfg = settings['data']['custom']['binance']
 
         client_kwargs = dict()
         for k in get_func_kwargs(Client):
@@ -443,7 +443,7 @@ class BinanceData(Data):
             show_progress (bool): Whether to show the progress bar.
             tqdm_kwargs (dict): Keyword arguments passed to `tqdm`.
 
-        For defaults, see `data.binance` in `vectorbt._settings.settings`.
+        For defaults, see `data.custom.binance` in `vectorbt._settings.settings`.
         """
         if client is None:
             raise ValueError("client must be provided")
@@ -630,11 +630,11 @@ class CCXTData(Data):
             tqdm_kwargs (dict): Keyword arguments passed to `tqdm`.
             params (dict): Exchange-specific key-value parameters.
 
-        For defaults, see `data.ccxt` in `vectorbt._settings.settings`.
+        For defaults, see `custom.data.ccxt` in `vectorbt._settings.settings`.
         """
         import ccxt
         from vectorbt._settings import settings
-        ccxt_cfg = settings['data']['ccxt']
+        ccxt_cfg = settings['data']['custom']['ccxt']
 
         if config is None:
             config = {}

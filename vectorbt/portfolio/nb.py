@@ -48,9 +48,9 @@ other Numba-compatible types.
 """
 
 import numpy as np
-from numba import njit
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit
 from vectorbt.utils.math import (
     is_close_nb,
     is_close_or_less_nb,
@@ -67,13 +67,13 @@ from vectorbt.portfolio.enums import *
 # ############# Order processing ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def order_not_filled_nb(status: int, status_info: int) -> OrderResult:
     """Return `OrderResult` for order that hasn't been filled."""
     return OrderResult(np.nan, np.nan, np.nan, -1, status, status_info)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def buy_nb(exec_state: ExecuteOrderState,
            size: float,
            price: float,
@@ -209,7 +209,7 @@ def buy_nb(exec_state: ExecuteOrderState,
     return new_exec_state, order_result
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def sell_nb(exec_state: ExecuteOrderState,
             size: float,
             price: float,
@@ -342,7 +342,7 @@ def sell_nb(exec_state: ExecuteOrderState,
     return new_exec_state, order_result
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Execute an order given the current state.
 
@@ -509,7 +509,7 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
     return new_exec_state, order_result
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def fill_log_record_nb(record: tp.Record,
                        record_id: int,
                        i: int,
@@ -571,7 +571,7 @@ def fill_log_record_nb(record: tp.Record,
     record['order_id'] = order_id
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def fill_order_record_nb(record: tp.Record,
                          record_id: int,
                          i: int,
@@ -588,7 +588,7 @@ def fill_order_record_nb(record: tp.Record,
     record['side'] = order_result.side
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def raise_rejected_order_nb(order_result: OrderResult) -> None:
     """Raise an `vectorbt.portfolio.enums.RejectedOrderError`."""
 
@@ -623,7 +623,7 @@ def raise_rejected_order_nb(order_result: OrderResult) -> None:
     raise RejectedOrderError
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def update_value_nb(cash_before: float,
                     cash_now: float,
                     position_before: float,
@@ -647,7 +647,7 @@ def update_value_nb(cash_before: float,
     return val_price_now, value_now
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def process_order_nb(i: int,
                      col: int,
                      group: int,
@@ -740,7 +740,7 @@ def process_order_nb(i: int,
     return order_result, new_state
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def order_nb(size: float = np.nan,
              price: float = np.inf,
              size_type: int = SizeType.Amount,
@@ -777,7 +777,7 @@ def order_nb(size: float = np.nan,
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def close_position_nb(price: float = np.inf,
                       fees: float = 0.,
                       fixed_fees: float = 0.,
@@ -809,7 +809,7 @@ def close_position_nb(price: float = np.inf,
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def order_nothing_nb() -> Order:
     """Convenience function to order nothing."""
     return NoOrder
@@ -818,14 +818,14 @@ def order_nothing_nb() -> Order:
 # ############# Checks ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def check_group_lens_nb(group_lens: tp.Array1d, n_cols: int) -> None:
     """Check `group_lens`."""
     if np.sum(group_lens) != n_cols:
         raise ValueError("group_lens has incorrect total number of columns")
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def check_group_init_cash_nb(group_lens: tp.Array1d, n_cols: int, init_cash: tp.Array1d, cash_sharing: bool) -> None:
     """Check `init_cash`."""
     if cash_sharing:
@@ -836,7 +836,7 @@ def check_group_init_cash_nb(group_lens: tp.Array1d, n_cols: int, init_cash: tp.
             raise ValueError("If cash sharing is disabled, init_cash must match the number of columns")
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_grouped_nb(group_lens: tp.Array1d) -> bool:
     """Check if columm,ns are grouped, that is, more than one column per group."""
     return np.any(group_lens > 1)
@@ -845,7 +845,7 @@ def is_grouped_nb(group_lens: tp.Array1d) -> bool:
 # ############# Call sequence ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def shuffle_call_seq_nb(call_seq: tp.Array2d, group_lens: tp.Array1d) -> None:
     """Shuffle the call sequence array."""
     from_col = 0
@@ -856,7 +856,7 @@ def shuffle_call_seq_nb(call_seq: tp.Array2d, group_lens: tp.Array1d) -> None:
         from_col = to_col
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def build_call_seq_nb(target_shape: tp.Shape,
                       group_lens: tp.Array1d,
                       call_seq_type: int = CallSeqType.Default) -> tp.Array2d:
@@ -901,21 +901,21 @@ def build_call_seq(target_shape: tp.Shape,
 
 # ############# Helper functions ############# #
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_col_elem_nb(ctx: tp.Union[RowContext, SegmentContext, FlexOrderContext], col: int,
                     a: tp.ArrayLike) -> tp.Scalar:
     """Get the current element using flexible indexing given the context and the column."""
     return flex_select_auto_nb(a, ctx.i, col, ctx.flex_2d)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_elem_nb(ctx: tp.Union[OrderContext, PostOrderContext, SignalContext],
                 a: tp.ArrayLike) -> tp.Scalar:
     """Get the current element using flexible indexing given just the context."""
     return flex_select_auto_nb(a, ctx.i, ctx.col, ctx.flex_2d)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_group_value_nb(from_col: int,
                        to_col: int,
                        cash_now: float,
@@ -931,7 +931,7 @@ def get_group_value_nb(from_col: int,
     return group_value
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_group_value_ctx_nb(seg_ctx: SegmentContext) -> float:
     """Get group value from context.
 
@@ -953,7 +953,7 @@ def get_group_value_ctx_nb(seg_ctx: SegmentContext) -> float:
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def approx_order_value_nb(size: float,
                           size_type: int,
                           direction: int,
@@ -986,7 +986,7 @@ def approx_order_value_nb(size: float,
     return np.nan
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def sort_call_seq_out_nb(ctx: SegmentContext,
                          size: tp.ArrayLike,
                          size_type: tp.ArrayLike,
@@ -1056,7 +1056,7 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
     insert_argsort_nb(order_value_out, call_seq_out)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def sort_call_seq_nb(ctx: SegmentContext,
                      size: tp.ArrayLike,
                      size_type: tp.ArrayLike,
@@ -1082,7 +1082,7 @@ def sort_call_seq_nb(ctx: SegmentContext,
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def replace_inf_price_nb(prev_close: float, close: float, order: Order) -> Order:
     """Replace infinity price in an order."""
     order_price = order.price
@@ -1108,7 +1108,7 @@ def replace_inf_price_nb(prev_close: float, close: float, order: Order) -> Order
     )
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Execute an order without persistence."""
     state = ProcessOrderState(
@@ -1131,7 +1131,7 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
     return execute_order_nb(state, order)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def init_records_nb(target_shape: tp.Shape,
                     max_orders: tp.Optional[int] = None,
                     max_logs: int = 0) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
@@ -1145,7 +1145,7 @@ def init_records_nb(target_shape: tp.Shape,
     return order_records, log_records
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def update_open_pos_stats_nb(record: tp.Record, position_now: float, price: float) -> None:
     """Update statistics of an open position record using custom price."""
     if record['id'] >= 0 and record['status'] == TradeStatus.Open:
@@ -1168,7 +1168,7 @@ def update_open_pos_stats_nb(record: tp.Record, position_now: float, price: floa
         record['return'] = ret
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def update_pos_record_nb(record: tp.Record,
                          i: int,
                          col: int,
@@ -1267,7 +1267,7 @@ def update_pos_record_nb(record: tp.Record,
 # ############# Simulation ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def simulate_from_orders_nb(target_shape: tp.Shape,
                             group_lens: tp.Array1d,
                             init_cash: tp.Array1d,
@@ -1487,7 +1487,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
     return order_records[:oidx], log_records[:lidx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def generate_stop_signal_nb(position_now: float,
                             upon_stop_exit: int,
                             accumulate: int) -> tp.Tuple[bool, bool, bool, bool, int]:
@@ -1521,7 +1521,7 @@ def generate_stop_signal_nb(position_now: float,
     return is_long_entry, is_long_exit, is_short_entry, is_short_exit, accumulate
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def resolve_stop_price_and_slippage_nb(stop_price: float,
                                        price: float,
                                        close: float,
@@ -1537,7 +1537,7 @@ def resolve_stop_price_and_slippage_nb(stop_price: float,
     return price, slippage
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def resolve_signal_conflict_nb(position_now: float,
                                is_entry: bool,
                                is_exit: bool,
@@ -1586,7 +1586,7 @@ def resolve_signal_conflict_nb(position_now: float,
     return is_entry, is_exit
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def resolve_dir_conflict_nb(position_now: float,
                             is_long_entry: bool,
                             is_short_entry: bool,
@@ -1619,7 +1619,7 @@ def resolve_dir_conflict_nb(position_now: float,
     return is_long_entry, is_short_entry
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def resolve_opposite_entry_nb(position_now: float,
                               is_long_entry: bool,
                               is_long_exit: bool,
@@ -1655,7 +1655,7 @@ def resolve_opposite_entry_nb(position_now: float,
     return is_long_entry, is_long_exit, is_short_entry, is_short_exit, accumulate
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def signals_to_size_nb(position_now: float,
                        is_long_entry: bool,
                        is_long_exit: bool,
@@ -1746,7 +1746,7 @@ def signals_to_size_nb(position_now: float,
     return order_size, size_type, direction
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def should_update_stop_nb(stop: float, upon_stop_update: int) -> bool:
     """Whether to update stop."""
     if upon_stop_update == StopUpdateMode.Override or upon_stop_update == StopUpdateMode.OverrideNaN:
@@ -1755,7 +1755,7 @@ def should_update_stop_nb(stop: float, upon_stop_update: int) -> bool:
     return False
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_stop_price_nb(position_now: float,
                       stop_price: float,
                       stop: float,
@@ -1785,19 +1785,19 @@ def get_stop_price_nb(position_now: float,
     return np.nan
 
 
-@njit
+@register_jit
 def no_signal_func_nb(c: SignalContext, *args) -> tp.Tuple[bool, bool, bool, bool]:
     """Placeholder signal function that returns no signal."""
     return False, False, False, False
 
 
-@njit
+@register_jit
 def no_adjust_sl_func_nb(c: AdjustSLContext, *args) -> tp.Tuple[float, bool]:
     """Placeholder function that returns the initial stop-loss value and trailing flag."""
     return c.curr_stop, c.curr_trail
 
 
-@njit
+@register_jit
 def no_adjust_tp_func_nb(c: AdjustTPContext, *args) -> float:
     """Placeholder function that returns the initial take-profit value."""
     return c.curr_stop
@@ -1808,7 +1808,7 @@ AdjustSLFuncT = tp.Callable[[AdjustSLContext, tp.VarArg()], tp.Tuple[float, bool
 AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
 
 
-@njit
+@register_jit
 def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  group_lens: tp.Array1d,
                                  init_cash: tp.Array1d,
@@ -2316,7 +2316,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
     return order_records[:oidx], log_records[:lidx]
 
 
-@njit
+@register_jit
 def dir_enex_signal_func_nb(c: SignalContext,
                             entries: tp.ArrayLike,
                             exits: tp.ArrayLike,
@@ -2332,7 +2332,7 @@ def dir_enex_signal_func_nb(c: SignalContext,
     return is_entry, False, is_exit, False
 
 
-@njit
+@register_jit
 def ls_enex_signal_func_nb(c: SignalContext,
                            long_entries: tp.ArrayLike,
                            long_exits: tp.ArrayLike,
@@ -2346,19 +2346,19 @@ def ls_enex_signal_func_nb(c: SignalContext,
     return is_long_entry, is_long_exit, is_short_entry, is_short_exit
 
 
-@njit
+@register_jit
 def no_pre_func_nb(c: tp.NamedTuple, *args) -> tp.Args:
     """Placeholder preprocessing function that forwards received arguments down the stack."""
     return args
 
 
-@njit
+@register_jit
 def no_order_func_nb(c: OrderContext, *args) -> Order:
     """Placeholder order function that returns no order."""
     return NoOrder
 
 
-@njit
+@register_jit
 def no_post_func_nb(c: tp.NamedTuple, *args) -> None:
     """Placeholder postprocessing function that returns nothing."""
     return None
@@ -2376,7 +2376,7 @@ OrderFuncT = tp.Callable[[OrderContext, tp.VarArg()], Order]
 PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
 
 
-@njit
+@register_jit
 def simulate_nb(target_shape: tp.Shape,
                 group_lens: tp.Array1d,
                 init_cash: tp.Array1d,
@@ -3253,7 +3253,7 @@ def simulate_nb(target_shape: tp.Shape,
     return order_records[:oidx], log_records[:lidx]
 
 
-@njit
+@register_jit
 def simulate_row_wise_nb(target_shape: tp.Shape,
                          group_lens: tp.Array1d,
                          init_cash: tp.Array1d,
@@ -3879,7 +3879,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     return order_records[:oidx], log_records[:lidx]
 
 
-@njit
+@register_jit
 def no_flex_order_func_nb(c: FlexOrderContext, *args) -> tp.Tuple[int, Order]:
     """Placeholder flexible order function that returns break column and no order."""
     return -1, NoOrder
@@ -3888,7 +3888,7 @@ def no_flex_order_func_nb(c: FlexOrderContext, *args) -> tp.Tuple[int, Order]:
 FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Order]]
 
 
-@njit
+@register_jit
 def flex_simulate_nb(target_shape: tp.Shape,
                      group_lens: tp.Array1d,
                      init_cash: tp.Array1d,
@@ -4585,7 +4585,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     return order_records[:oidx], log_records[:lidx]
 
 
-@njit
+@register_jit
 def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               group_lens: tp.Array1d,
                               init_cash: tp.Array1d,
@@ -5119,7 +5119,7 @@ size_zero_neg_err = "Found order with size 0 or less"
 price_zero_neg_err = "Found order with price 0 or less"
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_trade_stats_nb(size: float,
                        entry_price: float,
                        entry_fees: float,
@@ -5137,7 +5137,7 @@ def get_trade_stats_nb(size: float,
     return pnl, ret
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def fill_trade_record_nb(record: tp.Record,
                          id_: int,
                          col: int,
@@ -5179,7 +5179,7 @@ def fill_trade_record_nb(record: tp.Record,
     record['parent_id'] = parent_id
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
                                      col_map: tp.ColMap,
                                      col: int,
@@ -5246,7 +5246,7 @@ def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
     return tidx
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill entry trade records by aggregating order records.
 
@@ -5257,7 +5257,6 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from numba import njit
     >>> from vectorbt.records.nb import col_map_nb
     >>> from vectorbt.portfolio.nb import simulate_from_orders_nb, get_entry_trades_nb
 
@@ -5481,7 +5480,7 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
     return records[:tidx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill exit trade records by aggregating order records.
 
@@ -5492,7 +5491,6 @@ def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from numba import njit
     >>> from vectorbt.records.nb import col_map_nb
     >>> from vectorbt.portfolio.nb import simulate_from_orders_nb, get_exit_trades_nb
 
@@ -5727,7 +5725,7 @@ def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map
     return records[:tidx]
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def trade_winning_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     """Return the current winning streak of each trade."""
     out = np.full(len(records), 0, dtype=np.int_)
@@ -5741,7 +5739,7 @@ def trade_winning_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def trade_losing_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     """Return the current losing streak of each trade."""
     out = np.full(len(records), 0, dtype=np.int_)
@@ -5757,7 +5755,7 @@ def trade_losing_streak_nb(records: tp.RecordArray) -> tp.Array1d:
 
 # ############# Position records ############# #
 
-@njit(cache=True)
+@register_jit(cache=True)
 def fill_position_record_nb(record: tp.Record, id_: int, trade_records: tp.RecordArray) -> None:
     """Fill a position record by aggregating trade records."""
     # Aggregate trades
@@ -5797,7 +5795,7 @@ def fill_position_record_nb(record: tp.Record, id_: int, trade_records: tp.Recor
     record['parent_id'] = id_
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def copy_trade_record_nb(record: tp.Record, trade_record: tp.Record) -> None:
     """Copy a trade record."""
     record['id'] = trade_record['id']
@@ -5816,7 +5814,7 @@ def copy_trade_record_nb(record: tp.Record, trade_record: tp.Record) -> None:
     record['parent_id'] = trade_record['parent_id']
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill position records by aggregating trade records.
 
@@ -5900,7 +5898,7 @@ def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.Re
 # ############# Assets ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_long_size_nb(position_before: float, position_now: float) -> float:
     """Get long size."""
     if position_before <= 0 and position_now <= 0:
@@ -5912,7 +5910,7 @@ def get_long_size_nb(position_before: float, position_now: float) -> float:
     return add_nb(position_now, -position_before)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_short_size_nb(position_before: float, position_now: float) -> float:
     """Get short size."""
     if position_before >= 0 and position_now >= 0:
@@ -5924,7 +5922,7 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
     return add_nb(position_before, -position_now)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def asset_flow_nb(target_shape: tp.Shape,
                   order_records: tp.RecordArray,
                   col_map: tp.ColMap,
@@ -5969,7 +5967,7 @@ def asset_flow_nb(target_shape: tp.Shape,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def assets_nb(asset_flow: tp.Array2d) -> tp.Array2d:
     """Get asset series per column.
 
@@ -5984,25 +5982,25 @@ def assets_nb(asset_flow: tp.Array2d) -> tp.Array2d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def i_group_any_reduce_nb(i: int, group: int, a: tp.Array1d) -> bool:
     """Boolean "any" reducer for grouped columns."""
     return np.any(a)
 
 
-@njit
+@register_jit
 def position_mask_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get whether in position for each row and group."""
     return generic_nb.squeeze_grouped_nb(position_mask, group_lens, i_group_any_reduce_nb).astype(np.bool_)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def group_mean_reduce_nb(group: int, a: tp.Array1d) -> float:
     """Mean reducer for grouped columns."""
     return np.mean(a)
 
 
-@njit
+@register_jit
 def position_coverage_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get coverage of position for each row and group."""
     return generic_nb.reduce_grouped_nb(position_mask, group_lens, group_mean_reduce_nb)
@@ -6011,7 +6009,7 @@ def position_coverage_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array
 # ############# Cash ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def get_free_cash_diff_nb(position_before: float,
                           position_now: float,
                           debt_now: float,
@@ -6051,7 +6049,7 @@ def get_free_cash_diff_nb(position_before: float,
     return new_debt, free_cash_diff
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def cash_flow_nb(target_shape: tp.Shape,
                  order_records: tp.RecordArray,
                  col_map: tp.ColMap,
@@ -6101,7 +6099,7 @@ def cash_flow_nb(target_shape: tp.Shape,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def sum_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Squeeze each group of columns into a single column using sum operation."""
     check_group_lens_nb(group_lens, a.shape[1])
@@ -6115,13 +6113,13 @@ def sum_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def cash_flow_grouped_nb(cash_flow: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get cash flow series per group."""
     return sum_grouped_nb(cash_flow, group_lens)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def init_cash_grouped_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bool) -> tp.Array1d:
     """Get initial cash per group."""
     if cash_sharing:
@@ -6138,7 +6136,7 @@ def init_cash_grouped_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sha
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def init_cash_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bool) -> tp.Array1d:
     """Get initial cash per column."""
     if not cash_sharing:
@@ -6150,7 +6148,7 @@ def init_cash_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bo
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get cash series per column."""
     out = np.empty_like(cash_flow)
@@ -6161,7 +6159,7 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def cash_in_sim_order_nb(cash_flow: tp.Array2d,
                          group_lens: tp.Array1d,
                          init_cash_grouped: tp.Array1d,
@@ -6184,7 +6182,7 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def cash_grouped_nb(target_shape: tp.Shape,
                     cash_flow_grouped: tp.Array2d,
                     group_lens: tp.Array1d,
@@ -6208,19 +6206,19 @@ def cash_grouped_nb(target_shape: tp.Shape,
 # ############# Performance ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def asset_value_nb(close: tp.Array2d, assets: tp.Array2d) -> tp.Array2d:
     """Get asset value series per column."""
     return close * assets
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get asset value series per group."""
     return sum_grouped_nb(asset_value, group_lens)
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def value_in_sim_order_nb(cash: tp.Array2d,
                           asset_value: tp.Array2d,
                           group_lens: tp.Array1d,
@@ -6259,13 +6257,13 @@ def value_in_sim_order_nb(cash: tp.Array2d,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     """Get portfolio value series per column/group."""
     return cash + asset_value
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def total_profit_nb(target_shape: tp.Shape,
                     close: tp.Array2d,
                     order_records: tp.RecordArray,
@@ -6315,7 +6313,7 @@ def total_profit_nb(target_shape: tp.Shape,
     return total_profit
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) -> tp.Array1d:
     """Get total profit per group."""
     check_group_lens_nb(group_lens, total_profit.shape[0])
@@ -6329,19 +6327,19 @@ def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) ->
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def final_value_nb(total_profit: tp.Array1d, init_cash: tp.Array1d) -> tp.Array1d:
     """Get total profit per column/group."""
     return total_profit + init_cash
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def total_return_nb(total_profit: tp.Array1d, init_cash: tp.Array1d) -> tp.Array1d:
     """Get total return per column/group."""
     return total_profit / init_cash
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def returns_in_sim_order_nb(value_iso: tp.Array2d,
                             group_lens: tp.Array1d,
                             init_cash_grouped: tp.Array1d,
@@ -6365,7 +6363,7 @@ def returns_in_sim_order_nb(value_iso: tp.Array2d,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     """Get asset return series per column/group."""
     out = np.empty_like(cash_flow)
@@ -6377,13 +6375,13 @@ def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def benchmark_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get market value per column."""
     return close / close[0] * init_cash
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def benchmark_value_grouped_nb(close: tp.Array2d, group_lens: tp.Array1d, init_cash_grouped: tp.Array1d) -> tp.Array2d:
     """Get market value per group."""
     check_group_lens_nb(group_lens, close.shape[1])
@@ -6400,7 +6398,7 @@ def benchmark_value_grouped_nb(close: tp.Array2d, group_lens: tp.Array1d, init_c
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def total_benchmark_return_nb(benchmark_value: tp.Array2d) -> tp.Array1d:
     """Get total market return per column/group."""
     out = np.empty(benchmark_value.shape[1], dtype=np.float_)
@@ -6409,7 +6407,7 @@ def total_benchmark_return_nb(benchmark_value: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
     """Get gross exposure per column/group."""
     out = np.empty(asset_value.shape, dtype=np.float_)

@@ -174,7 +174,7 @@ can be anything from positions or names of column levels, to a NumPy array with 
 
 There are multiple ways of define grouping:
 
-* When creating `MappedArray`, pass `group_by` to `vectorbt.base.array_wrapper.ArrayWrapper`:
+* When creating `MappedArray`, pass `group_by` to `vectorbt.base.wrapping.ArrayWrapper`:
 
 ```python-repl
 >>> group_by = np.array(['first', 'first', 'second'])
@@ -242,7 +242,7 @@ operations (such as addition) on mapped arrays as if they were NumPy arrays.
 
 ## Indexing
 
-Like any other class subclassing `vectorbt.base.array_wrapper.Wrapping`, we can do pandas indexing
+Like any other class subclassing `vectorbt.base.wrapping.Wrapping`, we can do pandas indexing
 on a `MappedArray` instance, which forwards indexing operation to each object with columns:
 
 ```python-repl
@@ -257,7 +257,7 @@ array([10., 11., 12., 13., 14., 15.])
     Changing index (time axis) is not supported. The object should be treated as a Series
     rather than a DataFrame; for example, use `some_field.iloc[0]` instead of `some_field.iloc[:, 0]`.
 
-    Indexing behavior depends solely upon `vectorbt.base.array_wrapper.ArrayWrapper`.
+    Indexing behavior depends solely upon `vectorbt.base.wrapping.ArrayWrapper`.
     For example, if `group_select` is enabled indexing will be performed on groups,
     otherwise on single columns.
 
@@ -363,7 +363,7 @@ from vectorbt.utils.decorators import cached_method, attach_binary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.base.reshape_fns import to_1d_array, to_dict
-from vectorbt.base.array_wrapper import ArrayWrapper, Wrapping
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
@@ -408,7 +408,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     Args:
         wrapper (ArrayWrapper): Array wrapper.
 
-            See `vectorbt.base.array_wrapper.ArrayWrapper`.
+            See `vectorbt.base.wrapping.ArrayWrapper`.
         mapped_arr (array_like): A one-dimensional array of mapped record values.
         col_arr (array_like): A one-dimensional column array.
 

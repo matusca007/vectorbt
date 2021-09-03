@@ -16,16 +16,16 @@ These only accept NumPy arrays and other Numba-compatible types.
     Records should retain the order they were created in."""
 
 import numpy as np
-from numba import njit, generated_jit
 from numba.np.numpy_support import as_dtype
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import register_jit, register_generated_jit
 
 
 # ############# Indexing ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def col_range_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColRange:
     """Build column range for sorted column array.
 
@@ -51,7 +51,7 @@ def col_range_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColRange:
     return col_range
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def col_range_select_nb(col_range: tp.ColRange, new_cols: tp.Array1d) -> tp.Tuple[tp.Array1d, tp.Array1d]:
     """Perform indexing on a sorted array using column range `col_range`.
 
@@ -74,7 +74,7 @@ def col_range_select_nb(col_range: tp.ColRange, new_cols: tp.Array1d) -> tp.Tupl
     return indices_out, col_arr_out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def record_col_range_select_nb(records: tp.RecordArray, col_range: tp.ColRange,
                                new_cols: tp.Array1d) -> tp.RecordArray:
     """Perform indexing on sorted records using column range `col_range`.
@@ -97,7 +97,7 @@ def record_col_range_select_nb(records: tp.RecordArray, col_range: tp.ColRange,
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def col_map_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColMap:
     """Build a map between columns and their indices.
 
@@ -120,7 +120,7 @@ def col_map_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColMap:
     return col_idxs_out, col_lens_out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def col_map_select_nb(col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.Tuple[tp.Array1d, tp.Array1d]:
     """Same as `mapped_col_range_select_nb` but using column map `col_map`."""
     col_idxs, col_lens = col_map
@@ -143,7 +143,7 @@ def col_map_select_nb(col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.Tuple[tp.A
     return idxs_out, col_arr_out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def record_col_map_select_nb(records: tp.RecordArray, col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.RecordArray:
     """Same as `record_col_range_select_nb` but using column map `col_map`."""
     col_idxs, col_lens = col_map
@@ -168,7 +168,7 @@ def record_col_map_select_nb(records: tp.RecordArray, col_map: tp.ColMap, new_co
 # ############# Sorting ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_col_sorted_nb(col_arr: tp.Array1d) -> bool:
     """Check whether the column array is sorted."""
     for i in range(len(col_arr) - 1):
@@ -177,7 +177,7 @@ def is_col_sorted_nb(col_arr: tp.Array1d) -> bool:
     return True
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_col_idx_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
     """Check whether the column and index arrays are sorted."""
     for i in range(len(col_arr) - 1):
@@ -191,7 +191,7 @@ def is_col_idx_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
 # ############# Mapping ############# #
 
 
-@njit
+@register_jit
 def mapped_to_mask_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
                       inout_map_func_nb: tp.MaskInOutMapFunc, *args) -> tp.Array1d:
     """Map mapped array to a mask per column.
@@ -214,20 +214,20 @@ def mapped_to_mask_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
     return inout
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def top_n_inout_map_nb(inout: tp.Array1d, idxs: tp.Array1d, col: int, mapped_arr: tp.Array1d, n: int) -> None:
     """`inout_map_func_nb` that returns indices of top N elements."""
     # TODO: np.argpartition
     inout[idxs[np.argsort(mapped_arr)[-n:]]] = True
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def bottom_n_inout_map_nb(inout: tp.Array1d, idxs: tp.Array1d, col: int, mapped_arr: tp.Array1d, n: int) -> None:
     """`inout_map_func_nb` that returns indices of bottom N elements."""
     inout[idxs[np.argsort(mapped_arr)[:n]]] = True
 
 
-@njit
+@register_jit
 def apply_on_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
                        apply_func_nb: tp.MappedApplyFunc, *args) -> tp.Array1d:
     """Apply function on mapped array per column.
@@ -250,7 +250,7 @@ def apply_on_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
     return out
 
 
-@njit
+@register_jit
 def apply_on_records_nb(records: tp.RecordArray, col_map: tp.ColMap,
                         apply_func_nb: tp.RecordApplyFunc, *args) -> tp.Array1d:
     """Apply function on records per column.
@@ -272,7 +272,7 @@ def apply_on_records_nb(records: tp.RecordArray, col_map: tp.ColMap,
     return out
 
 
-@njit
+@register_jit
 def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordMapFunc[float], *args) -> tp.Array1d:
     """Map each record to a single value.
 
@@ -287,7 +287,7 @@ def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordMapFunc[float]
 # ############# Expansion ############# #
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def is_mapped_expandable_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> bool:
     """Check whether mapped array can be expanded without positional conflicts."""
     temp = np.zeros(target_shape)
@@ -299,7 +299,7 @@ def is_mapped_expandable_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_sha
     return True
 
 
-@generated_jit(nopython=True, cache=True)
+@register_generated_jit(cache=True)
 def expand_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
                      target_shape: tp.Shape, fill_value: float) -> tp.Array2d:
     """Set each element to a value by boolean mask."""
@@ -325,7 +325,7 @@ def expand_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Ar
     return _expand_mapped_nb
 
 
-@generated_jit(nopython=True, cache=True)
+@register_generated_jit(cache=True)
 def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float) -> tp.Array2d:
     """Expand mapped array by stacking without using index data."""
     nb_enabled = not isinstance(mapped_arr, np.ndarray)
@@ -360,7 +360,7 @@ def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_valu
 
 # ############# Reducing ############# #
 
-@njit
+@register_jit
 def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
                      reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to a single value.
@@ -384,7 +384,7 @@ def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: flo
     return out
 
 
-@njit
+@register_jit
 def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
                             fill_value: float, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to an index.
@@ -408,7 +408,7 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
     return out
 
 
-@njit
+@register_jit
 def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
                               reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an array.
@@ -437,7 +437,7 @@ def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_v
     return out
 
 
-@njit
+@register_jit
 def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
                                   fill_value: float, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an index array.
@@ -470,7 +470,7 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
     return out
 
 
-@njit(cache=True)
+@register_jit(cache=True)
 def mapped_value_counts_nb(codes: tp.Array1d, n_uniques: int, col_map: tp.ColMap) -> tp.Array2d:
     """Get value counts of an already factorized mapped array."""
     col_idxs, col_lens = col_map
