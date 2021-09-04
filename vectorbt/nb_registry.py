@@ -118,6 +118,12 @@ class NumbaRegistry:
         else:
             setup_id = setup_id_or_func
         setup = self.setups[setup_id]
+
+        from vectorbt._settings import settings
+        numba_cfg = settings['numba']
+
+        if parallel is None:
+            parallel = numba_cfg['parallel']
         if parallel is None:
             return setup['nb_func']
         if parallel:

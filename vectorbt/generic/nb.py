@@ -514,13 +514,159 @@ def nanmedian_nb(a: tp.Array2d) -> tp.Array1d:
 
 
 @register_jit(cache=True)
-def nanstd_1d_nb(a: tp.Array1d, ddof: int = 0) -> float:
-    """Numba-equivalent of `np.nanstd`."""
-    cnt = a.shape[0] - np.count_nonzero(np.isnan(a))
+def nanpercentile_noarr_1d_nb(a, q):
+    """Numba-equivalent of `np.nanpercentile` that does not allocate any arrays.
+
+    !!! note
+        Has worst case time complexity of O(N^2), which makes it much slower than `np.nanpercentile`,
+        but still faster if used in rolling calculations, especially for `q` near 0 and 100."""
+    if q < 0:
+        q = 0
+    elif q > 100:
+        q = 100
+    do_min = q < 50
+    if not do_min:
+        q = 100 - q
+    cnt = a.shape[0]
+    for i in range(a.shape[0]):
+        if np.isnan(a[i]):
+            cnt -= 1
+    if cnt == 0:
+        return np.nan
+    nth_float = q / 100 * (cnt - 1)
+    if nth_float % 1 == 0:
+        nth1 = nth2 = int(nth_float)
+    else:
+        nth1 = int(nth_float)
+        nth2 = nth1 + 1
+    found1 = np.nan
+    found2 = np.nan
+    k = 0
+    if do_min:
+        prev_val = -np.inf
+    else:
+        prev_val = np.inf
+    while True:
+        n_same = 0
+        if do_min:
+            curr_val = np.inf
+            for i in range(a.shape[0]):
+                if not np.isnan(a[i]):
+                    if a[i] > prev_val:
+                        if a[i] < curr_val:
+                            curr_val = a[i]
+                            n_same = 0
+                        if a[i] == curr_val:
+                            n_same += 1
+        else:
+            curr_val = -np.inf
+            for i in range(a.shape[0]):
+                if not np.isnan(a[i]):
+                    if a[i] < prev_val:
+                        if a[i] > curr_val:
+                            curr_val = a[i]
+                            n_same = 0
+                        if a[i] == curr_val:
+                            n_same += 1
+        prev_val = curr_val
+        k += n_same
+        if np.isnan(found1) and k >= nth1 + 1:
+            found1 = curr_val
+        if np.isnan(found2) and k >= nth2 + 1:
+            found2 = curr_val
+            break
+    if found1 == found2:
+        return found1
+    factor = (nth_float - nth1) / (nth2 - nth1)
+    return factor * (found2 - found1) + found1
+
+
+@register_jit(cache=True)
+def nanpartition_mean_noarr_1d_nb(a, q):
+    """Average of `np.partition` that ignores NaN values and does not allocate any arrays.
+
+    !!! note
+        Has worst case time complexity of O(N^2), which makes it much slower than `np.partition`,
+        but still faster if used in rolling calculations, especially for `q` near 0."""
+    if q < 0:
+        q = 0
+    elif q > 100:
+        q = 100
+    cnt = a.shape[0]
+    for i in range(a.shape[0]):
+        if np.isnan(a[i]):
+            cnt -= 1
+    if cnt == 0:
+        return np.nan
+    nth = int(q / 100 * (cnt - 1))
+    prev_val = -np.inf
+    partition_sum = 0.
+    partition_cnt = 0
+    k = 0
+    while True:
+        n_same = 0
+        curr_val = np.inf
+        for i in range(a.shape[0]):
+            if not np.isnan(a[i]):
+                if a[i] > prev_val:
+                    if a[i] < curr_val:
+                        curr_val = a[i]
+                        n_same = 0
+                    if a[i] == curr_val:
+                        n_same += 1
+        if k + n_same >= nth + 1:
+            partition_sum += (nth + 1 - k) * curr_val
+            partition_cnt += nth + 1 - k
+            break
+        else:
+            partition_sum += n_same * curr_val
+            partition_cnt += n_same
+        prev_val = curr_val
+        k += n_same
+    return partition_sum / partition_cnt
+
+
+@register_jit(cache=True)
+def nancov_1d_nb(a: tp.Array1d, b: tp.Array1d, ddof: int = 0) -> float:
+    """Numba-equivalent of `np.cov` that ignores NaN values and does not allocate any arrays."""
+    cnt = a.shape[0]
+    for i in range(a.shape[0]):
+        if np.isnan(a[i]) or np.isnan(b[i]):
+            cnt -= 1
     rcount = max(cnt - ddof, 0)
     if rcount == 0:
         return np.nan
-    return np.sqrt(np.nanvar(a) * cnt / rcount)
+    out = 0.
+    a_mean = np.nanmean(a)
+    b_mean = np.nanmean(b)
+    for i in range(len(a)):
+        if not np.isnan(a[i]) and not np.isnan(b[i]):
+            out += (a[i] - a_mean) * (b[i] - b_mean)
+    return out / rcount
+
+
+@register_jit(cache=True)
+def nanvar_1d_nb(a: tp.Array1d, ddof: int = 0) -> float:
+    """Numba-equivalent of `np.nanvar` that does not allocate any arrays."""
+    cnt = a.shape[0]
+    for i in range(a.shape[0]):
+        if np.isnan(a[i]):
+            cnt -= 1
+    rcount = max(cnt - ddof, 0)
+    if rcount == 0:
+        return np.nan
+    out = 0.
+    a_mean = np.nanmean(a)
+    for i in range(len(a)):
+        if not np.isnan(a[i]):
+            out += abs(a[i] - a_mean) ** 2
+    return out / rcount
+
+
+@register_jit(cache=True)
+def nanstd_1d_nb(a: tp.Array1d, ddof: int = 0) -> float:
+    """Numba-equivalent of `np.nanstd`."""
+    return np.sqrt(nanvar_1d_nb(a, ddof=ddof))
 
 
 @register_jit(cache=True, tags={'can_parallel'})

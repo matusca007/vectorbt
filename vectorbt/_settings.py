@@ -93,6 +93,7 @@ __pdoc__ = {}
 _settings = {}
 
 numba = dict(
+    parallel=None,
     check_func_type=True,
     check_func_suffix=False,
     options=Config(  # flex
@@ -470,7 +471,6 @@ _settings['plots_builder'] = plots_builder
 
 generic = dict(
     use_numba=False,
-    parallel=None,
     stats=Config(  # flex
         dict(
             filters=dict(

@@ -54,13 +54,10 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
                 inspect.signature(_func).bind(*args, **kwargs)
 
                 if _can_parallel:
-                    from vectorbt._settings import settings
-                    generic_cfg = settings['generic']
-
-                    if parallel is None:
-                        parallel = generic_cfg['parallel']
-
                     _func = main_nb_registry.redecorate_parallel(_func, parallel=parallel)
+                else:
+                    if parallel is not None:
+                        raise ValueError("This method doesn't support parallelization")
                 a = _func(*args, **kwargs)
                 wrap_kwargs = merge_dicts(_default_wrap_kwargs, wrap_kwargs)
                 if _is_reducing:

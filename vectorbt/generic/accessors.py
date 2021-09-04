@@ -201,8 +201,7 @@ Name: 0, dtype: object
 
 To increase the performance of some functions, install [bottleneck](https://github.com/pydata/bottleneck),
 vectorbt will detect and use it by default. You can also use the `parallel` argument wherever possible
-to enable or disable automatic parallelization with Numba, or set the flag globally under `generic`
-in `vectorbt._settings.settings`.
+to enable or disable automatic parallelization with Numba.
 """
 
 import numpy as np
@@ -493,12 +492,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_numba_func(apply_func_nb)
 
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             func = main_nb_registry.redecorate_parallel(nb.map_meta_nb, parallel=parallel)
@@ -556,12 +549,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_in(axis, (0, 1))
         checks.assert_numba_func(apply_func_nb)
-
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
@@ -627,12 +614,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
         """
         checks.assert_numba_func(apply_func_nb)
-
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
@@ -713,12 +694,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_numba_func(apply_func_nb)
 
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             pd_group_by = wrapper.dummy().groupby(by, axis=0, **kwargs)
@@ -780,12 +755,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
         """
         checks.assert_numba_func(apply_func_nb)
-
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
@@ -861,12 +830,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_numba_func(apply_func_nb)
         checks.assert_numba_func(reduce_func_nb)
-
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
 
         if apply_args is None:
             apply_args = ()
@@ -1007,12 +970,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_numba_func(reduce_func_nb)
 
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             if wrapper.grouper.is_grouped(group_by=group_by):
@@ -1125,12 +1082,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         checks.assert_numba_func(squeeze_func_nb)
 
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             if not wrapper.grouper.is_grouped(group_by=group_by):
@@ -1233,8 +1184,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nanmin_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1267,8 +1216,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nanmax_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1301,8 +1248,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nanmean_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1335,8 +1280,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nanmedian_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1371,8 +1314,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nanstd_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr, ddof=ddof), group_by=False, **wrap_kwargs)
@@ -1405,8 +1346,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nansum_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1439,8 +1378,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
-        if parallel is None:
-            parallel = generic_cfg['parallel']
         if use_numba:
             func = main_nb_registry.redecorate_parallel(nb.nancnt_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
@@ -1699,12 +1636,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
         """
         checks.assert_in(axis, (-1, 0, 1))
-
-        from vectorbt._settings import settings
-        generic_cfg = settings['generic']
-
-        if parallel is None:
-            parallel = generic_cfg['parallel']
 
         if mapping is None:
             mapping = self.mapping
