@@ -201,7 +201,7 @@ Name: 0, dtype: object
 
 To increase the performance of some functions, install [bottleneck](https://github.com/pydata/bottleneck),
 vectorbt will detect and use it by default. You can also use the `parallel` argument wherever possible
-to enable or disable automatic parallelization with Numba.
+to enable/disable automatic parallelization with Numba.
 """
 
 import numpy as np
@@ -1036,7 +1036,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     @class_or_instancemethod
     def squeeze_grouped(cls_or_self,
-                        squeeze_func_nb: tp.Union[tp.GroupSqueezeFunc, tp.GroupSqueezeMetaFunc], *args,
+                        squeeze_func_nb: tp.Union[tp.ReduceFunc, tp.GroupSqueezeMetaFunc], *args,
                         parallel: tp.Optional[bool] = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
                         group_by: tp.GroupByLike = None,
@@ -1506,7 +1506,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr = self.to_2d_array()
         if not np.iterable(bins):
             if np.isscalar(bins) and bins < 1:
-                raise ValueError("Bins should be a positive integer.")
+                raise ValueError("Bins must be a positive integer")
 
             rng = (np.nanmin(self.obj.values), np.nanmax(self.obj.values))
             mn, mx = (mi + 0.0 for mi in rng)
@@ -1646,16 +1646,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 mapping = self.wrapper.columns
             mapping = to_mapping(mapping)
         codes, uniques = pd.factorize(self.obj.values.flatten(), sort=False, na_sentinel=None)
-        codes = codes.reshape(self.wrapper.shape_2d)
         if axis == 0:
             func = main_nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, parallel=parallel)
-            value_counts = func(codes, len(uniques))
+            value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques))
         elif axis == 1:
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
             func = main_nb_registry.redecorate_parallel(nb.value_counts_nb, parallel=parallel)
-            value_counts = func(codes, len(uniques), group_lens)
+            value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques), group_lens)
         else:
-            value_counts = nb.value_counts_1d_nb(codes.flatten(), len(uniques))
+            value_counts = nb.value_counts_1d_nb(codes, len(uniques))
         if incl_all_keys and mapping is not None:
             missing_keys = []
             for x in mapping:

@@ -269,7 +269,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
             if isinstance(index_from, str) and index_from.lower() == 'strict':
                 raise ValueError(f"Broadcasting {index_str} is not allowed when {index_str}_from=strict")
             # This happens only when some numpy object is longer than the new pandas index
-            # In this case, new pandas index (one element) should be repeated to match this length.
+            # In this case, new pandas index (one element) must be repeated to match this length.
             if maxlen > 1 and len(new_index) > 1:
                 raise ValueError("Indexes could not be broadcast together")
             new_index = index_fns.repeat_index(new_index, maxlen)
@@ -719,7 +719,7 @@ def broadcast_to_axis_of(arg1: tp.ArrayLike, arg2: tp.ArrayLike, axis: int,
 def get_multiindex_series(arg: tp.SeriesFrame) -> tp.Series:
     """Get Series with a multi-index.
 
-    If DataFrame has been passed, should at maximum have one row or column."""
+    If DataFrame has been passed, must at maximum have one row or column."""
     checks.assert_instance_of(arg, (pd.Series, pd.DataFrame))
     if checks.is_frame(arg):
         if arg.shape[0] == 1:

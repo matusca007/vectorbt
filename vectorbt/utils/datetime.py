@@ -36,28 +36,28 @@ def get_local_tz() -> timezone:
 def convert_tzaware_time(t: time, tz_out: tp.Optional[tzinfo]) -> time:
     """Return as non-naive time.
 
-    `datetime.time` should have `tzinfo` set."""
+    `datetime.time` must have `tzinfo` set."""
     return datetime.combine(datetime.today(), t).astimezone(tz_out).timetz()
 
 
 def tzaware_to_naive_time(t: time, tz_out: tp.Optional[tzinfo]) -> time:
     """Return as naive time.
 
-    `datetime.time` should have `tzinfo` set."""
+    `datetime.time` must have `tzinfo` set."""
     return datetime.combine(datetime.today(), t).astimezone(tz_out).time()
 
 
 def naive_to_tzaware_time(t: time, tz_out: tp.Optional[tzinfo]) -> time:
     """Return as non-naive time.
 
-    `datetime.time` should not have `tzinfo` set."""
+    `datetime.time` must not have `tzinfo` set."""
     return datetime.combine(datetime.today(), t).astimezone(tz_out).time().replace(tzinfo=tz_out)
 
 
 def convert_naive_time(t: time, tz_out: tp.Optional[tzinfo]) -> time:
     """Return as naive time.
 
-    `datetime.time` should not have `tzinfo` set."""
+    `datetime.time` must not have `tzinfo` set."""
     return datetime.combine(datetime.today(), t).astimezone(tz_out).time()
 
 

@@ -104,6 +104,7 @@ class NumbaRegistry:
                             setup_id_or_func: tp.Union[tp.Hashable, tp.Callable],
                             new_setup_id: tp.Optional[tp.Hashable] = None,
                             parallel: tp.Optional[bool] = None,
+                            silence_warnings: tp.Optional[bool] = None,
                             **kwargs) -> tp.Callable:
         """Redecorate the setup's Numba-compiled function with the `parallel` option.
 
@@ -124,6 +125,8 @@ class NumbaRegistry:
 
         if parallel is None:
             parallel = numba_cfg['parallel']
+        if silence_warnings is None:
+            silence_warnings = numba_cfg['silence_warnings']
         if parallel is None:
             return setup['nb_func']
         if parallel:
@@ -134,7 +137,8 @@ class NumbaRegistry:
             if new_setup_id in self.setups:
                 return self.setups[new_setup_id]['nb_func']
             if 'can_parallel' not in setup['tags']:
-                warnings.warn("Function has no 'can_parallel' tag", stacklevel=2)
+                if not silence_warnings:
+                    warnings.warn("Function has no 'can_parallel' tag", stacklevel=2)
             return self.redecorate(
                 setup_id,
                 new_setup_id=new_setup_id,

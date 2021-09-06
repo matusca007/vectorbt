@@ -16,15 +16,15 @@ WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 def attach_nb_methods(config: Config) -> WrapperFuncT:
     """Class decorator to add Numba methods.
 
-    `config` should contain target method names (keys) and dictionaries (values) with the following keys:
+    `config` must contain target method names (keys) and dictionaries (values) with the following keys:
 
-    * `func`: Function that should be wrapped. The first argument should expect a 2-dim array.
+    * `func`: Function that must be wrapped. The first argument must expect a 2-dim array.
     * `is_reducing`: Whether the function is reducing. Defaults to False.
     * `replace_signature`: Whether to replace the target signature with the source signature. Defaults to True.
     * `wrap_kwargs`: Default keyword arguments for wrapping. Will be merged with the dict supplied by the user.
         Defaults to `dict(name_or_index=target_name)` for reducing functions.
 
-    The class should be a subclass of `vectorbt.base.wrapping.Wrapping`.
+    The class must be a subclass of `vectorbt.base.wrapping.Wrapping`.
     """
 
     def wrapper(cls: tp.Type[tp.T]) -> tp.Type[tp.T]:
@@ -98,13 +98,13 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
 def attach_transform_methods(config: Config) -> WrapperFuncT:
     """Class decorator to add transformation methods.
 
-    `config` should contain target method names (keys) and dictionaries (values) with the following keys:
+    `config` must contain target method names (keys) and dictionaries (values) with the following keys:
 
     * `transformer`: Transformer class/object.
     * `docstring`: Method docstring. Defaults to "See `{transformer}.__name__`.".
     * `replace_signature`: Whether to replace the target signature. Defaults to True.
 
-    The class should be a subclass of `vectorbt.generic.accessors.GenericAccessor`.
+    The class must be a subclass of `vectorbt.generic.accessors.GenericAccessor`.
     """
 
     def wrapper(cls: tp.Type[tp.T]) -> tp.Type[tp.T]:

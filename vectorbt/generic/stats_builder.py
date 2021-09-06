@@ -126,17 +126,17 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 * `check_{filter}` and `inv_check_{filter}`: Whether to check this metric against a
                     filter defined in `filters`. True (or False for inverse) means to keep this metric.
                 * `calc_func` (required): Calculation function for custom metrics.
-                    Should return either a scalar for one column/group, pd.Series for multiple columns/groups,
+                    Must return either a scalar for one column/group, pd.Series for multiple columns/groups,
                     or a dict of such for multiple sub-metrics.
                 * `resolve_calc_func`: whether to resolve `calc_func`. If the function can be accessed
                     by traversing attributes of this object, you can specify the path to this function
                     as a string (see `vectorbt.utils.attr.deep_getattr` for the path format).
                     If `calc_func` is a function, arguments from merged metric settings are matched with
                     arguments in the signature (see below). If `resolve_calc_func` is False, `calc_func`
-                    should accept (resolved) self and dictionary of merged metric settings.
+                    must accept (resolved) self and dictionary of merged metric settings.
                     Defaults to True.
                 * `post_calc_func`: Function to post-process the result of `calc_func`.
-                    Should accept (resolved) self, output of `calc_func`, and dictionary of merged metric settings,
+                    Must accept (resolved) self, output of `calc_func`, and dictionary of merged metric settings,
                     and return whatever is acceptable to be returned by `calc_func`. Defaults to None.
                 * `fill_wrap_kwargs`: Whether to fill `wrap_kwargs` with `to_timedelta` and `silence_warnings`.
                     Defaults to False.
@@ -188,7 +188,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
             agg_func (callable): Aggregation function to aggregate statistics across all columns.
                 Defaults to mean.
 
-                Should take `pd.Series` and return a const.
+                Must take `pd.Series` and return a const.
 
                 Has only effect if `column` was specified or this object contains only one column of data.
 
@@ -208,7 +208,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
 
                 The settings dict can contain the following keys:
 
-                * `filter_func`: Filter function that should accept resolved self and
+                * `filter_func`: Filter function that must accept resolved self and
                     merged settings for a metric, and return either True or False.
                 * `warning_message`: Warning message to be shown when skipping a metric.
                     Can be a template that will be substituted using merged metric settings as mapping.

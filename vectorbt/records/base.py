@@ -33,9 +33,9 @@ attr2 =  1  10.0   NaN
 0      0    0    0      1      9
 1      1    0    1      2     10
 2      2    0    3      4     12
-3      3    1    0      5     13
-4      4    1    1      7     15
-5      5    1    3      8     16
+3      0    1    0      5     13
+4      1    1    1      7     15
+5      2    1    3      8     16
 ```
 
 Another advantage of records is that they are not constrained by size. Multiple records can map
@@ -61,12 +61,12 @@ Consider the following example:
 ...     (0, 0, 0, 10.),
 ...     (1, 0, 1, 11.),
 ...     (2, 0, 2, 12.),
-...     (3, 1, 0, 13.),
-...     (4, 1, 1, 14.),
-...     (5, 1, 2, 15.),
-...     (6, 2, 0, 16.),
-...     (7, 2, 1, 17.),
-...     (8, 2, 2, 18.)
+...     (0, 1, 0, 13.),
+...     (1, 1, 1, 14.),
+...     (2, 1, 2, 15.),
+...     (0, 2, 0, 16.),
+...     (1, 2, 1, 17.),
+...     (2, 2, 2, 18.)
 ... ], dtype=example_dt)
 >>> wrapper = vbt.ArrayWrapper(index=['x', 'y', 'z'],
 ...     columns=['a', 'b', 'c'], ndim=2, freq='1 day')
@@ -85,12 +85,12 @@ There are two ways to print records:
 0   0    0    0        10.0
 1   1    0    1        11.0
 2   2    0    2        12.0
-3   3    1    0        13.0
-4   4    1    1        14.0
-5   5    1    2        15.0
-6   6    2    0        16.0
-7   7    2    1        17.0
-8   8    2    2        18.0
+3   0    1    0        13.0
+4   1    1    1        14.0
+5   2    1    2        15.0
+6   0    2    0        16.0
+7   1    2    1        17.0
+8   2    2    2        18.0
 ```
 
 * Readable dataframe that takes into consideration `Records.field_config`:
@@ -101,12 +101,12 @@ There are two ways to print records:
 0   0      a         x        10.0
 1   1      a         y        11.0
 2   2      a         z        12.0
-3   3      b         x        13.0
-4   4      b         y        14.0
-5   5      b         z        15.0
-6   6      c         x        16.0
-7   7      c         y        17.0
-8   8      c         z        18.0
+3   0      b         x        13.0
+4   1      b         y        14.0
+5   2      b         z        15.0
+6   0      c         x        16.0
+7   1      c         y        17.0
+8   2      c         z        18.0
 ```
 
 ## Mapping
@@ -140,6 +140,15 @@ array([10., 11., 12., 13., 14., 15., 16., 17., 18.])
 
 >>> records.map(power_map_nb, 2).values
 array([100., 121., 144., 169., 196., 225., 256., 289., 324.])
+
+>>> # Map using a meta function
+
+>>> @njit
+... def power_map_meta_nb(ridx, records, pow):
+...     return records[ridx].some_field ** pow
+
+>>> vbt.Records.map(power_map_meta_nb, records.values, 2, col_mapper=records.col_mapper).values
+array([100., 121., 144., 169., 196., 225., 256., 289., 324.])
 ```
 
 * Use `Records.map_array` to convert an array to `vectorbt.records.mapped_array.MappedArray`.
@@ -168,6 +177,15 @@ array([10., 21., 33., 13., 27., 42., 16., 33., 51.])
 >>> group_by = np.array(['first', 'first', 'second'])
 >>> records.apply(cumsum_apply_nb, group_by=group_by, apply_per_group=True).values
 array([10., 21., 33., 46., 60., 75., 16., 33., 51.])
+
+>>> # Apply using a meta function
+
+>>> @njit
+... def cumsum_apply_meta_nb(idxs, col, records):
+...     return np.cumsum(records[idxs].some_field)
+
+>>> vbt.Records.apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values
+array([10., 21., 33., 13., 27., 42., 16., 33., 51.])
 ```
 
 Notice how cumsum resets at each column in the first example and at each group in the second example.
@@ -179,14 +197,13 @@ Use `Records.apply_mask` to filter elements per column/group:
 ```python-repl
 >>> mask = [True, False, True, False, True, False, True, False, True]
 >>> filtered_records = records.apply_mask(mask)
->>> filtered_records.count()
-a    2
-b    1
-c    2
-dtype: int64
-
->>> filtered_records.values['id']
-array([0, 2, 4, 6, 8])
+>>> filtered_records.records
+   id  col  idx  some_field
+0   0    0    0        10.0
+1   2    0    2        12.0
+2   1    1    1        14.0
+3   0    2    0        16.0
+4   2    2    2        18.0
 ```
 
 ## Grouping
@@ -258,9 +275,9 @@ on a `Records` instance, which forwards indexing operation to each object with c
 0   0    0    0        10.0
 1   1    0    1        11.0
 2   2    0    2        12.0
-3   3    1    0        13.0
-4   4    1    1        14.0
-5   5    1    2        15.0
+3   0    1    0        13.0
+4   1    1    1        14.0
+5   2    1    2        15.0
 ```
 
 !!! note
@@ -351,15 +368,15 @@ any base class property that is not explicitly listed in our config.
 >>> records_arr = np.array([
 ...     (0, 0, 0),
 ...     (1, 0, 1),
-...     (2, 1, 0),
-...     (3, 1, 1)
+...     (0, 1, 0),
+...     (1, 1, 1)
 ... ], dtype=my_dt)
 >>> wrapper = vbt.ArrayWrapper(index=['x', 'y'],
 ...     columns=['a', 'b'], ndim=2, freq='1 day')
 >>> my_records = MyRecords(wrapper, records_arr)
 
 >>> my_records.id_arr
-array([0, 1, 2, 3])
+array([0, 1, 0, 1])
 
 >>> my_records.col_arr
 array([0, 0, 1, 1])
@@ -395,8 +412,9 @@ import inspect
 import string
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import cached_method
+from vectorbt.utils.decorators import cached_method, class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.attr import get_dict_attr
 from vectorbt.base.reshape_fns import to_1d_array
@@ -510,6 +528,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             **kwargs
         )
         StatsBuilderMixin.__init__(self)
+        PlotsBuilderMixin.__init__(self)
 
         # Check fields
         records_arr = np.asarray(records_arr)
@@ -711,7 +730,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                   **kwargs) -> MappedArray:
         """Convert array to mapped array.
 
-         The length of the array should match that of the records."""
+         The length of the array must match that of the records."""
         if not isinstance(a, np.ndarray):
             a = np.asarray(a)
         checks.assert_shape_equal(a, self.values)
@@ -735,25 +754,48 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         mapped_arr = self.values[field]
         return self.map_array(mapped_arr, **kwargs)
 
-    def map(self,
-            map_func_nb: tp.RecordMapFunc, *args,
+    @class_or_instancemethod
+    def map(cls_or_self,
+            map_func_nb: tp.Union[
+                tp.RecordsMapFunc,
+                tp.RecordsMapMetaFunc
+            ], *args,
             dtype: tp.Optional[tp.DTypeLike] = None,
+            parallel: tp.Optional[bool] = None,
+            col_mapper: tp.Optional[ColumnMapper] = None,
             **kwargs) -> MappedArray:
         """Map each record to a scalar value. Returns mapped array.
 
         See `vectorbt.records.nb.map_records_nb`.
 
+        For details on the meta version, see `vectorbt.records.nb.map_records_meta_nb`.
+
         `**kwargs` are passed to `Records.map_array`."""
         checks.assert_numba_func(map_func_nb)
-        mapped_arr = nb.map_records_nb(self.values, map_func_nb, *args)
-        mapped_arr = np.asarray(mapped_arr, dtype=dtype)
-        return self.map_array(mapped_arr, **kwargs)
 
-    def apply(self,
-              apply_func_nb: tp.RecordApplyFunc, *args,
+        if isinstance(cls_or_self, type):
+            checks.assert_not_none(col_mapper)
+            func = main_nb_registry.redecorate_parallel(nb.map_records_meta_nb, parallel=parallel)
+            mapped_arr = func(len(col_mapper.col_arr), map_func_nb, *args)
+            mapped_arr = np.asarray(mapped_arr, dtype=dtype)
+            return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
+        else:
+            func = main_nb_registry.redecorate_parallel(nb.map_records_nb, parallel=parallel)
+            mapped_arr = func(cls_or_self.values, map_func_nb, *args)
+            mapped_arr = np.asarray(mapped_arr, dtype=dtype)
+            return cls_or_self.map_array(mapped_arr, **kwargs)
+
+    @class_or_instancemethod
+    def apply(cls_or_self,
+              apply_func_nb: tp.Union[
+                  tp.RecordsApplyFunc,
+                  tp.RecordsApplyMetaFunc
+              ], *args,
               group_by: tp.GroupByLike = None,
               apply_per_group: bool = False,
               dtype: tp.Optional[tp.DTypeLike] = None,
+              parallel: tp.Optional[bool] = None,
+              col_mapper: tp.Optional[ColumnMapper] = None,
               **kwargs) -> MappedArray:
         """Apply function on records per column/group. Returns mapped array.
 
@@ -761,15 +803,24 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         See `vectorbt.records.nb.apply_on_records_nb`.
 
+        For details on the meta version, see `vectorbt.records.nb.apply_on_records_meta_nb`.
+
         `**kwargs` are passed to `Records.map_array`."""
         checks.assert_numba_func(apply_func_nb)
-        if apply_per_group:
-            col_map = self.col_mapper.get_col_map(group_by=group_by)
+
+        if isinstance(cls_or_self, type):
+            checks.assert_not_none(col_mapper)
+            col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
+            func = main_nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, parallel=parallel)
+            mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
+            mapped_arr = np.asarray(mapped_arr, dtype=dtype)
+            return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
-            col_map = self.col_mapper.get_col_map(group_by=False)
-        mapped_arr = nb.apply_on_records_nb(self.values, col_map, apply_func_nb, *args)
-        mapped_arr = np.asarray(mapped_arr, dtype=dtype)
-        return self.map_array(mapped_arr, group_by=group_by, **kwargs)
+            col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
+            func = main_nb_registry.redecorate_parallel(nb.apply_on_records_nb, parallel=parallel)
+            mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
+            mapped_arr = np.asarray(mapped_arr, dtype=dtype)
+            return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)
 
     @cached_method
     def count(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:

@@ -24,12 +24,12 @@ records_arr = np.asarray([
     (0, 0, 0, 10, 21),
     (1, 0, 1, 11, 20),
     (2, 0, 2, 12, 19),
-    (3, 1, 0, 13, 18),
-    (4, 1, 1, 14, 17),
-    (5, 1, 2, 13, 18),
-    (6, 2, 0, 12, 19),
-    (7, 2, 1, 11, 20),
-    (8, 2, 2, 10, 21)
+    (0, 1, 0, 13, 18),
+    (1, 1, 1, 14, 17),
+    (2, 1, 2, 13, 18),
+    (0, 2, 0, 12, 19),
+    (1, 2, 1, 11, 20),
+    (2, 2, 2, 10, 21)
 ], dtype=example_dt)
 records_nosort_arr = np.concatenate((
     records_arr[0::3],
@@ -213,7 +213,11 @@ class TestMappedArray:
         )
         np.testing.assert_array_equal(
             mapped_array.id_arr,
-            np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+            np.array([0, 1, 2, 0, 1, 2, 0, 1, 2])
+        )
+        np.testing.assert_array_equal(
+            vbt.MappedArray(mapped_array.wrapper, mapped_array.values, mapped_array.col_arr).id_arr,
+            np.array([0, 1, 2, 0, 1, 2, 0, 1, 2])
         )
 
     def test_col_arr(self):
@@ -260,27 +264,21 @@ class TestMappedArray:
         filtered = mapped_array.apply_mask(mask)
         np.testing.assert_array_equal(
             filtered.id_arr,
-            np.array([2, 3, 4, 5, 6])
+            np.array([2, 0, 1, 2, 0])
         )
         np.testing.assert_array_equal(filtered.col_arr, mapped_array.col_arr[mask])
         np.testing.assert_array_equal(filtered.idx_arr, mapped_array.idx_arr[mask])
         assert mapped_array_grouped.apply_mask(mask).wrapper == mapped_array_grouped.wrapper
         assert mapped_array_grouped.apply_mask(mask, group_by=False).wrapper.grouper.group_by is None
 
-    def test_map_to_mask(self):
-        @njit
-        def every_2_nb(inout, idxs, col, mapped_arr):
-            inout[idxs[::2]] = True
-
-        np.testing.assert_array_equal(
-            mapped_array.map_to_mask(every_2_nb),
-            np.array([True, False, True, True, False, True, True, False, True])
-        )
-
     def test_top_n_mask(self):
         np.testing.assert_array_equal(
             mapped_array.top_n_mask(1),
             np.array([False, False, True, False, True, False, True, False, False])
+        )
+        np.testing.assert_array_equal(
+            mapped_array.top_n_mask(1, parallel=False),
+            mapped_array.top_n_mask(1, parallel=True)
         )
 
     def test_bottom_n_mask(self):
@@ -288,17 +286,21 @@ class TestMappedArray:
             mapped_array.bottom_n_mask(1),
             np.array([True, False, False, True, False, False, False, False, True])
         )
+        np.testing.assert_array_equal(
+            mapped_array.bottom_n_mask(1, parallel=False),
+            mapped_array.bottom_n_mask(1, parallel=True)
+        )
 
     def test_top_n(self):
         np.testing.assert_array_equal(
             mapped_array.top_n(1).id_arr,
-            np.array([2, 4, 6])
+            np.array([2, 1, 0])
         )
 
     def test_bottom_n(self):
         np.testing.assert_array_equal(
             mapped_array.bottom_n(1).id_arr,
-            np.array([0, 3, 8])
+            np.array([0, 0, 2])
         )
 
     def test_to_pd(self):
@@ -374,8 +376,12 @@ class TestMappedArray:
 
     def test_apply(self):
         @njit
-        def cumsum_apply_nb(idxs, col, a):
+        def cumsum_apply_nb(a):
             return np.cumsum(a)
+
+        @njit
+        def cumsum_apply_meta_nb(ridxs, col, a):
+            return np.cumsum(a[ridxs])
 
         np.testing.assert_array_equal(
             mapped_array['a'].apply(cumsum_apply_nb).values,
@@ -396,11 +402,32 @@ class TestMappedArray:
         assert mapped_array_grouped.apply(cumsum_apply_nb).wrapper == \
                mapped_array.apply(cumsum_apply_nb, group_by=group_by).wrapper
         assert mapped_array.apply(cumsum_apply_nb, group_by=False).wrapper.grouper.group_by is None
+        np.testing.assert_array_equal(
+            mapped_array.apply(cumsum_apply_nb, parallel=False).values,
+            mapped_array.apply(cumsum_apply_nb, parallel=True).values
+        )
+        np.testing.assert_array_equal(
+            mapped_array.__class__.apply(
+                cumsum_apply_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper).values,
+            mapped_array.apply(cumsum_apply_nb).values
+        )
+        np.testing.assert_array_equal(
+            mapped_array.__class__.apply(
+                cumsum_apply_meta_nb, mapped_array.values,
+                col_mapper=mapped_array.col_mapper, parallel=False).values,
+            mapped_array.__class__.apply(
+                cumsum_apply_meta_nb, mapped_array.values,
+                col_mapper=mapped_array.col_mapper, parallel=True).values
+        )
 
     def test_reduce(self):
         @njit
-        def mean_reduce_nb(col, a):
+        def mean_reduce_nb(a):
             return np.mean(a)
+
+        @njit
+        def mean_reduce_meta_nb(ridxs, col, records):
+            return np.mean(records[ridxs])
 
         assert mapped_array['a'].reduce(mean_reduce_nb) == 11.
         pd.testing.assert_series_equal(
@@ -436,11 +463,30 @@ class TestMappedArray:
             mapped_array.reduce(mean_reduce_nb, group_by=group_by),
             mapped_array_grouped.reduce(mean_reduce_nb)
         )
+        pd.testing.assert_series_equal(
+            mapped_array.reduce(mean_reduce_nb, parallel=False),
+            mapped_array.reduce(mean_reduce_nb, parallel=True)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper),
+            mapped_array.reduce(mean_reduce_nb)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, parallel=False),
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, parallel=True),
+        )
 
     def test_reduce_to_idx(self):
         @njit
-        def argmin_reduce_nb(col, a):
+        def argmin_reduce_nb(a):
             return np.argmin(a)
+
+        @njit
+        def argmin_reduce_meta_nb(ridxs, col, records):
+            return np.argmin(records[ridxs])
 
         assert mapped_array['a'].reduce(argmin_reduce_nb, returns_idx=True) == 'x'
         pd.testing.assert_series_equal(
@@ -455,11 +501,33 @@ class TestMappedArray:
             mapped_array_grouped.reduce(argmin_reduce_nb, returns_idx=True, to_index=False),
             pd.Series(np.array([0, 2], dtype=int), index=pd.Index(['g1', 'g2'], dtype='object')).rename('reduce')
         )
+        pd.testing.assert_series_equal(
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=False),
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=True)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr),
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+            mapped_array.__class__.reduce(
+                argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
+        )
 
     def test_reduce_to_array(self):
         @njit
-        def min_max_reduce_nb(col, a):
+        def min_max_reduce_nb(a):
             return np.array([np.min(a), np.max(a)])
+
+        @njit
+        def min_max_reduce_meta_nb(ridxs, col, records):
+            return np.array([np.min(records[ridxs]), np.max(records[ridxs])])
 
         pd.testing.assert_series_equal(
             mapped_array['a'].reduce(min_max_reduce_nb, returns_array=True,
@@ -523,11 +591,33 @@ class TestMappedArray:
             mapped_array_grouped[['g1']].reduce(min_max_reduce_nb, returns_array=True),
             pd.DataFrame([[10.], [14.]], columns=pd.Index(['g1'], dtype='object'))
         )
+        pd.testing.assert_frame_equal(
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=False),
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
+                col_mapper=mapped_array.col_mapper),
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
+                col_mapper=mapped_array.col_mapper, parallel=False),
+            mapped_array.__class__.reduce(
+                min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
+                col_mapper=mapped_array.col_mapper, parallel=True),
+        )
 
     def test_reduce_to_idx_array(self):
         @njit
-        def idxmin_idxmax_reduce_nb(col, a):
+        def idxmin_idxmax_reduce_nb(a):
             return np.array([np.argmin(a), np.argmax(a)])
+
+        @njit
+        def idxmin_idxmax_reduce_meta_nb(ridxs, col, records):
+            return np.array([np.argmin(records[ridxs]), np.argmax(records[ridxs])])
 
         pd.testing.assert_series_equal(
             mapped_array['a'].reduce(
@@ -588,6 +678,24 @@ class TestMappedArray:
                 ]),
                 columns=pd.Index(['g1', 'g2'], dtype='object')
             )
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=False),
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr),
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+            mapped_array.__class__.reduce(
+                idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
         )
 
     def test_nth(self):
@@ -811,6 +919,30 @@ class TestMappedArray:
             )
         )
         pd.testing.assert_frame_equal(
+            mapped_array.value_counts(parallel=False),
+            mapped_array.value_counts(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.value_counts(axis=0),
+            pd.DataFrame(
+                np.array([
+                    [1, 0, 1], [0, 2, 0], [1, 0, 1], [1, 0, 1], [0, 1, 0]
+                ]),
+                index=pd.Float64Index([10.0, 11.0, 12.0, 13.0, 14.0], dtype='float64'),
+                columns=wrapper.index
+            )
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.value_counts(axis=-1),
+            pd.Series(
+                np.array([
+                    2, 2, 2, 2, 1
+                ]),
+                index=pd.Float64Index([10.0, 11.0, 12.0, 13.0, 14.0], dtype='float64'),
+                name='value_counts'
+            )
+        )
+        pd.testing.assert_frame_equal(
             mapped_array_grouped.value_counts(),
             pd.DataFrame(
                 np.array([
@@ -934,7 +1066,7 @@ class TestMappedArray:
         )
         np.testing.assert_array_equal(
             ma['b'].id_arr,
-            np.array([3, 4, 5])
+            np.array([0, 1, 2])
         )
         np.testing.assert_array_equal(
             ma['b'].col_arr,
@@ -958,7 +1090,7 @@ class TestMappedArray:
         )
         np.testing.assert_array_equal(
             ma[['a', 'b']].id_arr,
-            np.array([0, 1, 2, 3, 4, 5])
+            np.array([0, 1, 2, 0, 1, 2])
         )
         np.testing.assert_array_equal(
             ma[['a', 'b']].col_arr,
@@ -1222,8 +1354,8 @@ class TestRecords:
             records.records_readable,
             pd.DataFrame([
                 [0, 'a', 'x', 10.0, 21.0], [1, 'a', 'y', 11.0, 20.0], [2, 'a', 'z', 12.0, 19.0],
-                [3, 'b', 'x', 13.0, 18.0], [4, 'b', 'y', 14.0, 17.0], [5, 'b', 'z', 13.0, 18.0],
-                [6, 'c', 'x', 12.0, 19.0], [7, 'c', 'y', 11.0, 20.0], [8, 'c', 'z', 10.0, 21.0]
+                [0, 'b', 'x', 13.0, 18.0], [1, 'b', 'y', 14.0, 17.0], [2, 'b', 'z', 13.0, 18.0],
+                [0, 'c', 'x', 12.0, 19.0], [1, 'c', 'y', 11.0, 20.0], [2, 'c', 'z', 10.0, 21.0]
             ], columns=pd.Index(['Id', 'Column', 'Timestamp', 'some_field1', 'some_field2'], dtype='object'))
         )
 
@@ -1254,8 +1386,8 @@ class TestRecords:
         record_arrays_close(
             filtered.values,
             np.array([
-                (2, 0, 2, 12., 19.), (3, 1, 0, 13., 18.), (4, 1, 1, 14., 17.),
-                (5, 1, 2, 13., 18.), (6, 2, 0, 12., 19.)
+                (2, 0, 2, 12., 19.), (0, 1, 0, 13., 18.), (1, 1, 1, 14., 17.),
+                (2, 1, 2, 13., 18.), (0, 2, 0, 12., 19.)
             ], dtype=example_dt)
         )
         assert records_grouped.apply_mask(mask).wrapper == records_grouped.wrapper
@@ -1278,6 +1410,10 @@ class TestRecords:
         def map_func_nb(record):
             return record['some_field1'] + record['some_field2']
 
+        @njit
+        def map_func_meta_nb(ridx, records):
+            return records[ridx]['some_field1'] + records[ridx]['some_field2']
+
         np.testing.assert_array_equal(
             records['a'].map(map_func_nb).values,
             np.array([31., 31., 31.])
@@ -1289,6 +1425,22 @@ class TestRecords:
         assert records_grouped.map(map_func_nb).wrapper == \
                records.map(map_func_nb, group_by=group_by).wrapper
         assert records_grouped.map(map_func_nb, group_by=False).wrapper.grouper.group_by is None
+        np.testing.assert_array_equal(
+            records.map(map_func_nb, parallel=False).values,
+            records.map(map_func_nb, parallel=True).values
+        )
+        np.testing.assert_array_equal(
+            records.__class__.map(map_func_meta_nb, records.values, col_mapper=records.col_mapper).values,
+            records.map(map_func_nb).values
+        )
+        np.testing.assert_array_equal(
+            records.__class__.map(
+                map_func_meta_nb, records.values,
+                col_mapper=records.col_mapper, parallel=False).values,
+            records.__class__.map(
+                map_func_meta_nb, records.values,
+                col_mapper=records.col_mapper, parallel=True).values
+        )
 
     def test_map_array(self):
         arr = records_arr['some_field1'] + records_arr['some_field2']
@@ -1309,6 +1461,10 @@ class TestRecords:
         def cumsum_apply_nb(records):
             return np.cumsum(records['some_field1'])
 
+        @njit
+        def cumsum_apply_meta_nb(ridxs, col, records):
+            return np.cumsum(records[ridxs]['some_field1'])
+
         np.testing.assert_array_equal(
             records['a'].apply(cumsum_apply_nb).values,
             np.array([10., 21., 33.])
@@ -1328,6 +1484,22 @@ class TestRecords:
         assert records_grouped.apply(cumsum_apply_nb).wrapper == \
                records.apply(cumsum_apply_nb, group_by=group_by).wrapper
         assert records_grouped.apply(cumsum_apply_nb, group_by=False).wrapper.grouper.group_by is None
+        np.testing.assert_array_equal(
+            records.apply(cumsum_apply_nb, parallel=False).values,
+            records.apply(cumsum_apply_nb, parallel=True).values
+        )
+        np.testing.assert_array_equal(
+            records.__class__.apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values,
+            records.apply(cumsum_apply_nb).values
+        )
+        np.testing.assert_array_equal(
+            records.__class__.apply(
+                cumsum_apply_meta_nb, records.values,
+                col_mapper=records.col_mapper, parallel=False).values,
+            records.__class__.apply(
+                cumsum_apply_meta_nb, records.values,
+                col_mapper=records.col_mapper, parallel=True).values
+        )
 
     def test_count(self):
         assert records['a'].count() == 3
@@ -1387,7 +1559,7 @@ class TestRecords:
             r[['a', 'b']].values,
             np.array([
                 (0, 0, 0, 10., 21.), (1, 0, 1, 11., 20.), (2, 0, 2, 12., 19.),
-                (3, 1, 0, 13., 18.), (4, 1, 1, 14., 17.), (5, 1, 2, 13., 18.)
+                (0, 1, 0, 13., 18.), (1, 1, 1, 14., 17.), (2, 1, 2, 13., 18.)
             ], dtype=example_dt)
         )
         pd.testing.assert_index_equal(
@@ -1441,7 +1613,7 @@ class TestRecords:
         filtered_records = vbt.Records(wrapper, records_arr[[0, -1]])
         record_arrays_close(
             filtered_records.values,
-            np.array([(0, 0, 0, 10., 21.), (8, 2, 2, 10., 21.)], dtype=example_dt)
+            np.array([(0, 0, 0, 10., 21.), (2, 2, 2, 10., 21.)], dtype=example_dt)
         )
         # a
         record_arrays_close(
@@ -1468,11 +1640,11 @@ class TestRecords:
         # c
         record_arrays_close(
             filtered_records['c'].values,
-            np.array([(8, 0, 2, 10., 21.)], dtype=example_dt)
+            np.array([(2, 0, 2, 10., 21.)], dtype=example_dt)
         )
         np.testing.assert_array_equal(
             filtered_records['c'].map_field('some_field1').id_arr,
-            np.array([8])
+            np.array([2])
         )
         assert filtered_records['c'].map_field('some_field1').min() == 10.
         assert filtered_records['c'].count() == 1.
@@ -1573,13 +1745,17 @@ class TestRanges:
         record_arrays_close(
             ranges.values,
             np.array([
-                (0, 0, 0, 1, 1), (1, 0, 2, 3, 1), (2, 0, 4, 5, 1), (3, 1, 3, 5, 0), (4, 2, 0, 3, 1)
+                (0, 0, 0, 1, 1), (1, 0, 2, 3, 1), (2, 0, 4, 5, 1), (0, 1, 3, 5, 0), (0, 2, 0, 3, 1)
             ], dtype=range_dt)
         )
         assert ranges.wrapper.freq == day_dt
         pd.testing.assert_index_equal(
             ranges_grouped.wrapper.grouper.group_by,
             group_by
+        )
+        record_arrays_close(
+            vbt.Ranges.from_ts(ts, parallel=False).values,
+            vbt.Ranges.from_ts(ts, parallel=True).values
         )
 
     def test_records_readable(self):
@@ -1588,7 +1764,7 @@ class TestRanges:
         np.testing.assert_array_equal(
             records_readable['Range Id'].values,
             np.array([
-                0, 1, 2, 3, 4
+                0, 1, 2, 0, 0
             ])
         )
         np.testing.assert_array_equal(
@@ -1644,6 +1820,10 @@ class TestRanges:
                 columns=pd.Index(['g1', 'g2'], dtype='object')
             )
         )
+        pd.testing.assert_frame_equal(
+            ranges.to_mask(parallel=False),
+            ranges.to_mask(parallel=True)
+        )
 
     def test_duration(self):
         np.testing.assert_array_equal(
@@ -1653,6 +1833,10 @@ class TestRanges:
         np.testing.assert_array_equal(
             ranges.duration.values,
             np.array([1, 1, 1, 3, 3])
+        )
+        np.testing.assert_array_equal(
+            ranges.get_duration(parallel=False).values,
+            ranges.get_duration(parallel=True).values,
         )
 
     def test_avg_duration(self):
@@ -1733,6 +1917,10 @@ class TestRanges:
         pd.testing.assert_series_equal(
             ranges_grouped.coverage(),
             ranges_grouped.replace(records_arr=np.repeat(ranges_grouped.values, 2)).coverage()
+        )
+        pd.testing.assert_series_equal(
+            ranges.coverage(parallel=False),
+            ranges.coverage(parallel=True)
         )
 
     def test_stats(self):
@@ -1851,14 +2039,18 @@ class TestDrawdowns:
             drawdowns.values,
             np.array([
                 (0, 0, 0, 1, 1, 2, 2.0, 1.0, 3.0, 1), (1, 0, 2, 3, 3, 4, 3.0, 1.0, 4.0, 1),
-                (2, 0, 4, 5, 5, 5, 4.0, 1.0, 1.0, 0), (3, 1, 1, 2, 2, 3, 2.0, 1.0, 3.0, 1),
-                (4, 1, 3, 4, 4, 5, 3.0, 1.0, 4.0, 1), (5, 2, 2, 3, 4, 5, 3.0, 1.0, 2.0, 0)
+                (2, 0, 4, 5, 5, 5, 4.0, 1.0, 1.0, 0), (0, 1, 1, 2, 2, 3, 2.0, 1.0, 3.0, 1),
+                (1, 1, 3, 4, 4, 5, 3.0, 1.0, 4.0, 1), (0, 2, 2, 3, 4, 5, 3.0, 1.0, 2.0, 0)
             ], dtype=drawdown_dt)
         )
         assert drawdowns.wrapper.freq == day_dt
         pd.testing.assert_index_equal(
             drawdowns_grouped.wrapper.grouper.group_by,
             group_by
+        )
+        record_arrays_close(
+            vbt.Drawdowns.from_ts(ts2, parallel=False).values,
+            vbt.Drawdowns.from_ts(ts2, parallel=True).values
         )
 
     def test_records_readable(self):
@@ -1867,7 +2059,7 @@ class TestDrawdowns:
         np.testing.assert_array_equal(
             records_readable['Drawdown Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5
+                0, 1, 2, 0, 1, 0
             ])
         )
         np.testing.assert_array_equal(
@@ -2158,7 +2350,7 @@ class TestDrawdowns:
         record_arrays_close(
             drawdowns.active.values,
             np.array([
-                (2, 0, 4, 5, 5, 5, 4.0, 1.0, 1.0, 0), (5, 2, 2, 3, 4, 5, 3.0, 1.0, 2.0, 0)
+                (2, 0, 4, 5, 5, 5, 4.0, 1.0, 1.0, 0), (0, 2, 2, 3, 4, 5, 3.0, 1.0, 2.0, 0)
             ], dtype=drawdown_dt)
         )
 
@@ -2179,7 +2371,7 @@ class TestDrawdowns:
             drawdowns.recovered.values,
             np.array([
                 (0, 0, 0, 1, 1, 2, 2.0, 1.0, 3.0, 1), (1, 0, 2, 3, 3, 4, 3.0, 1.0, 4.0, 1),
-                (3, 1, 1, 2, 2, 3, 2.0, 1.0, 3.0, 1), (4, 1, 3, 4, 4, 5, 3.0, 1.0, 4.0, 1)
+                (0, 1, 1, 2, 2, 3, 2.0, 1.0, 3.0, 1), (1, 1, 3, 4, 4, 5, 3.0, 1.0, 4.0, 1)
             ], dtype=drawdown_dt)
         )
 
@@ -2603,15 +2795,15 @@ class TestExitTrades:
                 (1, 0, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
-                (4, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 3),
-                (5, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 3),
-                (6, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 4),
-                (7, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 5),
-                (8, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 6),
-                (9, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 6),
-                (10, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 7),
-                (11, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 8),
-                (12, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 9)
+                (0, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 0),
+                (1, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 0),
+                (2, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 1),
+                (3, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 2),
+                (0, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
+                (1, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
+                (2, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
+                (3, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 2),
+                (4, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
         )
         reversed_col_orders = orders.replace(records_arr=np.concatenate((
@@ -2623,6 +2815,10 @@ class TestExitTrades:
             vbt.ExitTrades.from_orders(reversed_col_orders).values,
             exit_trades.values
         )
+        record_arrays_close(
+            vbt.ExitTrades.from_orders(orders, parallel=False).values,
+            vbt.ExitTrades.from_orders(orders, parallel=True).values
+        )
 
     def test_records_readable(self):
         records_readable = exit_trades.records_readable
@@ -2630,7 +2826,7 @@ class TestExitTrades:
         np.testing.assert_array_equal(
             records_readable['Exit Trade Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4
             ])
         )
         np.testing.assert_array_equal(
@@ -2732,7 +2928,7 @@ class TestExitTrades:
         np.testing.assert_array_equal(
             records_readable['Position Id'].values,
             np.array([
-                0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9
+                0, 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2, 3
             ])
         )
 
@@ -2767,9 +2963,9 @@ class TestExitTrades:
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
                 (1, 0, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
-                (8, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 6),
-                (9, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 6),
-                (10, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 7)
+                (0, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
+                (1, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
+                (2, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1)
             ], dtype=trade_dt)
         )
 
@@ -2790,30 +2986,13 @@ class TestExitTrades:
             exit_trades.losing.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
-                (4, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 3),
-                (5, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 3),
-                (6, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 4),
-                (7, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 5),
-                (11, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 8),
-                (12, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 9)
+                (0, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 0),
+                (1, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 0),
+                (2, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 1),
+                (3, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 2),
+                (3, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 2),
+                (4, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
-        )
-
-    def test_win_rate(self):
-        assert exit_trades['a'].win_rate() == 0.75
-        pd.testing.assert_series_equal(
-            exit_trades.win_rate(),
-            pd.Series(
-                np.array([0.75, 0., 0.6, np.nan]),
-                index=close.columns
-            ).rename('win_rate')
-        )
-        pd.testing.assert_series_equal(
-            exit_trades_grouped.win_rate(),
-            pd.Series(
-                np.array([0.375, 0.6]),
-                index=pd.Index(['g1', 'g2'], dtype='object')
-            ).rename('win_rate')
         )
 
     def test_winning_streak(self):
@@ -2834,6 +3013,23 @@ class TestExitTrades:
         np.testing.assert_array_almost_equal(
             exit_trades.losing_streak.values,
             np.array([0, 0, 0, 1, 1, 2, 3, 4, 0, 0, 0, 1, 2])
+        )
+
+    def test_win_rate(self):
+        assert exit_trades['a'].win_rate() == 0.75
+        pd.testing.assert_series_equal(
+            exit_trades.win_rate(),
+            pd.Series(
+                np.array([0.75, 0., 0.6, np.nan]),
+                index=close.columns
+            ).rename('win_rate')
+        )
+        pd.testing.assert_series_equal(
+            exit_trades_grouped.win_rate(),
+            pd.Series(
+                np.array([0.375, 0.6]),
+                index=pd.Index(['g1', 'g2'], dtype='object')
+            ).rename('win_rate')
         )
 
     def test_profit_factor(self):
@@ -2910,10 +3106,10 @@ class TestExitTrades:
                 (1, 0, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
-                (8, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 6),
-                (9, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 6),
-                (10, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 7),
-                (12, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 9)
+                (0, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
+                (1, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
+                (2, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
+                (4, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
         )
 
@@ -2931,11 +3127,11 @@ class TestExitTrades:
         record_arrays_close(
             exit_trades.short.values,
             np.array([
-                (4, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 3),
-                (5, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 3),
-                (6, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 4),
-                (7, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 5),
-                (11, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 8)
+                (0, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 0),
+                (1, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 0),
+                (2, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 1),
+                (3, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 2),
+                (3, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 2)
             ], dtype=trade_dt)
         )
 
@@ -2956,8 +3152,8 @@ class TestExitTrades:
             exit_trades.open.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
-                (7, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 5),
-                (12, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 9)
+                (3, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 2),
+                (4, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
         )
 
@@ -2982,13 +3178,13 @@ class TestExitTrades:
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
                 (1, 0, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
-                (4, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 3),
-                (5, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 3),
-                (6, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 4),
-                (8, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 6),
-                (9, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 6),
-                (10, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 7),
-                (11, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 8)
+                (0, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 0),
+                (1, 1, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, -0.296, -2.71333333, 1, 1, 0),
+                (2, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 1),
+                (0, 2, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
+                (1, 2, 0.1, 0, 1.09090909, 0.00109091, 3, 4., 0.004, 0.28581818, 2.62, 0, 1, 0),
+                (2, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
+                (3, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 2)
             ], dtype=trade_dt)
         )
 
@@ -3107,18 +3303,18 @@ class TestEntryTrades:
                  0.10399999999999998, 0.5199999999999999, 0, 1, 0),
                 (2, 0, 1.0, 5, 6.0, 0.06, 6, 7.0, 0.07, 0.8699999999999999, 0.145, 0, 1, 1),
                 (3, 0, 2.0, 7, 8.0, 0.16, 7, 8.0, 0.0, -0.16, -0.01, 0, 0, 2),
-                (4, 1, 1.0, 0, 1.0, 0.01, 3, 3.0909090909090904, 0.03090909090909091,
-                 -2.131818181818181, -2.131818181818181, 1, 1, 3),
-                (5, 1, 0.1, 1, 2.0, 0.002, 3, 3.0909090909090904, 0.003090909090909091,
-                 -0.11418181818181816, -0.5709090909090908, 1, 1, 3),
-                (6, 1, 1.0, 5, 6.0, 0.06, 6, 7.0, 0.07, -1.1300000000000001, -0.18833333333333335, 1, 1, 4),
-                (7, 1, 2.0, 7, 8.0, 0.16, 7, 8.0, 0.0, -0.16, -0.01, 1, 0, 5),
-                (8, 2, 1.0, 0, 1.0, 0.01, 3, 3.0909090909090904, 0.03090909090909091, 2.05, 2.05, 0, 1, 6),
-                (9, 2, 0.1, 1, 2.0, 0.002, 3, 3.0909090909090904, 0.003090909090909091,
-                 0.10399999999999998, 0.5199999999999999, 0, 1, 6),
-                (10, 2, 1.0, 5, 6.0, 0.06, 6, 7.0, 0.07, 0.8699999999999999, 0.145, 0, 1, 7),
-                (11, 2, 1.0, 6, 7.0, 0.07, 7, 8.0, 0.08, -1.1500000000000001, -0.1642857142857143, 1, 1, 8),
-                (12, 2, 1.0, 7, 8.0, 0.08, 7, 8.0, 0.0, -0.08, -0.01, 0, 0, 9)
+                (0, 1, 1.0, 0, 1.0, 0.01, 3, 3.0909090909090904, 0.03090909090909091,
+                 -2.131818181818181, -2.131818181818181, 1, 1, 0),
+                (1, 1, 0.1, 1, 2.0, 0.002, 3, 3.0909090909090904, 0.003090909090909091,
+                 -0.11418181818181816, -0.5709090909090908, 1, 1, 0),
+                (2, 1, 1.0, 5, 6.0, 0.06, 6, 7.0, 0.07, -1.1300000000000001, -0.18833333333333335, 1, 1, 1),
+                (3, 1, 2.0, 7, 8.0, 0.16, 7, 8.0, 0.0, -0.16, -0.01, 1, 0, 2),
+                (0, 2, 1.0, 0, 1.0, 0.01, 3, 3.0909090909090904, 0.03090909090909091, 2.05, 2.05, 0, 1, 0),
+                (1, 2, 0.1, 1, 2.0, 0.002, 3, 3.0909090909090904, 0.003090909090909091,
+                 0.10399999999999998, 0.5199999999999999, 0, 1, 0),
+                (2, 2, 1.0, 5, 6.0, 0.06, 6, 7.0, 0.07, 0.8699999999999999, 0.145, 0, 1, 1),
+                (3, 2, 1.0, 6, 7.0, 0.07, 7, 8.0, 0.08, -1.1500000000000001, -0.1642857142857143, 1, 1, 2),
+                (4, 2, 1.0, 7, 8.0, 0.08, 7, 8.0, 0.0, -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
         )
         reversed_col_orders = orders.replace(records_arr=np.concatenate((
@@ -3130,6 +3326,10 @@ class TestEntryTrades:
             vbt.EntryTrades.from_orders(reversed_col_orders).values,
             entry_trades.values
         )
+        record_arrays_close(
+            vbt.EntryTrades.from_orders(orders, parallel=False).values,
+            vbt.EntryTrades.from_orders(orders, parallel=True).values
+        )
 
     def test_records_readable(self):
         records_readable = entry_trades.records_readable
@@ -3137,13 +3337,13 @@ class TestEntryTrades:
         np.testing.assert_array_equal(
             records_readable['Entry Trade Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 4
             ])
         )
         np.testing.assert_array_equal(
             records_readable['Position Id'].values,
             np.array([
-                0, 0, 1, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9
+                0, 0, 1, 2, 0, 0, 1, 2, 0, 0, 1, 2, 3
             ])
         )
 
@@ -3160,13 +3360,13 @@ class TestPositions:
                 (0, 0, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, 2.154, 1.795, 0, 1, 0),
                 (1, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
                 (2, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
-                (3, 1, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, -2.246, -1.87166667, 1, 1, 3),
-                (4, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 4),
-                (5, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 5),
-                (6, 2, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, 2.154, 1.795, 0, 1, 6),
-                (7, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 7),
-                (8, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 8),
-                (9, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 9)
+                (0, 1, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, -2.246, -1.87166667, 1, 1, 0),
+                (1, 1, 1., 5, 6., 0.06, 6, 7., 0.07, -1.13, -0.18833333, 1, 1, 1),
+                (2, 1, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 1, 0, 2),
+                (0, 2, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, 2.154, 1.795, 0, 1, 0),
+                (1, 2, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1),
+                (2, 2, 1., 6, 7., 0.07, 7, 8., 0.08, -1.15, -0.16428571, 1, 1, 2),
+                (3, 2, 1., 7, 8., 0.08, 7, 8., 0., -0.08, -0.01, 0, 0, 3)
             ], dtype=trade_dt)
         )
         reversed_col_trades = exit_trades.replace(records_arr=np.concatenate((
@@ -3178,6 +3378,14 @@ class TestPositions:
             vbt.Positions.from_trades(reversed_col_trades).values,
             positions.values
         )
+        record_arrays_close(
+            vbt.Positions.from_trades(entry_trades, parallel=False).values,
+            vbt.Positions.from_trades(entry_trades, parallel=True).values
+        )
+        record_arrays_close(
+            vbt.Positions.from_trades(exit_trades, parallel=False).values,
+            vbt.Positions.from_trades(exit_trades, parallel=True).values
+        )
 
     def test_records_readable(self):
         records_readable = positions.records_readable
@@ -3185,7 +3393,7 @@ class TestPositions:
         np.testing.assert_array_equal(
             records_readable['Position Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+                0, 1, 2, 0, 1, 2, 0, 1, 2, 3
             ])
         )
         assert 'Parent Id' not in records_readable.columns

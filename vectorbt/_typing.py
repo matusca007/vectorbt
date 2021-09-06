@@ -135,7 +135,6 @@ ReduceGroupedFunc = Callable[[Array2d, VarArg()], Scalar]
 ReduceGroupedMetaFunc = Callable[[int, int, int, VarArg()], Scalar]
 ReduceGroupedToArrayFunc = Callable[[Array2d, VarArg()], Array1d]
 ReduceGroupedToArrayMetaFunc = Callable[[int, int, int, VarArg()], Array1d]
-GroupSqueezeFunc = Callable[[Array1d, VarArg()], Scalar]
 GroupSqueezeMetaFunc = Callable[[int, int, int, int, VarArg()], Scalar]
 
 # Signals
@@ -145,10 +144,16 @@ RankFunc = Callable[[int, int, int, int, int, VarArg()], int]
 # Records
 ColRange = Array2d
 ColMap = Tuple[Array1d, Array1d]
-MappedApplyFunc = Callable[[Array1d, int, Array1d, VarArg()], Array1d]
-RecordApplyFunc = Callable[[RecordArray, VarArg()], Array1d]
-RecordMapFunc = Callable[[np.void, VarArg()], R]
-MaskInOutMapFunc = Callable[[Array1d, Array1d, int, Array1d, VarArg()], None]
+MappedApplyFunc = Callable[[Array1d, VarArg()], Array1d]
+MappedApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
+RecordsMapFunc = Callable[[np.void, VarArg()], R]
+RecordsMapMetaFunc = Callable[[int, VarArg()], R]
+RecordsApplyFunc = Callable[[RecordArray, VarArg()], Array1d]
+RecordsApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
+RecordsReduceFunc = Callable[[Array1d, VarArg()], Scalar]
+RecordsReduceMetaFunc = Callable[[Array1d, int, VarArg()], Scalar]
+RecordsReduceToArrayFunc = Callable[[Array1d, VarArg()], Array1d]
+RecordsReduceToArrayMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
 
 # Indicators
 Param = Any

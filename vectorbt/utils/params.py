@@ -39,7 +39,7 @@ def create_param_combs(op_tree: tp.Tuple, depth: int = 0) -> tp.List[tp.List]:
     """Create arbitrary parameter combinations from the operation tree `op_tree`.
 
     `op_tree` is a tuple with nested instructions to generate parameters.
-    The first element of the tuple should be a callable that takes remaining elements as arguments.
+    The first element of the tuple must be a callable that takes remaining elements as arguments.
     If one of the elements is a tuple itself and its first argument is a callable, it will be
     unfolded in the same way as above.
 

@@ -21,9 +21,9 @@ These only accept NumPy arrays and other Numba-compatible types.
     2-dim, unless function has suffix `_1d` or is meant to be input to another function. 
     Data is processed along index (axis 0).
     
-    All functions passed as argument should be Numba-compiled.
+    All functions passed as argument must be Numba-compiled.
 
-    Returned indices should be absolute."""
+    Returned indices must be absolute."""
 
 import numpy as np
 
@@ -49,9 +49,9 @@ def generate_nb(shape: tp.Shape,
         pick_first (bool): Whether to pick the first signal out of all returned by `choice_func_nb`.
         choice_func_nb (callable): Choice function.
 
-            `choice_func_nb` should accept index of the start of the range `from_i`,
+            `choice_func_nb` must accept index of the start of the range `from_i`,
             index of the end of the range `to_i`, index of the column `col`, and `*args`.
-            It should return an array of indices from `[from_i, to_i)` (can be empty).
+            Must return an array of indices from `[from_i, to_i)` (can be empty).
         *args: Arguments passed to `choice_func_nb`.
 
     ## Example
@@ -351,7 +351,7 @@ def generate_rand_by_prob_nb(shape: tp.Shape,
                              seed: tp.Optional[int] = None) -> tp.Array2d:
     """Create a boolean matrix of `shape` and pick signals randomly by probability `prob`.
 
-    `prob` should be a 2-dim array of shape `shape`.
+    `prob` must be a 2-dim array of shape `shape`.
     Specify `seed` to make output deterministic.
 
     See `rand_by_prob_choice_nb`."""
@@ -398,7 +398,7 @@ def generate_rand_ex_by_prob_nb(entries: tp.Array2d,
                                 seed: tp.Optional[int] = None) -> tp.Array2d:
     """Pick an exit after each entry in `entries` by probability `prob`.
 
-    `prob` should be a 2-dim array of shape `shape`.
+    `prob` must be a 2-dim array of shape `shape`.
     Specify `seed` to make output deterministic."""
     if seed is not None:
         np.random.seed(seed)
@@ -533,7 +533,7 @@ def generate_rand_enex_by_prob_nb(shape: tp.Shape,
                                   seed: tp.Optional[int] = None) -> tp.Tuple[tp.Array2d, tp.Array2d]:
     """Pick entries by probability `entry_prob` and exits by probability `exit_prob` one after another.
 
-    `entry_prob` and `exit_prob` should be 2-dim arrays of shape `shape`.
+    `entry_prob` and `exit_prob` must be 2-dim arrays of shape `shape`.
     Specify `seed` to make output deterministic."""
     if seed is not None:
         np.random.seed(seed)
@@ -1166,9 +1166,9 @@ def rank_nb(a: tp.Array2d,
             rank_func_nb: tp.RankFunc, *args) -> tp.Array2d:
     """Rank each signal using `rank_func_nb`.
 
-    Applies `rank_func_nb` on each True value. Should accept index of the row, 
+    Applies `rank_func_nb` on each True value. Must accept index of the row,
     index of the column, index of the last reset signal, index of the end of the previous partition,
-    index of the start of the current partition, and `*args`. Should return -1 for no rank, otherwise 0 or greater.
+    index of the start of the current partition, and `*args`. Must return -1 for no rank, otherwise 0 or greater.
 
     Setting `after_false` to True will disregard the first partition of True values
     if there is no False value before them."""
@@ -1268,4 +1268,24 @@ def norm_avg_index_nb(a: tp.Array2d) -> tp.Array1d:
     out = np.empty(a.shape[1], dtype=np.float_)
     for col in range(a.shape[1]):
         out[col] = norm_avg_index_1d_nb(a[:, col])
+    return out
+
+
+@register_jit(cache=True)
+def norm_avg_index_grouped_nb(a, group_lens):
+    """Grouped version of `norm_avg_index_nb`."""
+    out = np.empty(len(group_lens), dtype=np.float_)
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+    for group in range(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
+        group_len = to_col - from_col
+        temp = np.empty(a.shape[0] * group_len, dtype=np.int_)
+        j = 0
+        for col in range(from_col, to_col):
+            col_idxs = np.flatnonzero(a[:, col])
+            temp[j:j + len(col_idxs)] = col_idxs
+            j += len(col_idxs)
+        out[group] = renormalize_nb(np.mean(temp[:j]), (0, a.shape[0] - 1), (-1, 1))
     return out

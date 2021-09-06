@@ -14,12 +14,12 @@ WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
     """Class decorator to add returns accessor methods.
 
-    `config` should contain target method names (keys) and dictionaries (values) with the following keys:
+    `config` must contain target method names (keys) and dictionaries (values) with the following keys:
 
     * `source_name`: Name of the source method. Defaults to the target name.
     * `docstring`: Method docstring. Defaults to "See `vectorbt.returns.accessors.ReturnsAccessor.{source_name}`.".
 
-    The class should be a subclass of `vectorbt.portfolio.base.Portfolio`.
+    The class must be a subclass of `vectorbt.portfolio.base.Portfolio`.
     """
 
     def wrapper(cls: tp.Type[tp.T]) -> tp.Type[tp.T]:

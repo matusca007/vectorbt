@@ -11,7 +11,7 @@ classes. These only accept NumPy arrays and other Numba-compatible types.
     2-dim, unless function has suffix `_1d` or is meant to be input to another function.
     Data is processed along index (axis 0).
 
-    All functions passed as argument should be Numba-compiled."""
+    All functions passed as argument must be Numba-compiled."""
 
 import numpy as np
 

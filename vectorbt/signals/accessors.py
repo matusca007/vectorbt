@@ -25,9 +25,7 @@ dtype: int64
 The accessors extend `vectorbt.generic.accessors`.
 
 !!! note
-    The underlying Series/DataFrame should already be a signal series.
-
-    Input arrays should be `np.bool_`.
+    The underlying Series/DataFrame must already be a signal series and have boolean data type.
 
     Grouping is only supported by the methods that accept the `group_by` argument.
 
@@ -478,8 +476,8 @@ class SignalsAccessor(GenericAccessor):
         If `n` is set, see `vectorbt.signals.nb.generate_rand_nb`.
         If `prob` is set, see `vectorbt.signals.nb.generate_rand_by_prob_nb`.
 
-        `n` should be either a scalar or an array that will broadcast to the number of columns.
-        `prob` should be either a single number or an array that will broadcast to match `shape`.
+        `n` must be either a scalar or an array that will broadcast to the number of columns.
+        `prob` must be either a single number or an array that will broadcast to match `shape`.
         `**kwargs` will be passed to pandas constructor.
 
         ## Example
@@ -1203,7 +1201,7 @@ class SignalsAccessor(GenericAccessor):
         Will broadcast with `reset_by` using `vectorbt.base.reshape_fns.broadcast` and `broadcast_kwargs`.
 
         Use `prepare_func` to prepare further arguments to be passed before `*args`, such as temporary arrays.
-        It should take both broadcasted arrays (`reset_by` can be None) and return a tuple.
+        It must take both broadcasted arrays (`reset_by` can be None) and return a tuple.
 
         Set `as_mapped` to True to return an instance of `vectorbt.records.mapped_array.MappedArray`."""
         checks.assert_not_none(rank_func_nb)
@@ -1361,7 +1359,7 @@ class SignalsAccessor(GenericAccessor):
 
     # ############# Index ############# #
 
-    def nth_index(self, n: int, return_labels: bool = True, group_by: tp.GroupByLike = None,
+    def nth_index(self, n: int, group_by: tp.GroupByLike = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.nth_index_nb`.
 
@@ -1390,17 +1388,12 @@ class SignalsAccessor(GenericAccessor):
         Timestamp('2020-01-05 00:00:00')
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
-            squeezed = self.squeeze_grouped(generic_nb.any_squeeze_nb, group_by=group_by)
+            squeezed = self.squeeze_grouped(generic_nb.any_reduce_nb, group_by=group_by)
             arr = reshape_fns.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
         nth_index = nb.nth_index_nb(arr, n)
-        if return_labels:
-            minus_one_mask = nth_index == -1
-            nth_index = nth_index.astype(object)
-            nth_index[minus_one_mask] = np.nan
-            nth_index[~minus_one_mask] = self.wrapper.index[nth_index[~minus_one_mask].astype(np.int_)]
-        wrap_kwargs = merge_dicts(dict(name_or_index='nth_index'), wrap_kwargs)
+        wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
 
     def norm_avg_index(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1429,21 +1422,13 @@ class SignalsAccessor(GenericAccessor):
         >>> pd.Series([True, False, False, True]).vbt.signals.norm_avg_index()
         0.0
         ```"""
-        norm_avg_index = nb.norm_avg_index_nb(self.to_2d_array())
-        wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
-        norm_avg_index = self.wrapper.wrap_reduced(norm_avg_index, group_by=False, **wrap_kwargs)
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
-            # Group index is a weighted average of column indexes in the group
-            if group_by is None:
-                group_by = self.wrapper.grouper.group_by
-            col_total = self.total(group_by=False)
-            norm_avg_index *= col_total
-            norm_avg_index = norm_avg_index.vbt.squeeze_grouped(
-                generic_nb.sum_squeeze_nb, group_by=group_by)
-            group_total = col_total.vbt.squeeze_grouped(
-                generic_nb.sum_squeeze_nb, group_by=group_by)
-            norm_avg_index /= group_total
-        return norm_avg_index
+            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
+            norm_avg_index = nb.norm_avg_index_grouped_nb(self.to_2d_array(), group_lens)
+        else:
+            norm_avg_index = nb.norm_avg_index_nb(self.to_2d_array())
+        wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
+        return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)
 
     def index_mapped(self, group_by: tp.GroupByLike = None, **kwargs) -> MappedArray:
         """Get a mapped array of indices.
@@ -1597,14 +1582,14 @@ class SignalsAccessor(GenericAccessor):
                 title='First Index',
                 calc_func='nth_index',
                 n=0,
-                return_labels=True,
+                wrap_kwargs=dict(to_index=True),
                 tags=['signals', 'index']
             ),
             last_index=dict(
                 title='Last Index',
                 calc_func='nth_index',
                 n=-1,
-                return_labels=True,
+                wrap_kwargs=dict(to_index=True),
                 tags=['signals', 'index']
             ),
             norm_avg_index=dict(

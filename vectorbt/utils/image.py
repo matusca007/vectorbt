@@ -50,7 +50,7 @@ def save_animation(fname: str,
         index (iterable): Index to iterate over.
         plot_func (callable): Plotting function.
 
-            Should take subset of `index`, `*args`, and `**kwargs`, and return either a Plotly figure,
+            Must take subset of `index`, `*args`, and `**kwargs`, and return either a Plotly figure,
             image that can be read by `imageio.imread`, or a NumPy array.
         *args: Positional arguments passed to `plot_func`.
         delta (int): Window size of each iteration.

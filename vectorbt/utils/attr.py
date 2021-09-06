@@ -129,13 +129,13 @@ class AttrResolver:
     def pre_resolve_attr(self, attr: str, final_kwargs: tp.KwargsLike = None) -> str:
         """Pre-process an attribute before resolution.
 
-        Should return an attribute."""
+        Must return an attribute."""
         return attr
 
     def post_resolve_attr(self, attr: str, out: tp.Any, final_kwargs: tp.KwargsLike = None) -> str:
         """Post-process an object after resolution.
 
-        Should return an object."""
+        Must return an object."""
         return out
 
     def resolve_attr(self,

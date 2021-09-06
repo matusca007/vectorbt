@@ -123,8 +123,8 @@ class RangeSplitter(BaseSplitter):
         * If `range_len` is None, are split evenly into `n` ranges.
         * If `n` is None, returns the maximum number of ranges of length `range_len` (can be a percentage).
         * If `start_idxs` and `end_idxs`, splits into ranges between both arrays.
-        Both index arrays should be either NumPy arrays with absolute positions or
-        pandas indexes with labels. The last index should be inclusive. The distance
+        Both index arrays must be either NumPy arrays with absolute positions or
+        pandas indexes with labels. The last index must be inclusive. The distance
         between each start and end index can be different, and smaller ranges are filled with NaNs.
 
         `range_len` can be a floating number between 0 and 1 to indicate a fraction of the total range.

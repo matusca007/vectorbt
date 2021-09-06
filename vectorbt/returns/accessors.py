@@ -132,6 +132,10 @@ dtype: object
     See `vectorbt.generic.plots_builder.PlotsBuilderMixin.plots` and `ReturnsAccessor.subplots`.
 
 This class inherits subplots from `vectorbt.generic.accessors.GenericAccessor`.
+
+## Performance
+
+You can use the `parallel` argument wherever possible to enable/disable automatic parallelization with Numba.
 """
 
 import numpy as np

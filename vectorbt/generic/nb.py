@@ -25,7 +25,7 @@ array([nan, 1.5, 2.5, 3.5])
     
     Rolling functions with `minp=None` have `min_periods` set to the window size.
     
-    All functions passed as argument should be Numba-compiled.
+    All functions passed as argument must be Numba-compiled.
 
 !!! warning
     Make sure to use `parallel=True` only if your columns are independent.
@@ -115,7 +115,7 @@ def set_by_mask_nb(a: tp.Array2d, mask: tp.Array2d, value: tp.Scalar) -> tp.Arra
 def set_by_mask_mult_1d_nb(a: tp.Array1d, mask: tp.Array1d, values: tp.Array1d) -> tp.Array1d:
     """Set each element in one array to the corresponding element in another by boolean mask.
 
-    `values` should be of the same shape as in `a`."""
+    `values` must be of the same shape as in `a`."""
     nb_enabled = not isinstance(a, np.ndarray)
     if nb_enabled:
         a_dtype = as_dtype(a.dtype)
@@ -446,12 +446,22 @@ def nancumprod_nb(a: tp.Array2d) -> tp.Array2d:
     return _nancumprod_nb
 
 
+@register_jit(cache=True)
+def nancnt_1d_nb(a: tp.Array1d) -> int:
+    """Compute count while ignoring NaNs and not allocating any arrays."""
+    cnt = 0
+    for i in range(a.shape[0]):
+        if not np.isnan(a[i]):
+            cnt += 1
+    return cnt
+
+
 @register_jit(cache=True, tags={'can_parallel'})
 def nancnt_nb(a: tp.Array2d) -> tp.Array1d:
-    """Compute count while ignoring NaNs."""
+    """2-dim version of `nancnt_1d_nb`."""
     out = np.empty(a.shape[1], dtype=np.int_)
     for col in prange(a.shape[1]):
-        out[col] = np.sum(~np.isnan(a[:, col]))
+        out[col] = nancnt_1d_nb(a[:, col])
     return out
 
 
@@ -1091,7 +1101,7 @@ def expanding_std_nb(a: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
 def map_1d_nb(a: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
     """Map elements element-wise using `map_func_nb`.
 
-    `map_func_nb` should accept the element and `*args`. Should return a single value."""
+    `map_func_nb` must accept the element and `*args`. Must return a single value."""
     i_0_out = map_func_nb(a[0], *args)
     out = np.empty_like(a, dtype=np.asarray(i_0_out).dtype)
     out[0] = i_0_out
@@ -1115,8 +1125,8 @@ def map_nb(a: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
 def map_1d_meta_nb(n: int, col: int, map_func_nb: tp.MapMetaFunc, *args) -> tp.Array1d:
     """Meta version of `map_1d_nb`.
 
-    `map_func_nb` should accept the row index, the column index, and `*args`.
-    Should return a single value."""
+    `map_func_nb` must accept the row index, the column index, and `*args`.
+    Must return a single value."""
     i_0_out = map_func_nb(0, col, *args)
     out = np.empty(n, dtype=np.asarray(i_0_out).dtype)
     out[0] = i_0_out
@@ -1140,8 +1150,8 @@ def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> t
 def apply_nb(a: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """Apply function on each column of an object.
 
-    `apply_func_nb` should accept the array and `*args`.
-    Should return a single value or an array of shape `a.shape[1]`."""
+    `apply_func_nb` must accept the array and `*args`.
+    Must return a single value or an array of shape `a.shape[1]`."""
     col_0_out = apply_func_nb(a[:, 0], *args)
     out = np.empty_like(a, dtype=np.asarray(col_0_out).dtype)
     out[:, 0] = col_0_out
@@ -1188,7 +1198,7 @@ def rolling_apply_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int],
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide rolling window calculations.
 
-    `apply_func_nb` should accept the array and `*args`. Should return a single value."""
+    `apply_func_nb` must accept the array and `*args`. Must return a single value."""
     if minp is None:
         minp = window
     out = np.empty_like(a, dtype=np.float_)
@@ -1227,8 +1237,8 @@ def rolling_apply_1d_meta_nb(n: int, col: int, window: int, minp: tp.Optional[in
                              apply_func_nb: tp.RollApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `rolling_apply_1d_nb`.
 
-    `apply_func_nb` should accept the start row index, the end row index, the column, and `*args`.
-    Should return a single value."""
+    `apply_func_nb` must accept the start row index, the end row index, the column, and `*args`.
+    Must return a single value."""
     if minp is None:
         minp = window
     out = np.empty(n, dtype=np.float_)
@@ -1258,7 +1268,7 @@ def groupby_apply_1d_nb(a: tp.Array1d, group_map: tp.GroupMap,
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide group-by calculations.
 
-    `apply_func_nb` should accept the array and `*args`. Should return a single value."""
+    `apply_func_nb` must accept the array and `*args`. Must return a single value."""
     group_idxs, group_lens = group_map
     group_start_idxs = np.cumsum(group_lens) - group_lens
     group_0_idxs = group_idxs[group_start_idxs[0]:group_start_idxs[0] + group_lens[0]]
@@ -1291,8 +1301,8 @@ def groupby_apply_1d_meta_nb(col: int, group_map: tp.GroupMap,
                              apply_func_nb: tp.GroupByApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `groupby_apply_1d_nb`.
 
-    `apply_func_nb` should accept the array of indices in the group, the group index, the column index,
-    and `*args`. Should return a single value."""
+    `apply_func_nb` must accept the array of indices in the group, the group index, the column index,
+    and `*args`. Must return a single value."""
     group_idxs, group_lens = group_map
     group_start_idxs = np.cumsum(group_lens) - group_lens
     group_0_idxs = group_idxs[group_start_idxs[0]:group_start_idxs[0] + group_lens[0]]
@@ -1325,11 +1335,11 @@ def apply_and_reduce_1d_nb(a: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_arg
                            reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Scalar:
     """Apply `apply_func_nb` and reduce into a single value using `reduce_func_nb`.
 
-    `apply_func_nb` should accept the array and `*apply_args`.
-    Should return an array.
+    `apply_func_nb` must accept the array and `*apply_args`.
+    Must return an array.
 
-    `reduce_func_nb` should accept the array of results from `apply_func_nb` and `*reduce_args`.
-    Should return a single value."""
+    `reduce_func_nb` must accept the array of results from `apply_func_nb` and `*reduce_args`.
+    Must return a single value."""
     temp = apply_func_nb(a, *apply_args)
     return reduce_func_nb(temp, *reduce_args)
 
@@ -1351,11 +1361,11 @@ def apply_and_reduce_1d_meta_nb(col: int, apply_func_nb: tp.ApplyMetaFunc, apply
                                 reduce_func_nb: tp.ReduceMetaFunc, reduce_args: tuple) -> tp.Scalar:
     """Meta version of `apply_and_reduce_1d_nb`.
 
-    `apply_func_nb` should accept the column index, the array, and `*apply_args`.
-    Should return an array.
+    `apply_func_nb` must accept the column index, the array, and `*apply_args`.
+    Must return an array.
 
-    `reduce_func_nb` should accept the column index, the array of results from `apply_func_nb`, and `*reduce_args`.
-    Should return a single value."""
+    `reduce_func_nb` must accept the column index, the array of results from `apply_func_nb`, and `*reduce_args`.
+    Must return a single value."""
     temp = apply_func_nb(col, *apply_args)
     return reduce_func_nb(col, temp, *reduce_args)
 
@@ -1376,7 +1386,7 @@ def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply
 def reduce_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce each column into a single value using `reduce_func_nb`.
 
-    `reduce_func_nb` should accept the array and `*args`. Should return a single value."""
+    `reduce_func_nb` must accept the array and `*args`. Must return a single value."""
     col_0_out = reduce_func_nb(a[:, 0], *args)
     out = np.empty(a.shape[1], dtype=np.asarray(col_0_out).dtype)
     out[0] = col_0_out
@@ -1389,7 +1399,7 @@ def reduce_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d
 def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_nb`.
 
-    `reduce_func_nb` should accept the column index and `*args`. Should return a single value."""
+    `reduce_func_nb` must accept the column index and `*args`. Must return a single value."""
     col_0_out = reduce_func_nb(0, *args)
     out = np.empty(n_cols, dtype=np.asarray(col_0_out).dtype)
     out[0] = col_0_out
@@ -1400,7 +1410,7 @@ def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.
 
 @register_jit(tags={'can_parallel'})
 def reduce_to_array_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
-    """Same as `reduce_nb` but `reduce_func_nb` should return an array."""
+    """Same as `reduce_nb` but `reduce_func_nb` must return an array."""
     col_0_out = reduce_func_nb(a[:, 0], *args)
     out = np.empty((col_0_out.shape[0], a.shape[1]), dtype=col_0_out.dtype)
     out[:, 0] = col_0_out
@@ -1411,7 +1421,7 @@ def reduce_to_array_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *arg
 
 @register_jit(tags={'can_parallel'})
 def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFunc, *args) -> tp.Array2d:
-    """Same as `reduce_meta_nb` but `reduce_func_nb` should return an array."""
+    """Same as `reduce_meta_nb` but `reduce_func_nb` must return an array."""
     col_0_out = reduce_func_nb(0, *args)
     out = np.empty((col_0_out.shape[0], n_cols), dtype=col_0_out.dtype)
     out[:, 0] = col_0_out
@@ -1425,7 +1435,7 @@ def reduce_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
                       reduce_func_nb: tp.ReduceGroupedFunc, *args) -> tp.Array1d:
     """Reduce each group of columns into a single value using `reduce_func_nb`.
 
-    `reduce_func_nb` should accept the 2-dim array and `*args`. Should return a single value."""
+    `reduce_func_nb` must accept the 2-dim array and `*args`. Must return a single value."""
     group_0_out = reduce_func_nb(a[:, 0:group_lens[0]], *args)
     out = np.empty(len(group_lens), dtype=np.asarray(group_0_out).dtype)
     out[0] = group_0_out
@@ -1442,8 +1452,8 @@ def reduce_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
 def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGroupedMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_grouped_nb`.
 
-    `reduce_func_nb` should accept the from-column index, the to-column index, the group index, and `*args`.
-    Should return a single value."""
+    `reduce_func_nb` must accept the from-column index, the to-column index, the group index, and `*args`.
+    Must return a single value."""
     group_0_out = reduce_func_nb(0, group_lens[0], 0, *args)
     out = np.empty(len(group_lens), dtype=np.asarray(group_0_out).dtype)
     out[0] = group_0_out
@@ -1490,7 +1500,7 @@ def reduce_flat_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bo
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d,
                                reduce_func_nb: tp.ReduceGroupedToArrayFunc, *args) -> tp.Array2d:
-    """Same as `reduce_grouped_nb` but `reduce_func_nb` should return an array."""
+    """Same as `reduce_grouped_nb` but `reduce_func_nb` must return an array."""
     group_0_out = reduce_func_nb(a[:, 0:group_lens[0]], *args)
     out = np.empty((group_0_out.shape[0], len(group_lens)), dtype=group_0_out.dtype)
     out[:, 0] = group_0_out
@@ -1506,7 +1516,7 @@ def reduce_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d,
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
                                     reduce_func_nb: tp.ReduceGroupedToArrayMetaFunc, *args) -> tp.Array2d:
-    """Same as `reduce_grouped_meta_nb` but `reduce_func_nb` should return an array."""
+    """Same as `reduce_grouped_meta_nb` but `reduce_func_nb` must return an array."""
     group_0_out = reduce_func_nb(0, group_lens[0], 0, *args)
     out = np.empty((group_0_out.shape[0], len(group_lens)), dtype=group_0_out.dtype)
     out[:, 0] = group_0_out
@@ -1543,10 +1553,10 @@ def reduce_flat_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_
 
 @register_jit(tags={'can_parallel'})
 def squeeze_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
-                       squeeze_func_nb: tp.GroupSqueezeFunc, *args) -> tp.Array2d:
+                       squeeze_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
     """Squeeze each group of columns into a single column using `squeeze_func_nb`.
 
-    `squeeze_func_nb` should accept index the array and `*args`. Should return a single value."""
+    `squeeze_func_nb` must accept index the array and `*args`. Must return a single value."""
     group_i_0_out = squeeze_func_nb(a[0, 0:group_lens[0]], *args)
     out = np.empty((a.shape[0], len(group_lens)), dtype=np.asarray(group_i_0_out).dtype)
     out[0, 0] = group_i_0_out
@@ -1567,8 +1577,8 @@ def squeeze_grouped_meta_nb(n_rows: int, group_lens: tp.Array1d,
                             squeeze_func_nb: tp.GroupSqueezeMetaFunc, *args) -> tp.Array2d:
     """Meta version of `squeeze_grouped_nb`.
 
-    `squeeze_func_nb` should accept the row index, the from-column index, the to-column index,
-    the group index, and `*args`. Should return a single value."""
+    `squeeze_func_nb` must accept the row index, the from-column index, the to-column index,
+    the group index, and `*args`. Must return a single value."""
     group_i_0_out = squeeze_func_nb(0, 0, group_lens[0], 0, *args)
     out = np.empty((n_rows, len(group_lens)), dtype=np.asarray(group_i_0_out).dtype)
     out[0, 0] = group_i_0_out
@@ -1641,6 +1651,18 @@ def nth_index_reduce_nb(a: tp.Array1d, n: int) -> int:
     if n >= 0:
         return n
     return a.shape[0] + n
+
+
+@register_jit(cache=True)
+def any_reduce_nb(a: tp.Array1d) -> bool:
+    """Return whether any of the elements are True."""
+    return np.any(a)
+
+
+@register_jit(cache=True)
+def all_reduce_nb(a: tp.Array1d) -> bool:
+    """Return whether all of the elements are True."""
+    return np.all(a)
 
 
 @register_jit(cache=True)
@@ -1765,38 +1787,26 @@ def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
     return out
 
 
-# ############# Group squeezers ############# #
+# ############# Repartitioning ############# #
 
 
 @register_jit(cache=True)
-def min_squeeze_nb(a: tp.Array1d) -> float:
-    """Return min (ignores NaNs) of a group."""
-    return np.nanmin(a)
-
-
-@register_jit(cache=True)
-def max_squeeze_nb(a: tp.Array1d) -> float:
-    """Return max (ignores NaNs) of a group."""
-    return np.nanmax(a)
-
-
-@register_jit(cache=True)
-def sum_squeeze_nb(a: tp.Array1d) -> float:
-    """Return sum (ignores NaNs) of a group."""
-    return np.nansum(a)
-
-
-@register_jit(cache=True)
-def any_squeeze_nb(a: tp.Array1d) -> bool:
-    """Return any (ignores NaNs) of a group."""
-    return np.any(a)
+def repartition_nb(a: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
+    """Repartition a 2-dimensional array into a 1-dimensional by removing empty elements."""
+    out = np.empty(np.sum(counts), dtype=a.dtype)
+    j = 0
+    for col in range(counts.shape[0]):
+        out[j:j + counts[col]] = a[:counts[col], col]
+        j += counts[col]
+    return out
 
 
 # ############# Ranges ############# #
 
-@register_jit(cache=True)
-def find_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
-    """Find ranges and store their information as records to an array.
+
+@register_jit(cache=True, tags={'can_parallel'})
+def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
+    """Fill range records between gaps.
 
     ## Example
 
@@ -1804,7 +1814,7 @@ def find_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from vectorbt.generic.nb import find_ranges_nb
+    >>> from vectorbt.generic.nb import get_ranges_nb
 
     >>> ts = np.asarray([
     ...     [np.nan, np.nan, np.nan, np.nan],
@@ -1814,22 +1824,22 @@ def find_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     ...     [     5, np.nan,      5,      5],
     ...     [     6,      6, np.nan,      6]
     ... ])
-    >>> records = find_ranges_nb(ts, np.nan)
+    >>> records = get_ranges_nb(ts, np.nan)
 
     >>> pd.DataFrame.from_records(records)
-       id  col  start_idx  end_idx
-    0   0    0          1        3
-    1   1    0          4        6
-    2   2    1          2        4
-    3   3    1          5        6
-    4   4    2          3        5
-    5   5    3          4        6
+       id  col  start_idx  end_idx  status
+    0   0    0          1        3       1
+    1   1    0          4        5       0
+    2   0    1          2        4       1
+    3   1    1          5        5       0
+    4   0    2          3        5       1
+    5   0    3          4        5       0
     ```
     """
-    out = np.empty(ts.shape[0] * ts.shape[1], dtype=range_dt)
-    ridx = 0
+    new_records = np.empty(ts.shape, dtype=range_dt)
+    counts = np.full(ts.shape[1], 0, dtype=np.int_)
 
-    for col in range(ts.shape[1]):
+    for col in prange(ts.shape[1]):
         range_started = False
         start_idx = -1
         end_idx = -1
@@ -1861,34 +1871,35 @@ def find_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
 
             if store_record:
                 # Save range to the records
-                out[ridx]['id'] = ridx
-                out[ridx]['col'] = col
-                out[ridx]['start_idx'] = start_idx
-                out[ridx]['end_idx'] = end_idx
-                out[ridx]['status'] = status
-                ridx += 1
+                r = counts[col]
+                new_records['id'][r, col] = r
+                new_records['col'][r, col] = col
+                new_records['start_idx'][r, col] = start_idx
+                new_records['end_idx'][r, col] = end_idx
+                new_records['status'][r, col] = status
+                counts[col] += 1
 
                 # Reset running vars for a new range
                 store_record = False
 
-    return out[:ridx]
+    return repartition_nb(new_records, counts)
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def range_duration_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d) -> tp.Array1d:
     """Get duration of each duration record."""
     out = np.empty(start_idx_arr.shape[0], dtype=np.int_)
-    for ridx in range(out.shape[0]):
-        if status_arr[ridx] == RangeStatus.Open:
-            out[ridx] = end_idx_arr[ridx] - start_idx_arr[ridx] + 1
+    for r in prange(start_idx_arr.shape[0]):
+        if status_arr[r] == RangeStatus.Open:
+            out[r] = end_idx_arr[r] - start_idx_arr[r] + 1
         else:
-            out[ridx] = end_idx_arr[ridx] - start_idx_arr[ridx]
+            out[r] = end_idx_arr[r] - start_idx_arr[r]
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def range_coverage_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d,
@@ -1906,18 +1917,18 @@ def range_coverage_nb(start_idx_arr: tp.Array1d,
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full(col_lens.shape[0], np.nan, dtype=np.float_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
         ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
         temp = np.full(index_lens[col], 0, dtype=np.int_)
-        for ridx in ridxs:
-            if status_arr[ridx] == RangeStatus.Open:
-                temp[start_idx_arr[ridx]:end_idx_arr[ridx] + 1] += 1
+        for r in ridxs:
+            if status_arr[r] == RangeStatus.Open:
+                temp[start_idx_arr[r]:end_idx_arr[r] + 1] += 1
             else:
-                temp[start_idx_arr[ridx]:end_idx_arr[ridx]] += 1
+                temp[start_idx_arr[r]:end_idx_arr[r]] += 1
         if overlapping:
             if normalize:
                 out[col] = np.sum(temp > 1) / np.sum(temp > 0)
@@ -1931,7 +1942,7 @@ def range_coverage_nb(start_idx_arr: tp.Array1d,
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d,
@@ -1942,24 +1953,24 @@ def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full((index_len, col_lens.shape[0]), False, dtype=np.bool_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
         ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        for ridx in ridxs:
-            if status_arr[ridx] == RangeStatus.Open:
-                out[start_idx_arr[ridx]:end_idx_arr[ridx] + 1, col] = True
+        for r in ridxs:
+            if status_arr[r] == RangeStatus.Open:
+                out[start_idx_arr[r]:end_idx_arr[r] + 1, col] = True
             else:
-                out[start_idx_arr[ridx]:end_idx_arr[ridx], col] = True
+                out[start_idx_arr[r]:end_idx_arr[r], col] = True
 
     return out
 
 
 # ############# Drawdowns ############# #
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
     """Fill drawdown records by analyzing a time series.
 
@@ -1982,8 +1993,8 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
     >>> pd.DataFrame.from_records(records)
        id  col  peak_idx  start_idx  valley_idx  end_idx  peak_val  valley_val  \\
     0   0    1         0          1           4        4       5.0         1.0
-    1   1    2         2          3           4        4       3.0         1.0
-    2   2    3         0          1           2        4       3.0         1.0
+    1   0    2         2          3           4        4       3.0         1.0
+    2   0    3         0          1           2        4       3.0         1.0
 
        end_val  status
     0      1.0       0
@@ -1991,10 +2002,10 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
     2      3.0       1
     ```
     """
-    out = np.empty(ts.shape[0] * ts.shape[1], dtype=drawdown_dt)
-    ddidx = 0
+    new_records = np.empty(ts.shape, dtype=drawdown_dt)
+    counts = np.full(ts.shape[1], 0, dtype=np.int_)
 
-    for col in range(ts.shape[1]):
+    for col in prange(ts.shape[1]):
         drawdown_started = False
         peak_idx = -1
         valley_idx = -1
@@ -2040,17 +2051,18 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
 
                 if store_record:
                     # Save drawdown to the records
-                    out[ddidx]['id'] = ddidx
-                    out[ddidx]['col'] = col
-                    out[ddidx]['peak_idx'] = peak_idx
-                    out[ddidx]['start_idx'] = peak_idx + 1
-                    out[ddidx]['valley_idx'] = valley_idx
-                    out[ddidx]['end_idx'] = i
-                    out[ddidx]['peak_val'] = peak_val
-                    out[ddidx]['valley_val'] = valley_val
-                    out[ddidx]['end_val'] = cur_val
-                    out[ddidx]['status'] = status
-                    ddidx += 1
+                    r = counts[col]
+                    new_records['id'][r, col] = r
+                    new_records['col'][r, col] = col
+                    new_records['peak_idx'][r, col] = peak_idx
+                    new_records['start_idx'][r, col] = peak_idx + 1
+                    new_records['valley_idx'][r, col] = valley_idx
+                    new_records['end_idx'][r, col] = i
+                    new_records['peak_val'][r, col] = peak_val
+                    new_records['valley_val'][r, col] = valley_val
+                    new_records['end_val'][r, col] = cur_val
+                    new_records['status'][r, col] = status
+                    counts[col] += 1
 
                     # Reset running vars for a new drawdown
                     peak_idx = i
@@ -2060,7 +2072,7 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
                     store_record = False
                     status = -1
 
-    return out[:ddidx]
+    return repartition_nb(new_records, counts)
 
 
 @register_jit(cache=True)

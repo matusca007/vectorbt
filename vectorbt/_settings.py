@@ -94,6 +94,7 @@ _settings = {}
 
 numba = dict(
     parallel=None,
+    silence_warnings=False,
     check_func_type=True,
     check_func_suffix=False,
     options=Config(  # flex

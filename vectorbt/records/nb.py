@@ -11,15 +11,31 @@ These only accept NumPy arrays and other Numba-compatible types.
     2-dim, unless function has suffix `_1d` or is meant to be input to another function.
     Data is processed along index (axis 0).
 
-    All functions passed as argument should be Numba-compiled.
+    All functions passed as argument must be Numba-compiled.
 
-    Records should retain the order they were created in."""
+    Records must retain the order they were created in."""
 
 import numpy as np
+from numba import prange
 from numba.np.numpy_support import as_dtype
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.generic import nb as generic_nb
+
+
+# ############# Generation ############# #
+
+
+@register_jit(cache=True)
+def generate_ids_nb(col_arr: tp.Array1d, n_cols: int) -> tp.Array1d:
+    """Generate the monotonically increasing id array based on the column index array."""
+    col_idxs = np.full(n_cols, 0, dtype=np.int_)
+    out = np.empty_like(col_arr)
+    for c in range(len(col_arr)):
+        out[c] = col_idxs[col_arr[c]]
+        col_idxs[col_arr[c]] += 1
+    return out
 
 
 # ############# Indexing ############# #
@@ -37,17 +53,17 @@ def col_range_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColRange:
     col_range = np.full((n_cols, 2), -1, dtype=np.int_)
     last_col = -1
 
-    for r in range(col_arr.shape[0]):
-        col = col_arr[r]
+    for c in range(col_arr.shape[0]):
+        col = col_arr[c]
         if col < last_col:
             raise ValueError("col_arr must be in ascending order")
         if col != last_col:
             if last_col != -1:
-                col_range[last_col, 1] = r
-            col_range[col, 0] = r
+                col_range[last_col, 1] = c
+            col_range[col, 0] = c
             last_col = col
-        if r == col_arr.shape[0] - 1:
-            col_range[col, 1] = r + 1
+        if c == col_arr.shape[0] - 1:
+            col_range[col, 1] = c + 1
     return col_range
 
 
@@ -105,16 +121,16 @@ def col_map_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColMap:
 
     Works well for unsorted column arrays."""
     col_lens_out = np.full(n_cols, 0, dtype=np.int_)
-    for r in range(col_arr.shape[0]):
-        col = col_arr[r]
+    for c in range(col_arr.shape[0]):
+        col = col_arr[c]
         col_lens_out[col] += 1
 
     col_start_idxs = np.cumsum(col_lens_out) - col_lens_out
     col_idxs_out = np.empty((col_arr.shape[0],), dtype=np.int_)
     col_i = np.full(n_cols, 0, dtype=np.int_)
-    for r in range(col_arr.shape[0]):
-        col = col_arr[r]
-        col_idxs_out[col_start_idxs[col] + col_i[col]] = r
+    for c in range(col_arr.shape[0]):
+        col = col_arr[c]
+        col_idxs_out[col_start_idxs[col] + col_i[col]] = c
         col_i[col] += 1
 
     return col_idxs_out, col_lens_out
@@ -157,8 +173,8 @@ def record_col_map_select_nb(records: tp.RecordArray, col_map: tp.ColMap, new_co
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[new_col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        col_records = np.copy(records[ridxs])
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_records = np.copy(records[idxs])
         col_records['col'][:] = new_col_i
         out[j:j + col_len] = col_records
         j += col_len
@@ -191,51 +207,48 @@ def is_col_idx_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
 # ############# Mapping ############# #
 
 
-@register_jit
-def mapped_to_mask_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
-                      inout_map_func_nb: tp.MaskInOutMapFunc, *args) -> tp.Array1d:
-    """Map mapped array to a mask per column.
-
-    Returns the same shape as `mapped_arr`.
-
-    `inout_map_func_nb` should accept the boolean array that should be written, indices of values,
-    index of the column, values of the column, and `*args`, and return nothing."""
+@register_jit(cache=True, tags={'can_parallel'})
+def top_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Array1d:
+    """Returns mask of top N mapped elements."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
-    inout = np.full(mapped_arr.shape[0], False, dtype=np.bool_)
+    out = np.full(mapped_arr.shape[0], False, dtype=np.bool_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        inout_map_func_nb(inout, ridxs, col, mapped_arr[ridxs], *args)
-    return inout
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs[np.argsort(mapped_arr[idxs])[-n:]]] = True
+    return out
 
 
-@register_jit(cache=True)
-def top_n_inout_map_nb(inout: tp.Array1d, idxs: tp.Array1d, col: int, mapped_arr: tp.Array1d, n: int) -> None:
-    """`inout_map_func_nb` that returns indices of top N elements."""
-    # TODO: np.argpartition
-    inout[idxs[np.argsort(mapped_arr)[-n:]]] = True
+@register_jit(cache=True, tags={'can_parallel'})
+def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Array1d:
+    """Returns mask of bottom N mapped elements."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    out = np.full(mapped_arr.shape[0], False, dtype=np.bool_)
+
+    for col in prange(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs[np.argsort(mapped_arr[idxs])[:n]]] = True
+    return out
 
 
-@register_jit(cache=True)
-def bottom_n_inout_map_nb(inout: tp.Array1d, idxs: tp.Array1d, col: int, mapped_arr: tp.Array1d, n: int) -> None:
-    """`inout_map_func_nb` that returns indices of bottom N elements."""
-    inout[idxs[np.argsort(mapped_arr)[:n]]] = True
-
-
-@register_jit
+@register_jit(tags={'can_parallel'})
 def apply_on_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
                        apply_func_nb: tp.MappedApplyFunc, *args) -> tp.Array1d:
     """Apply function on mapped array per column.
 
     Returns the same shape as `mapped_arr`.
 
-    `apply_func_nb` should accept the indices of values, index of the column, values of the column,
-    and `*args`, and return an array."""
+    `apply_func_nb` must accept the values of the column and `*args`. Must return an array."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.empty(mapped_arr.shape[0], dtype=np.float_)
@@ -245,42 +258,94 @@ def apply_on_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap,
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        out[ridxs] = apply_func_nb(ridxs, col, mapped_arr[ridxs], *args)
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs] = apply_func_nb(mapped_arr[idxs], *args)
     return out
 
 
-@register_jit
-def apply_on_records_nb(records: tp.RecordArray, col_map: tp.ColMap,
-                        apply_func_nb: tp.RecordApplyFunc, *args) -> tp.Array1d:
-    """Apply function on records per column.
+@register_jit(tags={'can_parallel'})
+def apply_on_mapped_meta_nb(n_mapped: int, col_map: tp.ColMap,
+                            apply_func_nb: tp.MappedApplyMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `apply_on_mapped_nb`.
 
-    Returns the same shape as `records`.
-
-    `apply_func_nb` should accept the records of the column and `*args`, and return an array."""
+    `apply_func_nb` must accept the mapped indices, the column index, and `*args`. Must return an array."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
-    out = np.empty(records.shape[0], dtype=np.float_)
+    out = np.empty(n_mapped, dtype=np.float_)
 
     for col in range(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        out[ridxs] = apply_func_nb(records[ridxs], *args)
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs] = apply_func_nb(idxs, col, *args)
     return out
 
 
-@register_jit
-def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordMapFunc[float], *args) -> tp.Array1d:
+@register_jit(tags={'can_parallel'})
+def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *args) -> tp.Array1d:
     """Map each record to a single value.
 
-    `map_func_nb` should accept a single record and `*args`, and return a single value."""
+    `map_func_nb` must accept a single record and `*args`. Must return a single value."""
     out = np.empty(records.shape[0], dtype=np.float_)
 
-    for r in range(records.shape[0]):
-        out[r] = map_func_nb(records[r], *args)
+    for ridx in prange(records.shape[0]):
+        out[ridx] = map_func_nb(records[ridx], *args)
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def map_records_meta_nb(n_records: int, map_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `map_records_nb`.
+
+    `map_func_nb` must accept the record index and `*args`. Must return a single value."""
+    out = np.empty(n_records, dtype=np.float_)
+
+    for ridx in prange(n_records):
+        out[ridx] = map_func_nb(ridx, *args)
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def apply_on_records_nb(records: tp.RecordArray, col_map: tp.ColMap,
+                        apply_func_nb: tp.RecordsApplyFunc, *args) -> tp.Array1d:
+    """Apply function on records per column.
+
+    Returns the same shape as `records`.
+
+    `apply_func_nb` must accept the records of the column and `*args`. Must return an array."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    out = np.empty(records.shape[0], dtype=np.float_)
+
+    for col in prange(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs] = apply_func_nb(records[idxs], *args)
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def apply_on_records_meta_nb(n_records: int, col_map: tp.ColMap,
+                             apply_func_nb: tp.RecordsApplyMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `apply_on_records_nb`.
+
+    `apply_func_nb` must accept the record indices, the column index, and `*args`. Must return an array."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    out = np.empty(n_records, dtype=np.float_)
+
+    for col in prange(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[idxs] = apply_func_nb(idxs, col, *args)
     return out
 
 
@@ -347,8 +412,8 @@ def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_valu
             if col_len == 0:
                 continue
             col_start_idx = col_start_idxs[col]
-            ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-            out[:col_len, col] = mapped_arr[ridxs]
+            idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+            out[:col_len, col] = mapped_arr[idxs]
 
         return out
 
@@ -360,36 +425,57 @@ def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_valu
 
 # ############# Reducing ############# #
 
-@register_jit
+@register_jit(tags={'can_parallel'})
 def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
-                     reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
+                     reduce_func_nb: tp.RecordsReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to a single value.
 
     Faster than `expand_mapped_nb` and `vbt.*` used together, and also
     requires less memory. But does not take advantage of caching.
 
-    `reduce_func_nb` should accept index of the column, mapped array and `*args`,
-    and return a single value."""
+    `reduce_func_nb` must accept the mapped array and `*args`.
+    Must return a single value."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full(col_lens.shape[0], fill_value, dtype=np.float_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        out[col] = reduce_func_nb(col, mapped_arr[ridxs], *args)
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[col] = reduce_func_nb(mapped_arr[idxs], *args)
     return out
 
 
-@register_jit
-def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
-                            fill_value: float, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
+                          reduce_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `reduce_mapped_nb`.
+
+    `reduce_func_nb` must accept the mapped indices, the column index, and `*args`.
+    Must return a single value."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    out = np.full(col_lens.shape[0], fill_value, dtype=np.float_)
+
+    for col in prange(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[col] = reduce_func_nb(idxs, col, *args)
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
+                            reduce_func_nb: tp.RecordsReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to an index.
 
-    Same as `reduce_mapped_nb` except `idx_arr` should be passed.
+    Same as `reduce_mapped_nb` except `idx_arr` must be passed.
 
     !!! note
         Must return integers or raise an exception."""
@@ -397,52 +483,108 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full(col_lens.shape[0], fill_value, dtype=np.float_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        col_out = reduce_func_nb(col, mapped_arr[ridxs], *args)
-        out[col] = idx_arr[ridxs][col_out]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(mapped_arr[idxs], *args)
+        out[col] = idx_arr[idxs][col_out]
     return out
 
 
-@register_jit
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
+                                 reduce_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `reduce_mapped_to_idx_nb`.
+
+    `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    out = np.full(col_lens.shape[0], fill_value, dtype=np.float_)
+
+    for col in prange(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(idxs, col, *args)
+        out[col] = idx_arr[idxs][col_out]
+    return out
+
+
+@register_jit(tags={'can_parallel'})
 def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
-                              reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
+                              reduce_func_nb: tp.RecordsReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an array.
 
-    `reduce_func_nb` same as for `reduce_mapped_nb` but should return an array."""
+    `reduce_func_nb` same as for `reduce_mapped_nb` but must return an array."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
     for col in range(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len > 0:
             col_start_idx = col_start_idxs[col]
-            col0, idxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
+            col0, midxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
             break
 
-    col_out = reduce_func_nb(col0, mapped_arr[idxs0], *args)
-    out = np.full((col_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
-    out[:, col0] = col_out
+    col_0_out = reduce_func_nb(mapped_arr[midxs0], *args)
+    out = np.full((col_0_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
+    for i in range(col_0_out.shape[0]):
+        out[i, col0] = col_0_out[i]
 
-    for col in range(col0 + 1, col_lens.shape[0]):
+    for col in prange(col0 + 1, col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        out[:, col] = reduce_func_nb(col, mapped_arr[ridxs], *args)
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(mapped_arr[idxs], *args)
+        for i in range(col_out.shape[0]):
+            out[i, col] = col_out[i]
     return out
 
 
-@register_jit
-def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
-                                  fill_value: float, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
+                                   reduce_func_nb: tp.RecordsReduceToArrayMetaFunc, *args) -> tp.Array2d:
+    """Meta version of `reduce_mapped_to_array_nb`.
+
+    `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    for col in range(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len > 0:
+            col_start_idx = col_start_idxs[col]
+            col0, midxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
+            break
+
+    col_0_out = reduce_func_nb(midxs0, col0, *args)
+    out = np.full((col_0_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
+    for i in range(col_0_out.shape[0]):
+        out[i, col0] = col_0_out[i]
+
+    for col in prange(col0 + 1, col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(idxs, col, *args)
+        for i in range(col_out.shape[0]):
+            out[i, col] = col_out[i]
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
+                                  reduce_func_nb: tp.RecordsReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an index array.
 
-    Same as `reduce_mapped_to_array_nb` except `idx_arr` should be passed.
+    Same as `reduce_mapped_to_array_nb` except `idx_arr` must be passed.
 
     !!! note
         Must return integers or raise an exception."""
@@ -452,36 +594,92 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
         col_len = col_lens[col]
         if col_len > 0:
             col_start_idx = col_start_idxs[col]
-            col0, idxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
+            col0, midxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
             break
 
-    col_out = reduce_func_nb(col0, mapped_arr[idxs0], *args)
-    out = np.full((col_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
-    out[:, col0] = idx_arr[idxs0][col_out]
+    col_0_out = reduce_func_nb(mapped_arr[midxs0], *args)
+    out = np.full((col_0_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
+    for i in range(col_0_out.shape[0]):
+        out[i, col0] = idx_arr[midxs0[col_0_out[i]]]
 
-    for col in range(col0 + 1, col_lens.shape[0]):
+    for col in prange(col0 + 1, col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        ridxs = col_idxs[col_start_idx:col_start_idx + col_len]
-        col_out = reduce_func_nb(col, mapped_arr[ridxs], *args)
-        out[:, col] = idx_arr[ridxs][col_out]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(mapped_arr[idxs], *args)
+        for i in range(col_0_out.shape[0]):
+            out[i, col] = idx_arr[idxs[col_out[i]]]
     return out
 
 
-@register_jit(cache=True)
-def mapped_value_counts_nb(codes: tp.Array1d, n_uniques: int, col_map: tp.ColMap) -> tp.Array2d:
-    """Get value counts of an already factorized mapped array."""
+@register_jit(tags={'can_parallel'})
+def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
+                                       reduce_func_nb: tp.RecordsReduceToArrayMetaFunc, *args) -> tp.Array2d:
+    """Meta version of `reduce_mapped_to_idx_array_nb`.
+
+    `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
+    for col in range(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len > 0:
+            col_start_idx = col_start_idxs[col]
+            col0, midxs0 = col, col_idxs[col_start_idx:col_start_idx + col_len]
+            break
+
+    col_0_out = reduce_func_nb(midxs0, col0, *args)
+    out = np.full((col_0_out.shape[0], col_lens.shape[0]), fill_value, dtype=np.float_)
+    for i in range(col_0_out.shape[0]):
+        out[i, col0] = idx_arr[midxs0[col_0_out[i]]]
+
+    for col in prange(col0 + 1, col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
+            continue
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        col_out = reduce_func_nb(idxs, col, *args)
+        for i in range(col_0_out.shape[0]):
+            out[i, col] = idx_arr[idxs[col_out[i]]]
+    return out
+
+# ############# Value counts ############# #
+
+
+@register_jit(cache=True, tags={'can_parallel'})
+def mapped_value_counts_per_col_nb(codes: tp.Array1d, n_uniques: int, col_map: tp.ColMap) -> tp.Array2d:
+    """Get value counts per column/group of an already factorized mapped array."""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full((n_uniques, col_lens.shape[0]), 0, dtype=np.int_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
         col_start_idx = col_start_idxs[col]
-        for c in range(col_len):
-            out[codes[col_idxs[col_start_idx + c]], col] += 1
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+        out[:, col] = generic_nb.value_counts_1d_nb(codes[idxs], n_uniques)
+    return out
+
+
+@register_jit(cache=True)
+def mapped_value_counts_per_row_nb(codes: tp.Array1d, n_uniques: int, idx_arr: tp.Array1d, n_rows: int) -> tp.Array2d:
+    """Get value counts per row of an already factorized mapped array."""
+    out = np.full((n_uniques, n_rows), 0, dtype=np.int_)
+
+    for c in range(codes.shape[0]):
+        out[codes[c], idx_arr[c]] += 1
+    return out
+
+
+@register_jit(cache=True)
+def mapped_value_counts_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array2d:
+    """Get value counts globally of an already factorized mapped array."""
+    out = np.full(n_uniques, 0, dtype=np.int_)
+
+    for c in range(codes.shape[0]):
+        out[codes[c]] += 1
     return out

@@ -119,7 +119,7 @@ class Grouper(Configured):
     All properties are read-only to enable caching.
 
     !!! note
-        Columns should build groups that are coherent and sorted for using `get_group_lens_nb`.
+        Columns must build groups that are coherent and sorted for using `get_group_lens_nb`.
 
     !!! note
         This class is meant to be immutable. To change any attribute, use `Grouper.replace`."""

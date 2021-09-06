@@ -208,9 +208,9 @@ class SignalFactory(IndicatorFactory):
             **kwargs: Keyword arguments passed to `IndicatorFactory.from_custom_func`.
 
         !!! note
-            Choice functions should be Numba-compiled.
+            Choice functions must be Numba-compiled.
 
-            Which inputs, parameters and arguments to pass to each function should be
+            Which inputs, parameters and arguments to pass to each function must be
             explicitly indicated in the function's settings dict. By default, nothing is passed.
 
             Passing keyword arguments directly to the choice functions is not supported.
@@ -233,7 +233,7 @@ class SignalFactory(IndicatorFactory):
 
                 Defaults to []. Order matters.
 
-                If any element is a tuple, should contain the name and the default value.
+                If any element is a tuple, must contain the name and the default value.
                 If any element is a string, the default value is None.
 
                 Built-in keys include:
@@ -265,7 +265,7 @@ class SignalFactory(IndicatorFactory):
         The following arguments can be passed to `run` and `run_combs` methods:
 
         Args:
-            *args: Should be used instead of `entry_args` with `FactoryMode.Entries` and instead of
+            *args: Must be used instead of `entry_args` with `FactoryMode.Entries` and instead of
                 `exit_args` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_choice_func`.
             entry_args (tuple): Arguments passed to the entry choice function.
             exit_args (tuple): Arguments passed to the exit choice function.
@@ -278,7 +278,7 @@ class SignalFactory(IndicatorFactory):
                 passed as positional if in `pass_kwargs`.
             return_cache (bool): Whether to return only cache.
             use_cache (any): Cache to use.
-            **kwargs: Should be used instead of `entry_kwargs` with `FactoryMode.Entries` and instead of
+            **kwargs: Must be used instead of `entry_kwargs` with `FactoryMode.Entries` and instead of
                 `exit_kwargs` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_choice_func`.
 
         For more arguments, see `vectorbt.indicators.factory.run_pipeline`.

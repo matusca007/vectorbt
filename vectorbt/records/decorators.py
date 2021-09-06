@@ -64,7 +64,7 @@ def attach_fields(*args, on_conflict: str = 'raise') -> tp.Union[WrapperFuncT, t
     !!! note
         Make sure to run `attach_fields` after `override_field_config`.
 
-    `config` should contain fields (keys) and dictionaries (values) with the following keys:
+    `config` must contain fields (keys) and dictionaries (values) with the following keys:
 
     * `attach`: Whether to attach the field property. Can be provided as a string to be used
         as a target attribute name. Defaults to True.

@@ -116,6 +116,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils.decorators import cached_property, cached_method
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
@@ -123,7 +124,6 @@ from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.base.reshape_fns import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.enums import RangeStatus, range_dt
-from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic import nb
 from vectorbt.records.base import Records
 from vectorbt.records.mapped_array import MappedArray
@@ -232,6 +232,7 @@ class Ranges(Records):
                 ts: tp.ArrayLike,
                 gap_value: tp.Optional[tp.Scalar] = None,
                 attach_ts: bool = True,
+                parallel: tp.Optional[bool] = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> RangesT:
         """Build `Ranges` from time series `ts`.
@@ -255,7 +256,8 @@ class Ranges(Records):
                 gap_value = -1
             else:
                 gap_value = np.nan
-        records_arr = nb.find_ranges_nb(ts_arr, gap_value)
+        func = main_nb_registry.redecorate_parallel(nb.get_ranges_nb, parallel=parallel)
+        records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
 
@@ -264,12 +266,14 @@ class Ranges(Records):
         """Original time series that records are built from (optional)."""
         return self._ts
 
-    def to_mask(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def to_mask(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+                wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Convert ranges to a mask.
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        mask = nb.ranges_to_mask_nb(
+        func = main_nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, parallel=parallel)
+        mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
             self.get_field_arr('status'),
@@ -278,42 +282,50 @@ class Ranges(Records):
         )
         return self.wrapper.wrap(mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    @cached_property
-    def duration(self) -> MappedArray:
+    @cached_method
+    def get_duration(self, parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
-        duration = nb.range_duration_nb(
+        func = main_nb_registry.redecorate_parallel(nb.range_duration_nb, parallel=parallel)
+        duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
             self.get_field_arr('status')
         )
-        return self.map_array(duration)
+        return self.map_array(duration, **kwargs)
+
+    @cached_property
+    def duration(self) -> MappedArray:
+        """`Ranges.get_duration` with default arguments."""
+        return self.get_duration()
 
     @cached_method
-    def avg_duration(self, group_by: tp.GroupByLike = None,
+    def avg_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
-        return self.duration.mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.get_duration(parallel=parallel).mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
     @cached_method
-    def max_duration(self, group_by: tp.GroupByLike = None,
+    def max_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
-        return self.duration.max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.get_duration(parallel=parallel).max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
     @cached_method
     def coverage(self,
                  overlapping: bool = False,
                  normalize: bool = True,
                  group_by: tp.GroupByLike = None,
+                 parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Coverage, that is, the number of steps that are covered by all ranges.
 
         See `vectorbt.generic.nb.range_coverage_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
-        coverage = nb.range_coverage_nb(
+        func = main_nb_registry.redecorate_parallel(nb.range_coverage_nb, parallel=parallel)
+        coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
             self.get_field_arr('status'),

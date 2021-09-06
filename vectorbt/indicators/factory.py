@@ -603,7 +603,7 @@ custom_p  1  2  3  4  5
 
 There are two types of outputs: regular and in-place outputs:
 
-* Regular outputs are one or more arrays returned by the function. Each should have an exact
+* Regular outputs are one or more arrays returned by the function. Each must have an exact
 same shape and match the number of columns in the input multiplied by the number of parameter values.
 * In-place outputs are not returned but modified in-place. They broadcast together with inputs
 and are passed to the calculation function as a list, one per parameter.
@@ -1464,7 +1464,7 @@ def run_pipeline(
         pass_flex_2d (bool): Whether to pass `flex_2d` to `custom_func` as keyword argument.
         level_names (list of str): A list of column level names corresponding to each parameter.
 
-            Should have the same length as `param_list`.
+            Must have the same length as `param_list`.
         hide_levels (list of int): A list of indices of parameter levels to hide.
         stacking_kwargs (dict): Keyword arguments passed to `vectorbt.base.index_fns.repeat_index`,
             `vectorbt.base.index_fns.tile_index`, and `vectorbt.base.index_fns.stack_indexes`
@@ -2631,7 +2631,7 @@ class IndicatorFactory:
 
         In contrast to `IndicatorFactory.from_apply_func`, this method offers full flexbility.
         It's up to we to handle caching and concatenate columns for each parameter (for example,
-        by using `vectorbt.base.combine_fns.apply_and_concat_one`). Also, you should ensure that
+        by using `vectorbt.base.combine_fns.apply_and_concat_one`). Also, you must ensure that
         each output array has an appropriate number of columns, which is the number of columns in
         input arrays multiplied by the number of parameter combinations.
 
@@ -2645,7 +2645,7 @@ class IndicatorFactory:
                 Can be Numba-compiled.
 
                 !!! note
-                    Shape of each output should be the same and match the shape of each input stacked
+                    Shape of each output must be the same and match the shape of each input stacked
                     n times (= the number of parameter values) along the column axis.
             require_input_shape (bool): Whether to input shape is required.
             param_settings (dict): A dictionary of parameter settings keyed by name.
@@ -3133,9 +3133,9 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
                 * `input_shape` if `pass_input_shape` is set to True and `input_shape` not in `kwargs_to_args`
                 * `col` if `per_column` and `pass_col` are set to True and `col` not in `kwargs_to_args`
-                * broadcast time-series arrays corresponding to `input_names`
-                * broadcast in-place output arrays corresponding to `in_output_names`
-                * single parameter selection corresponding to `param_names`
+                * broadcast time-series arrays corresponding to `input_names` (one-dimensional)
+                * broadcast in-place output arrays corresponding to `in_output_names` (one-dimensional)
+                * single parameter selection corresponding to `param_names` (single values)
                 * variable arguments if `var_args` is set to True
                 * arguments listed in `kwargs_to_args`
                 * `flex_2d` if `pass_flex_2d` is set to True and `flex_2d` not in `kwargs_to_args`
@@ -3144,10 +3144,10 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                 Can be Numba-compiled.
 
                 !!! note
-                    Shape of each output should be the same and match the shape of each input.
+                    Shape of each output must be the same and match the shape of each input.
             cache_func (callable): A caching function to preprocess data beforehand.
 
-                Takes the same arguments as `apply_func`. Should return a single object or a tuple of objects.
+                Takes the same arguments as `apply_func`. Must return a single object or a tuple of objects.
                 All returned objects will be passed unpacked as last arguments to `apply_func`.
 
                 Can be Numba-compiled.

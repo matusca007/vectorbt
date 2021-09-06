@@ -399,10 +399,10 @@ class Histogram(Configured, TraceUpdater):
             remove_nan (bool): Whether to remove NaN values.
             from_quantile (float): Filter out data points before this quantile.
 
-                Should be in range `[0, 1]`.
+                Must be in range `[0, 1]`.
             to_quantile (float): Filter out data points after this quantile.
 
-                Should be in range `[0, 1]`.
+                Must be in range `[0, 1]`.
             trace_kwargs (dict or list of dict): Keyword arguments passed to `plotly.graph_objects.Histogram`.
 
                 Can be specified per trace as a sequence of dicts.

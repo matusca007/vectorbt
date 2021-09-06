@@ -105,7 +105,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
 
                 * `title`: Title of the subplot. Defaults to the name.
                 * `plot_func` (required): Plotting function for custom subplots.
-                    Should write the supplied figure `fig` in-place and can return anything (it won't be used).
+                    Must write the supplied figure `fig` in-place and can return anything (it won't be used).
                 * `xaxis_kwargs`: Layout keyword arguments for the x-axis. Defaults to `dict(title='Index')`.
                 * `yaxis_kwargs`: Layout keyword arguments for the y-axis. Defaults to empty dict.
                 * `tags`, `check_{filter}`, `inv_check_{filter}`, `resolve_plot_func`, `pass_{arg}`,

@@ -14,7 +14,7 @@ def match_tags(tags: tp.MaybeIterable[str], in_tags: tp.MaybeIterable[str]) -> b
 
     Multiple tags in `tags` are combined using OR rule, that is, returns True if any of them is found in `in_tags`.
     If any tag is not an identifier, evaluates it as a boolean expression.
-    All tags in `in_tags` should be identifiers.
+    All tags in `in_tags` must be identifiers.
 
     ## Example
 

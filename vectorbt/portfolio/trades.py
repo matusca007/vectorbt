@@ -485,6 +485,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
@@ -649,87 +650,103 @@ class Trades(Ranges):
     def from_ts(cls: tp.Type[TradesT], *args, **kwargs) -> TradesT:
         raise NotImplementedError
 
-    @cached_property
-    def winning(self: TradesT) -> TradesT:
+    @cached_method
+    def get_winning(self: TradesT, **kwargs) -> TradesT:
         """Winning trades."""
         filter_mask = self.values['pnl'] > 0.
-        return self.apply_mask(filter_mask)
+        return self.apply_mask(filter_mask, **kwargs)
+
+    @cached_property
+    def winning(self: TradesT) -> TradesT:
+        """`Ranges.get_winning` with default arguments."""
+        return self.get_winning()
+
+    @cached_method
+    def get_losing(self: TradesT, **kwargs) -> TradesT:
+        """Losing trades."""
+        filter_mask = self.values['pnl'] < 0.
+        return self.apply_mask(filter_mask, **kwargs)
 
     @cached_property
     def losing(self: TradesT) -> TradesT:
-        """Losing trades."""
-        filter_mask = self.values['pnl'] < 0.
-        return self.apply_mask(filter_mask)
+        """`Ranges.get_losing` with default arguments."""
+        return self.get_losing()
 
-    @cached_property
-    def winning_streak(self) -> MappedArray:
+    @cached_method
+    def get_winning_streak(self, **kwargs) -> MappedArray:
         """Winning streak at each trade in the current column.
 
         See `vectorbt.portfolio.nb.trade_winning_streak_nb`."""
-        return self.apply(nb.trade_winning_streak_nb, dtype=np.int_)
+        return self.apply(nb.trade_winning_streak_nb, dtype=np.int_, **kwargs)
 
     @cached_property
-    def losing_streak(self) -> MappedArray:
+    def winning_streak(self) -> MappedArray:
+        """`Ranges.get_winning_streak` with default arguments."""
+        return self.get_winning_streak()
+
+    @cached_method
+    def get_losing_streak(self, **kwargs) -> MappedArray:
         """Losing streak at each trade in the current column.
 
         See `vectorbt.portfolio.nb.trade_losing_streak_nb`."""
-        return self.apply(nb.trade_losing_streak_nb, dtype=np.int_)
+        return self.apply(nb.trade_losing_streak_nb, dtype=np.int_, **kwargs)
+
+    @cached_property
+    def losing_streak(self) -> MappedArray:
+        """`Ranges.get_losing_streak` with default arguments."""
+        return self.get_losing_streak()
 
     @cached_method
-    def win_rate(self, group_by: tp.GroupByLike = None,
-                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def win_rate(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+                 wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Rate of winning trades."""
-        win_count = to_1d_array(self.winning.count(group_by=group_by))
-        total_count = to_1d_array(self.count(group_by=group_by))
-        with np.errstate(divide='ignore', invalid='ignore'):
-            win_rate = win_count / total_count
         wrap_kwargs = merge_dicts(dict(name_or_index='win_rate'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(win_rate, group_by=group_by, **wrap_kwargs)
+        return self.get_map_field('pnl').reduce(
+            nb.win_rate_1d_nb,
+            group_by=group_by,
+            parallel=parallel,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     @cached_method
-    def profit_factor(self, group_by: tp.GroupByLike = None,
-                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def profit_factor(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Profit factor."""
-        total_win = to_1d_array(self.winning.pnl.sum(group_by=group_by))
-        total_loss = to_1d_array(self.losing.pnl.sum(group_by=group_by))
-
-        # Otherwise columns with only wins or losses will become NaNs
-        has_values = to_1d_array(self.count(group_by=group_by)) > 0
-        total_win[np.isnan(total_win) & has_values] = 0.
-        total_loss[np.isnan(total_loss) & has_values] = 0.
-
-        with np.errstate(divide='ignore', invalid='ignore'):
-            profit_factor = total_win / np.abs(total_loss)
         wrap_kwargs = merge_dicts(dict(name_or_index='profit_factor'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(profit_factor, group_by=group_by, **wrap_kwargs)
+        return self.get_map_field('pnl').reduce(
+            nb.profit_factor_1d_nb,
+            group_by=group_by,
+            parallel=parallel,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     @cached_method
-    def expectancy(self, group_by: tp.GroupByLike = None,
-                   wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def expectancy(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+                   wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average profitability."""
-        win_rate = to_1d_array(self.win_rate(group_by=group_by))
-        avg_win = to_1d_array(self.winning.pnl.mean(group_by=group_by))
-        avg_loss = to_1d_array(self.losing.pnl.mean(group_by=group_by))
-
-        # Otherwise columns with only wins or losses will become NaNs
-        has_values = to_1d_array(self.count(group_by=group_by)) > 0
-        avg_win[np.isnan(avg_win) & has_values] = 0.
-        avg_loss[np.isnan(avg_loss) & has_values] = 0.
-
-        expectancy = win_rate * avg_win - (1 - win_rate) * np.abs(avg_loss)
         wrap_kwargs = merge_dicts(dict(name_or_index='expectancy'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(expectancy, group_by=group_by, **wrap_kwargs)
+        return self.get_map_field('pnl').reduce(
+            nb.expectancy_1d_nb,
+            group_by=group_by,
+            parallel=parallel,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     @cached_method
-    def sqn(self, group_by: tp.GroupByLike = None,
-            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def sqn(self, ddof: int = 1, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+            wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """System Quality Number (SQN)."""
-        count = to_1d_array(self.count(group_by=group_by))
-        pnl_mean = to_1d_array(self.pnl.mean(group_by=group_by))
-        pnl_std = to_1d_array(self.pnl.std(group_by=group_by))
-        sqn = np.sqrt(count) * pnl_mean / pnl_std
         wrap_kwargs = merge_dicts(dict(name_or_index='sqn'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(sqn, group_by=group_by, **wrap_kwargs)
+        return self.get_map_field('pnl').reduce(
+            nb.sqn_1d_nb, ddof,
+            group_by=group_by,
+            parallel=parallel,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     # ############# Stats ############# #
 
@@ -1491,11 +1508,13 @@ class EntryTrades(Trades):
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
+                    parallel: tp.Optional[bool] = None,
                     **kwargs) -> EntryTradesT:
         """Build `EntryTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        trade_records_arr = nb.get_entry_trades_nb(
+        func = main_nb_registry.redecorate_parallel(nb.get_entry_trades_nb, parallel=parallel)
+        trade_records_arr = func(
             orders.values,
             to_2d_array(close),
             orders.col_mapper.col_map
@@ -1537,11 +1556,13 @@ class ExitTrades(Trades):
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
+                    parallel: tp.Optional[bool] = None,
                     **kwargs) -> ExitTradesT:
         """Build `ExitTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        trade_records_arr = nb.get_exit_trades_nb(
+        func = main_nb_registry.redecorate_parallel(nb.get_exit_trades_nb, parallel=parallel)
+        trade_records_arr = func(
             orders.values,
             to_2d_array(close),
             orders.col_mapper.col_map
@@ -1591,9 +1612,11 @@ class Positions(Trades):
                     trades: Trades,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
+                    parallel: tp.Optional[bool] = None,
                     **kwargs) -> PositionsT:
         """Build `Positions` from `Trades`."""
         if close is None:
             close = trades.close
-        position_records_arr = nb.get_positions_nb(trades.values, trades.col_mapper.col_map)
+        func = main_nb_registry.redecorate_parallel(nb.get_positions_nb, parallel=parallel)
+        position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

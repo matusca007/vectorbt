@@ -169,6 +169,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils.decorators import cached_property, cached_method
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
@@ -178,7 +179,6 @@ from vectorbt.base.reshape_fns import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
-from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
@@ -290,13 +290,15 @@ class Drawdowns(Ranges):
     def from_ts(cls: tp.Type[DrawdownsT],
                 ts: tp.ArrayLike,
                 attach_ts: bool = True,
+                parallel: tp.Optional[bool] = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> DrawdownsT:
         """Build `Drawdowns` from time series `ts`.
 
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
-        records_arr = nb.get_drawdowns_nb(to_2d_array(ts_pd))
+        func = main_nb_registry.redecorate_parallel(nb.get_drawdowns_nb, parallel=parallel)
+        records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
 
@@ -307,8 +309,8 @@ class Drawdowns(Ranges):
 
     # ############# Drawdown ############# #
 
-    @cached_property
-    def drawdown(self) -> MappedArray:
+    @cached_method
+    def get_drawdown(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_drawdown_nb`.
 
         Takes into account both recovered and active drawdowns."""
@@ -316,7 +318,12 @@ class Drawdowns(Ranges):
             self.get_field_arr('peak_val'),
             self.get_field_arr('valley_val')
         )
-        return self.map_array(drawdown)
+        return self.map_array(drawdown, **kwargs)
+
+    @cached_property
+    def drawdown(self) -> MappedArray:
+        """`Drawdowns.get_drawdown` with default arguments."""
+        return self.get_drawdown()
 
     @cached_method
     def avg_drawdown(self, group_by: tp.GroupByLike = None,
@@ -338,8 +345,8 @@ class Drawdowns(Ranges):
 
     # ############# Recovery ############# #
 
-    @cached_property
-    def recovery_return(self) -> MappedArray:
+    @cached_method
+    def get_recovery_return(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_return_nb`.
 
         Takes into account both recovered and active drawdowns."""
@@ -347,7 +354,12 @@ class Drawdowns(Ranges):
             self.get_field_arr('valley_val'),
             self.get_field_arr('end_val')
         )
-        return self.map_array(recovery_return)
+        return self.map_array(recovery_return, **kwargs)
+
+    @cached_property
+    def recovery_return(self) -> MappedArray:
+        """`Drawdowns.get_recovery_return` with default arguments."""
+        return self.get_recovery_return()
 
     @cached_method
     def avg_recovery_return(self, group_by: tp.GroupByLike = None,
@@ -369,8 +381,8 @@ class Drawdowns(Ranges):
 
     # ############# Duration ############# #
 
-    @cached_property
-    def decline_duration(self) -> MappedArray:
+    @cached_method
+    def get_decline_duration(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_decline_duration_nb`.
 
         Takes into account both recovered and active drawdowns."""
@@ -378,10 +390,15 @@ class Drawdowns(Ranges):
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx')
         )
-        return self.map_array(decline_duration)
+        return self.map_array(decline_duration, **kwargs)
 
     @cached_property
-    def recovery_duration(self) -> MappedArray:
+    def decline_duration(self) -> MappedArray:
+        """`Drawdowns.get_decline_duration` with default arguments."""
+        return self.get_decline_duration()
+
+    @cached_method
+    def get_recovery_duration(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_nb`.
 
         A value higher than 1 means the recovery was slower than the decline.
@@ -391,10 +408,15 @@ class Drawdowns(Ranges):
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
         )
-        return self.map_array(recovery_duration)
+        return self.map_array(recovery_duration, **kwargs)
 
     @cached_property
-    def recovery_duration_ratio(self) -> MappedArray:
+    def recovery_duration(self) -> MappedArray:
+        """`Drawdowns.get_recovery_duration` with default arguments."""
+        return self.get_recovery_duration()
+
+    @cached_method
+    def get_recovery_duration_ratio(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_ratio_nb`.
 
         Takes into account both recovered and active drawdowns."""
@@ -403,7 +425,12 @@ class Drawdowns(Ranges):
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
         )
-        return self.map_array(recovery_duration_ratio)
+        return self.map_array(recovery_duration_ratio, **kwargs)
+
+    @cached_property
+    def recovery_duration_ratio(self) -> MappedArray:
+        """`Drawdowns.get_recovery_duration_ratio` with default arguments."""
+        return self.get_recovery_duration_ratio()
 
     # ############# Status: Active ############# #
 

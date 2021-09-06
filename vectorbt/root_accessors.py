@@ -74,7 +74,7 @@ class Accessor:
 def register_accessor(name: str, cls: tp.Type[DirNamesMixin]) -> tp.Callable:
     """Register a custom accessor.
 
-    `cls` should subclass `pandas.core.accessor.DirNamesMixin`."""
+    `cls` must subclass `pandas.core.accessor.DirNamesMixin`."""
 
     def decorator(accessor: tp.Type[AccessorT]) -> tp.Type[AccessorT]:
         if hasattr(cls, name):

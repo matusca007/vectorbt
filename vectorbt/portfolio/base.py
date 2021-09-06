@@ -1722,7 +1722,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     cannot be executed in parallel.
             call_seq (CallSeqType or array_like): Default sequence of calls per row and group.
 
-                Each value in this sequence should indicate the position of column in the group to
+                Each value in this sequence must indicate the position of column in the group to
                 call next. Processing of `call_seq` goes always from left to right.
                 For example, `[2, 0, 1]` would first call column 'c', then 'a', and finally 'b'.
 
@@ -2118,8 +2118,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 Defaults to False. Will broadcast.
             signal_func_nb (callable): Function called to generate signals.
 
-                Should accept `vectorbt.portfolio.enums.SignalContext` and `*signal_args`.
-                Should return long entry signal, long exit signal, short entry signal, and short exit signal.
+                Must accept `vectorbt.portfolio.enums.SignalContext` and `*signal_args`.
+                Must return long entry signal, long exit signal, short entry signal, and short exit signal.
 
                 !!! note
                     Stop signal has priority: `signal_func_nb` is executed only if there is no stop signal.
@@ -2128,7 +2128,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             size (float or array_like): See `Portfolio.from_orders`.
 
                 !!! note
-                    Negative size is not allowed. You should express direction using signals.
+                    Negative size is not allowed. You must express direction using signals.
             size_type (SizeType or array_like): See `Portfolio.from_orders`.
 
                 Only `SizeType.Amount`, `SizeType.Value`, and `SizeType.Percent` are supported.
@@ -2215,8 +2215,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Called for each element before each row.
 
-                Should accept `vectorbt.portfolio.enums.AdjustSLContext` and `*adjust_sl_args`.
-                Should return a tuple of a new stop value and trailing flag.
+                Must accept `vectorbt.portfolio.enums.AdjustSLContext` and `*adjust_sl_args`.
+                Must return a tuple of a new stop value and trailing flag.
             adjust_sl_args (tuple): Packed arguments passed to `adjust_sl_func_nb`.
                 Defaults to `()`.
             adjust_tp_func_nb (callable): Function to adjust take profit.
@@ -2224,8 +2224,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Called for each element before each row.
 
-                Should accept `vectorbt.portfolio.enums.AdjustTPContext` and `*adjust_tp_args`.
-                of the stop, and `*adjust_tp_args`. Should return a new stop value.
+                Must accept `vectorbt.portfolio.enums.AdjustTPContext` and `*adjust_tp_args`.
+                of the stop, and `*adjust_tp_args`. Must return a new stop value.
             adjust_tp_args (tuple): Packed arguments passed to `adjust_tp_func_nb`.
                 Defaults to `()`.
             use_stops (bool): Whether to use stops.
@@ -3245,7 +3245,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 * Set to array to specify custom sequence. Will not broadcast.
 
                 !!! note
-                    CallSeqType.Auto should be implemented manually.
+                    CallSeqType.Auto must be implemented manually.
                     Use `vectorbt.portfolio.nb.sort_call_seq_nb` or `vectorbt.portfolio.nb.sort_call_seq_out_nb`
                     in `pre_segment_func_nb`.
             segment_mask (int or array_like of bool): Mask of whether a particular segment should be executed.
@@ -3335,7 +3335,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         For defaults, see `portfolio` in `vectorbt._settings.settings`.
 
         !!! note
-            All passed functions should be Numba-compiled if Numba is enabled.
+            All passed functions must be Numba-compiled if Numba is enabled.
 
             Also see notes on `Portfolio.from_orders`.
 

@@ -462,7 +462,7 @@ def assert_equal(arg1: tp.Any, arg2: tp.Any, deep: bool = False) -> None:
 def assert_dict_valid(arg: tp.DictLike, lvl_keys: tp.Sequence[tp.MaybeSequence[str]]) -> None:
     """Raise exception if dict the argument has keys that are not in `lvl_keys`.
 
-    `lvl_keys` should be a list of lists, each corresponding to a level in the dict."""
+    `lvl_keys` must be a list of lists, each corresponding to a level in the dict."""
     if arg is None:
         arg = {}
     if len(lvl_keys) == 0:

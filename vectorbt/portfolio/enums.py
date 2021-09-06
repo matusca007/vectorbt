@@ -681,7 +681,7 @@ Controls the sequence in which `order_func_nb` is executed within each segment.
 Has shape `SimulationContext.target_shape` and each value must exist in the range `[0, group_len)`.
 
 !!! note
-    To use `sort_call_seq_nb`, should be generated using `CallSeqType.Default`.
+    To use `sort_call_seq_nb`, must be generated using `CallSeqType.Default`.
 
     To change the call sequence dynamically, better change `SegmentContext.call_seq_now` in-place.
     
@@ -1147,7 +1147,7 @@ __pdoc__['SegmentContext.call_seq_now'] = """Sequence of calls within the curren
 
 Has shape `(group_len,)`. 
 
-Each value in this sequence should indicate the position of column in the group to
+Each value in this sequence must indicate the position of column in the group to
 call next. Processing goes always from left to right.
 
 You can use `pre_segment_func_nb` to override `call_seq_now`.

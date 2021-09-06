@@ -521,13 +521,13 @@ def attach_binary_magic_methods(translate_func: BinaryTranslateFuncT,
                              config: tp.Optional[Config] = None) -> WrapperFuncT:
     """Class decorator to add binary magic methods to a class.
 
-    `translate_func` should
+    `translate_func` must
 
     * take `self`, `other`, and unary function,
     * perform computation, and
     * return the result.
 
-    `config` defaults to `binary_magic_config` and should contain target method names (keys)
+    `config` defaults to `binary_magic_config` and must contain target method names (keys)
     and dictionaries (values) with the following keys:
 
     * `func`: Function that combines two array-like objects.
@@ -579,13 +579,13 @@ def attach_unary_magic_methods(translate_func: UnaryTranslateFuncT,
                             config: tp.Optional[Config] = None) -> WrapperFuncT:
     """Class decorator to add unary magic methods to a class.
 
-    `translate_func` should
+    `translate_func` must
 
     * take `self` and unary function,
     * perform computation, and
     * return the result.
 
-    `config` defaults to `unary_magic_config` and should contain target method names (keys)
+    `config` defaults to `unary_magic_config` and must contain target method names (keys)
     and dictionaries (values) with the following keys:
 
     * `func`: Function that transforms one array-like object.

@@ -793,7 +793,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             base (float): Rebase all series of a column to a given intial base.
 
                 !!! note
-                    The column should contain prices.
+                    The column must contain prices.
             kwargs (dict): Keyword arguments passed to `vectorbt.generic.accessors.GenericAccessor.plot`.
 
         ## Example
