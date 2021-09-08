@@ -24,7 +24,7 @@ from vectorbt.signals.nb import (
     generate_nb,
     generate_ex_nb,
     generate_enex_nb,
-    first_choice_nb
+    first_place_nb
 )
 from vectorbt.signals.enums import FactoryMode
 
@@ -32,7 +32,7 @@ from vectorbt.signals.enums import FactoryMode
 class SignalFactory(IndicatorFactory):
     """A factory for building signal generators.
 
-    Extends `vectorbt.indicators.factory.IndicatorFactory` with choice functions.
+    Extends `vectorbt.indicators.factory.IndicatorFactory` with place functions.
 
     Generates a fixed number of outputs (depending upon `mode`).
     If you need to generate other outputs, use in-place outputs (via `in_output_names`).
@@ -161,10 +161,10 @@ class SignalFactory(IndicatorFactory):
 
         setattr(self.Indicator, 'plot', plot)
 
-    def from_choice_func(
+    def from_place_func(
             self,
-            entry_choice_func: tp.Optional[tp.ChoiceFunc] = None,
-            exit_choice_func: tp.Optional[tp.ChoiceFunc] = None,
+            entry_place_func: tp.Optional[tp.PlaceFunc] = None,
+            exit_place_func: tp.Optional[tp.PlaceFunc] = None,
             generate_func: tp.Callable = generate_nb,
             generate_ex_func: tp.Callable = generate_ex_nb,
             generate_enex_func: tp.Callable = generate_enex_nb,
@@ -174,19 +174,19 @@ class SignalFactory(IndicatorFactory):
             cache_settings: tp.KwargsLike = None,
             numba_loop: bool = False,
             **kwargs) -> tp.Type[IndicatorBase]:
-        """Build signal generator class around entry and exit choice functions.
+        """Build signal generator class around entry and exit placement functions.
 
-        A choice function is simply a function that returns indices of signals.
-        There are two types of it: entry choice function and exit choice function.
-        Each choice function takes broadcast time series, broadcast in-place output time series,
+        A placement function is simply a function that places signals.
+        There are two types of it: entry placement function and exit placement function.
+        Each placement function takes broadcast time series, broadcast in-place output time series,
         broadcast parameter arrays, and other arguments, and returns an array of indices
         corresponding to chosen signals. See `vectorbt.signals.nb.generate_nb`.
 
         Args:
-            entry_choice_func (callable): `choice_func_nb` that returns indices of entries.
+            entry_place_func (callable): `place_func_nb` that returns indices of entries.
 
-                Defaults to `vectorbt.signals.nb.first_choice_nb` for `FactoryMode.Chain`.
-            exit_choice_func (callable): `choice_func_nb` that returns indices of exits.
+                Defaults to `vectorbt.signals.nb.first_place_nb` for `FactoryMode.Chain`.
+            exit_place_func (callable): `place_func_nb` that returns indices of exits.
             generate_func (callable): Entry generation function.
 
                 Defaults to `vectorbt.signals.nb.generate_nb`.
@@ -198,9 +198,9 @@ class SignalFactory(IndicatorFactory):
                 Defaults to `vectorbt.signals.nb.generate_enex_nb`.
             cache_func (callable): A caching function to preprocess data beforehand.
 
-                All returned objects will be passed as last arguments to choice functions.
-            entry_settings (dict): Settings dict for `entry_choice_func`.
-            exit_settings (dict): Settings dict for `exit_choice_func`.
+                All returned objects will be passed as last arguments to placement functions.
+            entry_settings (dict): Settings dict for `entry_place_func`.
+            exit_settings (dict): Settings dict for `exit_place_func`.
             cache_settings (dict): Settings dict for `cache_func`.
             numba_loop (bool): Whether to loop using Numba.
 
@@ -213,23 +213,23 @@ class SignalFactory(IndicatorFactory):
             Which inputs, parameters and arguments to pass to each function must be
             explicitly indicated in the function's settings dict. By default, nothing is passed.
 
-            Passing keyword arguments directly to the choice functions is not supported.
+            Passing keyword arguments directly to the placement functions is not supported.
             Use `pass_kwargs` in a settings dict to pass keyword arguments as positional.
 
         Settings dict of each function can have the following keys:
 
         Attributes:
-            pass_inputs (list of str): Input names to pass to the choice function.
+            pass_inputs (list of str): Input names to pass to the placement function.
 
                 Defaults to []. Order matters. Each name must be in `input_names`.
-            pass_in_outputs (list of str): In-place output names to pass to the choice function.
+            pass_in_outputs (list of str): In-place output names to pass to the placement function.
 
                 Defaults to []. Order matters. Each name must be in `in_output_names`.
-            pass_params (list of str): Parameter names to pass to the choice function.
+            pass_params (list of str): Parameter names to pass to the placement function.
 
                 Defaults to []. Order matters. Each name must be in `param_names`.
             pass_kwargs (dict, list of str or list of tuple): Keyword arguments from `kwargs` dict to
-                pass as positional arguments to the choice function.
+                pass as positional arguments to the placement function.
 
                 Defaults to []. Order matters.
 
@@ -252,13 +252,18 @@ class SignalFactory(IndicatorFactory):
                     Applied in `generate_ex_func` only.
                 * `pick_first`: Whether to stop as soon as the first exit signal is found.
                     Default is False with `FactoryMode.Entries`, otherwise is True.
+                * `max_one`: Whether the placement function returns only one signal at most.
+                    Default is True.
+
+                    Applied in `generate_enex_func` only. Make sure to enable `pick_first`
+                    if your placement function supports it.
                 * `temp_idx_arr`: Empty integer array used to temporarily store indices.
                     Default is an automatically generated array of shape `input_shape[0]`.
 
                     You can also pass `temp_idx_arr1`, `temp_idx_arr2`, etc. to generate multiple.
                 * `flex_2d`: See `vectorbt.base.reshape_fns.flex_select_auto_nb`.
                     Default is provided by the pipeline if `pass_flex_2d` is True.
-            pass_cache (bool): Whether to pass cache from `cache_func` to the choice function.
+            pass_cache (bool): Whether to pass cache from `cache_func` to the placement function.
 
                 Defaults to False. Cache is passed unpacked.
 
@@ -266,20 +271,20 @@ class SignalFactory(IndicatorFactory):
 
         Args:
             *args: Must be used instead of `entry_args` with `FactoryMode.Entries` and instead of
-                `exit_args` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_choice_func`.
-            entry_args (tuple): Arguments passed to the entry choice function.
-            exit_args (tuple): Arguments passed to the exit choice function.
+                `exit_args` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_place_func`.
+            entry_args (tuple): Arguments passed to the entry placement function.
+            exit_args (tuple): Arguments passed to the exit placement function.
             cache_args (tuple): Arguments passed to the cache function.
-            entry_kwargs (tuple): Settings for the entry choice function. Also contains arguments
+            entry_kwargs (tuple): Settings for the entry placement function. Also contains arguments
                 passed as positional if in `pass_kwargs`.
-            exit_kwargs (tuple): Settings for the exit choice function. Also contains arguments
+            exit_kwargs (tuple): Settings for the exit placement function. Also contains arguments
                 passed as positional if in `pass_kwargs`.
             cache_kwargs (tuple): Settings for the cache function. Also contains arguments
                 passed as positional if in `pass_kwargs`.
             return_cache (bool): Whether to return only cache.
             use_cache (any): Cache to use.
             **kwargs: Must be used instead of `entry_kwargs` with `FactoryMode.Entries` and instead of
-                `exit_kwargs` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_choice_func`.
+                `exit_kwargs` with `FactoryMode.Exits` and `FactoryMode.Chain` with default `entry_place_func`.
 
         For more arguments, see `vectorbt.indicators.factory.run_pipeline`.
 
@@ -293,16 +298,16 @@ class SignalFactory(IndicatorFactory):
         >>> import numpy as np
 
         >>> @njit
-        ... def entry_choice_func(from_i, to_i, col):
-        ...     return np.array([from_i])
+        ... def entry_place_func_nb(out, from_i, to_i, col):
+        ...     out[0] = True
 
         >>> @njit
-        ... def exit_choice_func(from_i, to_i, col):
-        ...     return np.array([from_i])
+        ... def exit_place_func_nb(out, from_i, to_i, col):
+        ...     out[0] = True
 
-        >>> MySignals = vbt.SignalFactory().from_choice_func(
-        ...     entry_choice_func=entry_choice_func,
-        ...     exit_choice_func=exit_choice_func,
+        >>> MySignals = vbt.SignalFactory().from_place_func(
+        ...     entry_place_func=entry_place_func_nb,
+        ...     exit_place_func=exit_place_func_nb,
         ...     entry_kwargs=dict(wait=1),
         ...     exit_kwargs=dict(wait=1)
         ... )
@@ -328,21 +333,18 @@ class SignalFactory(IndicatorFactory):
         >>> from vectorbt.signals.factory import SignalFactory
 
         >>> @njit
-        ... def wait_choice_nb(from_i, to_i, col, n, temp_idx_arr):
-        ...     temp_idx_arr[0] = from_i + n  # index of next exit
-        ...     if temp_idx_arr[0] < to_i:
-        ...         return temp_idx_arr[:1]
-        ...     return temp_idx_arr[:0]  # must return array anyway
+        ... def wait_place_nb(out, from_i, to_i, col, n):
+        ...     if n < len(out):
+        ...         out[n] = True
 
         >>> # Build signal generator
         >>> MySignals = SignalFactory(
         ...     mode='chain',
         ...     param_names=['n']
-        ... ).from_choice_func(
-        ...     exit_choice_func=wait_choice_nb,
+        ... ).from_place_func(
+        ...     exit_place_func=wait_place_nb,
         ...     exit_settings=dict(
-        ...         pass_params=['n'],
-        ...         pass_kwargs=['temp_idx_arr']  # built-in kwarg
+        ...         pass_params=['n']
         ...     )
         ... )
 
@@ -375,34 +377,32 @@ class SignalFactory(IndicatorFactory):
         4         False  False  False
         ```
 
-        To combine multiple iterative signals, you would need to create a custom choice function.
+        To combine multiple iterative signals, you would need to create a custom placement function.
         Here is an example of combining two random generators using "OR" rule (the first signal wins):
 
         ```python-repl
+        >>> import numpy as np
         >>> from numba import njit
         >>> from collections import namedtuple
         >>> from vectorbt.indicators.configs import flex_elem_param_config
         >>> from vectorbt.signals.factory import SignalFactory
-        >>> from vectorbt.signals.nb import rand_by_prob_choice_nb
+        >>> from vectorbt.signals.nb import rand_by_prob_place_nb
 
         >>> # Enum to distinguish random generators
         >>> RandType = namedtuple('RandType', ['R1', 'R2'])(0, 1)
 
-        >>> # Define exit choice function
+        >>> # Define exit placement function
         >>> @njit
-        ... def rand_exit_choice_nb(from_i, to_i, col, rand_type, prob1,
-        ...                         prob2, temp_idx_arr1, temp_idx_arr2, flex_2d):
-        ...     idxs1 = rand_by_prob_choice_nb(from_i, to_i, col, prob1, True, temp_idx_arr1, flex_2d)
-        ...     if len(idxs1) > 0:
-        ...         to_i = idxs1[0]  # no need to go beyond first the first found signal
-        ...     idxs2 = rand_by_prob_choice_nb(from_i, to_i, col, prob2, True, temp_idx_arr2, flex_2d)
-        ...     if len(idxs2) > 0:
-        ...         rand_type[idxs2[0], col] = RandType.R2
-        ...         return idxs2
-        ...     if len(idxs1) > 0:
-        ...         rand_type[idxs1[0], col] = RandType.R1
-        ...         return idxs1
-        ...     return temp_idx_arr1[:0]
+        ... def rand_exit_place_nb(out, from_i, to_i, col, rand_type, prob1, prob2, flex_2d):
+        ...     for i in range(len(out)):
+        ...         if np.random.uniform(0, 1) < prob1:
+        ...             out[i] = True
+        ...             rand_type[from_i + i] = RandType.R1
+        ...             break
+        ...         if np.random.uniform(0, 1) < prob2:
+        ...             out[i] = True
+        ...             rand_type[from_i + i] = RandType.R2
+        ...             break
 
         >>> # Build signal generator
         >>> MySignals = SignalFactory(
@@ -412,12 +412,12 @@ class SignalFactory(IndicatorFactory):
         ...     attr_settings=dict(
         ...         rand_type=dict(dtype=RandType)  # creates rand_type_readable
         ...     )
-        ... ).from_choice_func(
-        ...     exit_choice_func=rand_exit_choice_nb,
+        ... ).from_place_func(
+        ...     exit_place_func=rand_exit_place_nb,
         ...     exit_settings=dict(
         ...         pass_in_outputs=['rand_type'],
         ...         pass_params=['prob1', 'prob2'],
-        ...         pass_kwargs=['temp_idx_arr1', 'temp_idx_arr2', 'flex_2d']
+        ...         pass_kwargs=['flex_2d']
         ...     ),
         ...     param_settings=dict(
         ...         prob1=flex_elem_param_config,  # param per frame/row/col/element
@@ -467,35 +467,35 @@ class SignalFactory(IndicatorFactory):
 
         if mode == FactoryMode.Entries:
             require_input_shape = True
-            checks.assert_not_none(entry_choice_func)
-            checks.assert_numba_func(entry_choice_func)
-            if exit_choice_func is not None:
-                raise ValueError("exit_choice_func cannot be used with FactoryMode.Entries")
+            checks.assert_not_none(entry_place_func)
+            checks.assert_numba_func(entry_place_func)
+            if exit_place_func is not None:
+                raise ValueError("exit_place_func cannot be used with FactoryMode.Entries")
         elif mode == FactoryMode.Exits:
             require_input_shape = False
-            if entry_choice_func is not None:
-                raise ValueError("entry_choice_func cannot be used with FactoryMode.Exits")
-            checks.assert_not_none(exit_choice_func)
-            checks.assert_numba_func(exit_choice_func)
+            if entry_place_func is not None:
+                raise ValueError("entry_place_func cannot be used with FactoryMode.Exits")
+            checks.assert_not_none(exit_place_func)
+            checks.assert_numba_func(exit_place_func)
         elif mode == FactoryMode.Both:
             require_input_shape = True
-            checks.assert_not_none(entry_choice_func)
-            checks.assert_numba_func(entry_choice_func)
-            checks.assert_not_none(exit_choice_func)
-            checks.assert_numba_func(exit_choice_func)
+            checks.assert_not_none(entry_place_func)
+            checks.assert_numba_func(entry_place_func)
+            checks.assert_not_none(exit_place_func)
+            checks.assert_numba_func(exit_place_func)
         else:
             require_input_shape = False
-            if entry_choice_func is None:
-                entry_choice_func = first_choice_nb
+            if entry_place_func is None:
+                entry_place_func = first_place_nb
             if entry_settings is None:
                 entry_settings = {}
             entry_settings = merge_dicts(dict(
                 pass_inputs=['entries']
             ), entry_settings)
-            checks.assert_not_none(entry_choice_func)
-            checks.assert_numba_func(entry_choice_func)
-            checks.assert_not_none(exit_choice_func)
-            checks.assert_numba_func(exit_choice_func)
+            checks.assert_not_none(entry_place_func)
+            checks.assert_numba_func(entry_place_func)
+            checks.assert_not_none(exit_place_func)
+            checks.assert_numba_func(exit_place_func)
         require_input_shape = kwargs.pop('require_input_shape', require_input_shape)
 
         if entry_settings is None:
@@ -542,7 +542,6 @@ class SignalFactory(IndicatorFactory):
         if mode == FactoryMode.Entries:
             _0 = "i"
             _0 += ", shape"
-            _0 += ", entry_pick_first"
             _0 += ", entry_input_tuple"
             if len(entry_in_output_names) > 0:
                 _0 += ", entry_in_output_tuples"
@@ -550,8 +549,7 @@ class SignalFactory(IndicatorFactory):
                 _0 += ", entry_param_tuples"
             _0 += ", entry_args"
             _1 = "shape"
-            _1 += ", entry_pick_first"
-            _1 += ", entry_choice_func"
+            _1 += ", entry_place_func"
             _1 += ", *entry_input_tuple"
             if len(entry_in_output_names) > 0:
                 _1 += ", *entry_in_output_tuples[i]"
@@ -561,7 +559,7 @@ class SignalFactory(IndicatorFactory):
             func_str = "def apply_func({0}):\n   return generate_func({1})".format(_0, _1)
             scope = {
                 'generate_func': generate_func,
-                'entry_choice_func': entry_choice_func
+                'entry_place_func': entry_place_func
             }
             filename = inspect.getfile(lambda: None)
             code = compile(func_str, filename, 'single')
@@ -579,7 +577,6 @@ class SignalFactory(IndicatorFactory):
             _0 += ", exit_wait"
             _0 += ", until_next"
             _0 += ", skip_until_exit"
-            _0 += ", exit_pick_first"
             _0 += ", exit_input_tuple"
             if len(exit_in_output_names) > 0:
                 _0 += ", exit_in_output_tuples"
@@ -590,8 +587,7 @@ class SignalFactory(IndicatorFactory):
             _1 += ", exit_wait"
             _1 += ", until_next"
             _1 += ", skip_until_exit"
-            _1 += ", exit_pick_first"
-            _1 += ", exit_choice_func"
+            _1 += ", exit_place_func"
             _1 += ", *exit_input_tuple"
             if len(exit_in_output_names) > 0:
                 _1 += ", *exit_in_output_tuples[i]"
@@ -601,7 +597,7 @@ class SignalFactory(IndicatorFactory):
             func_str = "def apply_func({0}):\n   return generate_ex_func({1})".format(_0, _1)
             scope = {
                 'generate_ex_func': generate_ex_func,
-                'exit_choice_func': exit_choice_func
+                'exit_place_func': exit_place_func
             }
             filename = inspect.getfile(lambda: None)
             code = compile(func_str, filename, 'single')
@@ -618,8 +614,8 @@ class SignalFactory(IndicatorFactory):
             _0 += ", shape"
             _0 += ", entry_wait"
             _0 += ", exit_wait"
-            _0 += ", entry_pick_first"
-            _0 += ", exit_pick_first"
+            _0 += ", max_one_entry"
+            _0 += ", max_one_exit"
             _0 += ", entry_input_tuple"
             _0 += ", exit_input_tuple"
             if len(entry_in_output_names) > 0:
@@ -635,16 +631,16 @@ class SignalFactory(IndicatorFactory):
             _1 = "shape"
             _1 += ", entry_wait"
             _1 += ", exit_wait"
-            _1 += ", entry_pick_first"
-            _1 += ", exit_pick_first"
-            _1 += ", entry_choice_func"
+            _1 += ", max_one_entry"
+            _1 += ", max_one_exit"
+            _1 += ", entry_place_func"
             _1 += ", (*entry_input_tuple"
             if len(entry_in_output_names) > 0:
                 _1 += ", *entry_in_output_tuples[i]"
             if len(entry_param_names) > 0:
                 _1 += ", *entry_param_tuples[i]"
             _1 += ", *entry_args)"
-            _1 += ", exit_choice_func"
+            _1 += ", exit_place_func"
             _1 += ", (*exit_input_tuple"
             if len(exit_in_output_names) > 0:
                 _1 += ", *exit_in_output_tuples[i]"
@@ -654,8 +650,8 @@ class SignalFactory(IndicatorFactory):
             func_str = "def apply_func({0}):\n   return generate_enex_func({1})".format(_0, _1)
             scope = {
                 'generate_enex_func': generate_enex_func,
-                'entry_choice_func': entry_choice_func,
-                'exit_choice_func': exit_choice_func
+                'entry_place_func': entry_place_func,
+                'exit_place_func': exit_place_func
             }
             filename = inspect.getfile(lambda: None)
             code = compile(func_str, filename, 'single')
@@ -699,7 +695,7 @@ class SignalFactory(IndicatorFactory):
                 if len(entry_args) > 0:
                     raise ValueError("Use *args instead of entry_args with FactoryMode.Entries")
                 entry_args = args
-            elif mode == FactoryMode.Exits or (mode == FactoryMode.Chain and entry_choice_func == first_choice_nb):
+            elif mode == FactoryMode.Exits or (mode == FactoryMode.Chain and entry_place_func == first_place_nb):
                 if len(exit_args) > 0:
                     raise ValueError("Use *args instead of exit_args "
                                      "with FactoryMode.Exits or FactoryMode.Chain")
@@ -718,7 +714,7 @@ class SignalFactory(IndicatorFactory):
                 if len(entry_kwargs) > 0:
                     raise ValueError("Use **kwargs instead of entry_kwargs with FactoryMode.Entries")
                 entry_kwargs = _kwargs
-            elif mode == FactoryMode.Exits or (mode == FactoryMode.Chain and entry_choice_func == first_choice_nb):
+            elif mode == FactoryMode.Exits or (mode == FactoryMode.Chain and entry_place_func == first_place_nb):
                 if len(exit_kwargs) > 0:
                     raise ValueError("Use **kwargs instead of exit_kwargs "
                                      "with FactoryMode.Exits or FactoryMode.Chain")
@@ -732,18 +728,17 @@ class SignalFactory(IndicatorFactory):
                 wait=1,
                 until_next=True,
                 skip_until_exit=False,
-                pick_first=True,
+                pick_first=mode != FactoryMode.Entries,
+                max_one=True,
                 flex_2d=flex_2d,
             )
-            if mode == FactoryMode.Entries:
-                kwargs_defaults['pick_first'] = False
             entry_kwargs = merge_dicts(kwargs_defaults, entry_kwargs)
             exit_kwargs = merge_dicts(kwargs_defaults, exit_kwargs)
             cache_kwargs = merge_dicts(kwargs_defaults, cache_kwargs)
             entry_wait = entry_kwargs['wait']
             exit_wait = exit_kwargs['wait']
-            entry_pick_first = entry_kwargs['pick_first']
-            exit_pick_first = exit_kwargs['pick_first']
+            max_one_entry = entry_kwargs['max_one']
+            max_one_exit = exit_kwargs['max_one']
             until_next = exit_kwargs['until_next']
             skip_until_exit = exit_kwargs['skip_until_exit']
 
@@ -857,7 +852,6 @@ class SignalFactory(IndicatorFactory):
                     n_params,
                     apply_func,
                     input_shape,
-                    entry_pick_first,
                     entry_input_tuple,
                     *_entry_in_output_tuples,
                     *_entry_param_tuples,
@@ -887,7 +881,6 @@ class SignalFactory(IndicatorFactory):
                     exit_wait,
                     until_next,
                     skip_until_exit,
-                    exit_pick_first,
                     exit_input_tuple,
                     *_exit_in_output_tuples,
                     *_exit_param_tuples,
@@ -930,8 +923,8 @@ class SignalFactory(IndicatorFactory):
                     input_shape,
                     entry_wait,
                     exit_wait,
-                    entry_pick_first,
-                    exit_pick_first,
+                    max_one_entry,
+                    max_one_exit,
                     entry_input_tuple,
                     exit_input_tuple,
                     *_entry_in_output_tuples,

@@ -14,10 +14,10 @@ from vectorbt.signals.enums import StopType
 from vectorbt.signals.factory import SignalFactory
 from vectorbt.signals.nb import (
     rand_enex_apply_nb,
-    rand_by_prob_choice_nb,
-    stop_choice_nb,
-    ohlc_stop_choice_nb,
-    rand_choice_nb
+    rand_by_prob_place_nb,
+    stop_place_nb,
+    ohlc_stop_place_nb,
+    rand_place_nb
 )
 
 # ############# RAND ############# #
@@ -28,8 +28,8 @@ RAND = SignalFactory(
     short_name='rand',
     mode='entries',
     param_names=['n']
-).from_choice_func(
-    entry_choice_func=rand_choice_nb,
+).from_place_func(
+    entry_place_func=rand_place_nb,
     entry_settings=dict(
         pass_params=['n']
     ),
@@ -43,7 +43,7 @@ RAND = SignalFactory(
 class _RAND(RAND):
     """Random entry signal generator based on the number of signals.
 
-    Generates `entries` based on `vectorbt.signals.nb.rand_choice_nb`.
+    Generates `entries` based on `vectorbt.signals.nb.rand_place_nb`.
 
     !!! hint
         Parameter `n` can be either a single value (per frame) or a NumPy array (per column).
@@ -98,10 +98,10 @@ RANDX = SignalFactory(
     module_name=__name__,
     short_name='randx',
     mode='exits'
-).from_choice_func(
-    exit_choice_func=rand_choice_nb,
+).from_place_func(
+    exit_place_func=rand_place_nb,
     exit_settings=dict(
-        pass_kwargs=dict(n=1)
+        pass_kwargs=dict(n=np.asarray([1]))
     ),
     seed=None
 )
@@ -110,7 +110,7 @@ RANDX = SignalFactory(
 class _RANDX(RANDX):
     """Random exit signal generator based on the number of signals.
 
-    Generates `exits` based on `entries` and `vectorbt.signals.nb.rand_choice_nb`.
+    Generates `exits` based on `entries` and `vectorbt.signals.nb.rand_place_nb`.
 
     See `RAND` for notes on parameters.
 
@@ -210,11 +210,11 @@ RPROB = SignalFactory(
     short_name='rprob',
     mode='entries',
     param_names=['prob']
-).from_choice_func(
-    entry_choice_func=rand_by_prob_choice_nb,
+).from_place_func(
+    entry_place_func=rand_by_prob_place_nb,
     entry_settings=dict(
         pass_params=['prob'],
-        pass_kwargs=['pick_first', 'temp_idx_arr', 'flex_2d']
+        pass_kwargs=['pick_first', 'flex_2d']
     ),
     pass_flex_2d=True,
     param_settings=dict(
@@ -227,7 +227,7 @@ RPROB = SignalFactory(
 class _RPROB(RPROB):
     """Random entry signal generator based on probabilities.
 
-    Generates `entries` based on `vectorbt.signals.nb.rand_by_prob_choice_nb`.
+    Generates `entries` based on `vectorbt.signals.nb.rand_by_prob_place_nb`.
 
     !!! hint
         All parameters can be either a single value (per frame) or a NumPy array (per row, column,
@@ -284,10 +284,10 @@ rprobx_config = Config(
 
 rprobx_func_config = Config(
     dict(
-        exit_choice_func=rand_by_prob_choice_nb,
+        exit_place_func=rand_by_prob_place_nb,
         exit_settings=dict(
             pass_params=['prob'],
-            pass_kwargs=['pick_first', 'temp_idx_arr', 'flex_2d']
+            pass_kwargs=['pick_first', 'flex_2d']
         ),
         pass_flex_2d=True,
         param_settings=dict(
@@ -300,7 +300,7 @@ rprobx_func_config = Config(
 
 RPROBX = SignalFactory(
     **rprobx_config
-).from_choice_func(
+).from_place_func(
     **rprobx_func_config
 )
 
@@ -308,7 +308,7 @@ RPROBX = SignalFactory(
 class _RPROBX(RPROBX):
     """Random exit signal generator based on probabilities.
 
-    Generates `exits` based on `entries` and `vectorbt.signals.nb.rand_by_prob_choice_nb`.
+    Generates `exits` based on `entries` and `vectorbt.signals.nb.rand_by_prob_place_nb`.
 
     See `RPROB` for notes on parameters."""
     pass
@@ -324,7 +324,7 @@ RPROBCX = SignalFactory(
             mode='chain'
         )
     )
-).from_choice_func(
+).from_place_func(
     **rprobx_func_config
 )
 
@@ -333,7 +333,7 @@ class _RPROBCX(RPROBCX):
     """Random exit signal generator based on probabilities.
 
     Generates chain of `new_entries` and `exits` based on `entries` and
-    `vectorbt.signals.nb.rand_by_prob_choice_nb`.
+    `vectorbt.signals.nb.rand_by_prob_place_nb`.
 
     See `RPROB` for notes on parameters."""
     pass
@@ -347,16 +347,16 @@ RPROBNX = SignalFactory(
     short_name='rprobnx',
     mode='both',
     param_names=['entry_prob', 'exit_prob']
-).from_choice_func(
-    entry_choice_func=rand_by_prob_choice_nb,
+).from_place_func(
+    entry_place_func=rand_by_prob_place_nb,
     entry_settings=dict(
         pass_params=['entry_prob'],
-        pass_kwargs=['pick_first', 'temp_idx_arr', 'flex_2d']
+        pass_kwargs=['pick_first', 'flex_2d']
     ),
-    exit_choice_func=rand_by_prob_choice_nb,
+    exit_place_func=rand_by_prob_place_nb,
     exit_settings=dict(
         pass_params=['exit_prob'],
-        pass_kwargs=['pick_first', 'temp_idx_arr', 'flex_2d']
+        pass_kwargs=['pick_first', 'flex_2d']
     ),
     pass_flex_2d=True,
     param_settings=dict(
@@ -370,7 +370,7 @@ RPROBNX = SignalFactory(
 class _RPROBNX(RPROBNX):
     """Random entry and exit signal generator based on probabilities.
 
-    Generates `entries` and `exits` based on `vectorbt.signals.nb.rand_by_prob_choice_nb`.
+    Generates `entries` and `exits` based on `vectorbt.signals.nb.rand_by_prob_place_nb`.
 
     See `RPROB` for notes on parameters.
 
@@ -460,11 +460,11 @@ stx_config = Config(
 
 stx_func_config = Config(
     dict(
-        exit_choice_func=stop_choice_nb,
+        exit_place_func=stop_place_nb,
         exit_settings=dict(
             pass_inputs=['ts'],
             pass_params=['stop', 'trailing'],
-            pass_kwargs=['wait', 'pick_first', 'temp_idx_arr', 'flex_2d']
+            pass_kwargs=['wait', 'pick_first', 'flex_2d']
         ),
         pass_flex_2d=True,
         param_settings=dict(
@@ -478,7 +478,7 @@ stx_func_config = Config(
 
 STX = SignalFactory(
     **stx_config
-).from_choice_func(
+).from_place_func(
     **stx_func_config
 )
 
@@ -486,7 +486,7 @@ STX = SignalFactory(
 class _STX(STX):
     """Exit signal generator based on stop values.
 
-    Generates `exits` based on `entries` and `vectorbt.signals.nb.stop_choice_nb`.
+    Generates `exits` based on `entries` and `vectorbt.signals.nb.stop_place_nb`.
 
     !!! hint
         All parameters can be either a single value (per frame) or a NumPy array (per row, column,
@@ -504,7 +504,7 @@ STCX = SignalFactory(
             mode='chain'
         )
     )
-).from_choice_func(
+).from_place_func(
     **stx_func_config
 )
 
@@ -513,7 +513,7 @@ class _STCX(STCX):
     """Exit signal generator based on stop values.
 
     Generates chain of `new_entries` and `exits` based on `entries` and
-    `vectorbt.signals.nb.stop_choice_nb`.
+    `vectorbt.signals.nb.stop_place_nb`.
 
     See `STX` for notes on parameters."""
     pass
@@ -541,12 +541,12 @@ ohlcstx_config = Config(
 
 ohlcstx_func_config = Config(
     dict(
-        exit_choice_func=ohlc_stop_choice_nb,
+        exit_place_func=ohlc_stop_place_nb,
         exit_settings=dict(
             pass_inputs=['open', 'high', 'low', 'close'],  # do not pass entries
             pass_in_outputs=['stop_price', 'stop_type'],
             pass_params=['sl_stop', 'sl_trail', 'tp_stop', 'reverse'],
-            pass_kwargs=[('is_open_safe', True), 'wait', 'pick_first', 'temp_idx_arr', 'flex_2d'],
+            pass_kwargs=['is_open_safe', 'wait', 'pick_first', 'flex_2d'],
         ),
         pass_flex_2d=True,
         in_output_settings=dict(
@@ -563,6 +563,7 @@ ohlcstx_func_config = Config(
             tp_stop=flex_elem_param_config,
             reverse=flex_elem_param_config
         ),
+        is_open_safe=True,
         sl_stop=np.nan,
         sl_trail=False,
         tp_stop=np.nan,
@@ -575,7 +576,7 @@ ohlcstx_func_config = Config(
 
 OHLCSTX = SignalFactory(
     **ohlcstx_config
-).from_choice_func(
+).from_place_func(
     **ohlcstx_func_config
 )
 
@@ -690,7 +691,7 @@ def _bind_ohlcstx_plot(base_cls: type, entries_attr: str) -> tp.Callable:  # pra
 class _OHLCSTX(OHLCSTX):
     """Exit signal generator based on OHLC and stop values.
 
-    Generates `exits` based on `entries` and `vectorbt.signals.nb.ohlc_stop_choice_nb`.
+    Generates `exits` based on `entries` and `vectorbt.signals.nb.ohlc_stop_place_nb`.
 
     !!! hint
         All parameters can be either a single value (per frame) or a NumPy array (per row, column,
@@ -779,7 +780,7 @@ OHLCSTCX = SignalFactory(
             mode='chain'
         )
     )
-).from_choice_func(
+).from_place_func(
     **ohlcstx_func_config
 )
 
@@ -788,7 +789,7 @@ class _OHLCSTCX(OHLCSTCX):
     """Exit signal generator based on OHLC and stop values.
 
     Generates chain of `new_entries` and `exits` based on `entries` and
-    `vectorbt.signals.nb.ohlc_stop_choice_nb`.
+    `vectorbt.signals.nb.ohlc_stop_place_nb`.
 
     See `OHLCSTX` for notes on parameters."""
 

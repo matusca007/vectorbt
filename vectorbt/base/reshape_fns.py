@@ -19,6 +19,21 @@ from vectorbt.utils.config import resolve_dict
 from vectorbt.base import index_fns, wrapping
 
 
+def shape_to_tuple(shape: tp.RelaxedShape) -> tp.Shape:
+    """Convert a shape-like object to a tuple."""
+    if isinstance(shape, int):
+        return (shape,)
+    return tuple(shape)
+
+
+def shape_to_2d(shape: tp.RelaxedShape) -> tp.Shape:
+    """Convert a shape-like object to a 2-dim shape."""
+    shape = shape_to_tuple(shape)
+    if len(shape) == 1:
+        return shape[0], 1
+    return shape
+
+
 def to_any_array(arg: tp.ArrayLike, raw: bool = False) -> tp.AnyArray:
     """Convert any array-like object to an array.
 
@@ -332,6 +347,7 @@ def broadcast(*args: tp.ArrayLike,
               columns_from: tp.Optional[IndexFromLike] = None,
               require_kwargs: tp.KwargsLikeSequence = None,
               keep_raw: tp.Optional[tp.MaybeSequence[bool]] = False,
+              min_one_dim: tp.Optional[tp.MaybeSequence[bool]] = True,
               return_meta: bool = False,
               **kwargs) -> BCRT:
     """Bring any array-like object in `args` to the same shape by using NumPy broadcasting.
@@ -368,6 +384,7 @@ def broadcast(*args: tp.ArrayLike,
             Only makes sure that the array can be broadcast to the target shape.
 
             If sequence, applies to each argument.
+        min_one_dim (bool or list of bool): Whether to convert constants into 1-dim arrays.
         return_meta (bool): Whether to also return new shape, index and columns.
         **kwargs: Keyword arguments passed to `broadcast_index`.
 
@@ -566,11 +583,17 @@ def broadcast(*args: tp.ArrayLike,
     # Perform broadcasting
     new_args = []
     for i, arg in enumerate(arr_args_2d):
+        if isinstance(min_one_dim, Sequence):
+            _min_one_dim = min_one_dim[i]
+        else:
+            _min_one_dim = min_one_dim
+        if _min_one_dim and arg.ndim == 0:
+            arg = arg[None]
+        bc_arg = np.broadcast_to(arg, to_shape)
         if isinstance(keep_raw, Sequence):
             _keep_raw = keep_raw[i]
         else:
             _keep_raw = keep_raw
-        bc_arg = np.broadcast_to(arg, to_shape)
         if _keep_raw:
             new_args.append(arg)
             continue
@@ -955,9 +978,9 @@ def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, fl
         return a.item()
     if a.ndim == 1:
         if flex_2d:
-            return a[flex_col]
+            return a[int(flex_col)]
         return a[flex_i]
-    return a[flex_i, flex_col]
+    return a[flex_i, int(flex_col)]
 
 
 @register_jit(cache=True)

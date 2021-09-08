@@ -138,7 +138,7 @@ ReduceGroupedToArrayMetaFunc = Callable[[int, int, int, VarArg()], Array1d]
 GroupSqueezeMetaFunc = Callable[[int, int, int, int, VarArg()], Scalar]
 
 # Signals
-ChoiceFunc = Callable[[int, int, int, VarArg()], Array1d]
+PlaceFunc = Callable[[Array1d, int, int, int, VarArg()], None]
 RankFunc = Callable[[int, int, int, int, int, VarArg()], int]
 
 # Records

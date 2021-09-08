@@ -1622,6 +1622,8 @@ def run_pipeline(
     if len(in_output_idxs) > 0:
         # In-place outputs should broadcast together with inputs
         input_list += [in_output_list[i] for i in in_output_idxs]
+    if input_shape is not None:
+        input_shape = reshape_fns.shape_to_tuple(input_shape)
     if len(input_list) > 0:
         # Broadcast inputs
         # If input_shape is provided, will broadcast all inputs to this shape
@@ -1649,8 +1651,6 @@ def run_pipeline(
         input_list = input_list[:-len(in_output_idxs)]
 
     # Reshape input shape
-    if input_shape is not None and not isinstance(input_shape, tuple):
-        input_shape = (input_shape,)
     # Keep original input_shape for per_column=True
     orig_input_shape = input_shape
     orig_input_shape_2d = input_shape

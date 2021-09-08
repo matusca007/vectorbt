@@ -68,7 +68,12 @@ import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import class_or_instancemethod, attach_binary_magic_methods, attach_unary_magic_methods
+from vectorbt.utils.decorators import (
+    class_or_instanceproperty,
+    class_or_instancemethod,
+    attach_binary_magic_methods,
+    attach_unary_magic_methods
+)
 from vectorbt.utils.config import merge_dicts, get_func_arg_names
 from vectorbt.base import combine_fns, index_fns, reshape_fns
 from vectorbt.base.grouping import Grouper
@@ -143,9 +148,9 @@ class BaseAccessor(Wrapping):
         """Pandas object."""
         return self._obj
 
-    @class_or_instancemethod
-    def ndim(cls_or_self) -> int:
-        raise NotImplementedError
+    @class_or_instanceproperty
+    def ndim(cls_or_self) -> tp.Optional[int]:
+        return None
 
     @class_or_instancemethod
     def is_series(cls_or_self) -> bool:
@@ -158,13 +163,10 @@ class BaseAccessor(Wrapping):
     @classmethod
     def resolve_shape(cls, shape: tp.RelaxedShape) -> tp.Shape:
         """Resolve shape."""
-        if not isinstance(shape, tuple):
-            shape = (shape, 1)
-        elif isinstance(shape, tuple) and len(shape) == 1:
-            shape = (shape[0], 1)
-        if cls.is_series() and shape[1] > 1:
+        shape_2d = reshape_fns.shape_to_2d(shape)
+        if cls.is_series() and shape_2d[1] > 1:
             raise ValueError("Use DataFrame accessor")
-        return shape
+        return shape_2d
 
     # ############# Creation ############# #
 
@@ -718,7 +720,7 @@ class BaseSRAccessor(BaseAccessor):
 
         BaseAccessor.__init__(self, obj, **kwargs)
 
-    @class_or_instancemethod
+    @class_or_instanceproperty
     def ndim(cls_or_self) -> int:
         return 1
 
@@ -741,7 +743,7 @@ class BaseDFAccessor(BaseAccessor):
 
         BaseAccessor.__init__(self, obj, **kwargs)
 
-    @class_or_instancemethod
+    @class_or_instanceproperty
     def ndim(cls_or_self) -> int:
         return 2
 
