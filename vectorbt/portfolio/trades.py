@@ -491,7 +491,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.template import RepEval
-from vectorbt.utils.decorators import cached_method, cached_property
+from vectorbt.utils.decorators import cached_property
 from vectorbt.base.reshape_fns import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.ranges import Ranges
@@ -694,7 +694,6 @@ class Trades(Ranges):
         """`Ranges.get_losing_streak` with default arguments."""
         return self.get_losing_streak()
 
-    @cached_method
     def win_rate(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Rate of winning trades."""
@@ -707,7 +706,6 @@ class Trades(Ranges):
             **kwargs
         )
 
-    @cached_method
     def profit_factor(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Profit factor."""
@@ -720,7 +718,6 @@ class Trades(Ranges):
             **kwargs
         )
 
-    @cached_method
     def expectancy(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average profitability."""
@@ -733,7 +730,6 @@ class Trades(Ranges):
             **kwargs
         )
 
-    @cached_method
     def sqn(self, ddof: int = 1, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
             wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """System Quality Number (SQN)."""

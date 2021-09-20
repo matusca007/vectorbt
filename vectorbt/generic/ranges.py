@@ -117,7 +117,7 @@ import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
-from vectorbt.utils.decorators import cached_property, cached_method
+from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
@@ -299,21 +299,18 @@ class Ranges(Records):
         """`Ranges.get_duration` with default arguments."""
         return self.get_duration()
 
-    @cached_method
     def avg_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
         return self.get_duration(parallel=parallel).mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def max_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
         return self.get_duration(parallel=parallel).max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def coverage(self,
                  overlapping: bool = False,
                  normalize: bool = True,

@@ -170,7 +170,7 @@ import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
-from vectorbt.utils.decorators import cached_property, cached_method
+from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
@@ -310,7 +310,6 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_drawdown` with default arguments."""
         return self.get_drawdown()
 
-    @cached_method
     def avg_drawdown(self, group_by: tp.GroupByLike = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average drawdown (ADD).
@@ -319,7 +318,6 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_drawdown'), wrap_kwargs)
         return self.drawdown.mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def max_drawdown(self, group_by: tp.GroupByLike = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Maximum drawdown (MDD).
@@ -345,7 +343,6 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_recovery_return` with default arguments."""
         return self.get_recovery_return()
 
-    @cached_method
     def avg_recovery_return(self, group_by: tp.GroupByLike = None,
                             wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average recovery return.
@@ -354,7 +351,6 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_recovery_return'), wrap_kwargs)
         return self.recovery_return.mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def max_recovery_return(self, group_by: tp.GroupByLike = None,
                             wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Maximum recovery return.
@@ -415,7 +411,6 @@ class Drawdowns(Ranges):
 
     # ############# Status: Active ############# #
 
-    @cached_method
     def active_drawdown(self, group_by: tp.GroupByLike = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Drawdown of the last active drawdown only.
@@ -430,7 +425,6 @@ class Drawdowns(Ranges):
         curr_drawdown = (curr_end_val - curr_peak_val) / curr_peak_val
         return self.wrapper.wrap_reduced(curr_drawdown, group_by=group_by, **wrap_kwargs)
 
-    @cached_method
     def active_duration(self, group_by: tp.GroupByLike = None,
                         wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Duration of the last active drawdown only.
@@ -441,7 +435,6 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='active_duration'), wrap_kwargs)
         return self.active.duration.nth(-1, group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def active_recovery(self, group_by: tp.GroupByLike = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Recovery of the last active drawdown only.
@@ -457,7 +450,6 @@ class Drawdowns(Ranges):
         curr_recovery = (curr_end_val - curr_valley_val) / (curr_peak_val - curr_valley_val)
         return self.wrapper.wrap_reduced(curr_recovery, group_by=group_by, **wrap_kwargs)
 
-    @cached_method
     def active_recovery_return(self, group_by: tp.GroupByLike = None,
                                wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Recovery return of the last active drawdown only.
@@ -468,7 +460,6 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='active_recovery_return'), wrap_kwargs)
         return self.active.recovery_return.nth(-1, group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    @cached_method
     def active_recovery_duration(self, group_by: tp.GroupByLike = None,
                                  wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Recovery duration of the last active drawdown only.
