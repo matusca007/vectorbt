@@ -298,7 +298,7 @@ method is flexible towards inputs and can work on both Series and DataFrames.
 7.32 s ± 431 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 # vectorbt
->>> mean_nb = njit(lambda col, i, x: np.mean(x))
+>>> mean_nb = njit(lambda x: np.mean(x))
 >>> %timeit big_ts.vbt.rolling_apply(2, mean_nb)
 86.2 ms ± 7.97 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 ```

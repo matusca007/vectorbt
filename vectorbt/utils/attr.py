@@ -11,7 +11,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, get_func_arg_names
 
 
-def get_dict_attr(obj, attr):
+def get_dict_attr(obj: tp.Union[object, type], attr: str) -> tp.Any:
     """Get attribute without invoking the attribute lookup machinery."""
     if inspect.isclass(obj):
         cls = obj
@@ -117,7 +117,7 @@ class AttrResolver:
 
     def resolve_self(self: AttrResolverT,
                      cond_kwargs: tp.KwargsLike = None,
-                     custom_arg_names: tp.Optional[tp.Set[str]] = None,
+                     custom_arg_names: tp.ClassVar[tp.Optional[tp.Set[str]]] = None,
                      impacts_caching: bool = True,
                      silence_warnings: bool = False) -> AttrResolverT:
         """Resolve self.

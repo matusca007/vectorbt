@@ -492,7 +492,7 @@ from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.decorators import cached_method, cached_property
-from vectorbt.base.reshape_fns import to_1d_array, to_2d_array
+from vectorbt.base.reshape_fns import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.decorators import attach_fields, override_field_config
@@ -609,6 +609,8 @@ class Trades(Ranges):
     """Extends `vectorbt.generic.ranges.Ranges` for working with trade-like records, such as
     entry trades, exit trades, and positions."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'close'}
+
     @property
     def field_config(self) -> Config:
         return self._field_config
@@ -650,7 +652,6 @@ class Trades(Ranges):
     def from_ts(cls: tp.Type[TradesT], *args, **kwargs) -> TradesT:
         raise NotImplementedError
 
-    @cached_method
     def get_winning(self: TradesT, **kwargs) -> TradesT:
         """Winning trades."""
         filter_mask = self.values['pnl'] > 0.
@@ -661,7 +662,6 @@ class Trades(Ranges):
         """`Ranges.get_winning` with default arguments."""
         return self.get_winning()
 
-    @cached_method
     def get_losing(self: TradesT, **kwargs) -> TradesT:
         """Losing trades."""
         filter_mask = self.values['pnl'] < 0.
@@ -672,7 +672,6 @@ class Trades(Ranges):
         """`Ranges.get_losing` with default arguments."""
         return self.get_losing()
 
-    @cached_method
     def get_winning_streak(self, **kwargs) -> MappedArray:
         """Winning streak at each trade in the current column.
 
@@ -684,7 +683,6 @@ class Trades(Ranges):
         """`Ranges.get_winning_streak` with default arguments."""
         return self.get_winning_streak()
 
-    @cached_method
     def get_losing_streak(self, **kwargs) -> MappedArray:
         """Losing streak at each trade in the current column.
 

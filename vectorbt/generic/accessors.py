@@ -372,6 +372,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     Accessible through `pd.Series.vbt` and `pd.DataFrame.vbt`."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'mapping'}
+
     def __init__(self, obj: tp.SeriesFrame, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> None:
         BaseAccessor.__init__(self, obj, mapping=mapping, **kwargs)
         StatsBuilderMixin.__init__(self)
@@ -2108,7 +2110,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def resolve_self(self: GenericAccessorT,
                      cond_kwargs: tp.KwargsLike = None,
-                     custom_arg_names: tp.Optional[tp.Set[str]] = None,
+                     custom_arg_names: tp.ClassVar[tp.Optional[tp.Set[str]]] = None,
                      impacts_caching: bool = True,
                      silence_warnings: bool = False) -> GenericAccessorT:
         """Resolve self.

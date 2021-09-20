@@ -258,20 +258,6 @@ class Drawdowns(Ranges):
     def field_config(self) -> Config:
         return self._field_config
 
-    def __init__(self,
-                 wrapper: ArrayWrapper,
-                 records_arr: tp.RecordArray,
-                 ts: tp.Optional[tp.ArrayLike] = None,
-                 **kwargs) -> None:
-        Ranges.__init__(
-            self,
-            wrapper,
-            records_arr,
-            ts=ts,
-            **kwargs
-        )
-        self._ts = ts
-
     def indexing_func(self: DrawdownsT, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> DrawdownsT:
         """Perform indexing on `Drawdowns`."""
         new_wrapper, new_records_arr, _, col_idxs = \
@@ -309,7 +295,6 @@ class Drawdowns(Ranges):
 
     # ############# Drawdown ############# #
 
-    @cached_method
     def get_drawdown(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_drawdown_nb`.
 
@@ -345,7 +330,6 @@ class Drawdowns(Ranges):
 
     # ############# Recovery ############# #
 
-    @cached_method
     def get_recovery_return(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_return_nb`.
 
@@ -381,7 +365,6 @@ class Drawdowns(Ranges):
 
     # ############# Duration ############# #
 
-    @cached_method
     def get_decline_duration(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_decline_duration_nb`.
 
@@ -397,7 +380,6 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_decline_duration` with default arguments."""
         return self.get_decline_duration()
 
-    @cached_method
     def get_recovery_duration(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_nb`.
 
@@ -415,7 +397,6 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_recovery_duration` with default arguments."""
         return self.get_recovery_duration()
 
-    @cached_method
     def get_recovery_duration_ratio(self, **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_ratio_nb`.
 

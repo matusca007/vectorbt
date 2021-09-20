@@ -2140,6 +2140,7 @@ class TestFactory:
             '__subclasshook__',
             '__weakref__',
             '_config',
+            '_expected_keys',
             '_iloc',
             '_in_out',
             '_in_output_names',
@@ -2168,6 +2169,7 @@ class TestFactory:
             '_tuple_loc',
             '_tuple_mapper',
             '_wrapper',
+            '_writeable_attrs',
             'apply_func',
             'build_metrics_doc',
             'build_subplots_doc',
@@ -2176,6 +2178,8 @@ class TestFactory:
             'custom_func',
             'deep_getattr',
             'dumps',
+            'get_expected_keys',
+            'get_writeable_attrs',
             'iloc',
             'in_out',
             'in_out_readable',
@@ -2235,7 +2239,6 @@ class TestFactory:
             'tuple_loc',
             'update_config',
             'wrapper',
-            'writeable_attrs',
             'xs'
         ]
 

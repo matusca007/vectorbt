@@ -32,16 +32,13 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
 
     Required to be a subclass of `vectorbt.base.wrapping.Wrapping`."""
 
-    def __init__(self):
+    _writeable_attrs: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'_subplots'}
+
+    def __init__(self) -> None:
         checks.assert_instance_of(self, Wrapping)
 
         # Copy writeable attrs
         self._subplots = self.__class__._subplots.copy()
-
-    @property
-    def writeable_attrs(self) -> tp.Set[str]:
-        """Set of writeable attributes that will be saved/copied along with the config."""
-        return {'_subplots'}
 
     @property
     def plots_defaults(self) -> tp.Kwargs:

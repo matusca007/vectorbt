@@ -5,7 +5,7 @@
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import Config, get_func_arg_names
 from vectorbt.utils.decorators import cached_method
 
 WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
@@ -36,6 +36,7 @@ def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
                            freq: tp.Optional[tp.FrequencyLike] = None,
                            year_freq: tp.Optional[tp.FrequencyLike] = None,
                            use_asset_returns: bool = False,
+                           parallel: tp.Optional[bool] = None,
                            _source_name: str = source_name,
                            **kwargs) -> tp.Any:
                 returns_acc = self.get_returns_acc(
@@ -43,9 +44,13 @@ def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
                     benchmark_rets=benchmark_rets,
                     freq=freq,
                     year_freq=year_freq,
-                    use_asset_returns=use_asset_returns
+                    use_asset_returns=use_asset_returns,
+                    parallel=parallel
                 )
-                return getattr(returns_acc, _source_name)(**kwargs)
+                ret_method = getattr(returns_acc, _source_name)
+                if 'parallel' in get_func_arg_names(ret_method):
+                    kwargs['parallel'] = parallel
+                return ret_method(**kwargs)
 
             new_method.__name__ = target_name
             new_method.__qualname__ = f"{cls.__name__}.{target_name}"

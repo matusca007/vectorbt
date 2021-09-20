@@ -5822,7 +5822,7 @@ def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.Re
     new_records = np.empty((np.max(col_lens), len(col_lens)), dtype=trade_dt)
     counts = np.full(len(col_lens), 0, dtype=np.int_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
@@ -5965,6 +5965,28 @@ def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
     return np.sqrt(count) * mean / std
 
 
+# ############# Close ############# #
+
+
+@register_jit(cache=True, tags={'can_parallel'})
+def fbfill_close(close: tp.Array2d) -> tp.Array2d:
+    """Forward and backward fill NaN values in close."""
+    out = np.empty_like(close)
+    for col in prange(close.shape[1]):
+        last_valid = np.nan
+        for i in range(close.shape[0]):
+            if not np.isnan(close[i, col]):
+                last_valid = close[i, col]
+            out[i, col] = last_valid
+        last_valid = np.nan
+        for i in range(close.shape[0] - 1, -1, -1):
+            if not np.isnan(close[i, col]):
+                last_valid = close[i, col]
+            if np.isnan(out[i, col]):
+                out[i, col] = last_valid
+    return out
+
+
 # ############# Assets ############# #
 
 
@@ -5992,7 +6014,7 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
     return add_nb(position_before, -position_now)
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def asset_flow_nb(target_shape: tp.Shape,
                   order_records: tp.RecordArray,
                   col_map: tp.ColMap,
@@ -6004,7 +6026,7 @@ def asset_flow_nb(target_shape: tp.Shape,
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full(target_shape, 0., dtype=np.float_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
@@ -6012,16 +6034,15 @@ def asset_flow_nb(target_shape: tp.Shape,
         position_now = 0.
 
         for c in range(col_len):
-            oidx = col_idxs[col_start_idxs[col] + c]
-            record = order_records[oidx]
+            order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
-            if record['id'] < last_id:
+            if order_record['id'] < last_id:
                 raise ValueError("id must come in ascending order per column")
-            last_id = record['id']
+            last_id = order_record['id']
 
-            i = record['idx']
-            side = record['side']
-            size = record['size']
+            i = order_record['idx']
+            side = order_record['side']
+            size = order_record['size']
 
             if side == OrderSide.Sell:
                 size *= -1
@@ -6037,13 +6058,13 @@ def asset_flow_nb(target_shape: tp.Shape,
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def assets_nb(asset_flow: tp.Array2d) -> tp.Array2d:
     """Get asset series per column.
 
     Returns the current position at each time step."""
     out = np.empty_like(asset_flow)
-    for col in range(asset_flow.shape[1]):
+    for col in prange(asset_flow.shape[1]):
         position_now = 0.
         for i in range(asset_flow.shape[0]):
             flow_value = asset_flow[i, col]
@@ -6107,7 +6128,7 @@ def get_free_cash_diff_nb(position_before: float,
     return new_debt, free_cash_diff
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def cash_flow_nb(target_shape: tp.Shape,
                  order_records: tp.RecordArray,
                  col_map: tp.ColMap,
@@ -6117,7 +6138,7 @@ def cash_flow_nb(target_shape: tp.Shape,
     col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.full(target_shape, 0., dtype=np.float_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             continue
@@ -6126,18 +6147,17 @@ def cash_flow_nb(target_shape: tp.Shape,
         debt_now = 0.
 
         for c in range(col_len):
-            oidx = col_idxs[col_start_idxs[col] + c]
-            record = order_records[oidx]
+            order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
-            if record['id'] < last_id:
+            if order_record['id'] < last_id:
                 raise ValueError("id must come in ascending order per column")
-            last_id = record['id']
+            last_id = order_record['id']
 
-            i = record['idx']
-            side = record['side']
-            size = record['size']
-            price = record['price']
-            fees = record['fees']
+            i = order_record['idx']
+            side = order_record['side']
+            size = order_record['size']
+            price = order_record['price']
+            fees = order_record['fees']
 
             if side == OrderSide.Sell:
                 size *= -1
@@ -6157,17 +6177,18 @@ def cash_flow_nb(target_shape: tp.Shape,
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def sum_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Squeeze each group of columns into a single column using sum operation."""
     check_group_lens_nb(group_lens, a.shape[1])
-
     out = np.empty((a.shape[0], len(group_lens)), dtype=np.float_)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         out[:, group] = np.sum(a[:, from_col:to_col], axis=1)
-        from_col = to_col
     return out
 
 
@@ -6177,20 +6198,22 @@ def cash_flow_grouped_nb(cash_flow: tp.Array2d, group_lens: tp.Array1d) -> tp.Ar
     return sum_grouped_nb(cash_flow, group_lens)
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def init_cash_grouped_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bool) -> tp.Array1d:
     """Get initial cash per group."""
     if cash_sharing:
         return init_cash
     out = np.empty(group_lens.shape, dtype=np.float_)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         cash_sum = 0.
         for col in range(from_col, to_col):
             cash_sum += init_cash[col]
         out[group] = cash_sum
-        from_col = to_col
     return out
 
 
@@ -6206,58 +6229,55 @@ def init_cash_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bo
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get cash series per column."""
     out = np.empty_like(cash_flow)
-    for col in range(cash_flow.shape[1]):
+    for col in prange(cash_flow.shape[1]):
         for i in range(cash_flow.shape[0]):
             cash_now = init_cash[col] if i == 0 else out[i - 1, col]
             out[i, col] = add_nb(cash_now, cash_flow[i, col])
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def cash_in_sim_order_nb(cash_flow: tp.Array2d,
                          group_lens: tp.Array1d,
                          init_cash_grouped: tp.Array1d,
                          call_seq: tp.Array2d) -> tp.Array2d:
     """Get cash series in simulation order."""
     check_group_lens_nb(group_lens, cash_flow.shape[1])
-
     out = np.empty_like(cash_flow)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
-        group_len = to_col - from_col
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         cash_now = init_cash_grouped[group]
         for i in range(cash_flow.shape[0]):
-            for k in range(group_len):
+            for k in range(to_col - from_col):
                 col = from_col + call_seq[i, from_col + k]
                 cash_now = add_nb(cash_now, cash_flow[i, col])
                 out[i, col] = cash_now
-        from_col = to_col
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def cash_grouped_nb(target_shape: tp.Shape,
                     cash_flow_grouped: tp.Array2d,
                     group_lens: tp.Array1d,
                     init_cash_grouped: tp.Array1d) -> tp.Array2d:
     """Get cash series per group."""
     check_group_lens_nb(group_lens, target_shape[1])
-
     out = np.empty_like(cash_flow_grouped)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+
+    for group in prange(len(group_lens)):
         cash_now = init_cash_grouped[group]
         for i in range(cash_flow_grouped.shape[0]):
             flow_value = cash_flow_grouped[i, group]
             cash_now = add_nb(cash_now, flow_value)
             out[i, group] = cash_now
-        from_col = to_col
     return out
 
 
@@ -6276,18 +6296,20 @@ def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> t
     return sum_grouped_nb(asset_value, group_lens)
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def value_in_sim_order_nb(cash: tp.Array2d,
                           asset_value: tp.Array2d,
                           group_lens: tp.Array1d,
                           call_seq: tp.Array2d) -> tp.Array2d:
     """Get portfolio value series in simulation order."""
     check_group_lens_nb(group_lens, cash.shape[1])
-
     out = np.empty_like(cash)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         group_len = to_col - from_col
         asset_value_now = 0.
         # Without correctly treating NaN values, after one NaN all will be NaN
@@ -6310,8 +6332,6 @@ def value_in_sim_order_nb(cash: tp.Array2d,
             else:
                 out[i, col] = cash[i, col] + asset_value_now
             since_last_nan += 1
-
-        from_col = to_col
     return out
 
 
@@ -6321,7 +6341,7 @@ def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     return cash + asset_value
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def total_profit_nb(target_shape: tp.Shape,
                     close: tp.Array2d,
                     order_records: tp.RecordArray,
@@ -6335,7 +6355,7 @@ def total_profit_nb(target_shape: tp.Shape,
     cash = np.full(target_shape[1], 0., dtype=np.float_)
     zero_mask = np.full(target_shape[1], False, dtype=np.bool_)
 
-    for col in range(col_lens.shape[0]):
+    for col in prange(col_lens.shape[0]):
         col_len = col_lens[col]
         if col_len == 0:
             zero_mask[col] = True
@@ -6343,27 +6363,26 @@ def total_profit_nb(target_shape: tp.Shape,
         last_id = -1
 
         for c in range(col_len):
-            oidx = col_idxs[col_start_idxs[col] + c]
-            record = order_records[oidx]
+            order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
-            if record['id'] < last_id:
+            if order_record['id'] < last_id:
                 raise ValueError("id must come in ascending order per column")
-            last_id = record['id']
+            last_id = order_record['id']
 
             # Fill assets
-            if record['side'] == OrderSide.Buy:
-                order_size = record['size']
+            if order_record['side'] == OrderSide.Buy:
+                order_size = order_record['size']
                 assets[col] = add_nb(assets[col], order_size)
             else:
-                order_size = record['size']
+                order_size = order_record['size']
                 assets[col] = add_nb(assets[col], -order_size)
 
             # Fill cash balance
-            if record['side'] == OrderSide.Buy:
-                order_cash = record['size'] * record['price'] + record['fees']
+            if order_record['side'] == OrderSide.Buy:
+                order_cash = order_record['size'] * order_record['price'] + order_record['fees']
                 cash[col] = add_nb(cash[col], -order_cash)
             else:
-                order_cash = record['size'] * record['price'] - record['fees']
+                order_cash = order_record['size'] * order_record['price'] - order_record['fees']
                 cash[col] = add_nb(cash[col], order_cash)
 
     total_profit = cash + assets * close[-1, :]
@@ -6371,17 +6390,18 @@ def total_profit_nb(target_shape: tp.Shape,
     return total_profit
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) -> tp.Array1d:
     """Get total profit per group."""
     check_group_lens_nb(group_lens, total_profit.shape[0])
-
     out = np.empty(len(group_lens), dtype=np.float_)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         out[group] = np.sum(total_profit[from_col:to_col])
-        from_col = to_col
     return out
 
 
@@ -6397,18 +6417,20 @@ def total_return_nb(total_profit: tp.Array1d, init_cash: tp.Array1d) -> tp.Array
     return total_profit / init_cash
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def returns_in_sim_order_nb(value_iso: tp.Array2d,
                             group_lens: tp.Array1d,
                             init_cash_grouped: tp.Array1d,
                             call_seq: tp.Array2d) -> tp.Array2d:
     """Get portfolio return series in simulation order."""
     check_group_lens_nb(group_lens, value_iso.shape[1])
-
     out = np.empty_like(value_iso)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         group_len = to_col - from_col
         input_value = init_cash_grouped[group]
         for j in range(value_iso.shape[0] * group_len):
@@ -6417,59 +6439,82 @@ def returns_in_sim_order_nb(value_iso: tp.Array2d,
             output_value = value_iso[i, col]
             out[i, col] = returns_nb.get_return_nb(input_value, output_value)
             input_value = output_value
-        from_col = to_col
     return out
 
 
 @register_jit(cache=True)
+def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cash_flow: float) -> float:
+    """Get asset return from the input and output asset value, and the cash flow."""
+    if is_close_nb(input_asset_value, 0):
+        return returns_nb.get_return_nb(-output_asset_value, cash_flow)
+    if is_close_nb(output_asset_value, 0):
+        return returns_nb.get_return_nb(input_asset_value, cash_flow)
+    if np.sign(input_asset_value) != np.sign(output_asset_value):
+        return returns_nb.get_return_nb(input_asset_value - output_asset_value, cash_flow)
+    return returns_nb.get_return_nb(input_asset_value, output_asset_value + cash_flow)
+
+
+@register_jit(cache=True, tags={'can_parallel'})
 def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     """Get asset return series per column/group."""
     out = np.empty_like(cash_flow)
-    for col in range(cash_flow.shape[1]):
+    for col in prange(cash_flow.shape[1]):
         for i in range(cash_flow.shape[0]):
-            input_value = 0. if i == 0 else asset_value[i - 1, col]
-            output_value = asset_value[i, col] + cash_flow[i, col]
-            out[i, col] = returns_nb.get_return_nb(input_value, output_value)
+            out[i, col] = get_asset_return_nb(
+                0. if i == 0 else asset_value[i - 1, col],
+                asset_value[i, col],
+                cash_flow[i, col]
+            )
     return out
 
 
-@register_jit(cache=True)
-def benchmark_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
+@register_jit(cache=True, tags={'can_parallel'})
+def market_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get market value per column."""
-    return close / close[0] * init_cash
+    out = np.empty_like(close)
+    for col in prange(close.shape[1]):
+        for i in range(close.shape[0]):
+            out[i, col] = close[i, col] / close[0, col] * init_cash[col]
+    return out
 
 
-@register_jit(cache=True)
-def benchmark_value_grouped_nb(close: tp.Array2d, group_lens: tp.Array1d, init_cash_grouped: tp.Array1d) -> tp.Array2d:
+@register_jit(cache=True, tags={'can_parallel'})
+def market_value_grouped_nb(close: tp.Array2d,
+                            group_lens: tp.Array1d,
+                            init_cash_grouped: tp.Array1d) -> tp.Array2d:
     """Get market value per group."""
     check_group_lens_nb(group_lens, close.shape[1])
-
     out = np.empty((close.shape[0], len(group_lens)), dtype=np.float_)
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         group_len = to_col - from_col
         col_init_cash = init_cash_grouped[group] / group_len
-        close_norm = close[:, from_col:to_col] / close[0, from_col:to_col]
-        out[:, group] = col_init_cash * np.sum(close_norm, axis=1)
-        from_col = to_col
+        for i in range(close.shape[0]):
+            close_norm_sum = 0.
+            for col in range(from_col, to_col):
+                close_norm_sum += close[i, col] / close[0, col]
+            out[i, group] = close_norm_sum * col_init_cash
     return out
 
 
-@register_jit(cache=True)
-def total_benchmark_return_nb(benchmark_value: tp.Array2d) -> tp.Array1d:
+@register_jit(cache=True, tags={'can_parallel'})
+def total_market_return_nb(market_value: tp.Array2d) -> tp.Array1d:
     """Get total market return per column/group."""
-    out = np.empty(benchmark_value.shape[1], dtype=np.float_)
-    for col in range(benchmark_value.shape[1]):
-        out[col] = returns_nb.get_return_nb(benchmark_value[0, col], benchmark_value[-1, col])
+    out = np.empty(market_value.shape[1], dtype=np.float_)
+    for col in prange(market_value.shape[1]):
+        out[col] = returns_nb.get_return_nb(market_value[0, col], market_value[-1, col])
     return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
     """Get gross exposure per column/group."""
     out = np.empty(asset_value.shape, dtype=np.float_)
-    for col in range(out.shape[1]):
+    for col in prange(out.shape[1]):
         for i in range(out.shape[0]):
             denom = add_nb(asset_value[i, col], cash[i, col])
             if denom == 0:

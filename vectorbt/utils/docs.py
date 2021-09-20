@@ -19,7 +19,7 @@ class Documented:
         """Convert to a doc."""
         raise NotImplementedError
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Return string of self."""
         try:
             return self.to_doc()

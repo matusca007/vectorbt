@@ -481,22 +481,22 @@ class Histogram(Configured, TraceUpdater):
             self.update(data)
 
     @property
-    def horizontal(self):
+    def horizontal(self) -> bool:
         """Whether to plot horizontally."""
         return self._horizontal
 
     @property
-    def remove_nan(self):
+    def remove_nan(self) -> bool:
         """Whether to remove NaN values."""
         return self._remove_nan
 
     @property
-    def from_quantile(self):
+    def from_quantile(self) -> float:
         """Filter out data points before this quantile."""
         return self._from_quantile
 
     @property
-    def to_quantile(self):
+    def to_quantile(self) -> float:
         """Filter out data points after this quantile."""
         return self._to_quantile
 
@@ -608,22 +608,22 @@ class Box(Configured, TraceUpdater):
             self.update(data)
 
     @property
-    def horizontal(self):
+    def horizontal(self) -> bool:
         """Whether to plot horizontally."""
         return self._horizontal
 
     @property
-    def remove_nan(self):
+    def remove_nan(self) -> bool:
         """Whether to remove NaN values."""
         return self._remove_nan
 
     @property
-    def from_quantile(self):
+    def from_quantile(self) -> float:
         """Filter out data points before this quantile."""
         return self._from_quantile
 
     @property
-    def to_quantile(self):
+    def to_quantile(self) -> float:
         """Filter out data points after this quantile."""
         return self._to_quantile
 

@@ -51,10 +51,9 @@ Since this is only visible when looking at the source code, the advice is to alw
     For example, changing 'wrapping.freq` has an immediate effect because the value is resolved
     every time `vectorbt.base.wrapping.ArrayWrapper.freq` is called. On the other hand, changing
     'portfolio.fillna_close' has only effect on `vectorbt.portfolio.base.Portfolio` instances created
-    in the future, not the existing ones, because the value is resolved upon the construction.
-    But mostly you can still force-update the default value by replacing the instance using
-    `vectorbt.portfolio.base.Portfolio.replace`. Last but not least, some settings are only accessed
-    when importing the package for the first time, such as 'numba.on_register'.
+    in the future, not the existing ones, because the value is resolved upon the object's construction.
+    Last but not least, some settings are only accessed when importing the package for the first time,
+    such as 'numba.on_register'. In any case, make sure to check whether the update actually took place.
 
 ## Saving
 

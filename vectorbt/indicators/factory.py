@@ -2046,6 +2046,18 @@ class IndicatorBase(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Me
     """Indicator base class.
 
     Properties should be set before instantiation."""
+
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'input_list',
+        'input_mapper',
+        'in_output_list',
+        'output_list',
+        'param_list',
+        'mapper_list',
+        'short_name',
+        'level_names'
+    }
+
     _short_name: str
     _level_names: tp.Tuple[str, ...]
     _input_names: tp.Tuple[str, ...]
@@ -2098,22 +2110,8 @@ class IndicatorBase(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Me
                  param_list: ParamListT,
                  mapper_list: MapperListT,
                  short_name: str,
-                 level_names: tp.Tuple[str, ...]) -> None:
-        Wrapping.__init__(
-            self,
-            wrapper,
-            input_list=input_list,
-            input_mapper=input_mapper,
-            in_output_list=in_output_list,
-            output_list=output_list,
-            param_list=param_list,
-            mapper_list=mapper_list,
-            short_name=short_name,
-            level_names=level_names
-        )
-        StatsBuilderMixin.__init__(self)
-        PlotsBuilderMixin.__init__(self)
-
+                 level_names: tp.Tuple[str, ...],
+                 **kwargs) -> None:
         if input_mapper is not None:
             checks.assert_equal(input_mapper.shape[0], wrapper.shape_2d[1])
         for ts in input_list:
@@ -2126,6 +2124,22 @@ class IndicatorBase(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Me
             checks.assert_equal(len(mapper), wrapper.shape_2d[1])
         checks.assert_instance_of(short_name, str)
         checks.assert_len_equal(level_names, param_list)
+
+        Wrapping.__init__(
+            self,
+            wrapper,
+            input_list=input_list,
+            input_mapper=input_mapper,
+            in_output_list=in_output_list,
+            output_list=output_list,
+            param_list=param_list,
+            mapper_list=mapper_list,
+            short_name=short_name,
+            level_names=level_names,
+            **kwargs
+        )
+        StatsBuilderMixin.__init__(self)
+        PlotsBuilderMixin.__init__(self)
 
         setattr(self, '_short_name', short_name)
         setattr(self, '_level_names', level_names)

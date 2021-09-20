@@ -1416,8 +1416,9 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
+from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import cached_property, cached_method
+from vectorbt.utils.decorators import cached_property, cached_method, class_or_instancemethod
 from vectorbt.utils.enum import map_enum_fields
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.template import RepEval, deep_substitute
@@ -1429,6 +1430,7 @@ from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.drawdowns import Drawdowns
+from vectorbt.generic import nb as generic_nb
 from vectorbt.signals.generators import RANDNX, RPROBNX
 from vectorbt.returns.accessors import ReturnsAccessor
 from vectorbt.returns import nb as returns_nb
@@ -1524,6 +1526,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     !!! note
         This class is meant to be immutable. To change any attribute, use `Portfolio.replace`."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'close',
+        'order_records',
+        'log_records',
+        'init_cash',
+        'cash_sharing',
+        'call_seq',
+        'fillna_close',
+        'trades_type'
+    }
+
     def __init__(self,
                  wrapper: ArrayWrapper,
                  close: tp.ArrayLike,
@@ -1533,7 +1546,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                  cash_sharing: bool,
                  call_seq: tp.Optional[tp.Array2d] = None,
                  fillna_close: tp.Optional[bool] = None,
-                 trades_type: tp.Optional[tp.Union[int, str]] = None) -> None:
+                 trades_type: tp.Optional[tp.Union[int, str]] = None,
+                 **kwargs) -> None:
+
+        from vectorbt._settings import settings
+        portfolio_cfg = settings['portfolio']
+
+        if fillna_close is None:
+            fillna_close = portfolio_cfg['fillna_close']
+        if trades_type is None:
+            trades_type = portfolio_cfg['trades_type']
+        if isinstance(trades_type, str):
+            trades_type = map_enum_fields(trades_type, TradesType)
+        if cash_sharing:
+            if wrapper.grouper.allow_enable or wrapper.grouper.allow_modify:
+                wrapper = wrapper.replace(allow_enable=False, allow_modify=False)
+
         Wrapping.__init__(
             self,
             wrapper,
@@ -1544,23 +1572,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             cash_sharing=cash_sharing,
             call_seq=call_seq,
             fillna_close=fillna_close,
-            trades_type=trades_type
+            trades_type=trades_type,
+            **kwargs
         )
         StatsBuilderMixin.__init__(self)
         PlotsBuilderMixin.__init__(self)
 
-        # Get defaults
-        from vectorbt._settings import settings
-        portfolio_cfg = settings['portfolio']
-
-        if fillna_close is None:
-            fillna_close = portfolio_cfg['fillna_close']
-        if trades_type is None:
-            trades_type = portfolio_cfg['trades_type']
-        if isinstance(trades_type, str):
-            trades_type = map_enum_fields(trades_type, TradesType)
-
-        # Store passed arguments
         self._close = broadcast_to(close, wrapper.dummy(group_by=False))
         self._order_records = order_records
         self._log_records = log_records
@@ -2891,6 +2908,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
         broadcasted_args['close'] = to_2d_array(close)
         target_shape_2d = (close.shape[0], close.shape[1] if close.ndim > 1 else 1)
+
         wrapper = ArrayWrapper.from_obj(close, freq=freq, group_by=group_by, **wrapper_kwargs)
         cs_group_lens = wrapper.grouper.get_group_lens(group_by=None if cash_sharing else False)
         init_cash = np.require(np.broadcast_to(init_cash, (len(cs_group_lens),)), dtype=np.float_)
@@ -3989,17 +4007,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
     # ############# Properties ############# #
 
-    @property
-    def wrapper(self) -> ArrayWrapper:
-        """Array wrapper."""
-        if self.cash_sharing:
-            # Allow only disabling grouping when needed (but not globally, see regroup)
-            return self._wrapper.replace(
-                allow_enable=False,
-                allow_modify=False
-            )
-        return self._wrapper
-
     def regroup(self: PortfolioT, group_by: tp.GroupByLike, **kwargs) -> PortfolioT:
         """Regroup this object.
 
@@ -4041,11 +4048,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Price per unit series."""
         return self._close
 
-    @cached_method
-    def get_filled_close(self, wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Forward-backward-fill NaN values in `Portfolio.close`"""
-        close = to_2d_array(self.close.ffill().bfill())
-        return self.wrapper.wrap(close, group_by=False, **merge_dicts({}, wrap_kwargs))
+    def get_filled_close(self, parallel: tp.Optional[bool] = None,
+                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Forward and backward fill NaN values in `Portfolio.close`."""
+        func = main_nb_registry.redecorate_parallel(nb.fbfill_close, parallel=parallel)
+        filled_close = func(to_2d_array(self.close))
+        return self.wrapper.wrap(filled_close, group_by=False, **merge_dicts({}, wrap_kwargs))
+
+    @cached_property
+    def filled_close(self) -> tp.SeriesFrame:
+        """`Portfolio.get_filled_close` with default arguments."""
+        return self.get_filled_close()
 
     # ############# Records ############# #
 
@@ -4054,41 +4067,41 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """A structured NumPy array of order records."""
         return self._order_records
 
-    @cached_property
-    def orders(self) -> Orders:
-        """`Portfolio.get_orders` with default arguments."""
-        return self.get_orders()
-
-    @cached_method
     def get_orders(self, group_by: tp.GroupByLike = None, **kwargs) -> Orders:
         """Get order records.
 
         See `vectorbt.portfolio.orders.Orders`."""
-        return Orders(self.wrapper, self.order_records, close=self.close, **kwargs).regroup(group_by)
+        if self.cash_sharing:
+            wrapper = self.wrapper.replace(allow_enable=True, allow_modify=True)
+        else:
+            wrapper = self.wrapper
+        return Orders(wrapper, self.order_records, close=self.close, **kwargs).regroup(group_by)
+
+    @cached_property
+    def orders(self) -> Orders:
+        """`Portfolio.get_orders` with default arguments."""
+        return self.get_orders()
 
     @property
     def log_records(self) -> tp.RecordArray:
         """A structured NumPy array of log records."""
         return self._log_records
 
+    def get_logs(self, group_by: tp.GroupByLike = None, **kwargs) -> Logs:
+        """Get log records.
+
+        See `vectorbt.portfolio.logs.Logs`."""
+        if self.cash_sharing:
+            wrapper = self.wrapper.replace(allow_enable=True, allow_modify=True)
+        else:
+            wrapper = self.wrapper
+        return Logs(wrapper, self.log_records, **kwargs).regroup(group_by)
+
     @cached_property
     def logs(self) -> Logs:
         """`Portfolio.get_logs` with default arguments."""
         return self.get_logs()
 
-    @cached_method
-    def get_logs(self, group_by: tp.GroupByLike = None, **kwargs) -> Logs:
-        """Get log records.
-
-        See `vectorbt.portfolio.logs.Logs`."""
-        return Logs(self.wrapper, self.log_records, **kwargs).regroup(group_by)
-
-    @cached_property
-    def entry_trades(self) -> EntryTrades:
-        """`Portfolio.get_entry_trades` with default arguments."""
-        return self.get_entry_trades()
-
-    @cached_method
     def get_entry_trades(self, group_by: tp.GroupByLike = None, **kwargs) -> EntryTrades:
         """Get entry trade records.
 
@@ -4096,11 +4109,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return EntryTrades.from_orders(self.orders, **kwargs).regroup(group_by)
 
     @cached_property
-    def exit_trades(self) -> ExitTrades:
-        """`Portfolio.get_exit_trades` with default arguments."""
-        return self.get_exit_trades()
+    def entry_trades(self) -> EntryTrades:
+        """`Portfolio.get_entry_trades` with default arguments."""
+        return self.get_entry_trades()
 
-    @cached_method
     def get_exit_trades(self, group_by: tp.GroupByLike = None, **kwargs) -> ExitTrades:
         """Get exit trade records.
 
@@ -4108,23 +4120,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return ExitTrades.from_orders(self.orders, **kwargs).regroup(group_by)
 
     @cached_property
-    def trades(self) -> Trades:
-        """`Portfolio.get_trades` with default arguments."""
-        return self.get_trades()
+    def exit_trades(self) -> ExitTrades:
+        """`Portfolio.get_exit_trades` with default arguments."""
+        return self.get_exit_trades()
 
-    @cached_property
-    def positions(self) -> Positions:
-        """`Portfolio.get_positions` with default arguments."""
-        return self.get_positions()
-
-    @cached_method
     def get_positions(self, group_by: tp.GroupByLike = None, **kwargs) -> Positions:
         """Get position records.
 
         See `vectorbt.portfolio.trades.Positions`."""
         return Positions.from_trades(self.exit_trades, **kwargs).regroup(group_by)
 
-    @cached_method
+    @cached_property
+    def positions(self) -> Positions:
+        """`Portfolio.get_positions` with default arguments."""
+        return self.get_positions()
+
     def get_trades(self, group_by: tp.GroupByLike = None, **kwargs) -> Trades:
         """Get trade/position records depending upon `Portfolio.trades_type`."""
         if self.trades_type == TradesType.EntryTrades:
@@ -4134,11 +4144,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return self.get_positions(group_by=group_by, **kwargs)
 
     @cached_property
-    def drawdowns(self) -> Drawdowns:
-        """`Portfolio.get_drawdowns` with default arguments."""
-        return self.get_drawdowns()
+    def trades(self) -> Trades:
+        """`Portfolio.get_trades` with default arguments."""
+        return self.get_trades()
 
-    @cached_method
     def get_drawdowns(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None,
                       wrapper_kwargs: tp.KwargsLike = None, **kwargs) -> Drawdowns:
         """Get drawdown records from `Portfolio.value`.
@@ -4148,96 +4157,159 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrapper_kwargs = merge_dicts(self.orders.wrapper.config, wrapper_kwargs, dict(group_by=None))
         return Drawdowns.from_ts(value, wrapper_kwargs=wrapper_kwargs, **kwargs)
 
+    @cached_property
+    def drawdowns(self) -> Drawdowns:
+        """`Portfolio.get_drawdowns` with default arguments."""
+        return self.get_drawdowns()
+
     # ############# Assets ############# #
 
-    @cached_method
-    def asset_flow(self, direction: str = 'both', wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    @class_or_instancemethod
+    def asset_flow(cls_or_self,
+                   direction: str = 'both',
+                   parallel: tp.Optional[bool] = None,
+                   orders: tp.Optional[Orders] = None,
+                   wrapper: tp.Optional[ArrayWrapper] = None,
+                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset flow series per column.
 
         Returns the total transacted amount of assets at each time step."""
+        if not isinstance(cls_or_self, type):
+            if orders is None:
+                orders = cls_or_self.orders
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = orders.wrapper
+
         direction = map_enum_fields(direction, Direction)
-        asset_flow = nb.asset_flow_nb(
-            self.wrapper.shape_2d,
-            self.orders.values,
-            self.orders.col_mapper.col_map,
+        func = main_nb_registry.redecorate_parallel(nb.asset_flow_nb, parallel=parallel)
+        asset_flow = func(
+            wrapper.shape_2d,
+            orders.values,
+            orders.col_mapper.col_map,
             direction
         )
-        return self.wrapper.wrap(asset_flow, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(asset_flow, group_by=False, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
-    def assets(self, direction: str = 'both', wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    @class_or_instancemethod
+    def assets(cls_or_self,
+               direction: str = 'both',
+               parallel: tp.Optional[bool] = None,
+               asset_flow: tp.Optional[tp.SeriesFrame] = None,
+               wrapper: tp.Optional[ArrayWrapper] = None,
+               wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset series per column.
 
         Returns the current position at each time step."""
+        if not isinstance(cls_or_self, type):
+            if asset_flow is None:
+                asset_flow = cls_or_self.asset_flow(direction='both', parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(asset_flow)
+
         direction = map_enum_fields(direction, Direction)
-        asset_flow = to_2d_array(self.asset_flow(direction='both'))
-        assets = nb.assets_nb(asset_flow)
+        func = main_nb_registry.redecorate_parallel(nb.assets_nb, parallel=parallel)
+        assets = func(to_2d_array(asset_flow))
         if direction == Direction.LongOnly:
             assets = np.where(assets > 0, assets, 0.)
         if direction == Direction.ShortOnly:
             assets = np.where(assets < 0, -assets, 0.)
-        return self.wrapper.wrap(assets, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(assets, group_by=False, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
-    def position_mask(self, direction: str = 'both', group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def position_mask(cls_or_self,
+                      direction: str = 'both',
+                      group_by: tp.GroupByLike = None,
+                      parallel: tp.Optional[bool] = None,
+                      assets: tp.Optional[tp.SeriesFrame] = None,
+                      wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get position mask per column/group.
 
         An element is True if the asset is in the market at this tick."""
-        direction = map_enum_fields(direction, Direction)
-        assets = to_2d_array(self.assets(direction=direction))
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            position_mask = to_2d_array(self.position_mask(direction=direction, group_by=False))
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            position_mask = nb.position_mask_grouped_nb(position_mask, group_lens)
-        else:
-            position_mask = assets != 0
-        return self.wrapper.wrap(position_mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if assets is None:
+                assets = cls_or_self.assets(direction=direction, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(assets)
 
-    @cached_method
-    def position_coverage(self, direction: str = 'both', group_by: tp.GroupByLike = None,
+        position_mask = to_2d_array(assets) != 0
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            position_mask = wrapper.wrap(position_mask, group_by=False).vbt(wrapper=wrapper).squeeze_grouped(
+                generic_nb.any_reduce_nb, group_by=group_by, parallel=parallel)
+        return wrapper.wrap(position_mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def position_coverage(cls_or_self,
+                          direction: str = 'both',
+                          group_by: tp.GroupByLike = None,
+                          parallel: tp.Optional[bool] = None,
+                          position_mask: tp.Optional[tp.SeriesFrame] = None,
+                          wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get position coverage per column/group."""
-        direction = map_enum_fields(direction, Direction)
-        assets = to_2d_array(self.assets(direction=direction))
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            position_mask = to_2d_array(self.position_mask(direction=direction, group_by=False))
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            position_coverage = nb.position_coverage_grouped_nb(position_mask, group_lens)
-        else:
-            position_coverage = np.mean(assets != 0, axis=0)
+        if not isinstance(cls_or_self, type):
+            if position_mask is None:
+                position_mask = cls_or_self.position_mask(direction=direction, parallel=parallel, group_by=False)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(position_mask)
+
+        position_coverage = position_mask.vbt(wrapper=wrapper).reduce(
+            generic_nb.mean_reduce_nb, group_by=group_by, parallel=parallel)
         wrap_kwargs = merge_dicts(dict(name_or_index='position_coverage'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
+        return wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
 
     # ############# Cash ############# #
 
-    @cached_method
-    def cash_flow(self, group_by: tp.GroupByLike = None, free: bool = False,
+    @class_or_instancemethod
+    def cash_flow(cls_or_self,
+                  group_by: tp.GroupByLike = None,
+                  free: bool = False,
+                  parallel: tp.Optional[bool] = None,
+                  orders: tp.Optional[Orders] = None,
+                  wrapper: tp.Optional[ArrayWrapper] = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get cash flow series per column/group.
 
         Use `free` to return the flow of the free cash, which never goes above the initial level,
         because an operation always costs money."""
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            cash_flow = to_2d_array(self.cash_flow(group_by=False, free=free))
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            cash_flow = nb.cash_flow_grouped_nb(cash_flow, group_lens)
-        else:
-            cash_flow = nb.cash_flow_nb(
-                self.wrapper.shape_2d,
-                self.orders.values,
-                self.orders.col_mapper.col_map,
-                free
-            )
-        return self.wrapper.wrap(cash_flow, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if orders is None:
+                orders = cls_or_self.orders
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            checks.assert_not_none(orders)
+            wrapper = orders.wrapper
 
-    @cached_property
-    def init_cash(self) -> tp.MaybeSeries:
-        """`Portfolio.get_init_cash` with default arguments."""
-        return self.get_init_cash()
+        func = main_nb_registry.redecorate_parallel(nb.cash_flow_nb, parallel=parallel)
+        cash_flow = func(
+            wrapper.shape_2d,
+            orders.values,
+            orders.col_mapper.col_map,
+            free
+        )
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = main_nb_registry.redecorate_parallel(nb.sum_grouped_nb, parallel=parallel)
+            cash_flow = func(cash_flow, group_lens)
+        return wrapper.wrap(cash_flow, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
-    def get_init_cash(self, group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def get_init_cash(cls_or_self,
+                      group_by: tp.GroupByLike = None,
+                      parallel: tp.Optional[bool] = None,
+                      init_cash_raw: tp.Optional[tp.MaybeSeries] = None,
+                      cash_sharing: tp.Optional[bool] = None,
+                      cash_flow: tp.Optional[tp.SeriesFrame] = None,
+                      wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Initial amount of cash per column/group with default arguments.
 
@@ -4245,99 +4317,196 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             If the initial cash balance was found automatically and no own cash is used throughout
             the simulation (for example, when shorting), it will be set to 1 instead of 0 to enable
             smooth calculation of returns."""
-        if isinstance(self._init_cash, int):
-            cash_flow = to_2d_array(self.cash_flow(group_by=group_by))
-            cash_min = np.min(np.cumsum(cash_flow, axis=0), axis=0)
+        if not isinstance(cls_or_self, type):
+            if init_cash_raw is None:
+                init_cash_raw = cls_or_self._init_cash
+            if cash_sharing is None:
+                cash_sharing = cls_or_self.cash_sharing
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(cash_flow)
+
+        if isinstance(init_cash_raw, int):
+            if not isinstance(cls_or_self, type):
+                if cash_flow is None:
+                    cash_flow = cls_or_self.cash_flow(group_by=group_by, parallel=parallel)
+            cash_min = np.min(np.cumsum(to_2d_array(cash_flow), axis=0), axis=0)
             init_cash = np.where(cash_min < 0, np.abs(cash_min), 1.)
-            if self._init_cash == InitCashMode.AutoAlign:
+            if init_cash_raw == InitCashMode.AutoAlign:
                 init_cash = np.full(init_cash.shape, np.max(init_cash))
         else:
-            init_cash = to_1d_array(self._init_cash)
-            if self.wrapper.grouper.is_grouped(group_by=group_by):
-                group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-                init_cash = nb.init_cash_grouped_nb(init_cash, group_lens, self.cash_sharing)
+            init_cash_raw = to_1d_array(init_cash_raw)
+            if wrapper.grouper.is_grouped(group_by=group_by):
+                group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+                func = main_nb_registry.redecorate_parallel(nb.init_cash_grouped_nb, parallel=parallel)
+                init_cash = func(init_cash_raw, group_lens, cash_sharing)
             else:
-                group_lens = self.wrapper.grouper.get_group_lens()
-                init_cash = nb.init_cash_nb(init_cash, group_lens, self.cash_sharing)
+                group_lens = wrapper.grouper.get_group_lens()
+                init_cash = nb.init_cash_nb(init_cash_raw, group_lens, cash_sharing)
         wrap_kwargs = merge_dicts(dict(name_or_index='init_cash'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(init_cash, group_by=group_by, **wrap_kwargs)
+        return wrapper.wrap_reduced(init_cash, group_by=group_by, **wrap_kwargs)
 
-    @cached_method
-    def cash(self, group_by: tp.GroupByLike = None, in_sim_order: bool = False, free: bool = False,
+    @cached_property
+    def init_cash(self) -> tp.MaybeSeries:
+        """`Portfolio.get_init_cash` with default arguments."""
+        return self.get_init_cash()
+
+    @class_or_instancemethod
+    def cash(cls_or_self,
+             group_by: tp.GroupByLike = None,
+             in_sim_order: bool = False,
+             free: bool = False,
+             parallel: tp.Optional[bool] = None,
+             init_cash: tp.Optional[tp.MaybeSeries] = None,
+             cash_sharing: tp.Optional[bool] = None,
+             cash_flow: tp.Optional[tp.SeriesFrame] = None,
+             call_seq: tp.Optional[tp.SeriesFrame] = None,
+             wrapper: tp.Optional[ArrayWrapper] = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get cash balance series per column/group.
 
         See the explanation on `in_sim_order` in `Portfolio.value`.
         For `free`, see `Portfolio.cash_flow`."""
-        if in_sim_order and not self.cash_sharing:
+        if not isinstance(cls_or_self, type):
+            if cash_sharing is None:
+                cash_sharing = cls_or_self.cash_sharing
+            if cash_flow is None:
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, free=free, parallel=parallel)
+            if call_seq is None:
+                call_seq = cls_or_self.call_seq
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        if in_sim_order and not cash_sharing:
             raise ValueError("Cash sharing must be enabled for in_sim_order=True")
 
-        cash_flow = to_2d_array(self.cash_flow(group_by=group_by, free=free))
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            init_cash = to_1d_array(self.get_init_cash(group_by=group_by))
-            cash = nb.cash_grouped_nb(
-                self.wrapper.shape_2d,
-                cash_flow,
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = main_nb_registry.redecorate_parallel(nb.cash_grouped_nb, parallel=parallel)
+            cash = func(
+                wrapper.shape_2d,
+                to_2d_array(cash_flow),
                 group_lens,
-                init_cash
+                to_1d_array(init_cash)
             )
         else:
-            if self.wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
-                if self.call_seq is None:
+            if wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
+                if call_seq is None:
                     raise ValueError("No call sequence attached. "
                                      "Pass `attach_call_seq=True` to the class method "
                                      "(flexible simulations are not supported)")
-                group_lens = self.wrapper.grouper.get_group_lens()
-                init_cash = to_1d_array(self.init_cash)
-                call_seq = to_2d_array(self.call_seq)
-                cash = nb.cash_in_sim_order_nb(cash_flow, group_lens, init_cash, call_seq)
+                if not isinstance(cls_or_self, type):
+                    if init_cash is None:
+                        init_cash = cls_or_self.init_cash
+                group_lens = wrapper.grouper.get_group_lens()
+                func = main_nb_registry.redecorate_parallel(nb.cash_in_sim_order_nb, parallel=parallel)
+                cash = func(to_2d_array(cash_flow), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
             else:
-                init_cash = to_1d_array(self.get_init_cash(group_by=False))
-                cash = nb.cash_nb(cash_flow, init_cash)
-        return self.wrapper.wrap(cash, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+                if not isinstance(cls_or_self, type):
+                    if init_cash is None:
+                        init_cash = cls_or_self.get_init_cash(group_by=False, parallel=parallel)
+                func = main_nb_registry.redecorate_parallel(nb.cash_nb, parallel=parallel)
+                cash = func(to_2d_array(cash_flow), to_1d_array(init_cash))
+        return wrapper.wrap(cash, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     # ############# Performance ############# #
 
-    @cached_method
-    def asset_value(self, direction: str = 'both', group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def asset_value(cls_or_self,
+                    direction: str = 'both',
+                    group_by: tp.GroupByLike = None,
+                    parallel: tp.Optional[bool] = None,
+                    fillna_close: tp.Optional[bool] = None,
+                    close: tp.Optional[tp.SeriesFrame] = None,
+                    assets: tp.Optional[tp.SeriesFrame] = None,
+                    wrapper: tp.Optional[ArrayWrapper] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset value series per column/group."""
-        direction = map_enum_fields(direction, Direction)
-        if self.fillna_close:
-            close = to_2d_array(self.get_filled_close()).copy()
-        else:
-            close = to_2d_array(self.close).copy()
-        assets = to_2d_array(self.assets(direction=direction))
-        close[assets == 0] = 0.  # for price being NaN
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            asset_value = to_2d_array(self.asset_value(direction=direction, group_by=False))
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            asset_value = nb.asset_value_grouped_nb(asset_value, group_lens)
-        else:
-            asset_value = nb.asset_value_nb(close, assets)
-        return self.wrapper.wrap(asset_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if fillna_close is None:
+                fillna_close = cls_or_self.fillna_close
+            if close is None:
+                if fillna_close:
+                    close = cls_or_self.filled_close
+                else:
+                    close = cls_or_self.close
+            if assets is None:
+                assets = cls_or_self.assets(direction=direction, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(assets)
 
-    @cached_method
-    def gross_exposure(self, direction: str = 'both', group_by: tp.GroupByLike = None,
+        close = to_2d_array(close).copy()
+        assets = to_2d_array(assets)
+        close[assets == 0] = 0.  # for price being NaN
+        asset_value = nb.asset_value_nb(close, assets)
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = main_nb_registry.redecorate_parallel(nb.sum_grouped_nb, parallel=parallel)
+            asset_value = func(asset_value, group_lens)
+        return wrapper.wrap(asset_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def gross_exposure(cls_or_self,
+                       direction: str = 'both',
+                       group_by: tp.GroupByLike = None,
+                       parallel: tp.Optional[bool] = None,
+                       asset_value: tp.Optional[tp.SeriesFrame] = None,
+                       free_cash: tp.Optional[tp.SeriesFrame] = None,
+                       wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get gross exposure."""
-        asset_value = to_2d_array(self.asset_value(group_by=group_by, direction=direction))
-        cash = to_2d_array(self.cash(group_by=group_by, free=True))
-        gross_exposure = nb.gross_exposure_nb(asset_value, cash)
-        return self.wrapper.wrap(gross_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if asset_value is None:
+                asset_value = cls_or_self.asset_value(group_by=group_by, direction=direction, parallel=parallel)
+            if free_cash is None:
+                free_cash = cls_or_self.cash(group_by=group_by, free=True, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(asset_value)
 
-    @cached_method
-    def net_exposure(self, group_by: tp.GroupByLike = None,
+        func = main_nb_registry.redecorate_parallel(nb.gross_exposure_nb, parallel=parallel)
+        gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
+        return wrapper.wrap(gross_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def net_exposure(cls_or_self,
+                     group_by: tp.GroupByLike = None,
+                     parallel: tp.Optional[bool] = None,
+                     long_exposure: tp.Optional[tp.SeriesFrame] = None,
+                     short_exposure: tp.Optional[tp.SeriesFrame] = None,
+                     wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get net exposure."""
-        long_exposure = to_2d_array(self.gross_exposure(direction='longonly', group_by=group_by))
-        short_exposure = to_2d_array(self.gross_exposure(direction='shortonly', group_by=group_by))
-        net_exposure = long_exposure - short_exposure
-        return self.wrapper.wrap(net_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if long_exposure is None:
+                long_exposure = cls_or_self.gross_exposure(
+                    direction='longonly', group_by=group_by, parallel=parallel)
+            if short_exposure is None:
+                short_exposure = cls_or_self.gross_exposure(
+                    direction='shortonly', group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(long_gross_exposure)
 
-    @cached_method
-    def value(self, group_by: tp.GroupByLike = None, in_sim_order: bool = False,
+        net_exposure = to_2d_array(long_exposure) - to_2d_array(short_exposure)
+        return wrapper.wrap(net_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def value(cls_or_self,
+              group_by: tp.GroupByLike = None,
+              in_sim_order: bool = False,
+              parallel: tp.Optional[bool] = None,
+              cash: tp.Optional[tp.SeriesFrame] = None,
+              asset_value: tp.Optional[tp.SeriesFrame] = None,
+              call_seq: tp.Optional[tp.SeriesFrame] = None,
+              wrapper: tp.Optional[ArrayWrapper] = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get portfolio value series per column/group.
 
@@ -4349,89 +4518,163 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         simulation order (see [row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
         This value cannot be used for generating returns as-is. Useful to analyze how value
         evolved throughout simulation."""
-        cash = to_2d_array(self.cash(group_by=group_by, in_sim_order=in_sim_order))
-        asset_value = to_2d_array(self.asset_value(group_by=group_by))
-        if self.wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
-            if self.call_seq is None:
+        if not isinstance(cls_or_self, type):
+            if cash is None:
+                cash = cls_or_self.cash(group_by=group_by, in_sim_order=in_sim_order, parallel=parallel)
+            if asset_value is None:
+                asset_value = cls_or_self.asset_value(group_by=group_by, parallel=parallel)
+            if call_seq is None:
+                call_seq = cls_or_self.call_seq
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(cash)
+
+        if wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
+            if call_seq is None:
                 raise ValueError("No call sequence attached. "
                                  "Pass `attach_call_seq=True` to the class method "
                                  "(flexible simulations are not supported)")
-            group_lens = self.wrapper.grouper.get_group_lens()
-            call_seq = to_2d_array(self.call_seq)
-            value = nb.value_in_sim_order_nb(cash, asset_value, group_lens, call_seq)
-            # price of NaN is already addressed by ungrouped_value_nb
+            group_lens = wrapper.grouper.get_group_lens()
+            func = main_nb_registry.redecorate_parallel(nb.value_in_sim_order_nb, parallel=parallel)
+            value = func(to_2d_array(cash), to_2d_array(asset_value), group_lens, to_2d_array(call_seq))
         else:
-            value = nb.value_nb(cash, asset_value)
-        return self.wrapper.wrap(value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+            value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
+        return wrapper.wrap(value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
-    def total_profit(self, group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def total_profit(cls_or_self,
+                     group_by: tp.GroupByLike = None,
+                     parallel: tp.Optional[bool] = None,
+                     fillna_close: tp.Optional[bool] = None,
+                     close: tp.Optional[tp.SeriesFrame] = None,
+                     orders: tp.Optional[Orders] = None,
+                     wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total profit per column/group.
 
         Calculated directly from order records (fast)."""
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            total_profit = to_1d_array(self.total_profit(group_by=False))
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            total_profit = nb.total_profit_grouped_nb(
-                total_profit,
-                group_lens
-            )
+        if not isinstance(cls_or_self, type):
+            if fillna_close is None:
+                fillna_close = cls_or_self.fillna_close
+            if close is None:
+                if fillna_close:
+                    close = cls_or_self.filled_close
+                else:
+                    close = cls_or_self.close
+            if orders is None:
+                orders = cls_or_self.orders
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
         else:
-            if self.fillna_close:
-                close = to_2d_array(self.get_filled_close())
-            else:
-                close = to_2d_array(self.close)
-            total_profit = nb.total_profit_nb(
-                self.wrapper.shape_2d,
-                close,
-                self.orders.values,
-                self.orders.col_mapper.col_map
-            )
-        wrap_kwargs = merge_dicts(dict(name_or_index='total_profit'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(total_profit, group_by=group_by, **wrap_kwargs)
+            if close is None:
+                close = orders.close
+            if wrapper is None:
+                wrapper = orders.wrapper
 
-    @cached_method
-    def final_value(self, group_by: tp.GroupByLike = None,
+        func = main_nb_registry.redecorate_parallel(nb.total_profit_nb, parallel=parallel)
+        total_profit = func(
+            wrapper.shape_2d,
+            to_2d_array(close),
+            orders.values,
+            orders.col_mapper.col_map
+        )
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = main_nb_registry.redecorate_parallel(nb.total_profit_grouped_nb, parallel=parallel)
+            total_profit = func(total_profit, group_lens)
+        wrap_kwargs = merge_dicts(dict(name_or_index='total_profit'), wrap_kwargs)
+        return wrapper.wrap_reduced(total_profit, group_by=group_by, **wrap_kwargs)
+
+    @class_or_instancemethod
+    def final_value(cls_or_self,
+                    group_by: tp.GroupByLike = None,
+                    parallel: tp.Optional[bool] = None,
+                    init_cash: tp.Optional[tp.MaybeSeries] = None,
+                    total_profit: tp.Optional[tp.MaybeSeries] = None,
+                    wrapper: tp.Optional[ArrayWrapper] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total profit per column/group."""
-        init_cash = to_1d_array(self.get_init_cash(group_by=group_by))
-        total_profit = to_1d_array(self.total_profit(group_by=group_by))
-        final_value = nb.final_value_nb(total_profit, init_cash)
+        if not isinstance(cls_or_self, type):
+            if init_cash is None:
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            if total_profit is None:
+                total_profit = cls_or_self.total_profit(group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+
+        final_value = nb.final_value_nb(to_1d_array(total_profit), to_1d_array(init_cash))
         wrap_kwargs = merge_dicts(dict(name_or_index='final_value'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(final_value, group_by=group_by, **wrap_kwargs)
+        return wrapper.wrap_reduced(final_value, group_by=group_by, **wrap_kwargs)
 
-    @cached_method
-    def total_return(self, group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def total_return(cls_or_self,
+                     group_by: tp.GroupByLike = None,
+                     parallel: tp.Optional[bool] = None,
+                     init_cash: tp.Optional[tp.MaybeSeries] = None,
+                     total_profit: tp.Optional[tp.MaybeSeries] = None,
+                     wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get total profit per column/group."""
-        init_cash = to_1d_array(self.get_init_cash(group_by=group_by))
-        total_profit = to_1d_array(self.total_profit(group_by=group_by))
-        total_return = nb.total_return_nb(total_profit, init_cash)
-        wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(total_return, group_by=group_by, **wrap_kwargs)
+        """Get total return per column/group."""
+        if not isinstance(cls_or_self, type):
+            if init_cash is None:
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            if total_profit is None:
+                total_profit = cls_or_self.total_profit(group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
 
-    @cached_method
-    def returns(self, group_by: tp.GroupByLike = None, in_sim_order=False,
+        final_value = nb.total_return_nb(to_1d_array(total_profit), to_1d_array(init_cash))
+        wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
+        return wrapper.wrap_reduced(final_value, group_by=group_by, **wrap_kwargs)
+
+    @class_or_instancemethod
+    def returns(cls_or_self,
+                group_by: tp.GroupByLike = None,
+                in_sim_order=False,
+                parallel: tp.Optional[bool] = None,
+                init_cash: tp.Optional[tp.MaybeSeries] = None,
+                value: tp.Optional[tp.SeriesFrame] = None,
+                call_seq: tp.Optional[tp.SeriesFrame] = None,
+                wrapper: tp.Optional[ArrayWrapper] = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get return series per column/group based on portfolio value."""
-        value = to_2d_array(self.value(group_by=group_by, in_sim_order=in_sim_order))
-        if self.wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
-            if self.call_seq is None:
+        if not isinstance(cls_or_self, type):
+            if value is None:
+                value = cls_or_self.value(group_by=group_by, in_sim_order=in_sim_order, parallel=parallel)
+            if call_seq is None:
+                call_seq = cls_or_self.call_seq
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(value)
+
+        if wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
+            if call_seq is None:
                 raise ValueError("No call sequence attached. "
                                  "Pass `attach_call_seq=True` to the class method "
                                  "(flexible simulations are not supported)")
-            group_lens = self.wrapper.grouper.get_group_lens()
-            init_cash_grouped = to_1d_array(self.init_cash)
-            call_seq = to_2d_array(self.call_seq)
-            returns = nb.returns_in_sim_order_nb(value, group_lens, init_cash_grouped, call_seq)
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.init_cash
+            group_lens = wrapper.grouper.get_group_lens()
+            func = main_nb_registry.redecorate_parallel(nb.returns_in_sim_order_nb, parallel=parallel)
+            returns = func(to_2d_array(value), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
         else:
-            init_cash = to_1d_array(self.get_init_cash(group_by=group_by))
-            returns = returns_nb.returns_nb(value, init_cash)
-        return self.wrapper.wrap(returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            func = main_nb_registry.redecorate_parallel(returns_nb.returns_nb, parallel=parallel)
+            returns = func(to_2d_array(value), to_1d_array(init_cash))
+        return wrapper.wrap(returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
-    def asset_returns(self, group_by: tp.GroupByLike = None,
+    @class_or_instancemethod
+    def asset_returns(cls_or_self,
+                      group_by: tp.GroupByLike = None,
+                      parallel: tp.Optional[bool] = None,
+                      cash_flow: tp.Optional[tp.MaybeSeries] = None,
+                      asset_value: tp.Optional[tp.MaybeSeries] = None,
+                      wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset return series per column/group.
 
@@ -4439,17 +4682,114 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         value. It ignores passive cash and thus it will return the same numbers irrespective of the amount of
         cash currently available, even `np.inf`. The scale of returns is comparable to that of going
         all in and keeping available cash at zero."""
-        cash_flow = to_2d_array(self.cash_flow(group_by=group_by))
-        asset_value = to_2d_array(self.asset_value(group_by=group_by))
-        asset_returns = nb.asset_returns_nb(cash_flow, asset_value)
-        return self.wrapper.wrap(asset_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if not isinstance(cls_or_self, type):
+            if cash_flow is None:
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, parallel=parallel)
+            if asset_value is None:
+                asset_value = cls_or_self.asset_value(group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(cash_flow)
 
-    @property
+        func = main_nb_registry.redecorate_parallel(nb.asset_returns_nb, parallel=parallel)
+        asset_returns = func(to_2d_array(cash_flow), to_2d_array(asset_value))
+        return wrapper.wrap(asset_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def market_value(cls_or_self,
+                     group_by: tp.GroupByLike = None,
+                     parallel: tp.Optional[bool] = None,
+                     fillna_close: tp.Optional[bool] = None,
+                     close: tp.Optional[tp.SeriesFrame] = None,
+                     init_cash: tp.Optional[tp.MaybeSeries] = None,
+                     wrapper: tp.Optional[ArrayWrapper] = None,
+                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Get market value series per column/group.
+
+        If grouped, evenly distributes the initial cash among assets in the group.
+
+        !!! note
+            Does not take into account fees and slippage. For this, create a separate portfolio."""
+        if not isinstance(cls_or_self, type):
+            if fillna_close is None:
+                fillna_close = cls_or_self.fillna_close
+            if close is None:
+                if fillna_close:
+                    close = cls_or_self.filled_close
+                else:
+                    close = cls_or_self.close
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(close)
+
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = main_nb_registry.redecorate_parallel(nb.market_value_grouped_nb, parallel=parallel)
+            market_value = func(to_2d_array(close), group_lens, to_1d_array(init_cash))
+        else:
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.get_init_cash(group_by=False, parallel=parallel)
+            func = main_nb_registry.redecorate_parallel(nb.market_value_nb, parallel=parallel)
+            market_value = func(to_2d_array(close), to_1d_array(init_cash))
+        return wrapper.wrap(market_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    @class_or_instancemethod
+    def market_returns(cls_or_self,
+                       group_by: tp.GroupByLike = None,
+                       parallel: tp.Optional[bool] = None,
+                       init_cash: tp.Optional[tp.MaybeSeries] = None,
+                       market_value: tp.Optional[tp.SeriesFrame] = None,
+                       wrapper: tp.Optional[ArrayWrapper] = None,
+                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Get market return series per column/group."""
+        if not isinstance(cls_or_self, type):
+            if market_value is None:
+                market_value = cls_or_self.market_value(group_by=group_by, parallel=parallel)
+            if init_cash is None:
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(market_value)
+
+        func = main_nb_registry.redecorate_parallel(returns_nb.returns_nb, parallel=parallel)
+        market_returns = func(to_2d_array(market_value), to_1d_array(init_cash))
+        return wrapper.wrap(market_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+
+    benchmark_rets = market_returns
+
+    @class_or_instancemethod
+    def total_market_return(cls_or_self,
+                            group_by: tp.GroupByLike = None,
+                            parallel: tp.Optional[bool] = None,
+                            market_value: tp.Optional[tp.SeriesFrame] = None,
+                            wrapper: tp.Optional[ArrayWrapper] = None,
+                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get total market return."""
+        if not isinstance(cls_or_self, type):
+            if market_value is None:
+                market_value = cls_or_self.market_value(group_by=group_by, parallel=parallel)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(market_value)
+
+        func = main_nb_registry.redecorate_parallel(nb.total_market_return_nb, parallel=parallel)
+        total_market_return = func(to_2d_array(market_value))
+        wrap_kwargs = merge_dicts(dict(name_or_index='total_market_return'), wrap_kwargs)
+        return wrapper.wrap_reduced(total_market_return, group_by=group_by, **wrap_kwargs)
+
+    @cached_property
     def returns_acc(self) -> ReturnsAccessor:
         """`Portfolio.get_returns_acc` with default arguments."""
         return self.get_returns_acc()
 
-    @cached_method
     def get_returns_acc(self,
                         group_by: tp.GroupByLike = None,
                         benchmark_rets: tp.Optional[tp.ArrayLike] = None,
@@ -4457,6 +4797,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         year_freq: tp.Optional[tp.FrequencyLike] = None,
                         use_asset_returns: bool = False,
                         defaults: tp.KwargsLike = None,
+                        parallel: tp.Optional[bool] = None,
                         **kwargs) -> ReturnsAccessor:
         """Get returns accessor of type `vectorbt.returns.accessors.ReturnsAccessor`.
 
@@ -4465,11 +4806,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if freq is None:
             freq = self.wrapper.freq
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by)
+            returns = self.asset_returns(group_by=group_by, parallel=parallel)
         else:
-            returns = self.returns(group_by=group_by)
+            returns = self.returns(group_by=group_by, parallel=parallel)
         if benchmark_rets is None:
-            benchmark_rets = self.benchmark_returns(group_by=group_by)
+            benchmark_rets = self.market_returns(group_by=group_by, parallel=parallel)
         return returns.vbt.returns(
             benchmark_rets=benchmark_rets,
             freq=freq,
@@ -4483,13 +4824,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """`Portfolio.get_qs` with default arguments."""
         return self.get_qs()
 
-    @cached_method
     def get_qs(self,
                group_by: tp.GroupByLike = None,
                benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                freq: tp.Optional[tp.FrequencyLike] = None,
                year_freq: tp.Optional[tp.FrequencyLike] = None,
                use_asset_returns: bool = False,
+               parallel: tp.Optional[bool] = None,
                **kwargs) -> QSAdapterT:
         """Get quantstats adapter of type `vectorbt.returns.qs_adapter.QSAdapter`.
 
@@ -4501,51 +4842,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             benchmark_rets=benchmark_rets,
             freq=freq,
             year_freq=year_freq,
-            use_asset_returns=use_asset_returns
+            use_asset_returns=use_asset_returns,
+            parallel=parallel
         )
         return QSAdapter(returns_acc, **kwargs)
-
-    @cached_method
-    def benchmark_value(self, group_by: tp.GroupByLike = None,
-                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Get market benchmark value series per column/group.
-
-        If grouped, evenly distributes the initial cash among assets in the group.
-
-        !!! note
-            Does not take into account fees and slippage. For this, create a separate portfolio."""
-        if self.fillna_close:
-            close = to_2d_array(self.get_filled_close())
-        else:
-            close = to_2d_array(self.close)
-        if self.wrapper.grouper.is_grouped(group_by=group_by):
-            group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            init_cash_grouped = to_1d_array(self.get_init_cash(group_by=group_by))
-            benchmark_value = nb.benchmark_value_grouped_nb(close, group_lens, init_cash_grouped)
-        else:
-            init_cash = to_1d_array(self.get_init_cash(group_by=False))
-            benchmark_value = nb.benchmark_value_nb(close, init_cash)
-        return self.wrapper.wrap(benchmark_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
-
-    @cached_method
-    def benchmark_returns(self, group_by: tp.GroupByLike = None,
-                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Get return series per column/group based on benchmark value."""
-        benchmark_value = to_2d_array(self.benchmark_value(group_by=group_by))
-        init_cash = to_1d_array(self.get_init_cash(group_by=group_by))
-        benchmark_returns = returns_nb.returns_nb(benchmark_value, init_cash)
-        return self.wrapper.wrap(benchmark_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
-
-    benchmark_rets = benchmark_returns
-
-    @cached_method
-    def total_benchmark_return(self, group_by: tp.GroupByLike = None,
-                               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get total benchmark return."""
-        benchmark_value = to_2d_array(self.benchmark_value(group_by=group_by))
-        total_benchmark_return = nb.total_benchmark_return_nb(benchmark_value)
-        wrap_kwargs = merge_dicts(dict(name_or_index='total_benchmark_return'), wrap_kwargs)
-        return self.wrapper.wrap_reduced(total_benchmark_return, group_by=group_by, **wrap_kwargs)
 
     # ############# Resolution ############# #
 
@@ -5176,7 +5476,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         if benchmark_rets is None:
-            benchmark_rets = self.benchmark_returns(group_by=group_by)
+            benchmark_rets = self.market_returns(group_by=group_by)
         else:
             benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         benchmark_rets = self.select_one_from_obj(benchmark_rets, self.wrapper.regroup(group_by), column=column)

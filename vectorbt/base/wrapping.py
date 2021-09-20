@@ -91,10 +91,9 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import Configured, merge_dicts
+from vectorbt.utils.config import Configured, get_func_arg_names
 from vectorbt.utils.datetime import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils.array import get_ranges_arr
-from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.attr import AttrResolver, AttrResolverT
 from vectorbt.base import index_fns, reshape_fns
 from vectorbt.base.indexing import IndexingError, PandasIndexer
@@ -118,6 +117,17 @@ class ArrayWrapper(Configured, PandasIndexer):
 
         Use methods that begin with `get_` to get group-aware results."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'index',
+        'columns',
+        'ndim',
+        'freq',
+        'column_only_select',
+        'group_select',
+        'grouped_ndim',
+        'grouper'
+    }
+
     def __init__(self,
                  index: tp.IndexLike,
                  columns: tp.IndexLike,
@@ -126,16 +136,8 @@ class ArrayWrapper(Configured, PandasIndexer):
                  column_only_select: tp.Optional[bool] = None,
                  group_select: tp.Optional[bool] = None,
                  grouped_ndim: tp.Optional[int] = None,
+                 grouper: tp.Optional[Grouper] = None,
                  **kwargs) -> None:
-        config = dict(
-            index=index,
-            columns=columns,
-            ndim=ndim,
-            freq=freq,
-            column_only_select=column_only_select,
-            group_select=group_select,
-            grouped_ndim=grouped_ndim,
-        )
 
         checks.assert_not_none(index)
         checks.assert_not_none(columns)
@@ -145,23 +147,39 @@ class ArrayWrapper(Configured, PandasIndexer):
         if not isinstance(columns, pd.Index):
             columns = pd.Index(columns)
 
+        grouper_arg_names = get_func_arg_names(Grouper.__init__)
+        grouper_kwargs = dict()
+        for k in list(kwargs.keys()):
+            if k in grouper_arg_names:
+                grouper_kwargs[k] = kwargs.pop(k)
+        if grouper is None:
+            grouper = Grouper(columns, **grouper_kwargs)
+        elif not pd.Index.equals(columns, grouper.index) or len(grouper_kwargs) > 0:
+            grouper = grouper.replace(index=columns, **grouper_kwargs)
+
+        PandasIndexer.__init__(self)
+        Configured.__init__(
+            self,
+            index=index,
+            columns=columns,
+            ndim=ndim,
+            freq=freq,
+            column_only_select=column_only_select,
+            group_select=group_select,
+            grouped_ndim=grouped_ndim,
+            grouper=grouper,
+            **kwargs
+        )
+
         self._index = index
         self._columns = columns
         self._ndim = ndim
         self._freq = freq
         self._column_only_select = column_only_select
         self._group_select = group_select
-        self._grouper = Grouper(columns, **kwargs)
+        self._grouper = grouper
         self._grouped_ndim = grouped_ndim
 
-        for k, v in self._grouper.config.items():
-            if k != 'index':
-                config[k] = v
-
-        PandasIndexer.__init__(self)
-        Configured.__init__(self, **config)
-
-    @cached_method
     def indexing_func_meta(self: ArrayWrapperT,
                            pd_indexing_func: tp.PandasIndexingFunc,
                            index: tp.Optional[tp.IndexLike] = None,
@@ -495,7 +513,6 @@ class ArrayWrapper(Configured, PandasIndexer):
             return self.replace(grouped_ndim=grouped_ndim, group_by=group_by, **kwargs)
         return self  # important for keeping cache
 
-    @cached_method
     def resolve(self: ArrayWrapperT, group_by: tp.GroupByLike = None, **kwargs) -> ArrayWrapperT:
         """Resolve this object.
 
@@ -693,6 +710,8 @@ WrappingT = tp.TypeVar("WrappingT", bound="Wrapping")
 class Wrapping(Configured, PandasIndexer, AttrResolver):
     """Class that uses `ArrayWrapper` globally."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'wrapper'}
+
     def __init__(self, wrapper: ArrayWrapper, **kwargs) -> None:
         checks.assert_instance_of(wrapper, ArrayWrapper)
         self._wrapper = wrapper
@@ -723,7 +742,7 @@ class Wrapping(Configured, PandasIndexer, AttrResolver):
 
     def resolve_self(self: AttrResolverT,
                      cond_kwargs: tp.KwargsLike = None,
-                     custom_arg_names: tp.Optional[tp.Set[str]] = None,
+                     custom_arg_names: tp.ClassVar[tp.Optional[tp.Set[str]]] = None,
                      impacts_caching: bool = True,
                      silence_warnings: tp.Optional[bool] = None) -> AttrResolverT:
         """Resolve self.

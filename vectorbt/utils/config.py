@@ -12,6 +12,7 @@ import pickle
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.docs import Documented, to_doc
+from vectorbt.utils.decorators import class_or_instancemethod
 
 
 class Default:
@@ -734,15 +735,29 @@ class Configured(Pickleable, Documented):
 
     Settings are defined under `configured` in `vectorbt._settings.settings`.
 
+    Checks if all keys can be found in `Configured._expected_keys` or in such of the base classes.
+
     !!! warning
-        If any attribute has been overwritten that isn't listed in `Configured.writeable_attrs`,
+        If any attribute has been overwritten that isn't listed in `Configured._writeable_attrs`,
         or if any `Configured.__init__` argument depends upon global defaults,
         their values won't be copied over. Make sure to pass them explicitly to
-        make the saved & loaded / copied instance resilient to changes in globals."""
+        make that the saved & loaded / copied instance is resilient to any changes in globals."""
+
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = None
+    """Set of keys that are expected by this class."""
+
+    _writeable_attrs: tp.ClassVar[tp.Optional[tp.Set[str]]] = None
+    """Set of writeable attributes that will be saved/copied along with the config."""
 
     def __init__(self, **config) -> None:
         from vectorbt._settings import settings
         configured_cfg = settings['configured']
+
+        expected_keys = self.get_expected_keys()
+        if len(expected_keys) > 0:
+            for k in config:
+                if k not in expected_keys:
+                    raise TypeError(f"{self.__class__.__name__}.__init__() got an unexpected keyword argument '{k}'")
 
         self._config = Config(config, **configured_cfg['config'])
 
@@ -751,14 +766,31 @@ class Configured(Pickleable, Documented):
         """Initialization config."""
         return self._config
 
-    @property
-    def writeable_attrs(self) -> tp.Set[str]:
-        """Set of writeable attributes that will be saved/copied along with the config."""
-        return {
-            base_cls.writeable_attrs.__get__(self)
-            for base_cls in self.__class__.__bases__
-            if isinstance(base_cls, Configured)
-        }
+    @class_or_instancemethod
+    def get_expected_keys(cls_or_self) -> tp.Optional[tp.Set[str]]:
+        """Get set of keys that are expected by this class or by any of its base classes."""
+        if isinstance(cls_or_self, type):
+            cls = cls_or_self
+        else:
+            cls = cls_or_self.__class__
+        expected_keys = set()
+        for cls in inspect.getmro(cls):
+            if issubclass(cls, Configured) and cls._expected_keys is not None:
+                expected_keys |= cls._expected_keys
+        return expected_keys
+
+    @class_or_instancemethod
+    def get_writeable_attrs(cls_or_self) -> tp.Optional[tp.Set[str]]:
+        """Get set of attributes that are writeable by this class or by any of its base classes."""
+        if isinstance(cls_or_self, type):
+            cls = cls_or_self
+        else:
+            cls = cls_or_self.__class__
+        writeable_attrs = set()
+        for cls in inspect.getmro(cls):
+            if issubclass(cls, Configured) and cls._writeable_attrs is not None:
+                writeable_attrs |= cls._writeable_attrs
+        return writeable_attrs
 
     def replace(self: ConfiguredT,
                 copy_mode_: tp.Optional[str] = 'shallow',
@@ -774,7 +806,7 @@ class Configured(Pickleable, Documented):
             cls_ = self.__class__
         new_config = self.config.merge_with(new_config, copy_mode=copy_mode_, nested=nested_)
         new_instance = cls_(**new_config)
-        for attr in self.writeable_attrs:
+        for attr in self.get_writeable_attrs():
             attr_obj = getattr(self, attr)
             if isinstance(attr_obj, Config):
                 attr_obj = attr_obj.copy(
@@ -802,7 +834,7 @@ class Configured(Pickleable, Documented):
     def dumps(self, **kwargs) -> bytes:
         """Pickle to bytes."""
         config_dumps = self.config.dumps(**kwargs)
-        attr_dct = PickleableDict({attr: getattr(self, attr) for attr in self.writeable_attrs})
+        attr_dct = PickleableDict({attr: getattr(self, attr) for attr in self.get_writeable_attrs()})
         attr_dct_dumps = attr_dct.dumps(**kwargs)
         return dill.dumps((config_dumps, attr_dct_dumps), **kwargs)
 
@@ -821,9 +853,9 @@ class Configured(Pickleable, Documented):
         """Objects are equal if their configs and writeable attributes are equal."""
         if type(self) != type(other):
             return False
-        if self.writeable_attrs != other.writeable_attrs:
+        if self.get_writeable_attrs() != other.get_writeable_attrs():
             return False
-        for attr in self.writeable_attrs:
+        for attr in self.get_writeable_attrs():
             if not checks.is_deep_equal(getattr(self, attr), getattr(other, attr)):
                 return False
         return self.config == other.config

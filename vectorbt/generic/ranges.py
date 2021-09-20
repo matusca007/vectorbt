@@ -195,6 +195,8 @@ class Ranges(Records):
 
     Requires `records_arr` to have all fields defined in `vectorbt.generic.enums.range_dt`."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'ts'}
+
     @property
     def field_config(self) -> Config:
         return self._field_config
@@ -282,7 +284,6 @@ class Ranges(Records):
         )
         return self.wrapper.wrap(mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    @cached_method
     def get_duration(self, parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
         func = main_nb_registry.redecorate_parallel(nb.range_duration_nb, parallel=parallel)

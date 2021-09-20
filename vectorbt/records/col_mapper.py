@@ -13,6 +13,9 @@ from vectorbt.records import nb
 class ColumnMapper(Wrapping):
     """Used by `vectorbt.records.base.Records` and `vectorbt.records.mapped_array.MappedArray`
     classes to make use of column and group metadata."""
+
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'col_arr'}
+
     def __init__(self, wrapper: ArrayWrapper, col_arr: tp.Array1d, **kwargs) -> None:
         Wrapping.__init__(
             self,
@@ -20,7 +23,7 @@ class ColumnMapper(Wrapping):
             col_arr=col_arr,
             **kwargs
         )
-        self._wrapper = wrapper
+
         self._col_arr = col_arr
 
     def _col_idxs_meta(self, col_idxs: tp.Array1d) -> tp.Tuple[tp.Array1d, tp.Array1d]:
@@ -33,11 +36,6 @@ class ColumnMapper(Wrapping):
         else:
             new_indices, new_col_arr = nb.col_map_select_nb(self.col_map, to_1d_array(col_idxs))
         return new_indices, new_col_arr
-
-    @property
-    def wrapper(self) -> ArrayWrapper:
-        """Array wrapper."""
-        return self._wrapper
 
     @property
     def col_arr(self) -> tp.Array1d:

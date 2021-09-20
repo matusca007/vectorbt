@@ -30,6 +30,7 @@ from numba import prange
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
+from vectorbt.utils.math import add_nb
 from vectorbt.generic import nb as generic_nb
 
 
@@ -40,7 +41,7 @@ def get_return_nb(input_value: float, output_value: float) -> float:
         if output_value == 0:
             return 0.
         return np.inf * np.sign(output_value)
-    return_value = (output_value - input_value) / input_value
+    return_value = add_nb(output_value, -input_value) / input_value
     if input_value < 0:
         return_value *= -1
     return return_value

@@ -100,7 +100,6 @@ We can still override any argument by overriding its default or by passing it di
 """
 import pandas as pd
 from inspect import getmembers, isfunction, signature, Parameter
-import warnings
 import quantstats as qs
 
 from vectorbt import _typing as tp
@@ -188,13 +187,23 @@ QSAdapterT = tp.TypeVar("QSAdapterT", bound="QSAdapter")
 class QSAdapter(Configured):
     """Adapter class for quantstats."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'returns_accessor',
+        'defaults'
+    }
+
     def __init__(self, returns_accessor: ReturnsAccessor, defaults: tp.KwargsLike = None, **kwargs) -> None:
         checks.assert_instance_of(returns_accessor, ReturnsAccessor)
 
-        Configured.__init__(self, returns_accessor=returns_accessor, defaults=defaults, **kwargs)
-
         self._returns_accessor = returns_accessor
         self._defaults = defaults
+
+        Configured.__init__(
+            self,
+            returns_accessor=returns_accessor,
+            defaults=defaults,
+            **kwargs
+        )
 
     def __call__(self: QSAdapterT, **kwargs) -> QSAdapterT:
         """Allows passing arguments to the initializer."""

@@ -481,6 +481,11 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             Useful if any subclass wants to extend the config.
     """
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'records_arr',
+        'col_mapper'
+    }
+
     _field_config: tp.ClassVar[Config] = Config(
         dict(
             dtype=None,
@@ -520,15 +525,6 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                  records_arr: tp.RecordArray,
                  col_mapper: tp.Optional[ColumnMapper] = None,
                  **kwargs) -> None:
-        Wrapping.__init__(
-            self,
-            wrapper,
-            records_arr=records_arr,
-            col_mapper=col_mapper,
-            **kwargs
-        )
-        StatsBuilderMixin.__init__(self)
-        PlotsBuilderMixin.__init__(self)
 
         # Check fields
         records_arr = np.asarray(records_arr)
@@ -543,10 +539,20 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                 if field not in records_arr.dtype.names:
                     if field not in field_names:
                         raise TypeError(f"Field '{field}' from {dtype} cannot be found in records or config")
+        if col_mapper is None:
+            col_mapper = ColumnMapper(wrapper, records_arr[self.get_field_name('col')])
+
+        Wrapping.__init__(
+            self,
+            wrapper,
+            records_arr=records_arr,
+            col_mapper=col_mapper,
+            **kwargs
+        )
+        StatsBuilderMixin.__init__(self)
+        PlotsBuilderMixin.__init__(self)
 
         self._records_arr = records_arr
-        if col_mapper is None:
-            col_mapper = ColumnMapper(wrapper, self.col_arr)
         self._col_mapper = col_mapper
 
     def replace(self: RecordsT, **kwargs) -> RecordsT:

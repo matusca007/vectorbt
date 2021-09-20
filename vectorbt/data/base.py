@@ -264,7 +264,6 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.datetime import is_tz_aware, to_timezone
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -290,6 +289,15 @@ DataT = tp.TypeVar("DataT", bound="Data")
 class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     """Class that downloads, updates, and manages data coming from a data source."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'data',
+        'tz_localize',
+        'tz_convert',
+        'missing_index',
+        'missing_columns',
+        'download_kwargs'
+    }
+
     def __init__(self,
                  wrapper: ArrayWrapper,
                  data: tp.Data,
@@ -299,6 +307,11 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                  missing_columns: str,
                  download_kwargs: dict,
                  **kwargs) -> None:
+
+        checks.assert_instance_of(data, dict)
+        for k, v in data.items():
+            checks.assert_meta_equal(v, data[list(data.keys())[0]])
+
         Wrapping.__init__(
             self,
             wrapper,
@@ -313,9 +326,6 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         StatsBuilderMixin.__init__(self)
         PlotsBuilderMixin.__init__(self)
 
-        checks.assert_instance_of(data, dict)
-        for k, v in data.items():
-            checks.assert_meta_equal(v, data[list(data.keys())[0]])
         self._data = data
         self._tz_localize = tz_localize
         self._tz_convert = tz_convert
@@ -662,7 +672,6 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             data=new_data
         )
 
-    @cached_method
     def concat(self, level_name: str = 'symbol') -> tp.Data:
         """Return a dict of Series/DataFrames with symbols as columns, keyed by column name."""
         first_data = self.data[self.symbols[0]]

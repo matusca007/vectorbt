@@ -14,6 +14,12 @@ from vectorbt.portfolio import nb
 
 from tests.utils import record_arrays_close
 
+qs_available = True
+try:
+    import quantstats as qs
+except:
+    qs_available = False
+
 seed = 42
 
 day_dt = np.timedelta64(86400000000000)
@@ -2818,7 +2824,7 @@ class TestFromSignals:
         exits = pd.Series([False, False, False, False, False], index=price.index)
 
         with pytest.raises(Exception):
-            _ = from_signals_both(ts_stop=-0.1)
+            _ = from_signals_both(sl_stop=-0.1, sl_trail=True)
 
         close = pd.Series([4., 5., 4., 3., 2.], index=price.index)
         open = close + 0.25
@@ -6089,6 +6095,14 @@ class TestPortfolio:
             pf_shared.asset_flow(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.asset_flow(),
+            pf.__class__.asset_flow(orders=pf.orders, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.asset_flow(parallel=False),
+            pf.asset_flow(parallel=True)
+        )
 
     def test_assets(self):
         pd.testing.assert_frame_equal(
@@ -6141,6 +6155,14 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf_shared.assets(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.assets(),
+            pf.__class__.assets(asset_flow=pf.asset_flow(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.assets(parallel=False),
+            pf.assets(parallel=True)
         )
 
     def test_position_mask(self):
@@ -6218,6 +6240,14 @@ class TestPortfolio:
             pf_shared.position_mask(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.position_mask(),
+            pf.__class__.position_mask(assets=pf.assets(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.position_mask(parallel=False),
+            pf_grouped.position_mask(parallel=True)
+        )
 
     def test_position_coverage(self):
         pd.testing.assert_series_equal(
@@ -6256,6 +6286,14 @@ class TestPortfolio:
         pd.testing.assert_series_equal(
             pf_shared.position_coverage(),
             result
+        )
+        pd.testing.assert_series_equal(
+            pf.position_coverage(),
+            pf.__class__.position_coverage(position_mask=pf.position_mask(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.position_coverage(parallel=False),
+            pf_grouped.position_coverage(parallel=True)
         )
 
     def test_cash_flow(self):
@@ -6318,6 +6356,22 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf_shared.cash_flow(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.cash_flow(),
+            pf.__class__.cash_flow(orders=pf.orders, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash_flow(),
+            pf_grouped.__class__.cash_flow(orders=pf_grouped.orders, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.cash_flow(parallel=False),
+            pf.cash_flow(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash_flow(parallel=False),
+            pf_grouped.cash_flow(parallel=True)
         )
 
     def test_init_cash(self):
@@ -6396,6 +6450,30 @@ class TestPortfolio:
                 np.array([26000.0, 26000.0]),
                 index=pd.Index(['first', 'second'], dtype='object', name='group')
             ).rename('init_cash')
+        )
+        pd.testing.assert_series_equal(
+            pf.get_init_cash(),
+            pf.__class__.get_init_cash(
+                init_cash_raw=pf._init_cash, cash_sharing=pf.cash_sharing,
+                cash_flow=pf.cash_flow(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.get_init_cash(),
+            pf.__class__.get_init_cash(
+                init_cash_raw=pf_grouped._init_cash, cash_sharing=pf_grouped.cash_sharing,
+                cash_flow=pf_grouped.cash_flow(), wrapper=pf_grouped.wrapper)
+        )
+        pf2 = vbt.Portfolio.from_orders(
+            price_na, 1000., init_cash=InitCashMode.AutoAlign, group_by=group_by, cash_sharing=True)
+        pd.testing.assert_series_equal(
+            pf2.get_init_cash(),
+            pf2.__class__.get_init_cash(
+                init_cash_raw=pf2._init_cash, cash_sharing=pf2.cash_sharing,
+                cash_flow=pf2.cash_flow(), wrapper=pf2.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf.get_init_cash(parallel=False),
+            pf.get_init_cash(parallel=True)
         )
 
     def test_cash(self):
@@ -6483,6 +6561,37 @@ class TestPortfolio:
             pf_shared.cash(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.cash(),
+            pf.__class__.cash(
+                init_cash=pf.init_cash, cash_sharing=pf.cash_sharing,
+                cash_flow=pf.cash_flow(), call_seq=pf.call_seq, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash(),
+            pf_grouped.__class__.cash(
+                init_cash=pf_grouped.init_cash, cash_sharing=pf_grouped.cash_sharing,
+                cash_flow=pf_grouped.cash_flow(), call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cash(group_by=False, in_sim_order=True),
+            pf_shared.__class__.cash(
+                group_by=False, in_sim_order=True,
+                init_cash=pf_shared.init_cash, cash_sharing=pf_shared.cash_sharing,
+                cash_flow=pf_shared.cash_flow(group_by=False), call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.cash(parallel=False),
+            pf.cash(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash(parallel=False),
+            pf_grouped.cash(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cash(group_by=False, in_sim_order=True, parallel=False),
+            pf_shared.cash(group_by=False, in_sim_order=True, parallel=True)
+        )
 
     def test_asset_value(self):
         pd.testing.assert_frame_equal(
@@ -6558,6 +6667,22 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf_shared.asset_value(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.asset_value(),
+            pf.__class__.asset_value(
+                close=pf.filled_close,
+                assets=pf.assets(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_value(),
+            pf_grouped.__class__.asset_value(
+                close=pf_grouped.filled_close,
+                assets=pf_grouped.assets(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_value(parallel=False),
+            pf_grouped.asset_value(parallel=True)
         )
 
     def test_gross_exposure(self):
@@ -6645,6 +6770,22 @@ class TestPortfolio:
             pf_shared.gross_exposure(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.gross_exposure(),
+            pf.__class__.gross_exposure(
+                asset_value=pf.asset_value(),
+                free_cash=pf.cash(free=True), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.gross_exposure(),
+            pf_grouped.__class__.gross_exposure(
+                asset_value=pf_grouped.asset_value(),
+                free_cash=pf_grouped.cash(free=True), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.gross_exposure(parallel=False),
+            pf.gross_exposure(parallel=True)
+        )
 
     def test_net_exposure(self):
         result = pd.DataFrame(
@@ -6702,6 +6843,22 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf_shared.net_exposure(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.net_exposure(),
+            pf.__class__.net_exposure(
+                long_exposure=pf.gross_exposure(direction='longonly'),
+                short_exposure=pf.gross_exposure(direction='shortonly'), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.net_exposure(),
+            pf_grouped.__class__.net_exposure(
+                long_exposure=pf_grouped.gross_exposure(direction='longonly'),
+                short_exposure=pf_grouped.gross_exposure(direction='shortonly'), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.net_exposure(parallel=False),
+            pf.net_exposure(parallel=True)
         )
 
     def test_value(self):
@@ -6775,6 +6932,30 @@ class TestPortfolio:
             pf_shared.value(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.value(),
+            pf.__class__.value(
+                cash=pf.cash(), asset_value=pf.asset_value(),
+                call_seq=pf.call_seq, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.value(),
+            pf_grouped.__class__.value(
+                cash=pf_grouped.cash(), asset_value=pf_grouped.asset_value(),
+                call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.value(group_by=False, in_sim_order=True),
+            pf_shared.__class__.value(
+                group_by=False, in_sim_order=True,
+                cash=pf_shared.cash(group_by=False, in_sim_order=True),
+                asset_value=pf_shared.asset_value(group_by=False),
+                call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.value(group_by=False, in_sim_order=True, parallel=False),
+            pf_shared.value(group_by=False, in_sim_order=True, parallel=True)
+        )
 
     def test_total_profit(self):
         result = pd.Series(
@@ -6808,6 +6989,26 @@ class TestPortfolio:
         pd.testing.assert_series_equal(
             pf_shared.total_profit(),
             result
+        )
+        pd.testing.assert_series_equal(
+            pf.total_profit(),
+            pf.__class__.total_profit(
+                fillna_close=pf.fillna_close, close=pf.filled_close,
+                orders=pf.orders, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_profit(),
+            pf_grouped.__class__.total_profit(
+                fillna_close=pf_grouped.fillna_close, close=pf_grouped.filled_close,
+                orders=pf_grouped.orders, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf.total_profit(parallel=False),
+            pf.total_profit(parallel=True)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_profit(parallel=False),
+            pf_grouped.total_profit(parallel=True)
         )
 
     def test_final_value(self):
@@ -6846,6 +7047,24 @@ class TestPortfolio:
             pf_shared.final_value(),
             result
         )
+        pd.testing.assert_series_equal(
+            pf.final_value(),
+            pf.__class__.final_value(
+                init_cash=pf.init_cash, total_profit=pf.total_profit(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.final_value(),
+            pf_grouped.__class__.final_value(
+                init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf.final_value(parallel=False),
+            pf.final_value(parallel=True)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.final_value(parallel=False),
+            pf_grouped.final_value(parallel=True)
+        )
 
     def test_total_return(self):
         result = pd.Series(
@@ -6882,6 +7101,24 @@ class TestPortfolio:
         pd.testing.assert_series_equal(
             pf_shared.total_return(),
             result
+        )
+        pd.testing.assert_series_equal(
+            pf.total_return(),
+            pf.__class__.total_return(
+                init_cash=pf.init_cash, total_profit=pf.total_profit(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_return(),
+            pf_grouped.__class__.total_return(
+                init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf.total_return(parallel=False),
+            pf.total_return(parallel=True)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_return(parallel=False),
+            pf_grouped.total_return(parallel=True)
         )
 
     def test_returns(self):
@@ -6955,15 +7192,46 @@ class TestPortfolio:
             pf_shared.returns(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.returns(),
+            pf.__class__.returns(
+                init_cash=pf.init_cash, value=pf.value(),
+                call_seq=pf.call_seq, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.returns(),
+            pf_grouped.__class__.returns(
+                init_cash=pf_grouped.init_cash, value=pf_grouped.value(),
+                call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.returns(group_by=False, in_sim_order=True),
+            pf_shared.__class__.returns(
+                group_by=False, in_sim_order=True,
+                init_cash=pf_shared.init_cash, value=pf_shared.value(group_by=False, in_sim_order=True),
+                call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.returns(parallel=False),
+            pf.returns(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.returns(parallel=False),
+            pf_grouped.returns(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.returns(group_by=False, in_sim_order=True, parallel=False),
+            pf_shared.returns(group_by=False, in_sim_order=True, parallel=True)
+        )
 
     def test_asset_returns(self):
         result = pd.DataFrame(
             np.array([
-                [0., -np.inf, -np.inf],
-                [-np.inf, -1.10398, 0.89598],
-                [-0.02985, 0.0, 0.42740909],
-                [0., -1.0491090909090908, -0.02653333],
-                [-np.inf, -0.299875, 0.]
+                [0.0, -0.1199, -0.1201000000000001],
+                [-0.5201, -1.10398, 0.8959800000000002],
+                [-0.029850000000000154, 0.0, 0.42740909090909074],
+                [0.0, -1.0491090909090908, -0.026533333333334127],
+                [-0.04009999999999998, -0.2998749999999999, 0.0]
             ]),
             index=price_na.index,
             columns=price_na.columns
@@ -6982,11 +7250,11 @@ class TestPortfolio:
         )
         result = pd.DataFrame(
             np.array([
-                [-np.inf, -np.inf],
-                [-1.208, 0.89598],
-                [-0.0029850000000000154, 0.42740909],
-                [-1.0491090909090908, -0.02653333],
-                [-0.35, 0.]
+                [-0.1199, -0.1201000000000001],
+                [-1.2080000000000002, 0.8959800000000002],
+                [-0.0029850000000000154, 0.42740909090909074],
+                [-1.0491090909090908, -0.026533333333334127],
+                [-0.34999999999999987, 0.0]
             ]),
             index=price_na.index,
             columns=pd.Index(['first', 'second'], dtype='object', name='group')
@@ -7003,8 +7271,46 @@ class TestPortfolio:
             pf_shared.asset_returns(),
             result
         )
+        pd.testing.assert_frame_equal(
+            pf.asset_returns(),
+            pf.__class__.asset_returns(
+                cash_flow=pf.cash_flow(), asset_value=pf.asset_value(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_returns(),
+            pf_grouped.__class__.asset_returns(
+                cash_flow=pf_grouped.cash_flow(), asset_value=pf_grouped.asset_value(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.asset_returns(parallel=False),
+            pf.asset_returns(parallel=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_returns(parallel=False),
+            pf_grouped.asset_returns(parallel=True)
+        )
+        size = pd.Series([0., 0.5, -0.5, -0.5, 0.5, 1., -2., 2.])
+        pf2 = vbt.Portfolio.from_orders(1, size, fees=0.)
+        pd.testing.assert_series_equal(
+            pf2.asset_returns(),
+            pd.Series([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        )
+        pf3 = vbt.Portfolio.from_orders(1, size, fees=0.01)
+        pd.testing.assert_series_equal(
+            pf3.asset_returns(),
+            pd.Series([
+                0.0,
+                -0.010000000000000009,
+                -0.010000000000000009,
+                -0.010000000000000009,
+                -0.010000000000000009,
+                -0.010000000000000009,
+                -0.010000000000000009,
+                -0.010000000000000009
+            ])
+        )
 
-    def test_benchmark_value(self):
+    def test_market_value(self):
         result = pd.DataFrame(
             np.array([
                 [100., 100., 100.],
@@ -7017,15 +7323,15 @@ class TestPortfolio:
             columns=price_na.columns
         )
         pd.testing.assert_frame_equal(
-            pf.benchmark_value(),
+            pf.market_value(),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.benchmark_value(group_by=False),
+            pf_grouped.market_value(group_by=False),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_shared.benchmark_value(group_by=False),
+            pf_shared.market_value(group_by=False),
             pd.DataFrame(
                 np.array([
                     [200., 200., 100.],
@@ -7050,19 +7356,35 @@ class TestPortfolio:
             columns=pd.Index(['first', 'second'], dtype='object', name='group')
         )
         pd.testing.assert_frame_equal(
-            pf.benchmark_value(group_by=group_by),
+            pf.market_value(group_by=group_by),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.benchmark_value(),
+            pf_grouped.market_value(),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_shared.benchmark_value(),
+            pf_shared.market_value(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_value(),
+            pf.__class__.market_value(
+                close=pf.filled_close,
+                init_cash=pf.init_cash, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.market_value(),
+            pf_grouped.__class__.market_value(
+                close=pf_grouped.filled_close,
+                init_cash=pf_grouped.init_cash, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_value(parallel=False),
+            pf.market_value(parallel=True),
         )
 
-    def test_benchmark_returns(self):
+    def test_market_returns(self):
         result = pd.DataFrame(
             np.array([
                 [0., 0., 0.],
@@ -7075,15 +7397,15 @@ class TestPortfolio:
             columns=price_na.columns
         )
         pd.testing.assert_frame_equal(
-            pf.benchmark_returns(),
+            pf.market_returns(),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.benchmark_returns(group_by=False),
+            pf_grouped.market_returns(group_by=False),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_shared.benchmark_returns(group_by=False),
+            pf_shared.market_returns(group_by=False),
             result
         )
         result = pd.DataFrame(
@@ -7098,53 +7420,81 @@ class TestPortfolio:
             columns=pd.Index(['first', 'second'], dtype='object', name='group')
         )
         pd.testing.assert_frame_equal(
-            pf.benchmark_returns(group_by=group_by),
+            pf.market_returns(group_by=group_by),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.benchmark_returns(),
+            pf_grouped.market_returns(),
             result
         )
         pd.testing.assert_frame_equal(
-            pf_shared.benchmark_returns(),
+            pf_shared.market_returns(),
             result
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_returns(),
+            pf.__class__.market_returns(
+                init_cash=pf.init_cash, market_value=pf.market_value(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.market_returns(),
+            pf_grouped.__class__.market_returns(
+                init_cash=pf_grouped.init_cash, market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_returns(parallel=False),
+            pf.market_returns(parallel=True),
         )
 
-    def test_total_benchmark_return(self):
+    def test_total_market_return(self):
         result = pd.Series(
             np.array([1.5, 4., 3.]),
             index=price_na.columns
-        ).rename('total_benchmark_return')
+        ).rename('total_market_return')
         pd.testing.assert_series_equal(
-            pf.total_benchmark_return(),
+            pf.total_market_return(),
             result
         )
         pd.testing.assert_series_equal(
-            pf_grouped.total_benchmark_return(group_by=False),
+            pf_grouped.total_market_return(group_by=False),
             result
         )
         pd.testing.assert_series_equal(
-            pf_shared.total_benchmark_return(group_by=False),
+            pf_shared.total_market_return(group_by=False),
             result
         )
         result = pd.Series(
             np.array([2.75, 3.]),
             index=pd.Index(['first', 'second'], dtype='object', name='group')
-        ).rename('total_benchmark_return')
+        ).rename('total_market_return')
         pd.testing.assert_series_equal(
-            pf.total_benchmark_return(group_by=group_by),
+            pf.total_market_return(group_by=group_by),
             result
         )
         pd.testing.assert_series_equal(
-            pf_grouped.total_benchmark_return(),
+            pf_grouped.total_market_return(),
             result
         )
         pd.testing.assert_series_equal(
-            pf_shared.total_benchmark_return(),
+            pf_shared.total_market_return(),
             result
+        )
+        pd.testing.assert_series_equal(
+            pf.total_market_return(),
+            pf.__class__.total_market_return(
+                market_value=pf.market_value(), wrapper=pf.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_market_return(),
+            pf_grouped.__class__.total_market_return(
+                market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_series_equal(
+            pf.total_market_return(parallel=False),
+            pf.total_market_return(parallel=True),
         )
 
-    def test_return_method(self):
+    def test_return_methods(self):
         pd.testing.assert_frame_equal(
             pf_shared.cumulative_returns(),
             pd.DataFrame(
@@ -7209,7 +7559,22 @@ class TestPortfolio:
             ).rename('information_ratio')
         )
         with pytest.raises(Exception):
-            _ = pf_shared.information_ratio(pf_shared.benchmark_returns(group_by=False) * 2)
+            _ = pf_shared.information_ratio(pf_shared.market_returns(group_by=False) * 2)
+        pd.testing.assert_frame_equal(
+            pf_shared.cumulative_returns(parallel=False),
+            pf_shared.cumulative_returns(parallel=True)
+        )
+
+    def test_qs_methods(self):
+        if qs_available:
+            pd.testing.assert_series_equal(
+                pf_shared.qs.sharpe().rename('sharpe_ratio'),
+                pf_shared.sharpe_ratio()
+            )
+            pd.testing.assert_series_equal(
+                pf_shared.qs.sharpe(parallel=False),
+                pf_shared.qs.sharpe(parallel=True)
+            )
 
     def test_stats(self):
         stats_index = pd.Index([
@@ -7313,7 +7678,7 @@ class TestPortfolio:
                     150.0, 5.015572852148637, 0.35549, 0.3104900000000015, pd.Timedelta('4 days 00:00:00'),
                     2, 1, 1, -0.20049999999999982, 0.0, -54.450495049504966, -54.450495049504966, np.nan,
                     -54.450495049504966, pd.NaT, pd.Timedelta('1 days 00:00:00'), 0.0, -0.10999000000000003,
-                    np.nan, np.nan, 0.0, np.nan
+                    -9.99885954413538, -1.8080090653710352, 0.0, -9.648648852367508
                 ]),
                 index=stats_index,
                 name='a')

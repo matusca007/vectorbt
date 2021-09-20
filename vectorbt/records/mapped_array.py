@@ -390,12 +390,8 @@ import pandas as pd
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import (
-    class_or_instancemethod,
-    cached_method,
-    attach_binary_magic_methods,
-    attach_unary_magic_methods
-)
+from vectorbt.utils.decorators import class_or_instancemethod, cached_method
+from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.base.reshape_fns import to_1d_array, to_dict
@@ -468,6 +464,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             Useful if any subclass wants to extend the config.
     """
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'mapped_arr',
+        'col_arr',
+        'id_arr',
+        'idx_arr',
+        'mapping',
+        'col_mapper'
+    }
+
     def __init__(self,
                  wrapper: ArrayWrapper,
                  mapped_arr: tp.ArrayLike,
@@ -477,19 +482,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                  mapping: tp.Optional[tp.MappingLike] = None,
                  col_mapper: tp.Optional[ColumnMapper] = None,
                  **kwargs) -> None:
-        Wrapping.__init__(
-            self,
-            wrapper,
-            mapped_arr=mapped_arr,
-            col_arr=col_arr,
-            id_arr=id_arr,
-            idx_arr=idx_arr,
-            mapping=mapping,
-            col_mapper=col_mapper,
-            **kwargs
-        )
-        StatsBuilderMixin.__init__(self)
-        PlotsBuilderMixin.__init__(self)
 
         mapped_arr = np.asarray(mapped_arr)
         col_arr = np.asarray(col_arr)
@@ -505,18 +497,32 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         if mapping is not None:
             if isinstance(mapping, str):
                 if mapping.lower() == 'index':
-                    mapping = self.wrapper.index
+                    mapping = wrapper.index
                 elif mapping.lower() == 'columns':
-                    mapping = self.wrapper.columns
+                    mapping = wrapper.columns
             mapping = to_mapping(mapping)
+        if col_mapper is None:
+            col_mapper = ColumnMapper(wrapper, col_arr)
+
+        Wrapping.__init__(
+            self,
+            wrapper,
+            mapped_arr=mapped_arr,
+            col_arr=col_arr,
+            id_arr=id_arr,
+            idx_arr=idx_arr,
+            mapping=mapping,
+            col_mapper=col_mapper,
+            **kwargs
+        )
+        StatsBuilderMixin.__init__(self)
+        PlotsBuilderMixin.__init__(self)
 
         self._mapped_arr = mapped_arr
         self._id_arr = id_arr
         self._col_arr = col_arr
         self._idx_arr = idx_arr
         self._mapping = mapping
-        if col_mapper is None:
-            col_mapper = ColumnMapper(wrapper, col_arr)
         self._col_mapper = col_mapper
 
     def replace(self: MappedArrayT, **kwargs) -> MappedArrayT:
@@ -647,7 +653,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             **kwargs
         ).regroup(group_by)
 
-    @cached_method
     def top_n_mask(self, n: int, group_by: tp.GroupByLike = None,
                    parallel: tp.Optional[bool] = None) -> tp.Array1d:
         """Return mask of top N elements in each column/group."""
@@ -655,7 +660,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         func = main_nb_registry.redecorate_parallel(nb.top_n_mapped_nb, parallel=parallel)
         return func(self.values, col_map, n)
 
-    @cached_method
     def bottom_n_mask(self, n: int, group_by: tp.GroupByLike = None,
                       parallel: tp.Optional[bool] = None) -> tp.Array1d:
         """Return mask of bottom N elements in each column/group."""
@@ -663,13 +667,11 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         func = main_nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, parallel=parallel)
         return func(self.values, col_map, n)
 
-    @cached_method
     def top_n(self: MappedArrayT, n: int, group_by: tp.GroupByLike = None,
               parallel: tp.Optional[bool] = None, **kwargs) -> MappedArrayT:
         """Filter top N elements from each column/group."""
         return self.apply_mask(self.top_n_mask(n, group_by=group_by, parallel=parallel), **kwargs)
 
-    @cached_method
     def bottom_n(self: MappedArrayT, n: int, group_by: tp.GroupByLike = None,
                  parallel: tp.Optional[bool] = None, **kwargs) -> MappedArrayT:
         """Filter bottom N elements from each column/group."""
@@ -1215,7 +1217,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             value_counts_pd.index = apply_mapping(value_counts_pd.index, mapping, **kwargs)
         return value_counts_pd
 
-    @cached_method
     def apply_mapping(self: MappedArrayT, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> MappedArrayT:
         """Apply mapping on each element."""
         if mapping is None:
@@ -1228,7 +1229,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             mapping = to_mapping(mapping)
         return self.replace(mapped_arr=apply_mapping(self.values, mapping), **kwargs)
 
-    def to_index(self):
+    def to_index(self) -> tp.Index:
         """Convert to index."""
         return self.wrapper.index[self.values]
 

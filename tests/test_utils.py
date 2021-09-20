@@ -910,9 +910,7 @@ class TestConfig:
 
     def test_configured(self, tmp_path):
         class H(config.Configured):
-            @property
-            def writeable_attrs(self):
-                return {'my_attr', 'my_cfg'}
+            _writeable_attrs = {'my_attr', 'my_cfg'}
 
             def __init__(self, a, b=2, **kwargs):
                 super().__init__(a=a, b=b, **kwargs)

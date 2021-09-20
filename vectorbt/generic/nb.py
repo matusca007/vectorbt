@@ -524,7 +524,7 @@ def nanmedian_nb(a: tp.Array2d) -> tp.Array1d:
 
 
 @register_jit(cache=True)
-def nanpercentile_noarr_1d_nb(a, q):
+def nanpercentile_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
     """Numba-equivalent of `np.nanpercentile` that does not allocate any arrays.
 
     !!! note
@@ -592,7 +592,7 @@ def nanpercentile_noarr_1d_nb(a, q):
 
 
 @register_jit(cache=True)
-def nanpartition_mean_noarr_1d_nb(a, q):
+def nanpartition_mean_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
     """Average of `np.partition` that ignores NaN values and does not allocate any arrays.
 
     !!! note

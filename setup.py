@@ -38,8 +38,7 @@ setup(
         'requests',
         'pytz',
         'typing_extensions; python_version < "3.8"',
-        'mypy_extensions',
-        'kaleido'
+        'mypy_extensions'
     ],
     extras_require={
         'full': [
@@ -51,7 +50,8 @@ setup(
             'pandas_ta',
             'TA-Lib',
             'python-telegram-bot>=13.4',  # LGPLv3
-            'quantstats'
+            'quantstats',
+            'kaleido'
         ],
         'cov': [
             'pytest',

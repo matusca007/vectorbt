@@ -33,16 +33,13 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
 
     Required to be a subclass of `vectorbt.base.wrapping.Wrapping`."""
 
+    _writeable_attrs: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'_metrics'}
+
     def __init__(self) -> None:
         checks.assert_instance_of(self, Wrapping)
 
         # Copy writeable attrs
         self._metrics = self.__class__._metrics.copy()
-
-    @property
-    def writeable_attrs(self) -> tp.Set[str]:
-        """Set of writeable attributes that will be saved/copied along with the config."""
-        return {'_metrics'}
 
     @property
     def stats_defaults(self) -> tp.Kwargs:

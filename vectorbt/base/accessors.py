@@ -68,12 +68,8 @@ import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import (
-    class_or_instanceproperty,
-    class_or_instancemethod,
-    attach_binary_magic_methods,
-    attach_unary_magic_methods
-)
+from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
+from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.config import merge_dicts, get_func_arg_names
 from vectorbt.base import combine_fns, index_fns, reshape_fns
 from vectorbt.base.grouping import Grouper
@@ -95,10 +91,10 @@ class BaseAccessor(Wrapping):
 
     `**kwargs` will be passed to `vectorbt.base.wrapping.ArrayWrapper`."""
 
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'obj'}
+
     def __init__(self, obj: tp.SeriesFrame, wrapper: tp.Optional[ArrayWrapper] = None, **kwargs) -> None:
         checks.assert_instance_of(obj, (pd.Series, pd.DataFrame))
-
-        self._obj = obj
 
         wrapper_arg_names = get_func_arg_names(ArrayWrapper.__init__)
         grouper_arg_names = get_func_arg_names(Grouper.__init__)
@@ -108,9 +104,17 @@ class BaseAccessor(Wrapping):
                 wrapping_kwargs[k] = kwargs.pop(k)
         if wrapper is None:
             wrapper = ArrayWrapper.from_obj(obj, **wrapping_kwargs)
-        else:
+        elif len(wrapping_kwargs) > 0:
             wrapper = wrapper.replace(**wrapping_kwargs)
-        Wrapping.__init__(self, wrapper, obj=obj, **kwargs)
+
+        Wrapping.__init__(
+            self,
+            wrapper,
+            obj=obj,
+            **kwargs
+        )
+
+        self._obj = obj
 
     def __call__(self: BaseAccessorT, **kwargs) -> BaseAccessorT:
         """Allows passing arguments to the initializer."""

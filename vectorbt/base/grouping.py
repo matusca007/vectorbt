@@ -124,28 +124,44 @@ class Grouper(Configured):
     !!! note
         This class is meant to be immutable. To change any attribute, use `Grouper.replace`."""
 
-    def __init__(self, index: tp.Index, group_by: tp.GroupByLike = None, allow_enable: bool = True,
-                 allow_disable: bool = True, allow_modify: bool = True) -> None:
+    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
+        'index',
+        'group_by',
+        'allow_enable',
+        'allow_disable',
+        'allow_modify'
+    }
+
+    def __init__(self,
+                 index: tp.Index,
+                 group_by: tp.GroupByLike = None,
+                 allow_enable: bool = True,
+                 allow_disable: bool = True,
+                 allow_modify: bool = True,
+                 **kwargs) -> None:
+
+        if not isinstance(index, pd.Index):
+            index = pd.Index(index)
+        if group_by is None or group_by is False:
+            group_by = None
+        else:
+            group_by = group_by_to_index(index, group_by)
+
+        self._index = index
+        self._group_by = group_by
+        self._allow_enable = allow_enable
+        self._allow_disable = allow_disable
+        self._allow_modify = allow_modify
+
         Configured.__init__(
             self,
             index=index,
             group_by=group_by,
             allow_enable=allow_enable,
             allow_disable=allow_disable,
-            allow_modify=allow_modify
+            allow_modify=allow_modify,
+            **kwargs
         )
-
-        checks.assert_instance_of(index, pd.Index)
-        self._index = index
-        if group_by is None or group_by is False:
-            self._group_by = None
-        else:
-            self._group_by = group_by_to_index(index, group_by)
-
-        # Everything is allowed by default
-        self._allow_enable = allow_enable
-        self._allow_disable = allow_disable
-        self._allow_modify = allow_modify
 
     @classmethod
     def from_pd_group_by(cls: tp.Type[GrouperT],
