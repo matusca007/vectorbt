@@ -32,6 +32,7 @@ __all__ = [
     'TradesType',
     'ProcessOrderState',
     'ExecuteOrderState',
+    'SimulationOutput',
     'SimulationContext',
     'GroupContext',
     'RowContext',
@@ -609,6 +610,16 @@ __pdoc__['ExecuteOrderState.cash'] = "See `ProcessOrderState.cash`."
 __pdoc__['ExecuteOrderState.position'] = "See `ProcessOrderState.position`."
 __pdoc__['ExecuteOrderState.debt'] = "See `ProcessOrderState.debt`."
 __pdoc__['ExecuteOrderState.free_cash'] = "See `ProcessOrderState.free_cash`."
+
+
+class SimulationOutput(tp.NamedTuple):
+    order_records: tp.RecordArray
+    log_records: tp.RecordArray
+
+
+__pdoc__['SimulationOutput'] = "A named tuple representing the output of a simulation."
+__pdoc__['SimulationOutput.order_records'] = "Order records."
+__pdoc__['SimulationOutput.log_records'] = "Log records."
 
 
 class SimulationContext(tp.NamedTuple):

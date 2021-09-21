@@ -2002,7 +2002,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_logs = 1
 
         # Perform the simulation
-        order_records, log_records = nb.simulate_from_orders_nb(
+        sim_out = nb.simulate_from_orders_nb(
             target_shape_2d,
             cs_group_lens,  # group only if cash sharing is enabled to speed up
             init_cash,
@@ -2020,8 +2020,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return cls(
             wrapper,
             close,
-            order_records,
-            log_records,
+            sim_out.order_records,
+            sim_out.log_records,
             init_cash if init_cash_mode is None else init_cash_mode,
             cash_sharing,
             call_seq=call_seq if attach_call_seq else None,
@@ -2964,7 +2964,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         checks.assert_numba_func(adjust_tp_func_nb)
 
         # Perform the simulation
-        order_records, log_records = nb.simulate_from_signal_func_nb(
+        sim_out = nb.simulate_from_signal_func_nb(
             target_shape_2d,
             cs_group_lens,  # group only if cash sharing is enabled to speed up
             init_cash,
@@ -3018,8 +3018,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return cls(
             wrapper,
             close,
-            order_records,
-            log_records,
+            sim_out.order_records,
+            sim_out.log_records,
             init_cash if init_cash_mode is None else init_cash_mode,
             cash_sharing,
             call_seq=call_seq if attach_call_seq else None,
@@ -3849,7 +3849,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 simulate_func = nb.flex_simulate_row_wise_nb
                 if not use_numba and hasattr(simulate_func, 'py_func'):
                     simulate_func = simulate_func.py_func
-                order_records, log_records = simulate_func(
+                sim_out = simulate_func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3885,7 +3885,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 simulate_func = nb.simulate_row_wise_nb
                 if not use_numba and hasattr(simulate_func, 'py_func'):
                     simulate_func = simulate_func.py_func
-                order_records, log_records = simulate_func(
+                sim_out = simulate_func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3923,7 +3923,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 simulate_func = nb.flex_simulate_nb
                 if not use_numba and hasattr(simulate_func, 'py_func'):
                     simulate_func = simulate_func.py_func
-                order_records, log_records = simulate_func(
+                sim_out = simulate_func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3959,7 +3959,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 simulate_func = nb.simulate_nb
                 if not use_numba and hasattr(simulate_func, 'py_func'):
                     simulate_func = simulate_func.py_func
-                order_records, log_records = simulate_func(
+                sim_out = simulate_func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3997,8 +3997,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return cls(
             wrapper,
             close,
-            order_records,
-            log_records,
+            sim_out.order_records,
+            sim_out.log_records,
             init_cash if init_cash_mode is None else init_cash_mode,
             cash_sharing,
             call_seq=call_seq if not flexible and attach_call_seq else None,

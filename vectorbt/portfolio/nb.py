@@ -1135,11 +1135,13 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
 @register_jit(cache=True)
 def init_records_nb(target_shape: tp.Shape,
                     max_orders: tp.Optional[int] = None,
-                    max_logs: int = 0) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                    max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
     """Initialize order and log records."""
     if max_orders is None:
         max_orders = target_shape[0] * target_shape[1]
     order_records = np.empty(max_orders, dtype=order_dt)
+    if max_logs is None:
+        max_logs = target_shape[0] * target_shape[1]
     if max_logs == 0:
         max_logs = 1
     log_records = np.empty(max_logs, dtype=log_dt)
@@ -1293,8 +1295,8 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                             ffill_val_price: bool = True,
                             update_value: bool = False,
                             max_orders: tp.Optional[int] = None,
-                            max_logs: int = 0,
-                            flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                            max_logs: tp.Optional[int] = 0,
+                            flex_2d: bool = True) -> SimulationOutput:
     """Creates on order out of each element.
 
     Iterates in the column-major order.
@@ -1348,9 +1350,12 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
     oidx = 0
     lidx = 0
 
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
+    group_end_idxs = np.cumsum(group_lens)
+    group_start_idxs = group_end_idxs - group_lens
+
+    for group in prange(len(group_lens)):
+        from_col = group_start_idxs[group]
+        to_col = group_end_idxs[group]
         group_len = to_col - from_col
         cash_now = init_cash[group]
         free_cash_now = init_cash[group]
@@ -1483,9 +1488,10 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 if not np.isnan(val_price_now) or not ffill_val_price:
                     last_val_price[col] = val_price_now
 
-        from_col = to_col
-
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 @register_jit(cache=True)
@@ -1855,8 +1861,8 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  ffill_val_price: bool = True,
                                  update_value: bool = False,
                                  max_orders: tp.Optional[int] = None,
-                                 max_logs: int = 0,
-                                 flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                                 max_logs: tp.Optional[int] = 0,
+                                 flex_2d: bool = True) -> SimulationOutput:
     """Creates an order out of each element by resolving entry and exit signals returned by `signal_func_nb`.
 
     Iterates in the column-major order. Utilizes flexible broadcasting.
@@ -2314,7 +2320,10 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
 
         from_col = to_col
 
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 @register_jit
@@ -2407,16 +2416,14 @@ def simulate_nb(target_shape: tp.Shape,
                 update_value: bool = False,
                 fill_pos_record: bool = True,
                 max_orders: tp.Optional[int] = None,
-                max_logs: int = 0,
-                flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                max_logs: tp.Optional[int] = 0,
+                flex_2d: bool = True) -> SimulationOutput:
     """Fill order and log records by iterating over a shape and calling a range of user-defined functions.
 
     Starting with initial cash `init_cash`, iterates over each group and column in `target_shape`,
     and for each data point, generates an order using `order_func_nb`. Tries then to fulfill that
     order. Upon success, updates the current state including the cash balance and the position.
-
-    Returns order records of layout `vectorbt.portfolio.enums.order_dt` and log records of layout
-    `vectorbt.portfolio.enums.log_dt`.
+    Returns `vectorbt.portfolio.enums.SimulationOutput`.
 
     As opposed to `simulate_row_wise_nb`, order processing happens in row-major order, that is,
     from top to bottom slower (along time axis) and from left to right faster (along asset axis).
@@ -2669,7 +2676,7 @@ def simulate_nb(target_shape: tp.Shape,
     >>> fixed_fees = np.asarray(1.)
     >>> slippage = np.asarray(0.001)
 
-    >>> order_records, log_records = simulate_nb(
+    >>> sim_out = simulate_nb(
     ...     target_shape,
     ...     group_lens,
     ...     init_cash,
@@ -2716,7 +2723,7 @@ def simulate_nb(target_shape: tp.Shape,
         after group 0
     after simulation
 
-    >>> pd.DataFrame.from_records(order_records)
+    >>> pd.DataFrame.from_records(sim_out.order_records)
        id  col  idx       size     price      fees  side
     0   0    0    0   7.626262  4.375232  1.033367     0
     1   1    1    0   3.488053  9.565985  1.033367     0
@@ -2735,8 +2742,8 @@ def simulate_nb(target_shape: tp.Shape,
            [0, 1, 2],
            [0, 2, 1]])
 
-    >>> col_map = col_map_nb(order_records['col'], target_shape[1])
-    >>> asset_flow = asset_flow_nb(target_shape, order_records, col_map, Direction.Both)
+    >>> col_map = col_map_nb(sim_out.order_records['col'], target_shape[1])
+    >>> asset_flow = asset_flow_nb(target_shape, sim_out.order_records, col_map, Direction.Both)
     >>> assets = assets_nb(asset_flow)
     >>> asset_value = asset_value_nb(close, assets)
     >>> Scatter(data=asset_value).fig.show()
@@ -3251,7 +3258,10 @@ def simulate_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 @register_jit
@@ -3284,8 +3294,8 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          update_value: bool = False,
                          fill_pos_record: bool = True,
                          max_orders: tp.Optional[int] = None,
-                         max_logs: int = 0,
-                         flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                         max_logs: tp.Optional[int] = 0,
+                         flex_2d: bool = True) -> SimulationOutput:
     """Same as `simulate_nb`, but iterates using row-major order, with the rows
     changing fastest, and the columns/groups changing slowest.
 
@@ -3324,7 +3334,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     ...     return None
 
     >>> call_seq = build_call_seq(target_shape, group_lens)
-    >>> order_records, log_records = simulate_row_wise_nb(
+    >>> sim_out = simulate_row_wise_nb(
     ...     target_shape,
     ...     group_lens,
     ...     init_cash,
@@ -3877,7 +3887,10 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 @register_jit
@@ -3918,8 +3931,8 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      update_value: bool = False,
                      fill_pos_record: bool = True,
                      max_orders: tp.Optional[int] = None,
-                     max_logs: int = 0,
-                     flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                     max_logs: tp.Optional[int] = 0,
+                     flex_2d: bool = True) -> SimulationOutput:
     """Same as `simulate_nb`, but with no predefined call sequence.
 
     In contrast to `order_func_nb` in`simulate_nb`, `post_order_func_nb` is a segment-level order function
@@ -4036,7 +4049,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     >>> fixed_fees = np.asarray(1.)
     >>> slippage = np.asarray(0.001)
 
-    >>> order_records, log_records = flex_simulate_nb(
+    >>> sim_out = flex_simulate_nb(
     ...     target_shape,
     ...     group_lens,
     ...     init_cash,
@@ -4583,7 +4596,10 @@ def flex_simulate_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 @register_jit
@@ -4615,8 +4631,8 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               update_value: bool = False,
                               fill_pos_record: bool = True,
                               max_orders: tp.Optional[int] = None,
-                              max_logs: int = 0,
-                              flex_2d: bool = True) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                              max_logs: tp.Optional[int] = 0,
+                              flex_2d: bool = True) -> SimulationOutput:
     """Same as `flex_simulate_nb`, but iterates using row-major order, with the rows
     changing fastest, and the columns/groups changing slowest."""
 
@@ -5111,7 +5127,10 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return order_records[:oidx], log_records[:lidx]
+    return SimulationOutput(
+        order_records=order_records[:oidx],
+        log_records=log_records[:lidx]
+    )
 
 
 # ############# Trade records ############# #
@@ -5283,7 +5302,7 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
     >>> init_cash = np.full(target_shape[1], 100)
     >>> call_seq = np.full(target_shape, 0)
 
-    >>> order_records, log_records = simulate_from_orders_nb(
+    >>> sim_out = simulate_from_orders_nb(
     ...     target_shape,
     ...     group_lens,
     ...     init_cash,
@@ -5294,8 +5313,8 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
     ...     slippage=np.asarray(0.01)
     ... )
 
-    >>> col_map = col_map_nb(order_records['col'], target_shape[1])
-    >>> entry_trade_records = get_entry_trades_nb(order_records, close, col_map)
+    >>> col_map = col_map_nb(sim_out.order_records['col'], target_shape[1])
+    >>> entry_trade_records = get_entry_trades_nb(sim_out.order_records, close, col_map)
     >>> pd.DataFrame.from_records(entry_trade_records)
        id  col  size  entry_idx  entry_price  entry_fees  exit_idx  exit_price  \\
     0   0    0   1.0          0         1.01     0.01010         3    3.060000
@@ -5516,7 +5535,7 @@ def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map
     >>> init_cash = np.full(target_shape[1], 100)
     >>> call_seq = np.full(target_shape, 0)
 
-    >>> order_records, log_records = simulate_from_orders_nb(
+    >>> sim_out = simulate_from_orders_nb(
     ...     target_shape,
     ...     group_lens,
     ...     init_cash,
@@ -5527,8 +5546,8 @@ def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map
     ...     slippage=np.asarray(0.01)
     ... )
 
-    >>> col_map = col_map_nb(order_records['col'], target_shape[1])
-    >>> exit_trade_records = get_exit_trades_nb(order_records, close, col_map)
+    >>> col_map = col_map_nb(sim_out.order_records['col'], target_shape[1])
+    >>> exit_trade_records = get_exit_trades_nb(sim_out.order_records, close, col_map)
     >>> pd.DataFrame.from_records(exit_trade_records)
        id  col  size  entry_idx  entry_price  entry_fees  exit_idx  exit_price  \\
     0   0    0   1.0          0     1.101818    0.011018         2        2.97
