@@ -6,20 +6,21 @@
 from numba.core.registry import CPUDispatcher
 
 from vectorbt import _typing as tp
+from vectorbt.utils.config import merge_dicts
 
 
 def ray_apply(n: int,
               apply_func: tp.Callable, *args,
-              ray_force_init: bool = False,
-              ray_func_kwargs: tp.KwargsLike = None,
+              ray_force_init: tp.Optional[bool] = None,
+              ray_clear_store: tp.Optional[bool] = None,
+              ray_shutdown: tp.Optional[bool] = None,
               ray_init_kwargs: tp.KwargsLike = None,
-              ray_clear_store: bool = True,
-              ray_shutdown: bool = False,
+              ray_remote_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.List[tp.Any]:
     """Run `apply_func` in a distributed manner using Ray.
 
     Set `ray_force_init` to True to terminate the Ray runtime and initialize a new one.
-    `ray_func_kwargs` will be passed to `ray.remote` and `ray_init_kwargs` to `ray.init`.
+    `ray_remote_kwargs` will be passed to `ray.remote` and `ray_init_kwargs` to `ray.init`.
     Set `ray_shutdown` to True to terminate the Ray runtime upon the job end.
 
     !!! note
@@ -34,10 +35,18 @@ def ray_apply(n: int,
     """
     import ray
 
-    if ray_init_kwargs is None:
-        ray_init_kwargs = {}
-    if ray_func_kwargs is None:
-        ray_func_kwargs = {}
+    from vectorbt._settings import settings
+    parallel_ray_cfg = settings['parallel']['ray']
+
+    if ray_force_init is None:
+        ray_force_init = parallel_ray_cfg['force_init']
+    if ray_clear_store is None:
+        ray_clear_store = parallel_ray_cfg['clear_store']
+    if ray_shutdown is None:
+        ray_shutdown = parallel_ray_cfg['shutdown']
+    ray_init_kwargs = merge_dicts(ray_init_kwargs, parallel_ray_cfg['init_kwargs'])
+    ray_remote_kwargs = merge_dicts(ray_remote_kwargs, parallel_ray_cfg['remote_kwargs'])
+
     if ray_force_init:
         if ray.is_initialized():
             ray.shutdown()
@@ -48,8 +57,8 @@ def ray_apply(n: int,
         _apply_func = lambda *_args, **_kwargs: apply_func(*_args, **_kwargs)
     else:
         _apply_func = apply_func
-    if len(ray_func_kwargs) > 0:
-        apply_func_remote = ray.remote(**ray_func_kwargs)(_apply_func)
+    if len(ray_remote_kwargs) > 0:
+        apply_func_remote = ray.remote(**ray_remote_kwargs)(_apply_func)
     else:
         apply_func_remote = ray.remote(_apply_func)
     # args and kwargs don't change -> put to object store

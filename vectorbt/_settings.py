@@ -119,6 +119,29 @@ ${config_doc}
 
 _settings['numba'] = numba
 
+parallel = dict(
+    ray=dict(
+        force_init=False,
+        clear_store=True,
+        shutdown=False,
+        init_kwargs=Config(  # flex
+            dict()
+        ),
+        remote_kwargs=Config(  # flex
+            dict()
+        )
+    )
+)
+"""_"""
+
+__pdoc__['parallel'] = Sub("""Sub-config with settings applied to `vectorbt.utils.parallel`.
+
+```json
+${config_doc}
+```""")
+
+_settings['parallel'] = parallel
+
 config = Config(  # flex
     dict()
 )

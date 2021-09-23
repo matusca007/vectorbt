@@ -14,7 +14,7 @@ try:
 
     if ray.is_initialized():
         ray.shutdown()
-    ray.init()
+    ray.init(local_mode=True)
 except:
     ray_available = False
 
