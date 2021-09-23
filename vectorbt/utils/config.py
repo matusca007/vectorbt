@@ -42,32 +42,6 @@ def resolve_dict(dct: tp.DictLikeSequence, i: tp.Optional[int] = None) -> dict:
     raise ValueError("Cannot resolve dict")
 
 
-def get_func_kwargs(func: tp.Callable) -> dict:
-    """Get keyword arguments with defaults of a function."""
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
-
-
-def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[int]] = None) -> tp.List[str]:
-    """Get argument names of a function."""
-    signature = inspect.signature(func)
-    if arg_kind is not None and isinstance(arg_kind, int):
-        arg_kind = (arg_kind,)
-    if arg_kind is None:
-        return [
-            p.name for p in signature.parameters.values()
-            if p.kind != p.VAR_POSITIONAL and p.kind != p.VAR_KEYWORD
-        ]
-    return [
-        p.name for p in signature.parameters.values()
-        if p.kind in arg_kind
-    ]
-
-
 class atomic_dict(dict):
     """Dict that behaves like a single value when merging."""
     pass

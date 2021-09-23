@@ -104,7 +104,8 @@ import quantstats as qs
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, get_func_arg_names, Configured
+from vectorbt.utils.config import merge_dicts, Configured
+from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.returns.accessors import ReturnsAccessor
 
 

@@ -231,7 +231,7 @@ Date
 [244 rows x 6 columns]
 
 >>> # Run every single pattern recognition indicator and combine the results
->>> result = pd.DataFrame.vbt.empty_like(ohlcv['Open'], fill_value=0.)
+>>> result = vbt.pd_acc.empty_like(ohlcv['Open'], fill_value=0.)
 >>> for pattern in talib.get_function_groups()['Pattern Recognition']:
 ...     PRecognizer = vbt.IndicatorFactory.from_talib(pattern)
 ...     pr = PRecognizer.run(ohlcv['Open'], ohlcv['High'], ohlcv['Low'], ohlcv['Close'])

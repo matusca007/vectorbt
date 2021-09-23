@@ -91,7 +91,8 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import Configured, get_func_arg_names
+from vectorbt.utils.config import Configured
+from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.datetime import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils.array import get_ranges_arr
 from vectorbt.utils.attr import AttrResolver, AttrResolverT

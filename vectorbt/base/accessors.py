@@ -11,6 +11,7 @@ Methods can be accessed as follows:
 For example:
 
 ```python-repl
+>>> import numpy as np
 >>> import pandas as pd
 >>> import vectorbt as vbt
 
@@ -70,7 +71,8 @@ from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
-from vectorbt.utils.config import merge_dicts, get_func_arg_names
+from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
 from vectorbt.base import combine_fns, index_fns, reshape_fns
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -154,22 +156,31 @@ class BaseAccessor(Wrapping):
 
     @class_or_instanceproperty
     def ndim(cls_or_self) -> tp.Optional[int]:
-        return None
+        if isinstance(cls_or_self, type):
+            return None
+        return cls_or_self.obj.ndim
 
     @class_or_instancemethod
     def is_series(cls_or_self) -> bool:
-        raise NotImplementedError
+        if isinstance(cls_or_self, type):
+            raise NotImplementedError
+        return isinstance(cls_or_self.obj, pd.Series)
 
     @class_or_instancemethod
     def is_frame(cls_or_self) -> bool:
-        raise NotImplementedError
+        if isinstance(cls_or_self, type):
+            raise NotImplementedError
+        return isinstance(cls_or_self.obj, pd.DataFrame)
 
     @classmethod
     def resolve_shape(cls, shape: tp.RelaxedShape) -> tp.Shape:
         """Resolve shape."""
         shape_2d = reshape_fns.shape_to_2d(shape)
-        if cls.is_series() and shape_2d[1] > 1:
-            raise ValueError("Use DataFrame accessor")
+        try:
+            if cls.is_series() and shape_2d[1] > 1:
+                raise ValueError("Use DataFrame accessor")
+        except NotImplementedError:
+            pass
         return shape_2d
 
     # ############# Creation ############# #
@@ -406,8 +417,13 @@ class BaseAccessor(Wrapping):
 
     # ############# Combining ############# #
 
-    def apply(self, *args, apply_func: tp.Optional[tp.Callable] = None, keep_pd: bool = False,
-              to_2d: bool = False, wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.SeriesFrame:
+    def apply(self,
+              *args,
+              apply_func: tp.Optional[tp.Callable] = None,
+              keep_pd: bool = False,
+              to_2d: bool = False,
+              wrap_kwargs: tp.KwargsLike = None,
+              **kwargs) -> tp.SeriesFrame:
         """Apply a function `apply_func`.
 
         Args:
@@ -448,7 +464,9 @@ class BaseAccessor(Wrapping):
         return self.wrapper.wrap(result, group_by=False, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
-    def concat(cls_or_self, *others: tp.ArrayLike, broadcast_kwargs: tp.KwargsLike = None,
+    def concat(cls_or_self,
+               *others: tp.ArrayLike,
+               broadcast_kwargs: tp.KwargsLike = None,
                keys: tp.Optional[tp.IndexLike] = None) -> tp.Frame:
         """Concatenate with `others` along columns.
 
@@ -483,10 +501,17 @@ class BaseAccessor(Wrapping):
             out.columns = pd.RangeIndex(start=0, stop=len(out.columns), step=1)
         return out
 
-    def apply_and_concat(self, ntimes: int, *args, apply_func: tp.Optional[tp.Callable] = None,
-                         keep_pd: bool = False, to_2d: bool = False, numba_loop: bool = False,
-                         use_ray: bool = False, keys: tp.Optional[tp.IndexLike] = None,
-                         wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.Frame:
+    def apply_and_concat(self,
+                         ntimes: int,
+                         *args,
+                         apply_func: tp.Optional[tp.Callable] = None,
+                         keep_pd: bool = False,
+                         to_2d: bool = False,
+                         numba_loop: bool = False,
+                         use_ray: bool = False,
+                         keys: tp.Optional[tp.IndexLike] = None,
+                         wrap_kwargs: tp.KwargsLike = None,
+                         **kwargs) -> tp.Frame:
         """Apply `apply_func` `ntimes` times and concatenate the results along columns.
         See `vectorbt.base.combine_fns.apply_and_concat_one`.
 
@@ -505,7 +530,7 @@ class BaseAccessor(Wrapping):
             use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
 
                 Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.base.combine_fns.ray_apply` for related keyword arguments.
+                See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
@@ -567,17 +592,29 @@ class BaseAccessor(Wrapping):
             new_columns = index_fns.combine_indexes([top_columns, self.wrapper.columns])
         return self.wrapper.wrap(result, group_by=False, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
 
-    def combine(self, other: tp.MaybeTupleList[tp.Union[tp.ArrayLike, "BaseAccessor"]], *args,
-                allow_multiple: bool = True, combine_func: tp.Optional[tp.Callable] = None,
-                keep_pd: bool = False, to_2d: bool = False, concat: bool = False, numba_loop: bool = False,
-                use_ray: bool = False, broadcast: bool = True, broadcast_kwargs: tp.KwargsLike = None,
-                keys: tp.Optional[tp.IndexLike] = None, wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.SeriesFrame:
+    @class_or_instancemethod
+    def combine(cls_or_self,
+                obj: tp.MaybeTupleList[tp.Union[tp.ArrayLike, "BaseAccessor"]],
+                *args,
+                allow_multiple: bool = True,
+                combine_func: tp.Optional[tp.Callable] = None,
+                keep_pd: bool = False,
+                to_2d: bool = False,
+                concat: bool = False,
+                numba_loop: bool = False,
+                use_ray: bool = False,
+                broadcast_kwargs: tp.KwargsLike = None,
+                keys: tp.Optional[tp.IndexLike] = None,
+                wrap_kwargs: tp.KwargsLike = None,
+                **kwargs) -> tp.SeriesFrame:
         """Combine with `other` using `combine_func`.
 
         Args:
-            other (array_like): Object to combine this array with.
+            obj (array_like): Object(s) to combine this array with.
             *args: Variable arguments passed to `combine_func`.
             allow_multiple (bool): Whether a tuple/list will be considered as multiple objects in `other`.
+
+                Takes effect only when using the instance method.
             combine_func (callable): Function to combine two arrays.
 
                 Can be Numba-compiled.
@@ -588,6 +625,8 @@ class BaseAccessor(Wrapping):
 
                 If True, see `vectorbt.base.combine_fns.combine_and_concat`.
                 If False, see `vectorbt.base.combine_fns.combine_multiple`.
+
+                Can only concatenate using the instance method.
             numba_loop (bool): Whether to loop using Numba.
 
                 Set to True when iterating large number of times over small input,
@@ -595,8 +634,7 @@ class BaseAccessor(Wrapping):
             use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
 
                 Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.base.combine_fns.ray_apply` for related keyword arguments.
-            broadcast (bool): Whether to broadcast all inputs.
+                See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
@@ -615,6 +653,7 @@ class BaseAccessor(Wrapping):
         >>> sr = pd.Series([1, 2], index=['x', 'y'])
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
 
+        >>> # using instance method
         >>> sr.vbt.combine(df, combine_func=lambda x, y: x + y)
            a  b
         x  4  5
@@ -625,6 +664,13 @@ class BaseAccessor(Wrapping):
         x  10  13
         y  17  20
 
+        >>> # using class method
+        >>> vbt.pd_acc.combine([sr, df, df*2], combine_func=lambda x, y: x + y)
+            a   b
+        x  10  13
+        y  17  20
+
+        >>> # only using instance method
         >>> sr.vbt.combine([df, df*2], combine_func=lambda x, y: x + y, concat=True, keys=['c', 'd'])
               c       d
            a  b   a   b
@@ -648,38 +694,40 @@ class BaseAccessor(Wrapping):
         1.02 s ± 2.32 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
-        if not allow_multiple or not isinstance(other, (tuple, list)):
-            others = (other,)
+        if isinstance(cls_or_self, type):
+            objs = obj
         else:
-            others = other
-        others = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, others))
+            if not allow_multiple or not isinstance(obj, (tuple, list)):
+                objs = (obj,)
+            else:
+                objs = obj
+        objs = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, objs))
+        if not isinstance(cls_or_self, type):
+            objs = (cls_or_self.obj,) + objs
         checks.assert_not_none(combine_func)
         # Broadcast arguments
-        if broadcast:
-            if broadcast_kwargs is None:
-                broadcast_kwargs = {}
-            if checks.is_numba_func(combine_func):
-                # Numba requires writeable arrays
-                # Plus all of our arrays must be in the same order
-                broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements=['W', 'C'])), broadcast_kwargs)
-            new_obj, *new_others = reshape_fns.broadcast(self.obj, *others, **broadcast_kwargs)
-        else:
-            new_obj, new_others = self.obj, others
-        if not checks.is_pandas(new_obj):
-            new_obj = ArrayWrapper.from_shape(new_obj.shape).wrap(new_obj)
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if checks.is_numba_func(combine_func):
+            # Numba requires writeable arrays
+            # Plus all of our arrays must be in the same order
+            broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements=['W', 'C'])), broadcast_kwargs)
+        objs = reshape_fns.broadcast(*objs, **broadcast_kwargs)
         # Optionally cast to 2d array
         if to_2d:
-            inputs = tuple(map(lambda x: reshape_fns.to_2d(x, raw=not keep_pd), (new_obj, *new_others)))
+            inputs = tuple(map(lambda x: reshape_fns.to_2d(x, raw=not keep_pd), objs))
         else:
             if not keep_pd:
-                inputs = tuple(map(lambda x: np.asarray(x), (new_obj, *new_others)))
+                inputs = tuple(map(lambda x: np.asarray(x), objs))
             else:
-                inputs = new_obj, *new_others
+                inputs = objs
         if len(inputs) == 2:
             result = combine_func(inputs[0], inputs[1], *args, **kwargs)
-            return ArrayWrapper.from_obj(new_obj).wrap(result, **merge_dicts({}, wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts({}, wrap_kwargs))
         if concat:
             # Concat the results horizontally
+            if isinstance(cls_or_self, type):
+                raise TypeError("Use instance method to concatenate")
             if checks.is_numba_func(combine_func) and numba_loop:
                 if use_ray:
                     raise ValueError("Ray cannot be used within Numba")
@@ -694,13 +742,13 @@ class BaseAccessor(Wrapping):
                 else:
                     result = combine_fns.combine_and_concat(
                         inputs[0], inputs[1:], combine_func, *args, **kwargs)
-            columns = ArrayWrapper.from_obj(new_obj).columns
+            columns = ArrayWrapper.from_obj(objs[0]).columns
             if keys is not None:
                 new_columns = index_fns.combine_indexes([keys, columns])
             else:
-                top_columns = pd.Index(np.arange(len(new_others)), name='combine_idx')
+                top_columns = pd.Index(np.arange(len(objs) - 1), name='combine_idx')
                 new_columns = index_fns.combine_indexes([top_columns, columns])
-            return ArrayWrapper.from_obj(new_obj).wrap(result, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
         else:
             # Combine arguments pairwise into one object
             if use_ray:
@@ -711,7 +759,88 @@ class BaseAccessor(Wrapping):
                 result = combine_fns.combine_multiple_nb(inputs, combine_func, *args, **kwargs)
             else:
                 result = combine_fns.combine_multiple(inputs, combine_func, *args, **kwargs)
-            return ArrayWrapper.from_obj(new_obj).wrap(result, **merge_dicts({}, wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts({}, wrap_kwargs))
+
+    @classmethod
+    def eval(cls,
+             expression: str,
+             use_numexpr: tp.Optional[bool] = None,
+             numexpr_kwargs: tp.KwargsLike = None,
+             local_dict: tp.Optional[tp.Mapping] = None,
+             global_dict: tp.Optional[tp.Mapping] = None,
+             broadcast_kwargs: tp.KwargsLike = None,
+             wrap_kwargs: tp.KwargsLike = None):
+        """Evaluate a simple array expression element-wise using NumExpr or NumPy.
+
+        The only advantage of this method over `pd.eval` is using vectorbt's own broadcasting.
+
+        !!! note
+            All variables will broadcast against each other prior to the evaluation.
+
+        ## Example
+
+        A bit slower than `pd.eval`:
+
+        ```python-repl
+        >>> df = pd.DataFrame(np.full((1000, 1000), 0))
+        >>> sr = pd.Series(np.full(1000, 1))
+        >>> a = np.full(1000, 2)
+
+        >>> %timeit pd.eval('df + sr + a')
+        1.12 ms ± 12.1 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+        >>> %timeit vbt.pd_acc.eval('df + sr + a')
+        1.3 ms ± 5.3 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+        ```
+
+        But broadcasts nicely:
+
+        ```python-repl
+        >>> sr = pd.Series([1, 2, 3], index=['x', 'y', 'z'])
+        >>> df = pd.DataFrame([[4, 5, 6]], index=['x', 'y', 'z'], columns=['a', 'b', 'c'])
+        >>> pd.eval('sr + df')
+            a   b   c   x   y   z
+        x NaN NaN NaN NaN NaN NaN
+        y NaN NaN NaN NaN NaN NaN
+        z NaN NaN NaN NaN NaN NaN
+
+        >>> vbt.pd_acc.eval('sr + df')
+           a  b  c
+        x  5  6  7
+        y  6  7  8
+        z  7  8  9
+        ```
+        """
+        if numexpr_kwargs is None:
+            numexpr_kwargs = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if wrap_kwargs is None:
+            wrap_kwargs = {}
+
+        var_names = get_ex_var_names(expression)
+        objs = get_context_vars(var_names, frames_back=1, local_dict=local_dict, global_dict=global_dict)
+        objs = reshape_fns.broadcast(*objs, **broadcast_kwargs)
+        vars_by_name = {}
+        for i, obj in enumerate(objs):
+            vars_by_name[var_names[i]] = np.asarray(obj)
+        if use_numexpr is None:
+            if objs[0].size >= 100000:
+                try:
+                    import numexpr
+
+                    use_numexpr = True
+                except ImportError:
+                    use_numexpr = False
+            else:
+                use_numexpr = False
+        if use_numexpr:
+            import numexpr
+
+            out = numexpr.evaluate(expression, local_dict=vars_by_name, **numexpr_kwargs)
+        else:
+            out = eval(expression, {}, vars_by_name)
+        return ArrayWrapper.from_obj(objs[0]).wrap(out, **wrap_kwargs)
 
 
 class BaseSRAccessor(BaseAccessor):

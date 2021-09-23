@@ -17,7 +17,8 @@ from vectorbt.utils.datetime import (
     to_tzaware_datetime,
     datetime_to_ms
 )
-from vectorbt.utils.config import merge_dicts, get_func_kwargs
+from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.parsing import get_func_kwargs
 from vectorbt.data.base import Data
 
 try:

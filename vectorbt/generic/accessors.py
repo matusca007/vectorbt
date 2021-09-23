@@ -478,7 +478,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> diff_meta_nb = njit(lambda i, col, a, b: a[i, col] / b[i, col])
-        >>> pd.DataFrame.vbt.map(
+        >>> vbt.pd_acc.map(
         ...     diff_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
         ...     df.vbt.to_2d_array() + 1,
@@ -535,7 +535,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> ratio_meta_nb = njit(lambda col, a, b: a[:, col] / b[:, col])
-        >>> pd.DataFrame.vbt.apply_along_axis(
+        >>> vbt.pd_acc.apply_along_axis(
         ...     ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
         ...     df.vbt.to_2d_array() + 1,
@@ -600,7 +600,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda from_i, to_i, col, a, b: \
         ...     np.mean(a[from_i:to_i, col]) / np.mean(b[from_i:to_i, col]))
-        >>> pd.DataFrame.vbt.rolling_apply(
+        >>> vbt.pd_acc.rolling_apply(
         ...     3,
         ...     mean_ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -681,7 +681,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
-        >>> pd.DataFrame.vbt.groupby_apply(
+        >>> vbt.pd_acc.groupby_apply(
         ...     [1, 1, 2, 2, 3],
         ...     mean_ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -743,7 +743,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
-        >>> pd.DataFrame.vbt.resample_apply(
+        >>> vbt.pd_acc.resample_apply(
         ...     '2d',
         ...     mean_ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -815,7 +815,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> and_meta_nb = njit(lambda col, a, b: a[:, col] & b[:, col])
         >>> sum_meta_nb = njit(lambda col, x: np.sum(x))
-        >>> pd.DataFrame.vbt.apply_and_reduce_meta(
+        >>> vbt.pd_acc.apply_and_reduce_meta(
         ...     df.vbt.wrapper,
         ...     and_meta_nb,
         ...     sum_meta_nb,
@@ -946,7 +946,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ... )
         3.0
 
-        >>> pd.DataFrame.vbt.reduce(
+        >>> vbt.pd_acc.reduce(
         ...     mean_meta_nb,
         ...     df.vbt.to_2d_array(),
         ...     wrapper=df.vbt.wrapper
@@ -958,7 +958,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         >>> grouped_mean_meta_nb = njit(lambda from_col, to_col, group, a: np.nanmean(a[:, from_col:to_col]))
         >>> group_by = pd.Series(['first', 'first', 'second'], name='group')
-        >>> pd.DataFrame.vbt.reduce(
+        >>> vbt.pd_acc.reduce(
         ...     grouped_mean_meta_nb,
         ...     df.vbt.to_2d_array(),
         ...     wrapper=df.vbt.wrapper,
@@ -1067,7 +1067,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda i, from_col, to_col, group, a, b: \
         ...     np.mean(a[i, from_col:to_col]) / np.mean(b[i, from_col:to_col]))
-        >>> pd.DataFrame.vbt.squeeze_grouped(
+        >>> vbt.pd_acc.squeeze_grouped(
         ...     mean_ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
         ...     df.vbt.to_2d_array() + 1,

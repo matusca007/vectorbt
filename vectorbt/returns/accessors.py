@@ -145,7 +145,7 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
-from vectorbt.root_accessors import register_dataframe_vbt_accessor, register_series_vbt_accessor
+from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
@@ -165,6 +165,7 @@ __pdoc__ = {}
 ReturnsAccessorT = tp.TypeVar("ReturnsAccessorT", bound="ReturnsAccessor")
 
 
+@register_vbt_accessor('returns')
 class ReturnsAccessor(GenericAccessor):
     """Accessor on top of return series. For both, Series and DataFrames.
 
@@ -1275,7 +1276,7 @@ ReturnsAccessor.override_metrics_doc(__pdoc__)
 ReturnsAccessor.override_subplots_doc(__pdoc__)
 
 
-@register_series_vbt_accessor('returns')
+@register_sr_vbt_accessor('returns')
 class ReturnsSRAccessor(ReturnsAccessor, GenericSRAccessor):
     """Accessor on top of return series. For Series only.
 
@@ -1405,7 +1406,7 @@ class ReturnsSRAccessor(ReturnsAccessor, GenericSRAccessor):
         return fig
 
 
-@register_dataframe_vbt_accessor('returns')
+@register_df_vbt_accessor('returns')
 class ReturnsDFAccessor(ReturnsAccessor, GenericDFAccessor):
     """Accessor on top of return series. For DataFrames only.
 

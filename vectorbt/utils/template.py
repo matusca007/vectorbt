@@ -8,7 +8,8 @@ from string import Template
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import set_dict_item, get_func_arg_names, merge_dicts
+from vectorbt.utils.config import set_dict_item, merge_dicts
+from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 
 

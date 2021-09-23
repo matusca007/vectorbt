@@ -67,7 +67,7 @@ crossover with price. In particular, we want to test two different window sizes:
 A naive way of doing this:
 
 ```python-repl
->>> ma_df = pd.DataFrame.vbt.concat(
+>>> ma_df = vbt.pd_acc.concat(
 ...     price.rolling(window=2).mean(),
 ...     price.rolling(window=3).mean(),
 ...     keys=pd.Index([2, 3], name='ma_window'))
@@ -3184,7 +3184,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
         Additionally, each run method now supports `use_ray` argument, which indicates
         whether to use Ray to execute `apply_func` in parallel. Only works with `numba_loop` set to False.
-        See `vectorbt.base.combine_fns.ray_apply` for related keyword arguments.
+        See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
 
         ## Example
 

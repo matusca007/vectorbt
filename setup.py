@@ -51,7 +51,9 @@ setup(
             'TA-Lib',
             'python-telegram-bot>=13.4',  # LGPLv3
             'quantstats',
-            'kaleido'
+            'kaleido',
+            'Bottleneck',
+            'numexpr'
         ],
         'cov': [
             'pytest',

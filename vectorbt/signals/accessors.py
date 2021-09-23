@@ -193,7 +193,7 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
-from vectorbt.root_accessors import register_dataframe_vbt_accessor, register_series_vbt_accessor
+from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config
@@ -212,6 +212,7 @@ from vectorbt.signals import nb
 __pdoc__ = {}
 
 
+@register_vbt_accessor('signals')
 class SignalsAccessor(GenericAccessor):
     """Accessor on top of signal series. For both, Series and DataFrames.
 
@@ -272,7 +273,7 @@ class SignalsAccessor(GenericAccessor):
         ... def place_func_nb(out, from_i, to_i, col):
         ...     out[np.random.choice(len(out))] = True
 
-        >>> pd.DataFrame.vbt.signals.generate(
+        >>> vbt.pd_acc.signals.generate(
         ...     (5, 3),
         ...     place_func_nb,
         ...     wrap_kwargs=dict(
@@ -330,7 +331,7 @@ class SignalsAccessor(GenericAccessor):
         ... def place_func_nb(out, from_i, to_i, col):
         ...     out[0] = True
 
-        >>> en, ex = pd.DataFrame.vbt.signals.generate_both(
+        >>> en, ex = vbt.pd_acc.signals.generate_both(
         ...     (5, 3),
         ...     entry_place_func_nb=place_func_nb,
         ...     exit_place_func_nb=place_func_nb,
@@ -368,7 +369,7 @@ class SignalsAccessor(GenericAccessor):
         ... def exit_place_func_nb(out, from_i, to_i, col, n):
         ...     out[:n] = True
 
-        >>> en, ex = pd.DataFrame.vbt.signals.generate_both(
+        >>> en, ex = vbt.pd_acc.signals.generate_both(
         ...     (5, 3),
         ...     entry_place_func_nb=entry_place_func_nb,
         ...     entry_args=(3,),
@@ -526,7 +527,7 @@ class SignalsAccessor(GenericAccessor):
         For each column, generate a variable number of signals:
 
         ```python-repl
-        >>> pd.DataFrame.vbt.signals.generate_random(
+        >>> vbt.pd_acc.signals.generate_random(
         ...     (5, 3),
         ...     n=[0, 1, 2],
         ...     seed=42,
@@ -546,7 +547,7 @@ class SignalsAccessor(GenericAccessor):
         For each column and time step, pick a signal with 50% probability:
 
         ```python-repl
-        >>> pd.DataFrame.vbt.signals.generate_random(
+        >>> vbt.pd_acc.signals.generate_random(
         ...     (5, 3),
         ...     prob=0.5,
         ...     seed=42,
@@ -614,7 +615,7 @@ class SignalsAccessor(GenericAccessor):
         For each column, generate two entries and exits randomly:
 
         ```python-repl
-        >>> en, ex = pd.DataFrame.vbt.signals.generate_random_both(
+        >>> en, ex = vbt.pd_acc.signals.generate_random_both(
         ...     (5, 3),
         ...     n=2,
         ...     seed=42,
@@ -642,7 +643,7 @@ class SignalsAccessor(GenericAccessor):
         For each column and time step, pick entry with 50% probability and exit right after:
 
         ```python-repl
-        >>> en, ex = pd.DataFrame.vbt.signals.generate_random_both(
+        >>> en, ex = vbt.pd_acc.signals.generate_random_both(
         ...     (5, 3),
         ...     entry_prob=0.5,
         ...     exit_prob=1.,
@@ -1855,7 +1856,7 @@ SignalsAccessor.override_metrics_doc(__pdoc__)
 SignalsAccessor.override_subplots_doc(__pdoc__)
 
 
-@register_series_vbt_accessor('signals')
+@register_sr_vbt_accessor('signals')
 class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
     """Accessor on top of signal series. For Series only.
 
@@ -1953,7 +1954,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
         ), kwargs))
 
 
-@register_dataframe_vbt_accessor('signals')
+@register_df_vbt_accessor('signals')
 class SignalsDFAccessor(SignalsAccessor, GenericDFAccessor):
     """Accessor on top of signal series. For DataFrames only.
 

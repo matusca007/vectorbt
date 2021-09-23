@@ -8,7 +8,8 @@ from collections.abc import Iterable
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, get_func_arg_names
+from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.parsing import get_func_arg_names
 
 
 def get_dict_attr(obj: tp.Union[object, type], attr: str) -> tp.Any:

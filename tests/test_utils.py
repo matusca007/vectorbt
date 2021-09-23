@@ -24,7 +24,8 @@ from vectorbt.utils import (
     datetime,
     schedule,
     tags,
-    template
+    template,
+    parsing
 )
 from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
 
@@ -896,18 +897,6 @@ class TestConfig:
         assert cfg2 == deepcopy(cfg1)
         assert cfg2.__dict__ == cfg1.__dict__
 
-    def test_get_func_kwargs(self):
-        def f(a, *args, b=2, **kwargs):
-            pass
-
-        assert config.get_func_kwargs(f) == {'b': 2}
-
-    def test_get_func_arg_names(self):
-        def f(a, *args, b=2, **kwargs):
-            pass
-
-        assert config.get_func_arg_names(f) == ['a', 'b']
-
     def test_configured(self, tmp_path):
         class H(config.Configured):
             _writeable_attrs = {'my_attr', 'my_cfg'}
@@ -1477,6 +1466,25 @@ class TestDecorators:
         assert compare(call(g2.cache_me), cached_number2)
         assert compare(call(g3.cache_me), cached_number3)
         vbt.settings.caching.reset()
+
+
+# ############# parsing.py ############# #
+
+class TestParsing:
+    def test_get_func_kwargs(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        assert parsing.get_func_kwargs(f) == {'b': 2}
+
+    def test_get_func_arg_names(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        assert parsing.get_func_arg_names(f) == ['a', 'b']
+
+    def test_get_ex_var_names(self):
+        assert parsing.get_ex_var_names('d = (a + b) / c') == ['d', 'c', 'a', 'b']
 
 
 # ############# attr.py ############# #

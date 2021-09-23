@@ -14,7 +14,7 @@ vbt.generic.accessors.GenericSR/DFAccessor     -> pd.Series/DataFrame.vbt.*
 vbt.signals.accessors.SignalsSR/DFAccessor     -> pd.Series/DataFrame.vbt.signals.*
 vbt.returns.accessors.ReturnsSR/DFAccessor     -> pd.Series/DataFrame.vbt.returns.*
 vbt.ohlcv.accessors.OHLCVDFAccessor            -> pd.DataFrame.vbt.ohlc.* and pd.DataFrame.vbt.ohlcv.*
-vbt.px_accessors.PXAccessor                    -> pd.DataFrame.vbt.px.*
+vbt.px_accessors.PXSR/DFAccessor               -> pd.Series/DataFrame.vbt.px.*
 ```
 
 Additionally, some accessors subclass other accessors building the following inheritance hiearchy:
@@ -32,6 +32,15 @@ vbt.base.accessors.BaseSR/DFAccessor
 So, for example, the method `pd.Series.vbt.to_2d_array` is also available as
 `pd.Series.vbt.returns.to_2d_array`.
 
+Class methods of any accessor can be conveniently accessed using `pd_acc`, `sr_acc`, and `df_acc` shortcuts:
+
+```python-repl
+>>> import vectorbt as vbt
+
+>>> vbt.pd_acc.signals.generate
+<bound method SignalsAccessor.generate of <class 'vectorbt.signals.accessors.SignalsAccessor'>>
+```
+
 !!! note
     Accessors in vectorbt are not cached, so querying `df.vbt` twice will also call `Vbt_DFAccessor` twice."""
 
@@ -41,7 +50,7 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import Configured
-from vectorbt.generic.accessors import GenericSRAccessor, GenericDFAccessor
+from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 
 ParentAccessorT = tp.TypeVar("ParentAccessorT", bound=object)
 AccessorT = tp.TypeVar("AccessorT", bound=object)
@@ -103,6 +112,16 @@ def register_dataframe_accessor(name: str) -> tp.Callable:
 
 
 # By subclassing DirNamesMixin, we can build accessors on top of each other
+class Vbt_Accessor(DirNamesMixin, GenericAccessor):
+    """The main vectorbt accessor for both `pd.Series` and `pd.DataFrame`."""
+
+    def __init__(self, obj: tp.Series, **kwargs) -> None:
+        self._obj = obj
+
+        DirNamesMixin.__init__(self)
+        GenericAccessor.__init__(self, obj, **kwargs)
+
+
 @register_series_accessor("vbt")
 class Vbt_SRAccessor(DirNamesMixin, GenericSRAccessor):
     """The main vectorbt accessor for `pd.Series`."""
@@ -125,11 +144,26 @@ class Vbt_DFAccessor(DirNamesMixin, GenericDFAccessor):
         GenericDFAccessor.__init__(self, obj, **kwargs)
 
 
-def register_series_vbt_accessor(name: str, parent: tp.Type[DirNamesMixin] = Vbt_SRAccessor) -> tp.Callable:
+def register_vbt_accessor(name: str, parent: tp.Type[DirNamesMixin] = Vbt_Accessor) -> tp.Callable:
+    """Decorator to register an accessor on top of a parent accessor."""
+    return register_accessor(name, parent)
+
+
+def register_sr_vbt_accessor(name: str, parent: tp.Type[DirNamesMixin] = Vbt_SRAccessor) -> tp.Callable:
     """Decorator to register a `pd.Series` accessor on top of a parent accessor."""
     return register_accessor(name, parent)
 
 
-def register_dataframe_vbt_accessor(name: str, parent: tp.Type[DirNamesMixin] = Vbt_DFAccessor) -> tp.Callable:
+def register_df_vbt_accessor(name: str, parent: tp.Type[DirNamesMixin] = Vbt_DFAccessor) -> tp.Callable:
     """Decorator to register a `pd.DataFrame` accessor on top of a parent accessor."""
     return register_accessor(name, parent)
+
+
+pd_acc = Vbt_Accessor
+"""Shortcut for `Vbt_Accessor`."""
+
+sr_acc = Vbt_SRAccessor
+"""Shortcut for `Vbt_SRAccessor`."""
+
+df_acc = Vbt_DFAccessor
+"""Shortcut for `Vbt_DFAccessor`."""

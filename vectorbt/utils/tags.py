@@ -3,10 +3,9 @@
 
 """Utilities for working with tags."""
 
-import ast
-
 from vectorbt import _typing as tp
 from vectorbt.utils.template import RepEval
+from vectorbt.utils.parsing import get_ex_var_names
 
 
 def match_tags(tags: tp.MaybeIterable[str], in_tags: tp.MaybeIterable[str]) -> bool:
@@ -44,8 +43,8 @@ def match_tags(tags: tp.MaybeIterable[str], in_tags: tp.MaybeIterable[str]) -> b
 
     for t in tags:
         if not t.isidentifier():
-            node_ids = [node.id for node in ast.walk(ast.parse(t)) if type(node) is ast.Name]
-            eval_mapping = {id_: id_ in in_tags for id_ in node_ids}
+            var_names = get_ex_var_names(t)
+            eval_mapping = {var_name: var_name in in_tags for var_name in var_names}
             eval_result = RepEval(t).eval(eval_mapping)
             if not isinstance(eval_result, bool):
                 raise TypeError(f"Tag expression '{t}' must produce a boolean")

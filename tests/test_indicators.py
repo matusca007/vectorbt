@@ -338,7 +338,7 @@ class TestFactory:
                 F.from_apply_func(apply_func, var_args=True)
                     .run(ts, np.arange(10), 10, b=100).out,
                 F.from_apply_func(apply_func, var_args=True)
-                    .run(ts, np.arange(10), 10, b=100, use_ray=True, ray_shutdown=True).out,
+                    .run(ts, np.arange(10), 10, b=100, use_ray=True).out,
             )
 
     def test_no_inputs(self):

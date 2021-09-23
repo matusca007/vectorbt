@@ -8,7 +8,8 @@ import inspect
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import main_nb_registry
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, Config, get_func_arg_names
+from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.parsing import get_func_arg_names
 
 WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 

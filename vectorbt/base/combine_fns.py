@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
+from vectorbt.utils.parallel import ray_apply
 from vectorbt.base import reshape_fns
 
 
@@ -147,11 +148,7 @@ def apply_and_concat_multiple_nb(n: int, apply_func_nb: tp.Callable, *args) -> t
     return outputs
 
 
-def select_and_combine(i: int,
-                       obj: tp.Any,
-                       others: tp.Sequence,
-                       combine_func: tp.Callable,
-                       *args, **kwargs) -> tp.AnyArray:
+def select_and_combine(i, obj, others, combine_func, *args, **kwargs):  # no type annotations!
     """Combine `obj` and an element from `others` at `i` using `combine_func`."""
     return combine_func(obj, others[i], *args, **kwargs)
 
@@ -165,7 +162,7 @@ def combine_and_concat(obj: tp.Any,
 
 
 @register_jit
-def select_and_combine_nb(i: int, obj: tp.Any, others: tp.Sequence, combine_func_nb: tp.Callable, *args) -> tp.Array:
+def select_and_combine_nb(i, obj, others, combine_func_nb, *args):  # no type annotations!
     """A Numba-compiled version of `select_and_combine`.
 
     !!! note
@@ -205,49 +202,6 @@ def combine_multiple_nb(objs: tp.Sequence, combine_func_nb: tp.Callable, *args) 
     for i in range(1, len(objs)):
         result = combine_func_nb(result, objs[i], *args)
     return result
-
-
-def ray_apply(n: int,
-              apply_func: tp.Callable, *args,
-              ray_force_init: bool = False,
-              ray_func_kwargs: tp.KwargsLike = None,
-              ray_init_kwargs: tp.KwargsLike = None,
-              ray_shutdown: bool = False,
-              **kwargs) -> tp.List[tp.AnyArray]:
-    """Run `apply_func` in distributed manner.
-
-    Set `ray_reinit` to True to terminate the Ray runtime and initialize a new one.
-    `ray_func_kwargs` will be passed to `ray.remote` and `ray_init_kwargs` to `ray.init`.
-    Set `ray_shutdown` to True to terminate the Ray runtime upon the job end.
-
-    """
-    import ray
-
-    if ray_init_kwargs is None:
-        ray_init_kwargs = {}
-    if ray_func_kwargs is None:
-        ray_func_kwargs = {}
-    if ray_force_init:
-        if ray.is_initialized():
-            ray.shutdown()
-    if not ray.is_initialized():
-        ray.init(**ray_init_kwargs)
-    if len(ray_func_kwargs) > 0:
-        apply_func = ray.remote(**ray_func_kwargs)(apply_func)
-    else:
-        apply_func = ray.remote(apply_func)
-    # args and kwargs don't change -> put to object store
-    arg_refs = ()
-    for v in args:
-        arg_refs += (ray.put(v),)
-    kwarg_refs = {}
-    for k, v in kwargs.items():
-        kwarg_refs[k] = ray.put(v)
-    futures = [apply_func.remote(i, *arg_refs, **kwarg_refs) for i in range(n)]
-    results = ray.get(futures)
-    if ray_shutdown:
-        ray.shutdown()
-    return results
 
 
 def apply_and_concat_one_ray(*args, **kwargs) -> tp.Array2d:

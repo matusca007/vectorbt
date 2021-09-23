@@ -92,7 +92,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
-from vectorbt.root_accessors import register_dataframe_vbt_accessor
+from vectorbt.root_accessors import register_df_vbt_accessor
 from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.generic.accessors import GenericAccessor, GenericDFAccessor
@@ -101,8 +101,8 @@ from vectorbt.generic import nb
 __pdoc__ = {}
 
 
-@register_dataframe_vbt_accessor('ohlc')
-@register_dataframe_vbt_accessor('ohlcv')
+@register_df_vbt_accessor('ohlc')
+@register_df_vbt_accessor('ohlcv')
 class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
     """Accessor on top of OHLCV data. For DataFrames only.
 

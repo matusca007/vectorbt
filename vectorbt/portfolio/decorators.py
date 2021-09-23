@@ -5,7 +5,8 @@
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import Config, get_func_arg_names
+from vectorbt.utils.config import Config
+from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.decorators import cached_method
 
 WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
