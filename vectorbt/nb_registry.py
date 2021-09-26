@@ -129,6 +129,7 @@ class NumbaRegistry:
             silence_warnings = numba_cfg['silence_warnings']
         if parallel is None:
             return setup['nb_func']
+        checks.assert_instance_of(parallel, bool)
         if parallel:
             if setup['options'].get('parallel', False):
                 return setup['nb_func']

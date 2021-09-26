@@ -8,6 +8,7 @@ from itertools import product, combinations
 import asyncio
 import pytz
 from copy import copy, deepcopy
+import inspect
 
 import vectorbt as vbt
 from vectorbt.utils import (
@@ -1485,6 +1486,86 @@ class TestParsing:
 
     def test_get_ex_var_names(self):
         assert parsing.get_ex_var_names('d = (a + b) / c') == ['d', 'c', 'a', 'b']
+
+    def test_annotate_args(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        with pytest.raises(Exception):
+            parsing.annotate_args(f)
+        assert checks.is_deep_equal(
+            parsing.annotate_args(f, 1),
+            ({
+                'name': 'a',
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'default': inspect.Parameter.empty,
+                'arg': 1
+            }, {
+                'name': 'args',
+                'kind': inspect.Parameter.VAR_POSITIONAL,
+                'arg': ()
+            }, {
+                'name': 'b',
+                'kind': inspect.Parameter.KEYWORD_ONLY,
+                'default': 2
+            }, {
+                'name': 'kwargs',
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'arg': {}
+            })
+        )
+        assert checks.is_deep_equal(
+            parsing.annotate_args(f, 1, 2, 3),
+            ({
+                'name': 'a',
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'default': inspect.Parameter.empty,
+                'arg': 1
+             }, {
+                'name': 'args',
+                'kind': inspect.Parameter.VAR_POSITIONAL,
+                'arg': (2, 3)
+             }, {
+                'name': 'b',
+                'kind': inspect.Parameter.KEYWORD_ONLY,
+                'default': 2
+             }, {
+                'name': 'kwargs',
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'arg': {}
+             })
+        )
+
+        def f2(a, b=2, **kwargs):
+            pass
+
+        assert checks.is_deep_equal(
+            parsing.annotate_args(f2, 1, 2, c=3),
+            ({
+                'name': 'a',
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'default': inspect.Parameter.empty,
+                'arg': 1
+             }, {
+                'name': 'b',
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'default': 2,
+                'arg': 2
+            }, {
+                'name': 'kwargs',
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'arg': dict(c=3)
+             })
+        )
+
+    def test_get_context_vars(self):
+        a = 1
+        b = 2
+        assert parsing.get_context_vars(['a', 'b']) == [1, 2]
+        with pytest.raises(Exception):
+            parsing.get_context_vars(['a', 'b', 'c'])
+        assert parsing.get_context_vars(['c', 'd', 'e'], local_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
+        assert parsing.get_context_vars(['c', 'd', 'e'], global_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
 
 
 # ############# attr.py ############# #

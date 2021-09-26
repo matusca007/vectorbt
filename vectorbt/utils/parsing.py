@@ -36,6 +36,40 @@ def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[in
     ]
 
 
+def annotate_args(func, *args, **kwargs):
+    """Annotate arguments and keyword arguments using the function's signature."""
+    signature = inspect.signature(func)
+    signature.bind(*args, **kwargs)
+    new_args = ()
+    arg_i = 0
+
+    for p in signature.parameters.values():
+        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY):
+            if p.kind != p.KEYWORD_ONLY and arg_i < len(args):
+                # Either positional-only arguments or keyword arguments passed as such
+                arg = args[arg_i]
+                arg_spec = dict(name=p.name, kind=p.kind, default=p.default, arg=arg)
+                new_args += (arg_spec,)
+            else:
+                # Either keyword-only arguments or positional arguments passed as such
+                if p.name in kwargs:
+                    arg = kwargs.pop(p.name)
+                    arg_spec = dict(name=p.name, kind=p.kind, default=p.default, arg=arg)
+                else:
+                    arg_spec = dict(name=p.name, kind=p.kind, default=p.default)
+                new_args += (arg_spec,)
+            arg_i += 1
+        elif p.kind == p.VAR_POSITIONAL:
+            # *args
+            arg_spec = dict(name=p.name, kind=p.kind, arg=args[arg_i:])
+            new_args += (arg_spec,)
+        else:
+            # **kwargs
+            arg_spec = dict(name=p.name, kind=p.kind, arg=kwargs)
+            new_args += (arg_spec,)
+    return new_args
+
+
 def get_ex_var_names(expression: str) -> tp.List[str]:
     """Get variable names listed in the expression."""
     return [node.id for node in ast.walk(ast.parse(expression)) if type(node) is ast.Name]

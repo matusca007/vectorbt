@@ -11,10 +11,6 @@ import vectorbt as vbt
 ray_available = True
 try:
     import ray
-
-    if ray.is_initialized():
-        ray.shutdown()
-    ray.init(local_mode=True)
 except:
     ray_available = False
 
@@ -42,6 +38,8 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    if ray_available:
+        ray.init(local_mode=True)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []
@@ -49,6 +47,8 @@ def setup_module():
 
 
 def teardown_module():
+    if ray_available:
+        ray.shutdown()
     vbt.settings.reset()
 
 

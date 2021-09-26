@@ -3184,7 +3184,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
         Additionally, each run method now supports `use_ray` argument, which indicates
         whether to use Ray to execute `apply_func` in parallel. Only works with `numba_loop` set to False.
-        See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
+        See `vectorbt.utils.parallel.run_ntimes_using_ray` for related keyword arguments.
 
         ## Example
 

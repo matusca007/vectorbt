@@ -668,10 +668,10 @@ def _bind_ohlcstx_plot(base_cls: type, entries_attr: str) -> tp.Callable:  # pra
     Args:
         plot_type: Either 'OHLC', 'Candlestick' or Plotly trace.
         ohlc_kwargs (dict): Keyword arguments passed to `plot_type`.
-        entry_trace_kwargs (dict): Keyword arguments passed to \
-        `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_entry_markers` for `{0}.{1}`.
-        exit_trace_kwargs (dict): Keyword arguments passed to \
-        `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_exit_markers` for `{0}.exits`.
+        entry_trace_kwargs (dict): Keyword arguments passed to 
+            `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_entry_markers` for `{0}.{1}`.
+        exit_trace_kwargs (dict): Keyword arguments passed to 
+            `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_exit_markers` for `{0}.exits`.
         fig (Figure or FigureWidget): Figure to add traces to.
         **layout_kwargs: Keyword arguments for layout.""".format(base_cls.__name__, entries_attr)
 

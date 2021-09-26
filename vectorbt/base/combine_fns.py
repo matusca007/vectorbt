@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
-from vectorbt.utils.parallel import ray_apply
+from vectorbt.utils.parallel import run_ntimes_using_ray
 from vectorbt.base import reshape_fns
 
 
@@ -206,13 +206,13 @@ def combine_multiple_nb(objs: tp.Sequence, combine_func_nb: tp.Callable, *args) 
 
 def apply_and_concat_one_ray(*args, **kwargs) -> tp.Array2d:
     """Distributed version of `apply_and_concat_one`."""
-    results = ray_apply(*args, **kwargs)
+    results = run_ntimes_using_ray(*args, **kwargs)
     return np.column_stack(list(map(reshape_fns.to_2d, results)))
 
 
 def apply_and_concat_multiple_ray(*args, **kwargs) -> tp.List[tp.Array2d]:
     """Distributed version of `apply_and_concat_multiple`."""
-    results = ray_apply(*args, **kwargs)
+    results = run_ntimes_using_ray(*args, **kwargs)
     return list(map(np.column_stack, list(zip(*results))))
 
 

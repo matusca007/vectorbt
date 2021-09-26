@@ -149,10 +149,10 @@ class SignalFactory(IndicatorFactory):
             exit_y (array_like): Y-axis values to plot exit markers on.
             entry_types (array_like): Entry types in string format.
             exit_types (array_like): Exit types in string format.
-            entry_trace_kwargs (dict): Keyword arguments passed to \
-            `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_entry_markers` for `{0}.{1}`.
-            exit_trace_kwargs (dict): Keyword arguments passed to \
-            `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_exit_markers` for `{0}.exits`.
+            entry_trace_kwargs (dict): Keyword arguments passed to
+                `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_entry_markers` for `{0}.{1}`.
+            exit_trace_kwargs (dict): Keyword arguments passed to 
+                `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_exit_markers` for `{0}.exits`.
             fig (Figure or FigureWidget): Figure to add traces to.
             **kwargs: Keyword arguments passed to `vectorbt.signals.accessors.SignalsSRAccessor.plot_as_markers`.
         """.format(
@@ -243,23 +243,16 @@ class SignalFactory(IndicatorFactory):
                 * `wait`: Number of ticks to wait before placing signals.
                     Default is 1.
                 * `until_next`: Whether to place signals up to the next entry signal.
-                    Default is True.
-
-                    Applied in `generate_ex_func` only.
+                    Default is True. Applied in `generate_ex_func` only.
                 * `skip_until_exit`: Whether to skip processing entry signals until the next exit.
-                    Default is False.
-
-                    Applied in `generate_ex_func` only.
+                    Default is False. Applied in `generate_ex_func` only.
                 * `pick_first`: Whether to stop as soon as the first exit signal is found.
                     Default is False with `FactoryMode.Entries`, otherwise is True.
                 * `max_one`: Whether the placement function returns only one signal at most.
-                    Default is True.
-
-                    Applied in `generate_enex_func` only. Make sure to enable `pick_first`
+                    Default is True. Applied in `generate_enex_func` only. Make sure to enable `pick_first`
                     if your placement function supports it.
                 * `temp_idx_arr`: Empty integer array used to temporarily store indices.
                     Default is an automatically generated array of shape `input_shape[0]`.
-
                     You can also pass `temp_idx_arr1`, `temp_idx_arr2`, etc. to generate multiple.
                 * `flex_2d`: See `vectorbt.base.reshape_fns.flex_select_auto_nb`.
                     Default is provided by the pipeline if `pass_flex_2d` is True.

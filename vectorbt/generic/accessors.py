@@ -196,12 +196,6 @@ Name: 0, dtype: object
 ```
 
 ![](/docs/img/generic_plots.svg)
-
-## Performance
-
-To increase the performance of some functions, install [bottleneck](https://github.com/pydata/bottleneck),
-vectorbt will detect and use it by default. You can also use the `parallel` argument wherever possible
-to enable/disable automatic parallelization with Numba.
 """
 
 import numpy as np
@@ -598,7 +592,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Working with meta:
 
         ```python-repl
-        >>> mean_ratio_meta_nb = njit(lambda from_i, to_i, col, a, b: \
+        >>> mean_ratio_meta_nb = njit(lambda from_i, to_i, col, a, b: \\
         ...     np.mean(a[from_i:to_i, col]) / np.mean(b[from_i:to_i, col]))
         >>> vbt.pd_acc.rolling_apply(
         ...     3,
@@ -679,7 +673,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Working with meta:
 
         ```python-repl
-        >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \
+        >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \\
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
         >>> vbt.pd_acc.groupby_apply(
         ...     [1, 1, 2, 2, 3],
@@ -741,7 +735,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Working with meta:
 
         ```python-repl
-        >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \
+        >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \\
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
         >>> vbt.pd_acc.resample_apply(
         ...     '2d',
@@ -1065,7 +1059,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Working with meta:
 
         ```python-repl
-        >>> mean_ratio_meta_nb = njit(lambda i, from_col, to_col, group, a, b: \
+        >>> mean_ratio_meta_nb = njit(lambda i, from_col, to_col, group, a, b: \\
         ...     np.mean(a[i, from_col:to_col]) / np.mean(b[i, from_col:to_col]))
         >>> vbt.pd_acc.squeeze_grouped(
         ...     mean_ratio_meta_nb,

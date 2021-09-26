@@ -120,9 +120,13 @@ ${config_doc}
 _settings['numba'] = numba
 
 parallel = dict(
+    backend='ray',
+    n_chunks=None,
+    chunk_len=None,
     ray=dict(
-        force_init=False,
-        clear_store=True,
+        restart=False,
+        reuse_refs=True,
+        del_refs=True,
         shutdown=False,
         init_kwargs=Config(  # flex
             dict()

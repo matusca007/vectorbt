@@ -530,7 +530,7 @@ class BaseAccessor(Wrapping):
             use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
 
                 Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
+                See `vectorbt.utils.parallel.run_ntimes_using_ray` for related keyword arguments.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
@@ -634,7 +634,7 @@ class BaseAccessor(Wrapping):
             use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
 
                 Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.utils.parallel.ray_apply` for related keyword arguments.
+                See `vectorbt.utils.parallel.run_ntimes_using_ray` for related keyword arguments.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
