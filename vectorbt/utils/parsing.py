@@ -36,38 +36,58 @@ def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[in
     ]
 
 
-def annotate_args(func, *args, **kwargs):
+ann_argsT = tp.Dict[str, tp.Kwargs]
+
+
+def annotate_args(func: tp.Callable, *args, **kwargs) -> ann_argsT:
     """Annotate arguments and keyword arguments using the function's signature."""
     signature = inspect.signature(func)
     signature.bind(*args, **kwargs)
-    new_args = ()
+    ann_args = dict()
     arg_i = 0
 
     for p in signature.parameters.values():
         if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY):
             if p.kind != p.KEYWORD_ONLY and arg_i < len(args):
                 # Either positional-only arguments or keyword arguments passed as such
-                arg = args[arg_i]
-                arg_spec = dict(name=p.name, kind=p.kind, default=p.default, arg=arg)
-                new_args += (arg_spec,)
+                ann_args[p.name] = dict(kind=p.kind, value=args[arg_i])
             else:
                 # Either keyword-only arguments or positional arguments passed as such
                 if p.name in kwargs:
-                    arg = kwargs.pop(p.name)
-                    arg_spec = dict(name=p.name, kind=p.kind, default=p.default, arg=arg)
+                    ann_args[p.name] = dict(kind=p.kind, value=kwargs.pop(p.name))
                 else:
-                    arg_spec = dict(name=p.name, kind=p.kind, default=p.default)
-                new_args += (arg_spec,)
+                    ann_args[p.name] = dict(kind=p.kind, value=p.default)
             arg_i += 1
         elif p.kind == p.VAR_POSITIONAL:
             # *args
-            arg_spec = dict(name=p.name, kind=p.kind, arg=args[arg_i:])
-            new_args += (arg_spec,)
+            ann_args[p.name] = dict(kind=p.kind, value=args[arg_i:])
         else:
             # **kwargs
-            arg_spec = dict(name=p.name, kind=p.kind, arg=kwargs)
-            new_args += (arg_spec,)
-    return new_args
+            ann_args[p.name] = dict(kind=p.kind, value=kwargs)
+    return ann_args
+
+
+def get_from_ann_args(ann_args: ann_argsT, i: tp.Optional[int] = None, name: tp.Optional[str] = None) -> tp.Any:
+    """Get argument from annotated arguments using its position or name.
+
+    The position can stretch over any variable argument."""
+    if (i is None and name is None) or (i is not None and name is not None):
+        raise ValueError("Either i or name must be provided")
+    flat_args = []
+    args_by_name = {}
+    for arg_name, ann_arg in ann_args.items():
+        if ann_arg['kind'] == inspect.Parameter.VAR_POSITIONAL:
+            flat_args.extend(ann_arg['value'])
+        elif ann_arg['kind'] == inspect.Parameter.VAR_KEYWORD:
+            for var_arg_name, var_value in ann_arg['value'].items():
+                flat_args.append(var_value)
+                args_by_name[var_arg_name] = var_value
+        else:
+            flat_args.append(ann_arg['value'])
+            args_by_name[arg_name] = ann_arg['value']
+    if name is not None:
+        return args_by_name[name]
+    return flat_args[i]
 
 
 def get_ex_var_names(expression: str) -> tp.List[str]:

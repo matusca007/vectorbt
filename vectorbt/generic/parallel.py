@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.utils.parallel import ChunkTaker, chunk_metaT, ChunkIndexSelector, RangeSlicer
+from vectorbt.utils.parallel import ChunkMeta, ChunkTaker, ChunkSelector, ChunkSlicer
 
 
 class FlexChunkTaker(ChunkTaker):
@@ -24,45 +24,45 @@ class FlexChunkTaker(ChunkTaker):
         return self._flex_2d
 
 
-class ColSelector(FlexChunkTaker, ChunkIndexSelector):
+class ColSelector(FlexChunkTaker, ChunkSelector):
     """Class for flexible selecting one column based on the chunk index."""
 
-    def take(self, obj: tp.AnyArray, chunk_meta: chunk_metaT, **kwargs) -> tp.ArrayLike:
+    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.ArrayLike:
         if self.flex_2d is not None:
             if isinstance(obj, pd.Series):
                 return obj
         if isinstance(obj, pd.DataFrame):
-            return obj.iloc[:, chunk_meta[0]]
+            return obj.iloc[:, chunk_meta.idx]
         if isinstance(obj, np.ndarray):
             if self.flex_2d is not None:
                 if obj.ndim == 0:
                     return obj
                 if obj.ndim == 1:
                     if self.flex_2d:
-                        return obj[chunk_meta[0]]
+                        return obj[chunk_meta.idx]
                     return obj
             if obj.ndim == 2:
-                return obj[:, chunk_meta[0]]
+                return obj[:, chunk_meta.idx]
         raise ValueError(f"ColSelector accepts Series, DataFrame, or NumPy array, not {type(obj)}")
 
 
-class ColSlicer(FlexChunkTaker, RangeSlicer):
-    """Class for flexible slicing multiple columns based on the index range."""
+class ColSlicer(FlexChunkTaker, ChunkSlicer):
+    """Class for flexible slicing multiple columns based on the chunk range."""
 
-    def take(self, obj: tp.AnyArray, chunk_meta: chunk_metaT, **kwargs) -> tp.AnyArray:
+    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.AnyArray:
         if self.flex_2d is not None:
             if isinstance(obj, pd.Series):
                 return obj
         if isinstance(obj, pd.DataFrame):
-            return obj.iloc[:, chunk_meta[1]:chunk_meta[2]]
+            return obj.iloc[:, chunk_meta.range_start:chunk_meta.range_end]
         if isinstance(obj, np.ndarray):
             if self.flex_2d is not None:
                 if obj.ndim == 0:
                     return obj
                 if obj.ndim == 1:
                     if self.flex_2d:
-                        return obj[chunk_meta[1]:chunk_meta[2]]
+                        return obj[chunk_meta.range_start:chunk_meta.range_end]
                     return obj
             if obj.ndim == 2:
-                return obj[:, chunk_meta[1]:chunk_meta[2]]
+                return obj[:, chunk_meta.range_start:chunk_meta.range_end]
         raise ValueError(f"ColSlicer accepts Series, DataFrame, or NumPy array, not {type(obj)}")

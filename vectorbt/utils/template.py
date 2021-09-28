@@ -13,20 +13,16 @@ from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 
 
-class Sub(SafeToStr):
-    """Template to substitute parts of the string with the respective values from `mapping`.
+class CustomTemplate(SafeToStr):
+    """Base class for substituting templates."""
 
-    Returns a string."""
-
-    def __init__(self, template: tp.Union[str, Template], mapping: tp.Optional[tp.Mapping] = None) -> None:
+    def __init__(self, template: tp.Any, mapping: tp.Optional[tp.Mapping] = None) -> None:
         self._template = template
         self._mapping = mapping
 
     @property
-    def template(self) -> Template:
+    def template(self) -> tp.Any:
         """Template to be processed."""
-        if not isinstance(self._template, Template):
-            return Template(self._template)
         return self._template
 
     @property
@@ -36,130 +32,63 @@ class Sub(SafeToStr):
             return {}
         return self._mapping
 
+    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+        """Abstract method to substitute the template `CustomTemplate.template` using
+        the mapping from merging `CustomTemplate.mapping` and `mapping`."""
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(" \
+               f"template=\"{self.template}\", " \
+               f"mapping={prepare_for_doc(self.mapping)})"
+
+
+class Sub(CustomTemplate):
+    """Template string to substitute parts with the respective values from `mapping`.
+
+    Always returns a string."""
+
     def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> str:
-        """Substitute parts of `Sub.template` using `mapping`.
-
-        Merges `mapping` and `Sub.mapping`.
-        """
+        """Substitute parts of `Sub.template` as a regular template."""
         mapping = merge_dicts(self.mapping, mapping)
-        return self.template.substitute(mapping)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
-               f"template=\"{self.template.template}\", " \
-               f"mapping={prepare_for_doc(self.mapping)})"
+        return Template(self.template).substitute(mapping)
 
 
-class Rep(SafeToStr):
-    """Key to be replaced with the respective value from `mapping`."""
+class Rep(CustomTemplate):
+    """Template string to be replaced with the respective value from `mapping`."""
 
-    def __init__(self, key: tp.Hashable, mapping: tp.Optional[tp.Mapping] = None) -> None:
-        self._key = key
-        self._mapping = mapping
-
-    @property
-    def key(self) -> tp.Hashable:
-        """Key to be replaced."""
-        return self._key
-
-    @property
-    def mapping(self) -> tp.Mapping:
-        """Mapping object passed to the initializer."""
-        if self._mapping is None:
-            return {}
-        return self._mapping
-
-    def replace(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
-        """Replace `Rep.key` using `mapping`.
-
-        Merges `mapping` and `Rep.mapping`."""
+    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+        """Replace `Rep.template` as a key."""
         mapping = merge_dicts(self.mapping, mapping)
-        return mapping[self.key]
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
-               f"key='{self.key}', " \
-               f"mapping={prepare_for_doc(self.mapping)})"
+        return mapping[self.template]
 
 
-class RepEval(SafeToStr):
-    """Expression to be evaluated with `mapping` used as locals."""
+class RepEval(CustomTemplate):
+    """Template expression to be evaluated with `mapping` used as locals."""
 
-    def __init__(self, expression: str, mapping: tp.Optional[tp.Mapping] = None) -> None:
-        self._expression = expression
-        self._mapping = mapping
-
-    @property
-    def expression(self) -> str:
-        """Expression to be evaluated."""
-        return self._expression
-
-    @property
-    def mapping(self) -> tp.Mapping:
-        """Mapping object passed to the initializer."""
-        if self._mapping is None:
-            return {}
-        return self._mapping
-
-    def eval(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
-        """Evaluate `RepEval.expression` using `mapping`.
-
-        Merges `mapping` and `RepEval.mapping`."""
+    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+        """Evaluate `RepEval.template` as an expression."""
         mapping = merge_dicts(self.mapping, mapping)
-        return eval(self.expression, {}, mapping)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
-               f"expression=\"{self.expression}\", " \
-               f"mapping={prepare_for_doc(self.mapping)})"
+        return eval(self.template, {}, mapping)
 
 
-class RepFunc(SafeToStr):
-    """Function to be called with argument names from `mapping`."""
+class RepFunc(CustomTemplate):
+    """Template function to be called with argument names from `mapping`."""
 
-    def __init__(self, func: tp.Callable, mapping: tp.Optional[tp.Mapping] = None) -> None:
-        self._func = func
-        self._mapping = mapping
-
-    @property
-    def func(self) -> tp.Callable:
-        """Replacement function to be called."""
-        return self._func
-
-    @property
-    def mapping(self) -> tp.Mapping:
-        """Mapping object passed to the initializer."""
-        if self._mapping is None:
-            return {}
-        return self._mapping
-
-    def call(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
-        """Call `RepFunc.func` using `mapping`.
-
-        Merges `mapping` and `RepFunc.mapping`."""
+    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+        """Call `RepFunc.template` as a function."""
         mapping = merge_dicts(self.mapping, mapping)
-        func_arg_names = get_func_arg_names(self.func)
+        func_arg_names = get_func_arg_names(self.template)
         func_kwargs = dict()
         for k, v in mapping.items():
             if k in func_arg_names:
                 func_kwargs[k] = v
-        return self.func(**func_kwargs)
-
-    def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
-               f"func={self.func}, " \
-               f"mapping={prepare_for_doc(self.mapping)})"
+        return self.template(**func_kwargs)
 
 
 def has_templates(obj: tp.Any) -> tp.Any:
     """Check if the object has any templates."""
-    if isinstance(obj, RepFunc):
-        return True
-    if isinstance(obj, RepEval):
-        return True
-    if isinstance(obj, Rep):
-        return True
-    if isinstance(obj, Sub):
+    if isinstance(obj, CustomTemplate):
         return True
     if isinstance(obj, Template):
         return True
@@ -218,15 +147,7 @@ def deep_substitute(obj: tp.Any,
     if not has_templates(obj):
         return obj
     try:
-        if isinstance(obj, RepFunc):
-            return obj.call(mapping)
-        if isinstance(obj, RepEval):
-            return obj.eval(mapping)
-        if isinstance(obj, Rep):
-            return obj.replace(mapping)
-        if isinstance(obj, Sub):
-            return obj.substitute(mapping)
-        if isinstance(obj, Template):
+        if isinstance(obj, (Template, CustomTemplate)):
             return obj.substitute(mapping)
         if isinstance(obj, dict):
             if make_copy:

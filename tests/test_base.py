@@ -57,7 +57,7 @@ df5 = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]], index=multi_i, columns=mul
 
 def setup_module():
     if ray_available:
-        ray.init(local_mode=True)
+        ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.broadcasting['index_from'] = 'stack'
     vbt.settings.broadcasting['columns_from'] = 'stack'

@@ -39,7 +39,7 @@ seed = 42
 
 def setup_module():
     if ray_available:
-        ray.init(local_mode=True)
+        ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []

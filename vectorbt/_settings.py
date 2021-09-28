@@ -120,7 +120,7 @@ ${config_doc}
 _settings['numba'] = numba
 
 parallel = dict(
-    backend='ray',
+    engine='ray',
     n_chunks=None,
     chunk_len=None,
     ray=dict(

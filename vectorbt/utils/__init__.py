@@ -10,6 +10,22 @@ from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplo
 from vectorbt.utils.random import set_seed
 from vectorbt.utils.image import save_animation
 from vectorbt.utils.schedule import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
+from vectorbt.utils.parallel import (
+    ChunkMeta,
+    ArgChunkMeta,
+    LenChunkMeta,
+    ArgSizer,
+    LenSizer,
+    ShapeSizer,
+    ArraySizer,
+    ChunkSelector,
+    ChunkSlicer,
+    SequenceTaker,
+    MappingTaker,
+    ArgsTaker,
+    KwargsTaker,
+    chunked
+)
 
 __all__ = [
     'atomic_dict',
@@ -34,7 +50,21 @@ __all__ = [
     'AsyncJob',
     'AsyncScheduler',
     'CancelledError',
-    'ScheduleManager'
+    'ScheduleManager',
+    'ChunkMeta',
+    'ArgChunkMeta',
+    'LenChunkMeta',
+    'ArgSizer',
+    'LenSizer',
+    'ShapeSizer',
+    'ArraySizer',
+    'ChunkSelector',
+    'ChunkSlicer',
+    'SequenceTaker',
+    'MappingTaker',
+    'ArgsTaker',
+    'KwargsTaker',
+    'chunked'
 ]
 
 __pdoc__ = {k: False for k in __all__}

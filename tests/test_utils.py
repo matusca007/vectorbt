@@ -9,6 +9,7 @@ import asyncio
 import pytz
 from copy import copy, deepcopy
 import inspect
+from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
 
 import vectorbt as vbt
 from vectorbt.utils import (
@@ -26,9 +27,15 @@ from vectorbt.utils import (
     schedule,
     tags,
     template,
-    parsing
+    parsing,
+    parallel
 )
-from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
+
+ray_available = True
+try:
+    import ray
+except:
+    ray_available = False
 
 seed = 42
 
@@ -36,6 +43,8 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    if ray_available:
+        ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []
@@ -43,6 +52,8 @@ def setup_module():
 
 
 def teardown_module():
+    if ray_available:
+        ray.shutdown()
     vbt.settings.reset()
 
 
@@ -1469,105 +1480,6 @@ class TestDecorators:
         vbt.settings.caching.reset()
 
 
-# ############# parsing.py ############# #
-
-class TestParsing:
-    def test_get_func_kwargs(self):
-        def f(a, *args, b=2, **kwargs):
-            pass
-
-        assert parsing.get_func_kwargs(f) == {'b': 2}
-
-    def test_get_func_arg_names(self):
-        def f(a, *args, b=2, **kwargs):
-            pass
-
-        assert parsing.get_func_arg_names(f) == ['a', 'b']
-
-    def test_get_ex_var_names(self):
-        assert parsing.get_ex_var_names('d = (a + b) / c') == ['d', 'c', 'a', 'b']
-
-    def test_annotate_args(self):
-        def f(a, *args, b=2, **kwargs):
-            pass
-
-        with pytest.raises(Exception):
-            parsing.annotate_args(f)
-        assert checks.is_deep_equal(
-            parsing.annotate_args(f, 1),
-            ({
-                'name': 'a',
-                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                'default': inspect.Parameter.empty,
-                'arg': 1
-            }, {
-                'name': 'args',
-                'kind': inspect.Parameter.VAR_POSITIONAL,
-                'arg': ()
-            }, {
-                'name': 'b',
-                'kind': inspect.Parameter.KEYWORD_ONLY,
-                'default': 2
-            }, {
-                'name': 'kwargs',
-                'kind': inspect.Parameter.VAR_KEYWORD,
-                'arg': {}
-            })
-        )
-        assert checks.is_deep_equal(
-            parsing.annotate_args(f, 1, 2, 3),
-            ({
-                'name': 'a',
-                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                'default': inspect.Parameter.empty,
-                'arg': 1
-             }, {
-                'name': 'args',
-                'kind': inspect.Parameter.VAR_POSITIONAL,
-                'arg': (2, 3)
-             }, {
-                'name': 'b',
-                'kind': inspect.Parameter.KEYWORD_ONLY,
-                'default': 2
-             }, {
-                'name': 'kwargs',
-                'kind': inspect.Parameter.VAR_KEYWORD,
-                'arg': {}
-             })
-        )
-
-        def f2(a, b=2, **kwargs):
-            pass
-
-        assert checks.is_deep_equal(
-            parsing.annotate_args(f2, 1, 2, c=3),
-            ({
-                'name': 'a',
-                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                'default': inspect.Parameter.empty,
-                'arg': 1
-             }, {
-                'name': 'b',
-                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                'default': 2,
-                'arg': 2
-            }, {
-                'name': 'kwargs',
-                'kind': inspect.Parameter.VAR_KEYWORD,
-                'arg': dict(c=3)
-             })
-        )
-
-    def test_get_context_vars(self):
-        a = 1
-        b = 2
-        assert parsing.get_context_vars(['a', 'b']) == [1, 2]
-        with pytest.raises(Exception):
-            parsing.get_context_vars(['a', 'b', 'c'])
-        assert parsing.get_context_vars(['c', 'd', 'e'], local_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
-        assert parsing.get_context_vars(['c', 'd', 'e'], global_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
-
-
 # ############# attr.py ############# #
 
 class TestAttr:
@@ -2664,16 +2576,16 @@ class TestTemplate:
         assert template.Sub('$hello$world', {'hello': 100}).substitute({'hello': 200, 'world': 300}) == '200300'
 
     def test_rep(self):
-        assert template.Rep('hello', {'hello': 100}).replace() == 100
-        assert template.Rep('hello', {'hello': 100}).replace({'hello': 200}) == 200
+        assert template.Rep('hello', {'hello': 100}).substitute() == 100
+        assert template.Rep('hello', {'hello': 100}).substitute({'hello': 200}) == 200
 
     def test_repeval(self):
-        assert template.RepEval('hello == 100', {'hello': 100}).eval()
-        assert not template.RepEval('hello == 100', {'hello': 100}).eval({'hello': 200})
+        assert template.RepEval('hello == 100', {'hello': 100}).substitute()
+        assert not template.RepEval('hello == 100', {'hello': 100}).substitute({'hello': 200})
 
     def test_repfunc(self):
-        assert template.RepFunc(lambda hello: hello == 100, {'hello': 100}).call()
-        assert not template.RepFunc(lambda hello: hello == 100, {'hello': 100}).call({'hello': 200})
+        assert template.RepFunc(lambda hello: hello == 100, {'hello': 100}).substitute()
+        assert not template.RepFunc(lambda hello: hello == 100, {'hello': 100}).substitute({'hello': 200})
 
     def test_deep_substitute(self):
         assert template.deep_substitute(template.Rep('hello'), {'hello': 100}) == 100
@@ -2688,3 +2600,509 @@ class TestTemplate:
         Tup = namedtuple('Tup', ['a'])
         tup = Tup(template.Rep('hello'))
         assert template.deep_substitute(tup, {'hello': 100}) == Tup(100)
+
+
+# ############# parsing.py ############# #
+
+class TestParsing:
+    def test_get_func_kwargs(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        assert parsing.get_func_kwargs(f) == {'b': 2}
+
+    def test_get_func_arg_names(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        assert parsing.get_func_arg_names(f) == ['a', 'b']
+
+    def test_get_ex_var_names(self):
+        assert parsing.get_ex_var_names('d = (a + b) / c') == ['d', 'c', 'a', 'b']
+
+    def test_annotate_args(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        with pytest.raises(Exception):
+            parsing.annotate_args(f)
+        assert parsing.annotate_args(f, 1) == dict(
+            a={
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'value': 1
+            },
+            args={
+                'kind': inspect.Parameter.VAR_POSITIONAL,
+                'value': ()
+            },
+            b={
+                'kind': inspect.Parameter.KEYWORD_ONLY,
+                'value': 2
+            },
+            kwargs={
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'value': {}
+            }
+        )
+        assert parsing.annotate_args(f, 1, 2, 3) == dict(
+            a={
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'value': 1
+            },
+            args={
+                'kind': inspect.Parameter.VAR_POSITIONAL,
+                'value': (2, 3)
+            },
+            b={
+                'kind': inspect.Parameter.KEYWORD_ONLY,
+                'value': 2
+            },
+            kwargs={
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'value': {}
+            }
+        )
+
+        def f2(a, b=2, **kwargs):
+            pass
+
+        assert parsing.annotate_args(f2, 1, 2, c=3) == dict(
+            a={
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'value': 1
+            },
+            b={
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'value': 2
+            },
+            kwargs={
+                'kind': inspect.Parameter.VAR_KEYWORD,
+                'value': dict(c=3)
+            }
+        )
+
+    def test_get_from_ann_args(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        with pytest.raises(Exception):
+            parsing.annotate_args(f)
+
+        ann_args = parsing.annotate_args(f, 0, 1, c=3)
+
+        assert parsing.get_from_ann_args(ann_args, i=0) == 0
+        assert parsing.get_from_ann_args(ann_args, name='a') == 0
+        assert parsing.get_from_ann_args(ann_args, i=1) == 1
+        assert parsing.get_from_ann_args(ann_args, i=2) == 2
+        assert parsing.get_from_ann_args(ann_args, name='b') == 2
+        assert parsing.get_from_ann_args(ann_args, i=3) == 3
+        assert parsing.get_from_ann_args(ann_args, name='c') == 3
+        with pytest.raises(Exception):
+            _ = parsing.get_from_ann_args(ann_args, i=4)
+        with pytest.raises(Exception):
+            _ = parsing.get_from_ann_args(ann_args, name='d')
+
+    def test_get_context_vars(self):
+        a = 1
+        b = 2
+        assert parsing.get_context_vars(['a', 'b']) == [1, 2]
+        with pytest.raises(Exception):
+            parsing.get_context_vars(['a', 'b', 'c'])
+        assert parsing.get_context_vars(['c', 'd', 'e'], local_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
+        assert parsing.get_context_vars(['c', 'd', 'e'], global_dict=dict(c=1, d=2, e=3)) == [1, 2, 3]
+
+    # ############# parallel.py ############# #
+
+    class TestParallel:
+        def test_take_from_args(self):
+            def f(a, b, *args, c=None, d=None, **kwargs):
+                pass
+
+            lst = [0, 1, 2]
+
+            ann_args = parsing.annotate_args(
+                f, lst, lst, lst, (lst, lst), c=lst, d=lst, e=lst, f=dict(g=lst, h=lst))
+            arg_take_spec = dict(
+                b=parallel.ChunkSelector(),
+                args=parallel.ArgsTaker(
+                    None,
+                    parallel.SequenceTaker((
+                        None,
+                        parallel.ChunkSlicer()
+                    ))
+                ),
+                d=parallel.ChunkSelector(),
+                kwargs=parallel.KwargsTaker(
+                    f=parallel.MappingTaker(dict(
+                        h=parallel.ChunkSlicer()
+                    ))
+                )
+            )
+            args, kwargs = parallel.take_from_args(ann_args, arg_take_spec, parallel.ChunkMeta(0, 1, 3))
+            assert args == (lst, lst[0], lst, (lst, lst[1:3]))
+            assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
+
+        def test_yield_chunk_meta(self):
+            with pytest.raises(Exception):
+                _ = list(parallel.yield_chunk_meta(n_chunks=0))
+            assert list(parallel.yield_chunk_meta(n_chunks=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=None, range_end=None),
+                parallel.ChunkMeta(idx=1, range_start=None, range_end=None),
+                parallel.ChunkMeta(idx=2, range_start=None, range_end=None),
+                parallel.ChunkMeta(idx=3, range_start=None, range_end=None)
+            ]
+            assert list(parallel.yield_chunk_meta(n_chunks=1, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(n_chunks=2, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=2),
+                parallel.ChunkMeta(idx=1, range_start=2, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(n_chunks=3, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=2),
+                parallel.ChunkMeta(idx=1, range_start=2, range_end=3),
+                parallel.ChunkMeta(idx=2, range_start=3, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(n_chunks=4, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=1),
+                parallel.ChunkMeta(idx=1, range_start=1, range_end=2),
+                parallel.ChunkMeta(idx=2, range_start=2, range_end=3),
+                parallel.ChunkMeta(idx=3, range_start=3, range_end=4)
+            ]
+            with pytest.raises(Exception):
+                _ = list(parallel.yield_chunk_meta(n_chunks=5, size=4))
+            with pytest.raises(Exception):
+                _ = list(parallel.yield_chunk_meta(chunk_len=0, size=4))
+            assert list(parallel.yield_chunk_meta(chunk_len=1, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=1),
+                parallel.ChunkMeta(idx=1, range_start=1, range_end=2),
+                parallel.ChunkMeta(idx=2, range_start=2, range_end=3),
+                parallel.ChunkMeta(idx=3, range_start=3, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(chunk_len=2, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=2),
+                parallel.ChunkMeta(idx=1, range_start=2, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(chunk_len=3, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=3),
+                parallel.ChunkMeta(idx=1, range_start=3, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(chunk_len=4, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=4)
+            ]
+            assert list(parallel.yield_chunk_meta(chunk_len=5, size=4)) == [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=4)
+            ]
+
+        def test_arg_getter(self):
+            def f(a, *args, b=None, **kwargs):
+                pass
+
+            ann_args = parsing.annotate_args(f, 0, 1, c=2)
+
+            assert parallel.ArgGetter(0).get_arg(ann_args) == 0
+            assert parallel.ArgGetter('a').get_arg(ann_args) == 0
+            assert parallel.ArgGetter(1).get_arg(ann_args) == 1
+            assert parallel.ArgGetter(2).get_arg(ann_args) is None
+            assert parallel.ArgGetter('b').get_arg(ann_args) is None
+            assert parallel.ArgGetter(3).get_arg(ann_args) == 2
+            assert parallel.ArgGetter('c').get_arg(ann_args) == 2
+            with pytest.raises(Exception):
+                _ = parallel.ArgGetter(4).get_arg(ann_args)
+            with pytest.raises(Exception):
+                _ = parallel.ArgGetter('d').get_arg(ann_args)
+
+        def test_chunk_meta_generators(self):
+            def f(a):
+                pass
+
+            chunk_meta = [
+                parallel.ChunkMeta(idx=0, range_start=0, range_end=1),
+                parallel.ChunkMeta(idx=1, range_start=1, range_end=3),
+                parallel.ChunkMeta(idx=2, range_start=3, range_end=6)
+            ]
+            ann_args = parsing.annotate_args(f, chunk_meta)
+            assert list(parallel.ArgChunkMeta('a').get_chunk_meta(ann_args)) == chunk_meta
+
+            ann_args = parsing.annotate_args(f, [1, 2, 3])
+            assert list(parallel.LenChunkMeta('a').get_chunk_meta(ann_args)) == chunk_meta
+
+        def test_sizers(self):
+            def f(a):
+                pass
+
+            ann_args = parsing.annotate_args(f, 10)
+            assert parallel.ArgSizer('a').get_size(ann_args) == 10
+
+            ann_args = parsing.annotate_args(f, [1, 2, 3])
+            assert parallel.LenSizer('a').get_size(ann_args) == 3
+
+            ann_args = parsing.annotate_args(f, (2, 3))
+            with pytest.raises(Exception):
+                _ = parallel.ShapeSizer('a', -1).get_size(ann_args)
+            assert parallel.ShapeSizer('a', 0).get_size(ann_args) == 2
+            assert parallel.ShapeSizer('a', 1).get_size(ann_args) == 3
+            assert parallel.ShapeSizer('a', 2).get_size(ann_args) == 0
+
+            ann_args = parsing.annotate_args(f, np.empty((2, 3)))
+            with pytest.raises(Exception):
+                _ = parallel.ArraySizer('a', -1).get_size(ann_args)
+            assert parallel.ArraySizer('a', 0).get_size(ann_args) == 2
+            assert parallel.ArraySizer('a', 1).get_size(ann_args) == 3
+            assert parallel.ArraySizer('a', 2).get_size(ann_args) == 0
+
+        def test_split_args(self):
+            def f(a, *args, b=None, **kwargs):
+                pass
+
+            arg_take_spec = dict(b=parallel.ChunkSelector())
+            result = [
+                (f, (2, 3, 1), {'b': 1}),
+                (f, (2, 3, 1), {'b': 2}),
+                (f, (2, 3, 1), {'b': 3})
+            ]
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), n_chunks=3,
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, n_chunks=lambda ann_args: ann_args['args']['value'][0],
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, n_chunks=parallel.ArgSizer(1),
+                arg_take_spec=arg_take_spec) == result
+            with pytest.raises(Exception):
+                _ = parallel.split_args(
+                    f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, n_chunks='a',
+                    arg_take_spec=arg_take_spec)
+
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_len=1, size=3,
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_len=1, size=lambda ann_args: ann_args['args']['value'][0],
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_len=1, size=parallel.ArgSizer(1),
+                arg_take_spec=arg_take_spec) == result
+            with pytest.raises(Exception):
+                _ = parallel.split_args(
+                    f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_len=1, size='a',
+                    arg_take_spec=arg_take_spec)
+
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, chunk_len=1,
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, chunk_len=lambda ann_args: ann_args['args']['value'][1],
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, chunk_len=parallel.ArgSizer(2),
+                arg_take_spec=arg_take_spec) == result
+            with pytest.raises(Exception):
+                _ = parallel.split_args(
+                    f, (2, 3, 1), dict(b=[1, 2, 3]), size=3, chunk_len='a',
+                    arg_take_spec=arg_take_spec)
+
+            chunk_meta = [
+                parallel.ChunkMeta(idx=0, range_start=None, range_end=None),
+                parallel.ChunkMeta(idx=1, range_start=None, range_end=None),
+                parallel.ChunkMeta(idx=2, range_start=None, range_end=None)
+            ]
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_meta=chunk_meta,
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_meta=parallel.LenChunkMeta('b'),
+                arg_take_spec=arg_take_spec) == result
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), chunk_meta=lambda ann_args: chunk_meta,
+                arg_take_spec=arg_take_spec) == result
+
+            assert parallel.split_args(
+                f, (2, 3, 1), dict(b=[1, 2, 3]), n_chunks=3,
+                arg_take_spec=lambda ann_args, chunk_meta: ((2, 3, 1), dict(b=[1, 2, 3][chunk_meta.idx]))) == result
+
+        def test_get_ray_refs(self):
+            if ray_available:
+                def f1(*args, **kwargs):
+                    pass
+
+                def f2(*args, **kwargs):
+                    pass
+
+                lst1 = [1, 2, 3]
+                lst2 = [1, 2, 3]
+                arr1 = np.array([1, 2, 3])
+                arr2 = np.array([1, 2, 3])
+                funcs_args = [
+                    (f1, (1, lst1, arr1), dict(a=1, b=lst1, c=arr1)),
+                    (f1, (2, lst2, arr2), dict(a=2, b=lst2, c=arr2)),
+                    (f2, (1, lst1, arr1), dict(a=1, b=lst1, c=arr1)),
+                ]
+
+                funcs_args_refs = parallel.get_ray_refs(funcs_args, reuse_refs=False)
+                func_refs = list(zip(*funcs_args_refs))[0]
+                assert func_refs[0] is not func_refs[1]
+                assert func_refs[0] is not func_refs[2]
+                args_refs = list(zip(*funcs_args_refs))[1]
+                assert args_refs[0][0] is not args_refs[1][0]
+                assert args_refs[0][0] is not args_refs[2][0]
+                assert args_refs[0][1] is not args_refs[1][1]
+                assert args_refs[0][1] is not args_refs[2][1]
+                assert args_refs[0][2] is not args_refs[1][2]
+                assert args_refs[0][2] is not args_refs[2][2]
+                kwargs_refs = list(zip(*funcs_args_refs))[2]
+                assert kwargs_refs[0]['a'] is not kwargs_refs[1]['a']
+                assert kwargs_refs[0]['a'] is not kwargs_refs[2]['a']
+                assert kwargs_refs[0]['b'] is not kwargs_refs[1]['b']
+                assert kwargs_refs[0]['b'] is not kwargs_refs[2]['b']
+                assert kwargs_refs[0]['c'] is not kwargs_refs[1]['c']
+                assert kwargs_refs[0]['c'] is not kwargs_refs[2]['c']
+
+                funcs_args_refs = parallel.get_ray_refs(funcs_args, reuse_refs=True)
+                func_refs = list(zip(*funcs_args_refs))[0]
+                assert func_refs[0] is func_refs[1]
+                assert func_refs[0] is not func_refs[2]
+                args_refs = list(zip(*funcs_args_refs))[1]
+                assert args_refs[0][0] is not args_refs[1][0]
+                assert args_refs[0][0] is args_refs[2][0]
+                assert args_refs[0][1] is not args_refs[1][1]
+                assert args_refs[0][1] is args_refs[2][1]
+                assert args_refs[0][2] is not args_refs[1][2]
+                assert args_refs[0][2] is args_refs[2][2]
+                kwargs_refs = list(zip(*funcs_args_refs))[2]
+                assert kwargs_refs[0]['a'] is not kwargs_refs[1]['a']
+                assert kwargs_refs[0]['a'] is kwargs_refs[2]['a']
+                assert kwargs_refs[0]['b'] is not kwargs_refs[1]['b']
+                assert kwargs_refs[0]['b'] is kwargs_refs[2]['b']
+                assert kwargs_refs[0]['c'] is not kwargs_refs[1]['c']
+                assert kwargs_refs[0]['c'] is kwargs_refs[2]['c']
+
+                assert funcs_args_refs == parallel.get_ray_refs(funcs_args_refs)
+
+        def test_chunked(self):
+            @parallel.chunked(
+                n_chunks=2,
+                size=vbt.LenSizer('a'),
+                arg_take_spec=dict(a=vbt.ChunkSlicer()),
+                engine='sequence')
+            def f(a):
+                return a
+
+            results = f(np.arange(10))
+            np.testing.assert_array_equal(results[0], np.arange(5))
+            np.testing.assert_array_equal(results[1], np.arange(5, 10))
+
+            f.options.n_chunks = 3
+            results = f(np.arange(10))
+            np.testing.assert_array_equal(results[0], np.arange(4))
+            np.testing.assert_array_equal(results[1], np.arange(4, 7))
+            np.testing.assert_array_equal(results[2], np.arange(7, 10))
+
+            results = f(np.arange(10), _n_chunks=4)
+            np.testing.assert_array_equal(results[0], np.arange(3))
+            np.testing.assert_array_equal(results[1], np.arange(3, 6))
+            np.testing.assert_array_equal(results[2], np.arange(6, 8))
+            np.testing.assert_array_equal(results[3], np.arange(8, 10))
+
+            @vbt.chunked(
+                n_chunks=2,
+                size=vbt.LenSizer('a'),
+                engine='sequence')
+            def f2(chunk_meta, a):
+                return a[chunk_meta.range_start:chunk_meta.range_end]
+
+            results = f2(np.arange(10))
+            np.testing.assert_array_equal(results[0], np.arange(5))
+            np.testing.assert_array_equal(results[1], np.arange(5, 10))
+
+            @vbt.chunked(
+                n_chunks=2,
+                size=vbt.LenSizer('a'),
+                prepend_chunk_meta=False,
+                engine='sequence')
+            def f3(chunk_meta, a):
+                return a[chunk_meta.range_start:chunk_meta.range_end]
+
+            results = f3(template.Rep('chunk_meta'), np.arange(10))
+            np.testing.assert_array_equal(results[0], np.arange(5))
+            np.testing.assert_array_equal(results[1], np.arange(5, 10))
+
+            with pytest.raises(Exception):
+                @vbt.chunked(
+                    n_chunks=2,
+                    size=vbt.LenSizer('a'),
+                    prepend_chunk_meta=True,
+                    engine='sequence')
+                def f4(chunk_meta, a):
+                    return a[chunk_meta.range_start:chunk_meta.range_end]
+
+                f4(template.Rep('chunk_meta'), np.arange(10))
+
+            @vbt.chunked(
+                n_chunks=2,
+                size=lambda ann_args: len(ann_args['a']['value']),
+                arg_take_spec=dict(a=vbt.ChunkSlicer()),
+                engine='sequence')
+            def f5(a):
+                return a
+
+            results = f5(np.arange(10))
+            np.testing.assert_array_equal(results[0], np.arange(5))
+            np.testing.assert_array_equal(results[1], np.arange(5, 10))
+
+            def arg_take_spec(ann_args, chunk_meta):
+                a = ann_args['a']['value']
+                lens = ann_args['lens']['value']
+                lens_chunk = lens[chunk_meta.range_start:chunk_meta.range_end]
+                a_end = np.cumsum(lens)
+                a_start = a_end - lens
+                a_start = a_start[chunk_meta.range_start:chunk_meta.range_end][0]
+                a_end = a_end[chunk_meta.range_start:chunk_meta.range_end][-1]
+                a_chunk = a[a_start:a_end]
+                return (a_chunk, lens_chunk), {}
+
+            @vbt.chunked(
+                n_chunks=2,
+                size=vbt.LenSizer('lens'),
+                arg_take_spec=arg_take_spec,
+                merge_func=lambda results: [list(r) for r in results],
+                engine='sequence')
+            def f6(a, lens):
+                ends = np.cumsum(lens)
+                starts = ends - lens
+                for i in range(len(lens)):
+                    yield a[starts[i]:ends[i]]
+
+            results = f6(np.arange(10), [1, 2, 3, 4])
+            np.testing.assert_array_equal(results[0][0], np.arange(1))
+            np.testing.assert_array_equal(results[0][1], np.arange(1, 3))
+            np.testing.assert_array_equal(results[1][0], np.arange(3, 6))
+            np.testing.assert_array_equal(results[1][1], np.arange(6, 10))
+
+            @vbt.chunked(
+                n_chunks=2,
+                size=vbt.LenSizer('a'),
+                arg_take_spec=dict(a=vbt.ChunkSlicer()),
+                merge_func=np.concatenate,
+                engine=lambda funcs_args, my_arg: [
+                    func(*args, **kwargs) + my_arg
+                    for func, args, kwargs in funcs_args
+                ],
+                engine_kwargs=dict(my_arg=100))
+            def f7(a):
+                return a
+
+            np.testing.assert_array_equal(f7(np.arange(10)), np.arange(100, 110))
+
+            if ray_available:
+                @vbt.chunked(
+                    n_chunks=2,
+                    size=vbt.LenSizer('a'),
+                    arg_take_spec=dict(a=vbt.ChunkSlicer()),
+                    merge_func=np.concatenate,
+                    engine='ray')
+                def f8(a):
+                    return a
+
+                np.testing.assert_array_equal(f8(np.arange(10)), np.arange(10))
