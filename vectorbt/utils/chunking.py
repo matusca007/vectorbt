@@ -1,9 +1,9 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Utilities for parallelization."""
+"""Utilities for chunking."""
 
-from numba.core.registry import CPUDispatcher
+import pandas as pd
 import inspect
 import multiprocessing
 from functools import wraps
@@ -13,88 +13,19 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import annotate_args, ann_argsT, get_from_ann_args, get_func_arg_names
 from vectorbt.utils.template import deep_substitute, Rep
-
-try:
-    from ray.remote_function import RemoteFunction as RemoteFunctionT
-    from ray import ObjectRef as ObjectRefT
-except ImportError:
-    RemoteFunctionT = tp.Any
-    ObjectRefT = tp.Any
+from vectorbt.utils.execution import funcs_argsT, ExecutionEngine, SequenceEngine, DaskEngine, RayEngine
 
 __pdoc__ = {}
 
 
-# ############# Chunk generation ############# #
-
-class ChunkMeta(tp.NamedTuple):
-    idx: int
-    range_start: tp.Optional[int]
-    range_end: tp.Optional[int]
+# ############# Chunk sizing ############# #
 
 
-__pdoc__['ChunkMeta'] = "A named tuple representing a chunk metadata."
-__pdoc__['ChunkMeta.chunk_idx'] = "Chunk index."
-__pdoc__['ChunkMeta.from_idx'] = "Start of the chunk range (including)."
-__pdoc__['ChunkMeta.to_idx'] = "End of the chunk range (excluding)."
+class Sizer:
+    """Abstract class for getting the size from annotated arguments."""
 
-
-def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
-                     size: tp.Optional[int] = None,
-                     chunk_len: tp.Optional[int] = None) -> tp.Generator[ChunkMeta, None, None]:
-    """Yield meta of each successive chunk from a sequence with a number of elements.
-
-    If both `n_chunks` and `chunk_len` are None (after resolving them from settings),
-    sets `n_chunks` to the number of cores.
-
-    For defaults, see `parallel` in `vectorbt._settings.settings`."""
-    from vectorbt._settings import settings
-    parallel_cfg = settings['parallel']
-
-    if n_chunks is None:
-        n_chunks = parallel_cfg['n_chunks']
-    if chunk_len is None:
-        chunk_len = parallel_cfg['chunk_len']
-
-    if n_chunks is None and chunk_len is None:
-        n_chunks = multiprocessing.cpu_count()
-    if n_chunks is not None:
-        if n_chunks == 0:
-            raise ValueError("Chunk count cannot be zero")
-        if size is not None:
-            if n_chunks > size:
-                raise ValueError("Chunk count cannot exceed element count")
-            d, r = divmod(size, n_chunks)
-            for i in range(n_chunks):
-                si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
-                yield ChunkMeta(
-                    idx=i,
-                    range_start=si,
-                    range_end=si + (d + 1 if i < r else d)
-                )
-        else:
-            for i in range(n_chunks):
-                yield ChunkMeta(
-                    idx=i,
-                    range_start=None,
-                    range_end=None
-                )
-    if chunk_len is not None:
-        checks.assert_not_none(size)
-        if chunk_len == 0:
-            raise ValueError("Chunk length cannot be zero")
-        for chunk_i, i in enumerate(range(0, size, chunk_len)):
-            yield ChunkMeta(
-                idx=chunk_i,
-                range_start=i,
-                range_end=min(i + chunk_len, size)
-            )
-
-
-class ChunkMetaGenerator:
-    """Abstract class for generating chunk metadata from annotated arguments."""
-
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
-        """Get chunk metadata."""
+    def get_size(self, ann_args: ann_argsT) -> int:
+        """Get the size given the annotated arguments."""
         raise NotImplementedError
 
 
@@ -114,37 +45,6 @@ class ArgGetter:
         if isinstance(self.arg, int):
             return get_from_ann_args(ann_args, i=self.arg)
         return get_from_ann_args(ann_args, name=self.arg)
-
-
-class ArgChunkMeta(ChunkMetaGenerator, ArgGetter):
-    """Class for generating chunk metadata from an argument."""
-
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
-        return self.get_arg(ann_args)
-
-
-class LenChunkMeta(ArgChunkMeta):
-    """Class for generating chunk metadata from a sequence of chunk lengths."""
-
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
-        arg = self.get_arg(ann_args)
-        range_start = 0
-        range_end = 0
-        for i, chunk_len in enumerate(arg):
-            range_end += chunk_len
-            yield ChunkMeta(idx=i, range_start=range_start, range_end=range_end)
-            range_start = range_end
-
-
-# ############# Chunk sizing ############# #
-
-
-class Sizer:
-    """Abstract class for getting the size from annotated arguments."""
-
-    def get_size(self, ann_args: ann_argsT) -> int:
-        """Get the size given the annotated arguments."""
-        raise NotImplementedError
 
 
 class ArgSizer(Sizer, ArgGetter):
@@ -197,6 +97,163 @@ class ArraySizer(AxisSizer):
         return 0
 
 
+# ############# Chunk generation ############# #
+
+class ChunkMeta(tp.NamedTuple):
+    idx: int
+    range_start: tp.Optional[int]
+    range_end: tp.Optional[int]
+
+
+__pdoc__['ChunkMeta'] = "A named tuple representing a chunk metadata."
+__pdoc__['ChunkMeta.chunk_idx'] = "Chunk index."
+__pdoc__['ChunkMeta.from_idx'] = "Start of the chunk range (including)."
+__pdoc__['ChunkMeta.to_idx'] = "End of the chunk range (excluding)."
+
+
+def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
+                     size: tp.Optional[int] = None,
+                     chunk_len: tp.Optional[int] = None) -> tp.Generator[ChunkMeta, None, None]:
+    """Yield meta of each successive chunk from a sequence with a number of elements.
+
+    If both `n_chunks` and `chunk_len` are None (after resolving them from settings),
+    sets `n_chunks` to the number of cores.
+
+    For defaults, see `chunking` in `vectorbt._settings.settings`."""
+    from vectorbt._settings import settings
+    chunking_cfg = settings['chunking']
+
+    if n_chunks is None:
+        n_chunks = chunking_cfg['n_chunks']
+    if chunk_len is None:
+        chunk_len = chunking_cfg['chunk_len']
+
+    if n_chunks is None and chunk_len is None:
+        n_chunks = multiprocessing.cpu_count()
+    if n_chunks is not None:
+        if n_chunks == 0:
+            raise ValueError("Chunk count cannot be zero")
+        if size is not None:
+            if n_chunks > size:
+                raise ValueError("Chunk count cannot exceed element count")
+            d, r = divmod(size, n_chunks)
+            for i in range(n_chunks):
+                si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
+                yield ChunkMeta(
+                    idx=i,
+                    range_start=si,
+                    range_end=si + (d + 1 if i < r else d)
+                )
+        else:
+            for i in range(n_chunks):
+                yield ChunkMeta(
+                    idx=i,
+                    range_start=None,
+                    range_end=None
+                )
+    if chunk_len is not None:
+        checks.assert_not_none(size)
+        if chunk_len == 0:
+            raise ValueError("Chunk length cannot be zero")
+        for chunk_i, i in enumerate(range(0, size, chunk_len)):
+            yield ChunkMeta(
+                idx=chunk_i,
+                range_start=i,
+                range_end=min(i + chunk_len, size)
+            )
+
+
+class ChunkMetaGenerator:
+    """Abstract class for generating chunk metadata from annotated arguments."""
+
+    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+        """Get chunk metadata."""
+        raise NotImplementedError
+
+
+class ArgChunkMeta(ChunkMetaGenerator, ArgGetter):
+    """Class for generating chunk metadata from an argument."""
+
+    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+        return self.get_arg(ann_args)
+
+
+class LenChunkMeta(ArgChunkMeta):
+    """Class for generating chunk metadata from a sequence of chunk lengths."""
+
+    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+        arg = self.get_arg(ann_args)
+        range_start = 0
+        range_end = 0
+        for i, chunk_len in enumerate(arg):
+            range_end += chunk_len
+            yield ChunkMeta(idx=i, range_start=range_start, range_end=range_end)
+            range_start = range_end
+
+
+any_sizeT = tp.Union[int, Sizer, tp.Callable]
+any_chunk_metaT = tp.Union[tp.Iterable[ChunkMeta], ChunkMetaGenerator, tp.Callable]
+
+
+def get_chunk_meta_from_args(ann_args: ann_argsT,
+                             n_chunks: tp.Optional[any_sizeT] = None,
+                             size: tp.Optional[any_sizeT] = None,
+                             chunk_len: tp.Optional[any_sizeT] = None,
+                             chunk_meta: tp.Optional[any_chunk_metaT] = None) -> tp.Iterable[ChunkMeta]:
+    """Get chunk metadata from annotated arguments.
+
+    Args:
+        ann_args (dict): Arguments annotated with `vectorbt.utils.parsing.annotate_args`.
+        n_chunks (int, Sizer, or callable): Number of chunks.
+
+            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
+            and returning an integer.
+        size (int, Sizer, or callable): Size of the space to split.
+
+            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
+            and returning an integer.
+        chunk_len (int, Sizer, or callable): Length of each chunk.
+
+            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
+            and returning an integer.
+        chunk_meta (iterable of ChunkMeta, ChunkMetaGenerator, or callable): Chunk meta.
+
+            Can be an iterable of `ChunkMeta`, an instance of `ChunkMetaGenerator`, or
+            a callable taking the annotated arguments and returning an iterable."""
+    if chunk_meta is None:
+        if n_chunks is not None:
+            if isinstance(n_chunks, Sizer):
+                n_chunks = n_chunks.get_size(ann_args)
+            elif callable(n_chunks):
+                n_chunks = n_chunks(ann_args)
+            elif not isinstance(n_chunks, int):
+                raise TypeError(f"Type {type(n_chunks)} for n_chunks is not supported")
+        if size is not None:
+            if isinstance(size, Sizer):
+                size = size.get_size(ann_args)
+            elif callable(size):
+                size = size(ann_args)
+            elif not isinstance(size, int):
+                raise TypeError(f"Type {type(size)} for size is not supported")
+        if chunk_len is not None:
+            if isinstance(chunk_len, Sizer):
+                chunk_len = chunk_len.get_size(ann_args)
+            elif callable(chunk_len):
+                chunk_len = chunk_len(ann_args)
+            elif not isinstance(chunk_len, int):
+                raise TypeError(f"Type {type(chunk_len)} for chunk_len is not supported")
+        return yield_chunk_meta(
+            n_chunks=n_chunks,
+            size=size,
+            chunk_len=chunk_len
+        )
+    if isinstance(chunk_meta, ChunkMetaGenerator):
+        return chunk_meta.get_chunk_meta(ann_args)
+    if callable(chunk_meta):
+        return chunk_meta(ann_args)
+    return chunk_meta
+
+
 # ############# Chunk taking ############# #
 
 TakeSpecT = tp.Union[None, "ChunkTaker"]
@@ -232,6 +289,48 @@ class ChunkSlicer(ChunkTaker):
 
     def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Sequence:
         return obj[chunk_meta.range_start:chunk_meta.range_end]
+
+
+class AxisTaker(ChunkTaker):
+    """Abstract class for taking one or more elements from an axis."""
+
+    def __init__(self, axis: int) -> None:
+        ChunkTaker.__init__(self)
+
+        if axis < 0:
+            raise ValueError("Axis cannot be negative")
+        self._axis = axis
+
+    @property
+    def axis(self) -> int:
+        """Axis of the argument to take from."""
+        return self._axis
+
+
+class ArraySelector(AxisTaker):
+    """Class for selecting one element from an axis based on the chunk index."""
+
+    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.ArrayLike:
+        if self.axis >= len(obj.shape):
+            raise IndexError(f"Array is {obj.ndim}-dimensional, but axis {self.axis} was indexed")
+        slc = [slice(None)] * len(obj.shape)
+        slc[self.axis] = chunk_meta.idx
+        if isinstance(obj, (pd.Series, pd.DataFrame)):
+            return obj.iloc[tuple(slc)]
+        return obj[tuple(slc)]
+
+
+class ArraySlicer(AxisTaker):
+    """Class for slicing multiple elements from an axis based on the chunk range."""
+
+    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.AnyArray:
+        if self.axis >= len(obj.shape):
+            raise IndexError(f"Array is {obj.ndim}-dimensional, but axis {self.axis} was indexed")
+        slc = [slice(None)] * len(obj.shape)
+        slc[self.axis] = slice(chunk_meta.range_start, chunk_meta.range_end)
+        if isinstance(obj, (pd.Series, pd.DataFrame)):
+            return obj.iloc[tuple(slc)]
+        return obj[tuple(slc)]
 
 
 class ContainerTaker(ChunkTaker):
@@ -330,89 +429,32 @@ def take_from_args(ann_args: ann_argsT,
     return new_args, new_kwargs
 
 
-# ############# Splitting ############# #
-
-funcs_argsT = tp.Tuple[tp.Callable, tp.Args, tp.Kwargs]
-
-
-def split_args(func: tp.Callable,
-               args: tp.Args,
-               kwargs: tp.Kwargs,
-               n_chunks: tp.Optional[tp.Union[int, Sizer, tp.Callable]] = None,
-               size: tp.Optional[tp.Union[int, Sizer, tp.Callable]] = None,
-               chunk_len: tp.Optional[tp.Union[int, Sizer, tp.Callable]] = None,
-               chunk_meta: tp.Optional[tp.Union[tp.Iterable[ChunkMeta], ChunkMetaGenerator, tp.Callable]] = None,
-               arg_take_spec: tp.Optional[tp.Union[ArgTakeSpecT, tp.Callable]] = None) -> tp.List[funcs_argsT]:
-    """Split arguments and keyword arguments.
-
-    Annotates the arguments using `vectorbt.utils.parsing.annotate_args`, uses or generates chunk metadata,
-    splits the arguments into chunks, and returns them.
+def yield_arg_chunks(func: tp.Callable,
+                     ann_args: ann_argsT,
+                     chunk_meta: tp.Iterable[ChunkMeta],
+                     arg_take_spec: tp.Optional[tp.Union[ArgTakeSpecT, tp.Callable]] = None,
+                     template_mapping: tp.Optional[tp.Mapping] = None) -> tp.Generator[funcs_argsT, None, None]:
+    """Split annotated arguments into chunks and yield each chunk.
 
     Args:
-        func (callable): Function.
-        args (tuple): Tuple of arguments passed to `func`.
-        kwargs (dict): Dictionary with keyword arguments passed to `func`.
-        n_chunks (int, Sizer, or callable): Number of chunks.
-
-            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
-            and returning an integer.
-        size (int, Sizer, or callable): Size of the space to split.
-
-            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
-            and returning an integer.
-        chunk_len (int, Sizer, or callable): Length of each chunk.
-
-            Can be an integer, an instance of `Sizer`, or a callable taking the annotated arguments
-            and returning an integer.
-        chunk_meta (iterable of ChunkMeta, ChunkMetaGenerator, or callable): Chunk meta.
-
-            Can be an iterable of `ChunkMeta`, an instance of `ChunkMetaGenerator`, or
-            a callable taking the annotated arguments and returning an iterable.
+        func (callable): Callable.
+        ann_args (dict): Arguments annotated with `vectorbt.utils.parsing.annotate_args`.
+        chunk_meta (iterable of ChunkMeta): Chunk metadata.
         arg_take_spec (dict or callable): Chunk taking specification.
 
             Can be a callable taking the annotated arguments and returning new arguments and
             keyword arguments. Otherwise, see `take_from_args`.
+        template_mapping (mapping): Mapping to replace templates in arguments.
 
-    Returns a list of tuples. Each tuple corresponds to a chunk and contains `func`, the chunk's arguments,
-    and the chunk's keyword arguments."""
+    For defaults, see `chunking` in `vectorbt._settings.settings`."""
 
-    ann_args = annotate_args(func, *args, **kwargs)
+    from vectorbt._settings import settings
+    chunking_cfg = settings['chunking']
 
-    if chunk_meta is None:
-        if n_chunks is not None:
-            if isinstance(n_chunks, Sizer):
-                n_chunks = n_chunks.get_size(ann_args)
-            elif callable(n_chunks):
-                n_chunks = n_chunks(ann_args)
-            elif not isinstance(n_chunks, int):
-                raise TypeError(f"Type {type(n_chunks)} for n_chunks is not supported")
-        if size is not None:
-            if isinstance(size, Sizer):
-                size = size.get_size(ann_args)
-            elif callable(size):
-                size = size(ann_args)
-            elif not isinstance(size, int):
-                raise TypeError(f"Type {type(size)} for size is not supported")
-        if chunk_len is not None:
-            if isinstance(chunk_len, Sizer):
-                chunk_len = chunk_len.get_size(ann_args)
-            elif callable(chunk_len):
-                chunk_len = chunk_len(ann_args)
-            elif not isinstance(chunk_len, int):
-                raise TypeError(f"Type {type(chunk_len)} for chunk_len is not supported")
-        chunk_meta = yield_chunk_meta(
-            n_chunks=n_chunks,
-            size=size,
-            chunk_len=chunk_len
-        )
-    elif isinstance(chunk_meta, ChunkMetaGenerator):
-        chunk_meta = chunk_meta.get_chunk_meta(ann_args)
-    elif callable(chunk_meta):
-        chunk_meta = chunk_meta(ann_args)
+    template_mapping = merge_dicts(chunking_cfg['template_mapping'], template_mapping)
 
-    funcs_args = []
     for _chunk_meta in chunk_meta:
-        mapping = {**ann_args, 'chunk_meta': _chunk_meta}
+        mapping = merge_dicts(ann_args, dict(chunk_meta=_chunk_meta), template_mapping)
         chunk_ann_args = deep_substitute(ann_args, mapping=mapping)
         if arg_take_spec is None:
             arg_take_spec = {}
@@ -420,192 +462,53 @@ def split_args(func: tp.Callable,
             chunk_args, chunk_kwargs = arg_take_spec(chunk_ann_args, _chunk_meta)
         else:
             chunk_args, chunk_kwargs = take_from_args(chunk_ann_args, arg_take_spec, _chunk_meta)
-        funcs_args.append((func, chunk_args, chunk_kwargs))
-
-    return funcs_args
-
-
-# ############# Running ############# #
-
-
-def run_using_sequence(funcs_args: tp.Iterable[funcs_argsT]) -> list:
-    """Run a sequence of functions in a serial manner.
-
-    This function is mostly used for testing purposes."""
-    return [func(*args, **kwargs) for func, args, kwargs in funcs_args]
-
-
-funcs_args_refsT = tp.Tuple[RemoteFunctionT, tp.Tuple[ObjectRefT, ...], tp.Dict[str, ObjectRefT]]
-
-
-def get_ray_refs(funcs_args: tp.Iterable[funcs_argsT],
-                 reuse_refs: bool = True,
-                 remote_kwargs: tp.KwargsLike = None) -> tp.List[funcs_args_refsT]:
-    """Get result references by putting each argument and keyword argument into the object store
-    and invoking the remote decorator on each function using Ray.
-
-    If `reuse_refs` is True, will generate one reference per unique object id."""
-    import ray
-    from ray.remote_function import RemoteFunction
-    from ray import ObjectRef
-
-    if remote_kwargs is None:
-        remote_kwargs = {}
-
-    func_id_remotes = {}
-    obj_id_refs = {}
-    funcs_args_refs = []
-    for func, args, kwargs in funcs_args:
-        # Get remote function
-        if isinstance(func, RemoteFunction):
-            func_remote = func
-        else:
-            if not reuse_refs or id(func) not in func_id_remotes:
-                if isinstance(func, CPUDispatcher):
-                    # Numba-wrapped function is not recognized by ray as a function
-                    _func = lambda *_args, **_kwargs: func(*_args, **_kwargs)
-                else:
-                    _func = func
-                if len(remote_kwargs) > 0:
-                    func_remote = ray.remote(**remote_kwargs)(_func)
-                else:
-                    func_remote = ray.remote(_func)
-                if reuse_refs:
-                    func_id_remotes[id(func)] = func_remote
-            else:
-                func_remote = func_id_remotes[id(func)]
-
-        # Get id of each (unique) arg
-        arg_refs = ()
-        for arg in args:
-            if isinstance(arg, ObjectRef):
-                arg_ref = arg
-            else:
-                if not reuse_refs or id(arg) not in obj_id_refs:
-                    arg_ref = ray.put(arg)
-                    obj_id_refs[id(arg)] = arg_ref
-                else:
-                    arg_ref = obj_id_refs[id(arg)]
-            arg_refs += (arg_ref,)
-
-        # Get id of each (unique) kwarg
-        kwarg_refs = {}
-        for kwarg_name, kwarg in kwargs.items():
-            if isinstance(kwarg, ObjectRef):
-                kwarg_ref = kwarg
-            else:
-                if not reuse_refs or id(kwarg) not in obj_id_refs:
-                    kwarg_ref = ray.put(kwarg)
-                    obj_id_refs[id(kwarg)] = kwarg_ref
-                else:
-                    kwarg_ref = obj_id_refs[id(kwarg)]
-            kwarg_refs[kwarg_name] = kwarg_ref
-
-        funcs_args_refs.append((func_remote, arg_refs, kwarg_refs))
-    return funcs_args_refs
-
-
-def run_using_ray(funcs_args: tp.Iterable[funcs_argsT],
-                  restart: tp.Optional[bool] = None,
-                  reuse_refs: tp.Optional[bool] = None,
-                  del_refs: tp.Optional[bool] = None,
-                  shutdown: tp.Optional[bool] = None,
-                  init_kwargs: tp.KwargsLike = None,
-                  remote_kwargs: tp.KwargsLike = None) -> list:
-    """Run a sequence of functions in a distributed manner using Ray.
-
-    Args:
-        funcs_args (sequence of tuples): Sequence of tuples, each composed of the
-            function to be called, and arguments and keyword arguments passed to this function.
-        restart (bool): Whether to terminate the Ray runtime and initialize a new one.
-        reuse_refs (bool): Whether to re-use function and object references, such that each
-            unique object will be copied only once.
-        del_refs (bool): Whether to explicitly delete the result object references.
-        shutdown (bool): Whether to True to terminate the Ray runtime upon the job end.
-        init_kwargs (dict): Keyword arguments passed to `ray.init`.
-        remote_kwargs (dict): Keyword arguments passed to `ray.remote`.
-
-    For defaults, see `parallel.ray` in `vectorbt._settings.settings`.
-
-    !!! note
-        Ray spawns multiple processes as opposed to threads, so any argument and keyword argument must first
-        be put into an object store to be shared. Make sure that the computation with `func` takes
-        a considerable amount of time compared to this copying operation, otherwise there will be
-        a little to no speedup.
-
-    !!! warning
-        Passing callables and other objects with type annotations may load vectorbt and other packages
-        that these annotations depend on, causing memory pollution and `RayOutOfMemoryError`.
-    """
-    import ray
-
-    from vectorbt._settings import settings
-    parallel_ray_cfg = settings['parallel']['ray']
-
-    if restart is None:
-        restart = parallel_ray_cfg['restart']
-    if reuse_refs is None:
-        reuse_refs = parallel_ray_cfg['reuse_refs']
-    if del_refs is None:
-        del_refs = parallel_ray_cfg['del_refs']
-    if shutdown is None:
-        shutdown = parallel_ray_cfg['shutdown']
-    init_kwargs = merge_dicts(init_kwargs, parallel_ray_cfg['init_kwargs'])
-    remote_kwargs = merge_dicts(remote_kwargs, parallel_ray_cfg['remote_kwargs'])
-
-    if restart:
-        if ray.is_initialized():
-            ray.shutdown()
-    if not ray.is_initialized():
-        ray.init(**init_kwargs)
-    funcs_args_refs = get_ray_refs(funcs_args, reuse_refs=reuse_refs, remote_kwargs=remote_kwargs)
-    result_refs = []
-    for func_remote, arg_refs, kwarg_refs in funcs_args_refs:
-        result_refs.append(func_remote.remote(*arg_refs, **kwarg_refs))
-    try:
-        results = ray.get(result_refs)
-    finally:
-        if del_refs:
-            # clear object store
-            del result_refs
-        if shutdown:
-            ray.shutdown()
-    return results
-
-
-def run_ntimes_using_ray(n: int, func: tp.Callable, *args, ray_kwargs: tp.KwargsLike = None, **kwargs) -> list:
-    """Run a function a number of times using `run_using_ray`.
-
-    `func` must accept the (incrementing) index of the run, `*args`, and `**kwargs`.
-    Use the run index, for example, to select a portion of the data to analyze."""
-    if ray_kwargs is None:
-        ray_kwargs = {}
-
-    return run_using_ray([(func, (i, *args), kwargs) for i in range(n)], **ray_kwargs)
+        yield func, chunk_args, chunk_kwargs
 
 
 def chunked(*args,
             prepend_chunk_meta: tp.Optional[bool] = None,
-            engine: tp.Optional[tp.Union[str, tp.Callable]] = None,
+            engine: tp.Optional[tp.Union[str, type, ExecutionEngine, tp.Callable]] = None,
             engine_kwargs: tp.KwargsLike = None,
             merge_func: tp.Optional[tp.Callable] = None,
-            **split_kwargs) -> tp.Callable:
-    """Make a function chunked. Engine-agnostic.
+            **kwargs) -> tp.Callable:
+    """Decorator for chunking a function. Engine-agnostic.
 
-    Returns a function with the same signature as the passed function doing the following:
+    Args:
+        prepend_chunk_meta (bool): Whether to prepend an instance of `ChunkMeta` to the arguments.
 
-    * Splits the arguments using `split_args`.
-        The keyword arguments `split_kwargs` are passed to this function.
-    * Passes the list of chunks to the engine function for execution.
-        The keyword arguments `engine_kwargs` are passed to this function.
-    * Optionally, post-processes and merges the results using `merge_func`.
+            If None, prepends automatically if the first argument is named 'chunk_meta'.
+        engine (str, type, ExecutionEngine, or callable): Engine for executing chunks.
 
-    For defaults, see `parallel` in `vectorbt._settings.settings`.
+            Supported values:
 
-    The following engines are supported:
+            * Name of the engine (see supported engines)
+            * Subclass of `vectorbt.utils.execution.ExecutionEngine` -
+                will initialize with `**engine_kwargs`
+            * Instance of `vectorbt.utils.execution.ExecutionEngine` -
+                will call `vectorbt.utils.execution.ExecutionEngine.run`
+            * Callable - will pass an iterable of function and argument tuples,
+                chunk metadata, and `**engine_kwargs`
 
-    * 'ray': See `run_using_ray`.
-    * 'sequence': See `run_using_sequence`.
+            Supported engines:
+
+            * 'sequence' (default): See `vectorbt.utils.execution.SequenceEngine`.
+            * 'dask': See `vectorbt.utils.execution.DaskEngine`.
+            * 'ray': See `vectorbt.utils.execution.RayEngine`.
+        engine_kwargs (dict): Keyword arguments passed to `engine`.
+        merge_func (callable): Function to post-process and merge the results.
+        **kwargs: Keyword arguments for chunking (see `get_chunk_meta_from_args` and `yield_arg_chunks`).
+
+    For defaults, see `chunking` in `vectorbt._settings.settings`.
+
+    For example, to switch the engine globally:
+
+    ```python-repl
+    >>> import vectorbt as vbt
+
+    >>> vbt.settings.chunking['engine'] = 'dask'
+    ```
+
+    Returns a function with the same signature as the passed function.
 
     Each parameter can be modified in the `options` attribute of the wrapper function or
     passed as a keyword argument with a leading underscore directly.
@@ -624,8 +527,7 @@ def chunked(*args,
     >>> @vbt.chunked(
     ...     n_chunks=2,
     ...     size=vbt.LenSizer('a'),
-    ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
-    ...     engine='sequence')
+    ...     arg_take_spec=dict(a=vbt.ChunkSlicer()))
     ... def f(a):
     ...     return np.mean(a)
 
@@ -633,8 +535,9 @@ def chunked(*args,
     [2.0, 7.0]
     ```
 
-    The `chunked` function is a decorator that takes `f` and creates a function that splits and
-    runs all calculations in parallel. It has the same signature as the original function:
+    The `chunked` function is a decorator that takes `f` and creates a function that splits
+    passed arguments, runs each chunk using an engine, and optionally, merges the results.
+    It has the same signature as the original function:
 
     ```python-repl
     >>> f
@@ -659,7 +562,7 @@ def chunked(*args,
     Chunk metadata contains the chunk index that can be used to split any input:
 
     ```python-repl
-    >>> from vectorbt.utils.parallel import yield_chunk_meta
+    >>> from vectorbt.utils.chunking import yield_chunk_meta
 
     >>> list(yield_chunk_meta(n_chunks=2))
     [ChunkMeta(idx=0, range_start=None, range_end=None),
@@ -667,7 +570,7 @@ def chunked(*args,
     ```
 
     Additionally, it may contain the start and end index of the space we want to split.
-    This space can be the length of an input array, for example. In our case:
+    The space can be defined by the length of an input array, for example. In our case:
 
     ```python-repl
     >>> list(yield_chunk_meta(n_chunks=2, size=10))
@@ -705,8 +608,7 @@ def chunked(*args,
 
     >>> @vbt.chunked(
     ...     n_chunks=vbt.LenSizer('a'),
-    ...     arg_take_spec=arg_take_spec,
-    ...     engine='sequence')
+    ...     arg_take_spec=arg_take_spec)
     ... def f(a, *args, b=None, **kwargs):
     ...     return a + sum(args) + sum(b) + sum(kwargs['c'].values())
 
@@ -723,7 +625,6 @@ def chunked(*args,
     ...     n_chunks=2,
     ...     size=vbt.LenSizer('a'),
     ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
-    ...     engine='sequence',
     ...     merge_func=np.concatenate)
     ... def f(a):
     ...     return a
@@ -740,7 +641,6 @@ def chunked(*args,
     >>> @vbt.chunked(
     ...     n_chunks=2,
     ...     size=vbt.LenSizer('a'),
-    ...     engine='sequence',
     ...     merge_func=np.concatenate)
     ... def f(chunk_meta, a):
     ...     return a[chunk_meta.range_start:chunk_meta.range_end]
@@ -758,7 +658,6 @@ def chunked(*args,
     >>> @vbt.chunked(
     ...     n_chunks=2,
     ...     size=vbt.LenSizer('a'),
-    ...     engine='sequence',
     ...     merge_func=np.concatenate,
     ...     prepend_chunk_meta=False)
     ... def f(chunk_meta, a):
@@ -769,6 +668,22 @@ def chunked(*args,
     ```
 
     Templates in arguments are substituted right before taking a chunk from them.
+
+    Keyword arguments to the engine can be provided using `engine_kwargs`:
+
+    ```python-repl
+    >>> @vbt.chunked(
+    ...     n_chunks=2,
+    ...     size=vbt.LenSizer('a'),
+    ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
+    ...     engine_kwargs=dict(show_progress=True))  # see run_using_sequence
+    ... def f(a):
+    ...     return np.mean(a)
+
+    >>> f(np.arange(10))
+    100% |█████████████████████████████████| 2/2 [00:00<00:00, 81.11it/s]
+    [2.0, 7.0]
+    ```
     """
 
     def decorator(func: tp.Callable) -> tp.Callable:
@@ -784,13 +699,14 @@ def chunked(*args,
         @wraps(func)
         def wrapper(*args, **kwargs):
             from vectorbt._settings import settings
-            parallel_cfg = settings['parallel']
+            chunking_cfg = settings['chunking']
 
             n_chunks = kwargs.pop('_n_chunks', wrapper.options['n_chunks'])
             size = kwargs.pop('_size', wrapper.options['size'])
             chunk_len = kwargs.pop('_chunk_len', wrapper.options['chunk_len'])
             chunk_meta = kwargs.pop('_chunk_meta', wrapper.options['chunk_meta'])
             arg_take_spec = kwargs.pop('_arg_take_spec', wrapper.options['arg_take_spec'])
+            template_mapping = merge_dicts(wrapper.options['template_mapping'], kwargs.pop('_template_mapping', {}))
             engine = kwargs.pop('_engine', wrapper.options['engine'])
             engine_kwargs = merge_dicts(wrapper.options['engine_kwargs'], kwargs.pop('_engine_kwargs', {}))
             merge_func = kwargs.pop('_merge_func', wrapper.options['merge_func'])
@@ -798,27 +714,38 @@ def chunked(*args,
             if prepend_chunk_meta:
                 args = (Rep('chunk_meta'), *args)
 
-            funcs_args = split_args(
-                func,
-                args,
-                kwargs,
+            ann_args = annotate_args(func, *args, **kwargs)
+            chunk_meta = list(get_chunk_meta_from_args(
+                ann_args,
                 n_chunks=n_chunks,
                 size=size,
                 chunk_len=chunk_len,
+                chunk_meta=chunk_meta
+            ))
+            funcs_args = yield_arg_chunks(
+                func,
+                ann_args,
                 chunk_meta=chunk_meta,
-                arg_take_spec=arg_take_spec
+                arg_take_spec=arg_take_spec,
+                template_mapping=template_mapping
             )
             if engine is None:
-                engine = parallel_cfg['engine']
+                engine = chunking_cfg['engine']
             if isinstance(engine, str):
-                if engine.lower() == 'ray':
-                    results = run_using_ray(funcs_args, **engine_kwargs)
-                elif engine.lower() == 'sequence':
-                    results = run_using_sequence(funcs_args)
+                if engine.lower() == 'sequence':
+                    engine = SequenceEngine
+                elif engine.lower() == 'ray':
+                    engine = RayEngine
+                elif engine.lower() == 'dask':
+                    engine = DaskEngine
                 else:
                     raise ValueError(f"Engine '{type(engine)}' is not supported")
+            if isinstance(engine, type) and issubclass(engine, ExecutionEngine):
+                engine = engine(**engine_kwargs)
+            if isinstance(engine, ExecutionEngine):
+                results = engine.run(funcs_args, n_calls=len(chunk_meta))
             elif callable(engine):
-                results = engine(funcs_args, **engine_kwargs)
+                results = engine(funcs_args, chunk_meta, **engine_kwargs)
             else:
                 raise TypeError(f"Engine type {type(engine)} is not supported")
             if merge_func is not None:
@@ -827,11 +754,12 @@ def chunked(*args,
 
         wrapper.options = Config(
             dict(
-                n_chunks=split_kwargs.pop('n_chunks', None),
-                size=split_kwargs.pop('size', None),
-                chunk_len=split_kwargs.pop('chunk_len', None),
-                chunk_meta=split_kwargs.pop('chunk_meta', None),
-                arg_take_spec=split_kwargs.pop('arg_take_spec', None),
+                n_chunks=kwargs.pop('n_chunks', None),
+                size=kwargs.pop('size', None),
+                chunk_len=kwargs.pop('chunk_len', None),
+                chunk_meta=kwargs.pop('chunk_meta', None),
+                arg_take_spec=kwargs.pop('arg_take_spec', None),
+                template_mapping=kwargs.pop('template_mapping', None),
                 engine=engine,
                 engine_kwargs=engine_kwargs,
                 merge_func=merge_func
@@ -839,8 +767,8 @@ def chunked(*args,
             frozen_keys=True
         )
 
-        if len(split_kwargs) > 0:
-            for k in split_kwargs:
+        if len(kwargs) > 0:
+            for k in kwargs:
                 raise TypeError(f"chunked() got an unexpected keyword argument '{k}'")
 
         if prepend_chunk_meta:

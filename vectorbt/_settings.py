@@ -119,10 +119,16 @@ ${config_doc}
 
 _settings['numba'] = numba
 
-parallel = dict(
-    engine='ray',
-    n_chunks=None,
-    chunk_len=None,
+execution = dict(
+    sequence=dict(
+        show_progress=False,
+        tqdm_kwargs=Config(  # flex
+            dict()
+        )
+    ),
+    dask=Config(  # flex
+        dict()
+    ),
     ray=dict(
         restart=False,
         reuse_refs=True,
@@ -134,17 +140,35 @@ parallel = dict(
         remote_kwargs=Config(  # flex
             dict()
         )
-    )
+    ),
 )
 """_"""
 
-__pdoc__['parallel'] = Sub("""Sub-config with settings applied to `vectorbt.utils.parallel`.
+__pdoc__['execution'] = Sub("""Sub-config with settings applied to `vectorbt.utils.execution`.
 
 ```json
 ${config_doc}
 ```""")
 
-_settings['parallel'] = parallel
+_settings['execution'] = execution
+
+chunking = dict(
+    engine='sequence',
+    n_chunks=None,
+    chunk_len=None,
+    template_mapping=Config(  # flex
+        dict()
+    )
+)
+"""_"""
+
+__pdoc__['chunking'] = Sub("""Sub-config with settings applied to `vectorbt.utils.chunking`.
+
+```json
+${config_doc}
+```""")
+
+_settings['chunking'] = chunking
 
 config = Config(  # flex
     dict()

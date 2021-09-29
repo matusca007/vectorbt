@@ -53,7 +53,8 @@ setup(
             'quantstats',
             'kaleido',
             'Bottleneck',
-            'numexpr'
+            'numexpr',
+            'dask'
         ],
         'cov': [
             'pytest',

@@ -1,0 +1,285 @@
+# Copyright (c) 2021 Oleg Polakow. All rights reserved.
+# This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
+
+"""Engines for executing functions."""
+
+from numba.core.registry import CPUDispatcher
+
+from vectorbt import _typing as tp
+from vectorbt.utils.config import merge_dicts, Configured
+
+try:
+    from ray.remote_function import RemoteFunction as RemoteFunctionT
+    from ray import ObjectRef as ObjectRefT
+except ImportError:
+    RemoteFunctionT = tp.Any
+    ObjectRefT = tp.Any
+
+funcs_argsT = tp.Tuple[tp.Callable, tp.Args, tp.Kwargs]
+
+
+class ExecutionEngine(Configured):
+    """Abstract class for executing functions."""
+
+    def __init__(self, **kwargs) -> None:
+        Configured.__init__(self, **kwargs)
+
+    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+        """Run an iterable of tuples out of a function, arguments, and keyword arguments.
+
+        Provide `n_calls` in case `funcs_args` is a generator and the underlying engine needs it."""
+        raise NotImplementedError
+
+
+class SequenceEngine(ExecutionEngine):
+    """Class for executing functions sequentially.
+
+    For defaults, see `execution.sequence` in `vectorbt._settings.settings`."""
+
+    def __init__(self,
+                 show_progress: tp.Optional[bool] = None,
+                 tqdm_kwargs: tp.KwargsLike = None) -> None:
+        from vectorbt._settings import settings
+        execution_sequence_cfg = settings['execution']['sequence']
+
+        if show_progress is None:
+            show_progress = execution_sequence_cfg['show_progress']
+        tqdm_kwargs = merge_dicts(tqdm_kwargs, execution_sequence_cfg['tqdm_kwargs'])
+
+        self._show_progress = show_progress
+        self._tqdm_kwargs = tqdm_kwargs
+
+        ExecutionEngine.__init__(
+            self,
+            show_progress=show_progress,
+            tqdm_kwargs=tqdm_kwargs
+        )
+
+    @property
+    def show_progress(self) -> bool:
+        """Whether to show progress with tqdm."""
+        return self._show_progress
+
+    @property
+    def tqdm_kwargs(self) -> tp.Kwargs:
+        """Keyword arguments passed to tqdm."""
+        return self._tqdm_kwargs
+
+    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+        if self.show_progress:
+            from tqdm.auto import tqdm
+
+            results = []
+            with tqdm(total=n_calls, **self.tqdm_kwargs) as pbar:
+                for func, args, kwargs in funcs_args:
+                    results.append(func(*args, **kwargs))
+                    pbar.update(1)
+            return results
+        return [func(*args, **kwargs) for func, args, kwargs in funcs_args]
+
+
+class DaskEngine(ExecutionEngine):
+    """Class for executing functions in parallel using Dask.
+
+    For defaults, see `execution.dask` in `vectorbt._settings.settings`."""
+
+    def __init__(self, **compute_kwargs) -> None:
+        from vectorbt._settings import settings
+        execution_dask_cfg = settings['execution']['dask']
+
+        compute_kwargs = merge_dicts(compute_kwargs, execution_dask_cfg)
+
+        self._compute_kwargs = compute_kwargs
+
+        ExecutionEngine.__init__(
+            self,
+            **compute_kwargs
+        )
+
+    @property
+    def compute_kwargs(self) -> tp.Kwargs:
+        """Keyword arguments passed to `dask.compute`."""
+        return self._compute_kwargs
+
+    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+        import dask
+
+        results_delayed = []
+        for func, args, kwargs in funcs_args:
+            results_delayed.append(dask.delayed(func)(*args, **kwargs))
+        return list(dask.compute(*results_delayed, **self.compute_kwargs))
+
+
+class RayEngine(ExecutionEngine):
+    """Class for executing functions in parallel using Ray.
+
+    For defaults, see `execution.ray` in `vectorbt._settings.settings`.
+
+    !!! note
+        Ray spawns multiple processes as opposed to threads, so any argument and keyword argument must first
+        be put into an object store to be shared. Make sure that the computation with `func` takes
+        a considerable amount of time compared to this copying operation, otherwise there will be
+        a little to no speedup."""
+
+    def __init__(self,
+                 restart: tp.Optional[bool] = None,
+                 reuse_refs: tp.Optional[bool] = None,
+                 del_refs: tp.Optional[bool] = None,
+                 shutdown: tp.Optional[bool] = None,
+                 init_kwargs: tp.KwargsLike = None,
+                 remote_kwargs: tp.KwargsLike = None) -> None:
+        from vectorbt._settings import settings
+        execution_ray_cfg = settings['execution']['ray']
+
+        if restart is None:
+            restart = execution_ray_cfg['restart']
+        if reuse_refs is None:
+            reuse_refs = execution_ray_cfg['reuse_refs']
+        if del_refs is None:
+            del_refs = execution_ray_cfg['del_refs']
+        if shutdown is None:
+            shutdown = execution_ray_cfg['shutdown']
+        init_kwargs = merge_dicts(init_kwargs, execution_ray_cfg['init_kwargs'])
+        remote_kwargs = merge_dicts(remote_kwargs, execution_ray_cfg['remote_kwargs'])
+
+        self._restart = restart
+        self._reuse_refs = reuse_refs
+        self._del_refs = del_refs
+        self._shutdown = shutdown
+        self._init_kwargs = init_kwargs
+        self._remote_kwargs = remote_kwargs
+
+        ExecutionEngine.__init__(
+            self,
+            restart=restart,
+            reuse_refs=reuse_refs,
+            del_ref=del_refs,
+            shutdown=shutdown,
+            init_kwargs=init_kwargs,
+            remote_kwargs=remote_kwargs
+        )
+
+    @property
+    def restart(self) -> bool:
+        """Whether to terminate the Ray runtime and initialize a new one."""
+        return self._restart
+
+    @property
+    def reuse_refs(self) -> bool:
+        """Whether to re-use function and object references, such that each unique object
+        will be copied only once."""
+        return self._reuse_refs
+
+    @property
+    def del_refs(self) -> bool:
+        """Whether to explicitly delete the result object references."""
+        return self._del_refs
+
+    @property
+    def shutdown(self) -> bool:
+        """Whether to True to terminate the Ray runtime upon the job end."""
+        return self._shutdown
+
+    @property
+    def init_kwargs(self) -> tp.Kwargs:
+        """Keyword arguments passed to `ray.init`."""
+        return self._init_kwargs
+
+    @property
+    def remote_kwargs(self) -> tp.Kwargs:
+        """Keyword arguments passed to `ray.remote`."""
+        return self._remote_kwargs
+
+    @staticmethod
+    def get_ray_refs(funcs_args: tp.Iterable[funcs_argsT],
+                     reuse_refs: bool = True,
+                     remote_kwargs: tp.KwargsLike = None) -> \
+            tp.List[tp.Tuple[RemoteFunctionT, tp.Tuple[ObjectRefT, ...], tp.Dict[str, ObjectRefT]]]:
+        """Get result references by putting each argument and keyword argument into the object store
+        and invoking the remote decorator on each function using Ray.
+
+        If `reuse_refs` is True, will generate one reference per unique object id."""
+        import ray
+        from ray.remote_function import RemoteFunction
+        from ray import ObjectRef
+
+        if remote_kwargs is None:
+            remote_kwargs = {}
+
+        func_id_remotes = {}
+        obj_id_refs = {}
+        funcs_args_refs = []
+        for func, args, kwargs in funcs_args:
+            # Get remote function
+            if isinstance(func, RemoteFunction):
+                func_remote = func
+            else:
+                if not reuse_refs or id(func) not in func_id_remotes:
+                    if isinstance(func, CPUDispatcher):
+                        # Numba-wrapped function is not recognized by ray as a function
+                        _func = lambda *_args, **_kwargs: func(*_args, **_kwargs)
+                    else:
+                        _func = func
+                    if len(remote_kwargs) > 0:
+                        func_remote = ray.remote(**remote_kwargs)(_func)
+                    else:
+                        func_remote = ray.remote(_func)
+                    if reuse_refs:
+                        func_id_remotes[id(func)] = func_remote
+                else:
+                    func_remote = func_id_remotes[id(func)]
+
+            # Get id of each (unique) arg
+            arg_refs = ()
+            for arg in args:
+                if isinstance(arg, ObjectRef):
+                    arg_ref = arg
+                else:
+                    if not reuse_refs or id(arg) not in obj_id_refs:
+                        arg_ref = ray.put(arg)
+                        obj_id_refs[id(arg)] = arg_ref
+                    else:
+                        arg_ref = obj_id_refs[id(arg)]
+                arg_refs += (arg_ref,)
+
+            # Get id of each (unique) kwarg
+            kwarg_refs = {}
+            for kwarg_name, kwarg in kwargs.items():
+                if isinstance(kwarg, ObjectRef):
+                    kwarg_ref = kwarg
+                else:
+                    if not reuse_refs or id(kwarg) not in obj_id_refs:
+                        kwarg_ref = ray.put(kwarg)
+                        obj_id_refs[id(kwarg)] = kwarg_ref
+                    else:
+                        kwarg_ref = obj_id_refs[id(kwarg)]
+                kwarg_refs[kwarg_name] = kwarg_ref
+
+            funcs_args_refs.append((func_remote, arg_refs, kwarg_refs))
+        return funcs_args_refs
+
+    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+        import ray
+
+        if self.restart:
+            if ray.is_initialized():
+                ray.shutdown()
+        if not ray.is_initialized():
+            ray.init(**self.init_kwargs)
+        funcs_args_refs = self.get_ray_refs(
+            funcs_args,
+            reuse_refs=self.reuse_refs,
+            remote_kwargs=self.remote_kwargs
+        )
+        result_refs = []
+        for func_remote, arg_refs, kwarg_refs in funcs_args_refs:
+            result_refs.append(func_remote.remote(*arg_refs, **kwarg_refs))
+        try:
+            results = ray.get(result_refs)
+        finally:
+            if self.del_refs:
+                # clear object store
+                del result_refs
+            if self.shutdown:
+                ray.shutdown()
+        return results

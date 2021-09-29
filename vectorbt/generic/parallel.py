@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.utils.parallel import ChunkMeta, ChunkTaker, ChunkSelector, ChunkSlicer
+from vectorbt.utils.chunking import ChunkMeta, ChunkTaker, ChunkSelector, ChunkSlicer
 
 
 class FlexChunkTaker(ChunkTaker):

@@ -10,7 +10,8 @@ from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplo
 from vectorbt.utils.random import set_seed
 from vectorbt.utils.image import save_animation
 from vectorbt.utils.schedule import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
-from vectorbt.utils.parallel import (
+from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
+from vectorbt.utils.chunking import (
     ChunkMeta,
     ArgChunkMeta,
     LenChunkMeta,
@@ -20,6 +21,8 @@ from vectorbt.utils.parallel import (
     ArraySizer,
     ChunkSelector,
     ChunkSlicer,
+    ArraySelector,
+    ArraySlicer,
     SequenceTaker,
     MappingTaker,
     ArgsTaker,
@@ -51,6 +54,9 @@ __all__ = [
     'AsyncScheduler',
     'CancelledError',
     'ScheduleManager',
+    'SequenceEngine',
+    'DaskEngine',
+    'RayEngine',
     'ChunkMeta',
     'ArgChunkMeta',
     'LenChunkMeta',
@@ -60,6 +66,8 @@ __all__ = [
     'ArraySizer',
     'ChunkSelector',
     'ChunkSlicer',
+    'ArraySelector',
+    'ArraySlicer',
     'SequenceTaker',
     'MappingTaker',
     'ArgsTaker',
