@@ -2478,6 +2478,26 @@ class TestIndexing:
 # ############# combine_fns.py ############# #
 
 class TestCombineFns:
+    def test_apply_and_concat_none(self):
+        def apply_func(i, x, a):
+            x[i] = a[i]
+
+        @njit
+        def apply_func_nb(i, x, a):
+            x[i] = a[i]
+
+        # 1d
+        target = pd.Series([10, 20, 30], index=sr2.index, name=sr2.name)
+        sr2_copy = sr2.copy()
+        combine_fns.apply_and_concat(3, apply_func, sr2_copy.values, [10, 20, 30])
+        pd.testing.assert_series_equal(sr2_copy, target)
+        sr2_copy = sr2.copy()
+        combine_fns.apply_and_concat_none_nb(3, apply_func_nb, sr2_copy.values, (10, 20, 30))
+        pd.testing.assert_series_equal(sr2_copy, target)
+        sr2_copy = sr2.copy()
+        combine_fns.apply_and_concat(3, apply_func_nb, sr2_copy.values, [10, 20, 30], n_outputs=0, numba_loop=True)
+        pd.testing.assert_series_equal(sr2_copy, target)
+
     def test_apply_and_concat_one(self):
         def apply_func(i, x, a):
             return x + a[i]
@@ -2493,12 +2513,16 @@ class TestCombineFns:
             [13, 23, 33]
         ])
         np.testing.assert_array_equal(
-            combine_fns.apply_and_concat_one(3, apply_func, sr2.values, [10, 20, 30]),
+            combine_fns.apply_and_concat(3, apply_func, sr2.values, [10, 20, 30]),
             target
         )
         np.testing.assert_array_equal(
             combine_fns.apply_and_concat_one_nb(3, apply_func_nb, sr2.values, (10, 20, 30)),
             target
+        )
+        np.testing.assert_array_equal(
+            combine_fns.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=1, numba_loop=True),
+            combine_fns.apply_and_concat_one_nb(3, apply_func_nb, sr2.values, (10, 20, 30))
         )
         # 2d
         target2 = np.array([
@@ -2507,12 +2531,16 @@ class TestCombineFns:
             [17, 18, 19, 27, 28, 29, 37, 38, 39]
         ])
         np.testing.assert_array_equal(
-            combine_fns.apply_and_concat_one(3, apply_func, df4.values, [10, 20, 30]),
+            combine_fns.apply_and_concat(3, apply_func, df4.values, [10, 20, 30]),
             target2
         )
         np.testing.assert_array_equal(
             combine_fns.apply_and_concat_one_nb(3, apply_func_nb, df4.values, (10, 20, 30)),
             target2
+        )
+        np.testing.assert_array_equal(
+            combine_fns.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=1, numba_loop=True),
+            combine_fns.apply_and_concat_one_nb(3, apply_func_nb, df4.values, (10, 20, 30))
         )
 
     def test_apply_and_concat_multiple(self):
@@ -2534,10 +2562,13 @@ class TestCombineFns:
             [12, 22, 32],
             [13, 23, 33]
         ])
-        a, b = combine_fns.apply_and_concat_multiple(3, apply_func, sr2.values, [10, 20, 30])
+        a, b = combine_fns.apply_and_concat(3, apply_func, sr2.values, [10, 20, 30])
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
         a, b = combine_fns.apply_and_concat_multiple_nb(3, apply_func_nb, sr2.values, (10, 20, 30))
+        np.testing.assert_array_equal(a, target_a)
+        np.testing.assert_array_equal(b, target_b)
+        a, b = combine_fns.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=2, numba_loop=True)
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
         # 2d
@@ -2551,10 +2582,13 @@ class TestCombineFns:
             [14, 15, 16, 24, 25, 26, 34, 35, 36],
             [17, 18, 19, 27, 28, 29, 37, 38, 39]
         ])
-        a, b = combine_fns.apply_and_concat_multiple(3, apply_func, df4.values, [10, 20, 30])
+        a, b = combine_fns.apply_and_concat(3, apply_func, df4.values, [10, 20, 30])
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
         a, b = combine_fns.apply_and_concat_multiple_nb(3, apply_func_nb, df4.values, (10, 20, 30))
+        np.testing.assert_array_equal(a, target_a)
+        np.testing.assert_array_equal(b, target_b)
+        a, b = combine_fns.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=2, numba_loop=True)
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
 
@@ -3011,31 +3045,11 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             sr2.vbt.apply_and_concat(
-                3, np.array([1, 2, 3]), 10, 100, apply_func=apply_func_nb, numba_loop=True,
+                3, np.array([1, 2, 3]), 10, 100, apply_func=apply_func_nb, numba_loop=True, n_outputs=1,
                 keys=['a', 'b', 'c']
             ),
             target
         )
-        if ray_available:
-            with pytest.raises(Exception):
-                sr2.vbt.apply_and_concat(
-                    3, np.array([1, 2, 3]), 10, 100, apply_func=apply_func_nb, numba_loop=True, use_ray=True,
-                    keys=['a', 'b', 'c']
-                )
-            pd.testing.assert_frame_equal(
-                sr2.vbt.apply_and_concat(
-                    3, np.array([1, 2, 3]), 10, apply_func=apply_func, d=100,
-                    keys=['a', 'b', 'c'], use_ray=True
-                ),
-                target
-            )
-            pd.testing.assert_frame_equal(
-                sr2.vbt.apply_and_concat(
-                    3, np.array([1, 2, 3]), 10, apply_func=apply_func_nb, d=100,
-                    keys=['a', 'b', 'c'], use_ray=True
-                ),
-                target
-            )
         pd.testing.assert_frame_equal(
             sr2.vbt.apply_and_concat(
                 3, np.array([1, 2, 3]), 10, apply_func=apply_func, d=100
@@ -3088,26 +3102,29 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             df2.vbt.apply_and_concat(
-                3, np.array([1, 2, 3]), 10, 100, apply_func=apply_func_nb, numba_loop=True,
+                3, np.array([1, 2, 3]), 10, 100, apply_func=apply_func_nb, numba_loop=True, n_outputs=1,
                 keys=['a', 'b', 'c']
             ),
             target2
         )
-        if ray_available:
-            pd.testing.assert_frame_equal(
-                df2.vbt.apply_and_concat(
-                    3, np.array([1, 2, 3]), 10, apply_func=apply_func, d=100,
-                    keys=['a', 'b', 'c'], use_ray=True
-                ),
-                target2
-            )
-            pd.testing.assert_frame_equal(
-                df2.vbt.apply_and_concat(
-                    3, np.array([1, 2, 3]), 10, apply_func=apply_func_nb, d=100,
-                    keys=['a', 'b', 'c'], use_ray=True
-                ),
-                target2
-            )
+
+        def apply_func3(i, x, y, c, d=1):
+            return (x + y[i] + c + d, x + y[i] + c + d)
+
+        pd.testing.assert_frame_equal(
+            df2.vbt.apply_and_concat(
+                3, np.array([1, 2, 3]), 10, apply_func=apply_func3, d=100,
+                keys=['a', 'b', 'c']
+            )[0],
+            target2
+        )
+        pd.testing.assert_frame_equal(
+            df2.vbt.apply_and_concat(
+                3, np.array([1, 2, 3]), 10, apply_func=apply_func3, d=100,
+                keys=['a', 'b', 'c']
+            )[1],
+            target2
+        )
 
     def test_combine(self):
         def combine_func(x, y, a, b=1):
@@ -3199,12 +3216,6 @@ class TestAccessors:
             ),
             target
         )
-        if ray_available:
-            with pytest.raises(Exception):
-                sr2.vbt.combine(
-                    [10, df4], 10, 100,
-                    combine_func=combine_func_nb, numba_loop=True, use_ray=True
-                )
         pd.testing.assert_frame_equal(
             df4.vbt.combine(
                 [10, sr2], 10, b=100,
@@ -3262,7 +3273,7 @@ class TestAccessors:
                     [10, df4], 10, b=100,
                     combine_func=combine_func,
                     concat=True,
-                    use_ray=True
+                    execute_kwargs=dict(engine='ray')
                 ),
                 target2
             )
@@ -3271,7 +3282,7 @@ class TestAccessors:
                     [10, df4], 10, b=100,
                     combine_func=combine_func_nb,
                     concat=True,
-                    use_ray=True
+                    execute_kwargs=dict(engine='ray')
                 ),
                 target2
             )

@@ -560,9 +560,6 @@ class SignalFactory(IndicatorFactory):
             apply_func = scope['apply_func']
             if numba_loop:
                 apply_func = njit(apply_func)
-                apply_and_concat_func = combine_fns.apply_and_concat_one_nb
-            else:
-                apply_and_concat_func = combine_fns.apply_and_concat_one
 
         elif mode == FactoryMode.Exits:
             _0 = "i"
@@ -598,9 +595,6 @@ class SignalFactory(IndicatorFactory):
             apply_func = scope['apply_func']
             if numba_loop:
                 apply_func = njit(apply_func)
-                apply_and_concat_func = combine_fns.apply_and_concat_one_nb
-            else:
-                apply_and_concat_func = combine_fns.apply_and_concat_one
 
         else:
             _0 = "i"
@@ -652,9 +646,6 @@ class SignalFactory(IndicatorFactory):
             apply_func = scope['apply_func']
             if numba_loop:
                 apply_func = njit(apply_func)
-                apply_and_concat_func = combine_fns.apply_and_concat_multiple_nb
-            else:
-                apply_and_concat_func = combine_fns.apply_and_concat_multiple
 
         def custom_func(input_list: tp.List[tp.AnyArray],
                         in_output_list: tp.List[tp.List[tp.AnyArray]],
@@ -670,6 +661,7 @@ class SignalFactory(IndicatorFactory):
                         cache_kwargs: tp.KwargsLike = None,
                         return_cache: bool = False,
                         use_cache: tp.Optional[CacheOutputT] = None,
+                        execute_kwargs: tp.KwargsLike = None,
                         **_kwargs) -> tp.Union[CacheOutputT, tp.Array2d, tp.List[tp.Array2d]]:
             # Get arguments
             if len(input_list) == 0:
@@ -841,14 +833,17 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _entry_param_tuples = ()
 
-                return apply_and_concat_func(
+                return combine_fns.apply_and_concat(
                     n_params,
                     apply_func,
                     input_shape,
                     entry_input_tuple,
                     *_entry_in_output_tuples,
                     *_entry_param_tuples,
-                    entry_args + entry_more_args + entry_cache
+                    entry_args + entry_more_args + entry_cache,
+                    n_outputs=1,
+                    numba_loop=numba_loop,
+                    execute_kwargs=execute_kwargs
                 )
 
             elif mode == FactoryMode.Exits:
@@ -867,7 +862,7 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _exit_param_tuples = ()
 
-                return apply_and_concat_func(
+                return combine_fns.apply_and_concat(
                     n_params,
                     apply_func,
                     input_list[0],
@@ -877,7 +872,10 @@ class SignalFactory(IndicatorFactory):
                     exit_input_tuple,
                     *_exit_in_output_tuples,
                     *_exit_param_tuples,
-                    exit_args + exit_more_args + exit_cache
+                    exit_args + exit_more_args + exit_cache,
+                    n_outputs=1,
+                    numba_loop=numba_loop,
+                    execute_kwargs=execute_kwargs
                 )
 
             else:
@@ -910,7 +908,7 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _exit_param_tuples = ()
 
-                return apply_and_concat_func(
+                return combine_fns.apply_and_concat(
                     n_params,
                     apply_func,
                     input_shape,
@@ -925,7 +923,10 @@ class SignalFactory(IndicatorFactory):
                     *_entry_param_tuples,
                     *_exit_param_tuples,
                     entry_args + entry_more_args + entry_cache,
-                    exit_args + exit_more_args + exit_cache
+                    exit_args + exit_more_args + exit_cache,
+                    n_outputs=2,
+                    numba_loop=numba_loop,
+                    execute_kwargs=execute_kwargs
                 )
 
         return self.from_custom_func(

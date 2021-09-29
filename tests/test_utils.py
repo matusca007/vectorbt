@@ -2782,6 +2782,32 @@ class TestExecution:
 
             assert funcs_args_refs == execution.RayEngine.get_ray_refs(funcs_args_refs)
 
+    def test_execute(self):
+        def f(a, *args, b=None, **kwargs):
+            return a + sum(args) + b + sum(kwargs.values())
+
+        funcs_args = [
+            (f, (0, 1, 2), dict(b=3, c=4)),
+            (f, (5, 6, 7), dict(b=8, c=9)),
+            (f, (10, 11, 12), dict(b=13, c=14))
+        ]
+        assert execution.execute(funcs_args, show_progress=True) == [10, 35, 60]
+        assert execution.execute(funcs_args, engine='sequence', show_progress=True) == [10, 35, 60]
+        assert execution.execute(funcs_args, engine=execution.SequenceEngine, show_progress=True) == [10, 35, 60]
+        assert execution.execute(funcs_args, engine=execution.SequenceEngine(show_progress=True)) == [10, 35, 60]
+        assert execution.execute(
+            funcs_args,
+            engine=lambda funcs_args, my_arg:
+            [func(*args, **kwargs) * my_arg for func, args, kwargs in funcs_args],
+            my_arg=100
+        ) == [1000, 3500, 6000]
+        with pytest.raises(Exception):
+            execution.execute(funcs_args, engine=object)
+        if dask_available:
+            assert execution.execute(funcs_args, engine='dask') == [10, 35, 60]
+        if ray_available:
+            assert execution.execute(funcs_args, engine='ray') == [10, 35, 60]
+
 # ############# chunking.py ############# #
 
 class TestChunking:
@@ -3021,8 +3047,7 @@ class TestChunking:
         @chunking.chunked(
             n_chunks=2,
             size=vbt.LenSizer('a'),
-            arg_take_spec=dict(a=vbt.ChunkSlicer()),
-            engine='sequence')
+            arg_take_spec=dict(a=vbt.ChunkSlicer()))
         def f(a):
             return a
 
@@ -3044,8 +3069,7 @@ class TestChunking:
 
         @vbt.chunked(
             n_chunks=2,
-            size=vbt.LenSizer('a'),
-            engine='sequence')
+            size=vbt.LenSizer('a'))
         def f2(chunk_meta, a):
             return a[chunk_meta.range_start:chunk_meta.range_end]
 
@@ -3056,8 +3080,7 @@ class TestChunking:
         @vbt.chunked(
             n_chunks=2,
             size=vbt.LenSizer('a'),
-            prepend_chunk_meta=False,
-            engine='sequence')
+            prepend_chunk_meta=False)
         def f3(chunk_meta, a):
             return a[chunk_meta.range_start:chunk_meta.range_end]
 
@@ -3069,8 +3092,7 @@ class TestChunking:
             @vbt.chunked(
                 n_chunks=2,
                 size=vbt.LenSizer('a'),
-                prepend_chunk_meta=True,
-                engine='sequence')
+                prepend_chunk_meta=True)
             def f4(chunk_meta, a):
                 return a[chunk_meta.range_start:chunk_meta.range_end]
 
@@ -3079,8 +3101,7 @@ class TestChunking:
         @vbt.chunked(
             n_chunks=2,
             size=lambda ann_args: len(ann_args['a']['value']),
-            arg_take_spec=dict(a=vbt.ChunkSlicer()),
-            engine='sequence')
+            arg_take_spec=dict(a=vbt.ChunkSlicer()))
         def f5(a):
             return a
 
@@ -3103,8 +3124,7 @@ class TestChunking:
             n_chunks=2,
             size=vbt.LenSizer('lens'),
             arg_take_spec=arg_take_spec,
-            merge_func=lambda results: [list(r) for r in results],
-            engine='sequence')
+            merge_func=lambda results: [list(r) for r in results])
         def f6(a, lens):
             ends = np.cumsum(lens)
             starts = ends - lens
@@ -3117,45 +3137,6 @@ class TestChunking:
         np.testing.assert_array_equal(results[1][0], np.arange(3, 6))
         np.testing.assert_array_equal(results[1][1], np.arange(6, 10))
 
-        @chunking.chunked(
-            n_chunks=2,
-            size=vbt.LenSizer('a'),
-            arg_take_spec=dict(a=vbt.ChunkSlicer()),
-            engine=execution.SequenceEngine)
-        def f(a):
-            return a
-
-        results = f(np.arange(10))
-        np.testing.assert_array_equal(results[0], np.arange(5))
-        np.testing.assert_array_equal(results[1], np.arange(5, 10))
-
-        @chunking.chunked(
-            n_chunks=2,
-            size=vbt.LenSizer('a'),
-            arg_take_spec=dict(a=vbt.ChunkSlicer()),
-            engine=execution.SequenceEngine())
-        def f(a):
-            return a
-
-        results = f(np.arange(10))
-        np.testing.assert_array_equal(results[0], np.arange(5))
-        np.testing.assert_array_equal(results[1], np.arange(5, 10))
-
-        @vbt.chunked(
-            n_chunks=2,
-            size=vbt.LenSizer('a'),
-            arg_take_spec=dict(a=vbt.ChunkSlicer()),
-            merge_func=np.concatenate,
-            engine=lambda funcs_args, chunk_meta, my_arg: [
-                func(*args, **kwargs) + my_arg
-                for func, args, kwargs in funcs_args
-            ],
-            engine_kwargs=dict(my_arg=100))
-        def f7(a):
-            return a
-
-        np.testing.assert_array_equal(f7(np.arange(10)), np.arange(100, 110))
-
         if dask_available:
             @vbt.chunked(
                 n_chunks=2,
@@ -3163,10 +3144,10 @@ class TestChunking:
                 arg_take_spec=dict(a=vbt.ChunkSlicer()),
                 merge_func=np.concatenate,
                 engine='dask')
-            def f8(a):
+            def f7(a):
                 return a
 
-            np.testing.assert_array_equal(f8(np.arange(10)), np.arange(10))
+            np.testing.assert_array_equal(f7(np.arange(10)), np.arange(10))
 
         if ray_available:
             @vbt.chunked(
@@ -3175,7 +3156,7 @@ class TestChunking:
                 arg_take_spec=dict(a=vbt.ChunkSlicer()),
                 merge_func=np.concatenate,
                 engine='ray')
-            def f9(a):
+            def f8(a):
                 return a
 
-            np.testing.assert_array_equal(f9(np.arange(10)), np.arange(10))
+            np.testing.assert_array_equal(f8(np.arange(10)), np.arange(10))

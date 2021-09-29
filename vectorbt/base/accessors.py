@@ -460,8 +460,8 @@ class BaseAccessor(Wrapping):
                 obj = np.asarray(self.obj)
             else:
                 obj = self.obj
-        result = apply_func(obj, *args, **kwargs)
-        return self.wrapper.wrap(result, group_by=False, **merge_dicts({}, wrap_kwargs))
+        out = apply_func(obj, *args, **kwargs)
+        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def concat(cls_or_self,
@@ -505,15 +505,15 @@ class BaseAccessor(Wrapping):
                          ntimes: int,
                          *args,
                          apply_func: tp.Optional[tp.Callable] = None,
+                         n_outputs: tp.Optional[int] = None,
                          keep_pd: bool = False,
                          to_2d: bool = False,
-                         numba_loop: bool = False,
-                         use_ray: bool = False,
                          keys: tp.Optional[tp.IndexLike] = None,
                          wrap_kwargs: tp.KwargsLike = None,
-                         **kwargs) -> tp.Frame:
+                         **kwargs) -> tp.MaybeTuple[tp.Frame]:
         """Apply `apply_func` `ntimes` times and concatenate the results along columns.
-        See `vectorbt.base.combine_fns.apply_and_concat_one`.
+
+        See `vectorbt.base.combine_fns.apply_and_concat`.
 
         Args:
             ntimes (int): Number of times to call `apply_func`.
@@ -521,19 +521,15 @@ class BaseAccessor(Wrapping):
             apply_func (callable): Apply function.
 
                 Can be Numba-compiled.
+            n_outputs (int): The number of outputs to expect.
+
+                Required for Numba.
             keep_pd (bool): Whether to keep inputs as pandas objects, otherwise convert to NumPy arrays.
             to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
-            numba_loop (bool): Whether to loop using Numba.
-
-                Set to True when iterating large number of times over small input,
-                but note that Numba doesn't support variable keyword arguments.
-            use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
-
-                Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.base.combine_fns.apply_using_ray` for related keyword arguments.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
-            **kwargs: Keyword arguments passed to `combine_func`.
+            **kwargs: Keyword arguments passed to `vectorbt.base.combine_fns.apply_and_concat`
+                and then to `combine_func`.
 
         !!! note
             The resulted arrays to be concatenated must have the same shape as broadcast input arrays.
@@ -542,17 +538,20 @@ class BaseAccessor(Wrapping):
 
         ```python-repl
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
-        >>> df.vbt.apply_and_concat(3, [1, 2, 3],
-        ...     apply_func=lambda i, a, b: a * b[i], keys=['c', 'd', 'e'])
+        >>> df.vbt.apply_and_concat(
+        ...     3, [1, 2, 3], keys=['c', 'd', 'e'],
+        ...     apply_func=lambda i, a, b: a * b[i])
               c       d       e
            a  b   a   b   a   b
         x  3  4   6   8   9  12
         y  5  6  10  12  15  18
         ```
 
-        Use Ray for small inputs and large processing times:
+        To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
 
         ```python-repl
+        >>> import time
+
         >>> def apply_func(i, a):
         ...     time.sleep(1)
         ...     return a
@@ -560,14 +559,13 @@ class BaseAccessor(Wrapping):
         >>> sr = pd.Series([1, 2, 3])
 
         >>> %timeit sr.vbt.apply_and_concat(3, apply_func=apply_func)
-        3.01 s ± 2.15 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+        3.02 s ± 3.76 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-        >>> %timeit sr.vbt.apply_and_concat(3, apply_func=apply_func, use_ray=True)
-        1.01 s ± 2.31 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+        >>> %timeit sr.vbt.apply_and_concat(3, apply_func=apply_func, execute_kwargs=dict(engine='dask'))
+        1.02 s ± 927 µs per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
         checks.assert_not_none(apply_func)
-        # Optionally cast to 2d array
         if to_2d:
             obj = reshape_fns.to_2d(self.obj, raw=not keep_pd)
         else:
@@ -575,22 +573,18 @@ class BaseAccessor(Wrapping):
                 obj = np.asarray(self.obj)
             else:
                 obj = self.obj
-        if checks.is_numba_func(apply_func) and numba_loop:
-            if use_ray:
-                raise ValueError("Ray cannot be used within Numba")
-            result = combine_fns.apply_and_concat_one_nb(ntimes, apply_func, obj, *args, **kwargs)
-        else:
-            if use_ray:
-                result = combine_fns.apply_and_concat_one_ray(ntimes, apply_func, obj, *args, **kwargs)
-            else:
-                result = combine_fns.apply_and_concat_one(ntimes, apply_func, obj, *args, **kwargs)
-        # Build column hierarchy
+        out = combine_fns.apply_and_concat(ntimes, apply_func, obj, *args, n_outputs=n_outputs, **kwargs)
         if keys is not None:
             new_columns = index_fns.combine_indexes([keys, self.wrapper.columns])
         else:
             top_columns = pd.Index(np.arange(ntimes), name='apply_idx')
             new_columns = index_fns.combine_indexes([top_columns, self.wrapper.columns])
-        return self.wrapper.wrap(result, group_by=False, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
+        if out is None:
+            return None
+        wrap_kwargs = merge_dicts(dict(columns=new_columns), wrap_kwargs)
+        if isinstance(out, list):
+            return tuple(map(lambda x: self.wrapper.wrap(x, group_by=False, **wrap_kwargs), out))
+        return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     @class_or_instancemethod
     def combine(cls_or_self,
@@ -601,8 +595,6 @@ class BaseAccessor(Wrapping):
                 keep_pd: bool = False,
                 to_2d: bool = False,
                 concat: bool = False,
-                numba_loop: bool = False,
-                use_ray: bool = False,
                 broadcast_kwargs: tp.KwargsLike = None,
                 keys: tp.Optional[tp.IndexLike] = None,
                 wrap_kwargs: tp.KwargsLike = None,
@@ -627,14 +619,6 @@ class BaseAccessor(Wrapping):
                 If False, see `vectorbt.base.combine_fns.combine_multiple`.
 
                 Can only concatenate using the instance method.
-            numba_loop (bool): Whether to loop using Numba.
-
-                Set to True when iterating large number of times over small input,
-                but note that Numba doesn't support variable keyword arguments.
-            use_ray (bool): Whether to use Ray to execute `combine_func` in parallel.
-
-                Only works with `numba_loop` set to False and `concat` is set to True.
-                See `vectorbt.base.combine_fns.apply_using_ray` for related keyword arguments.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
@@ -678,9 +662,11 @@ class BaseAccessor(Wrapping):
         y  7  8  12  14
         ```
 
-        Use Ray for small inputs and large processing times:
+        To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
 
         ```python-repl
+        >>> import time
+
         >>> def combine_func(a, b):
         ...     time.sleep(1)
         ...     return a + b
@@ -690,8 +676,10 @@ class BaseAccessor(Wrapping):
         >>> %timeit sr.vbt.combine([1, 1, 1], combine_func=combine_func)
         3.01 s ± 2.98 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-        >>> %timeit sr.vbt.combine([1, 1, 1], combine_func=combine_func, concat=True, use_ray=True)
-        1.02 s ± 2.32 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+        >>> %timeit sr.vbt.combine( \
+        ...     [1, 1, 1], combine_func=combine_func, concat=True, \
+        ...     execute_kwargs=dict(engine='dask'))
+        1.02 s ± 2.18 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
         if isinstance(cls_or_self, type):
@@ -705,15 +693,12 @@ class BaseAccessor(Wrapping):
         if not isinstance(cls_or_self, type):
             objs = (cls_or_self.obj,) + objs
         checks.assert_not_none(combine_func)
-        # Broadcast arguments
         if broadcast_kwargs is None:
             broadcast_kwargs = {}
         if checks.is_numba_func(combine_func):
-            # Numba requires writeable arrays
-            # Plus all of our arrays must be in the same order
+            # Numba requires writeable arrays and in the same order
             broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements=['W', 'C'])), broadcast_kwargs)
         objs = reshape_fns.broadcast(*objs, **broadcast_kwargs)
-        # Optionally cast to 2d array
         if to_2d:
             inputs = tuple(map(lambda x: reshape_fns.to_2d(x, raw=not keep_pd), objs))
         else:
@@ -722,44 +707,24 @@ class BaseAccessor(Wrapping):
             else:
                 inputs = objs
         if len(inputs) == 2:
-            result = combine_func(inputs[0], inputs[1], *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts({}, wrap_kwargs))
+            out = combine_func(inputs[0], inputs[1], *args, **kwargs)
+            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts({}, wrap_kwargs))
         if concat:
             # Concat the results horizontally
             if isinstance(cls_or_self, type):
                 raise TypeError("Use instance method to concatenate")
-            if checks.is_numba_func(combine_func) and numba_loop:
-                if use_ray:
-                    raise ValueError("Ray cannot be used within Numba")
-                for i in range(1, len(inputs)):
-                    checks.assert_meta_equal(inputs[i - 1], inputs[i])
-                result = combine_fns.combine_and_concat_nb(
-                    inputs[0], inputs[1:], combine_func, *args, **kwargs)
-            else:
-                if use_ray:
-                    result = combine_fns.combine_and_concat_ray(
-                        inputs[0], inputs[1:], combine_func, *args, **kwargs)
-                else:
-                    result = combine_fns.combine_and_concat(
-                        inputs[0], inputs[1:], combine_func, *args, **kwargs)
+            out = combine_fns.combine_and_concat(inputs[0], inputs[1:], combine_func, *args, **kwargs)
             columns = ArrayWrapper.from_obj(objs[0]).columns
             if keys is not None:
                 new_columns = index_fns.combine_indexes([keys, columns])
             else:
                 top_columns = pd.Index(np.arange(len(objs) - 1), name='combine_idx')
                 new_columns = index_fns.combine_indexes([top_columns, columns])
-            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
         else:
             # Combine arguments pairwise into one object
-            if use_ray:
-                raise ValueError("Ray cannot be used with concat=False")
-            if checks.is_numba_func(combine_func) and numba_loop:
-                for i in range(1, len(inputs)):
-                    checks.assert_dtype_equal(inputs[i - 1], inputs[i])
-                result = combine_fns.combine_multiple_nb(inputs, combine_func, *args, **kwargs)
-            else:
-                result = combine_fns.combine_multiple(inputs, combine_func, *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(result, **merge_dicts({}, wrap_kwargs))
+            out = combine_fns.combine_multiple(inputs, combine_func, *args, **kwargs)
+            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts({}, wrap_kwargs))
 
     @classmethod
     def eval(cls,

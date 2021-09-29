@@ -91,7 +91,7 @@ class TestFactory:
             return ts * p[i] + a + b  # numba doesn't support **kwargs
 
         def custom_func(ts, p, *args, **kwargs):
-            return vbt.base.combine_fns.apply_and_concat_one(len(p), apply_func, ts, p, *args, **kwargs)
+            return vbt.base.combine_fns.apply_and_concat(len(p), apply_func, ts, p, *args, **kwargs)
 
         @njit
         def custom_func_nb(ts, p, *args):
@@ -326,20 +326,6 @@ class TestFactory:
                 .run(ts['a'], 0, 10, 100, per_column=True).out,
             target
         )
-
-    def test_use_ray(self):
-        if ray_available:
-            F = vbt.IndicatorFactory(input_names=['ts'], param_names=['p'], output_names=['out'])
-
-            def apply_func(ts, p, a, b=10):
-                return ts * p + a + b
-
-            pd.testing.assert_frame_equal(
-                F.from_apply_func(apply_func, var_args=True)
-                    .run(ts, np.arange(10), 10, b=100).out,
-                F.from_apply_func(apply_func, var_args=True)
-                    .run(ts, np.arange(10), 10, b=100, use_ray=True).out,
-            )
 
     def test_no_inputs(self):
         F = vbt.IndicatorFactory(param_names=['p'], output_names=['out'])

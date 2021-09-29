@@ -13,7 +13,15 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import annotate_args, ann_argsT, get_from_ann_args, get_func_arg_names
 from vectorbt.utils.template import deep_substitute, Rep
-from vectorbt.utils.execution import funcs_argsT, ExecutionEngine, SequenceEngine, DaskEngine, RayEngine
+from vectorbt.utils.execution import (
+    funcs_argsT,
+    ExecutionEngine,
+    SequenceEngine,
+    DaskEngine,
+    RayEngine,
+    engineT,
+    execute
+)
 
 __pdoc__ = {}
 
@@ -466,55 +474,42 @@ def yield_arg_chunks(func: tp.Callable,
 
 
 def chunked(*args,
+            n_chunks: tp.Optional[any_sizeT] = None,
+            size: tp.Optional[any_sizeT] = None,
+            chunk_len: tp.Optional[any_sizeT] = None,
+            chunk_meta: tp.Optional[any_chunk_metaT] = None,
+            arg_take_spec: tp.Optional[tp.Union[ArgTakeSpecT, tp.Callable]] = None,
+            template_mapping: tp.Optional[tp.Mapping] = None,
             prepend_chunk_meta: tp.Optional[bool] = None,
-            engine: tp.Optional[tp.Union[str, type, ExecutionEngine, tp.Callable]] = None,
-            engine_kwargs: tp.KwargsLike = None,
             merge_func: tp.Optional[tp.Callable] = None,
-            **kwargs) -> tp.Callable:
-    """Decorator for chunking a function. Engine-agnostic.
+            engine: engineT = None,
+            **engine_kwargs) -> tp.Callable:
+    """Decorator that chunks the function. Engine-agnostic.
+    Returns a new function with the same signature as the passed one.
 
-    Args:
-        prepend_chunk_meta (bool): Whether to prepend an instance of `ChunkMeta` to the arguments.
+    Does the following:
 
-            If None, prepends automatically if the first argument is named 'chunk_meta'.
-        engine (str, type, ExecutionEngine, or callable): Engine for executing chunks.
+    1. Generates chunk metadata by passing `n_chunks`, `size`, `chunk_len`, and `chunk_meta`
+        to `get_chunk_meta_from_args`.
+    2. Splits arguments and keyword arguments by passing chunk metadata, `arg_take_spec`,
+        and `template_mapping` to `yield_arg_chunks`, which yields one chunk at a time.
+    3. Executes all chunks by passing `engine` and `**engine_kwargs` to `vectorbt.utils.execution.execute`.
+    4. Optionally, post-processes and merges the results using `merge_func`.
 
-            Supported values:
+    Use `prepend_chunk_meta` to prepend an instance of `ChunkMeta` to the arguments.
+    If None, prepends automatically if the first argument is named 'chunk_meta'.
 
-            * Name of the engine (see supported engines)
-            * Subclass of `vectorbt.utils.execution.ExecutionEngine` -
-                will initialize with `**engine_kwargs`
-            * Instance of `vectorbt.utils.execution.ExecutionEngine` -
-                will call `vectorbt.utils.execution.ExecutionEngine.run`
-            * Callable - will pass an iterable of function and argument tuples,
-                chunk metadata, and `**engine_kwargs`
-
-            Supported engines:
-
-            * 'sequence' (default): See `vectorbt.utils.execution.SequenceEngine`.
-            * 'dask': See `vectorbt.utils.execution.DaskEngine`.
-            * 'ray': See `vectorbt.utils.execution.RayEngine`.
-        engine_kwargs (dict): Keyword arguments passed to `engine`.
-        merge_func (callable): Function to post-process and merge the results.
-        **kwargs: Keyword arguments for chunking (see `get_chunk_meta_from_args` and `yield_arg_chunks`).
+    Each parameter can be modified in the `options` attribute of the wrapper function or
+    directly passed as a keyword argument with a leading underscore.
 
     For defaults, see `chunking` in `vectorbt._settings.settings`.
-
-    For example, to switch the engine globally:
+    For example, to change the engine globally:
 
     ```python-repl
     >>> import vectorbt as vbt
 
     >>> vbt.settings.chunking['engine'] = 'dask'
     ```
-
-    Returns a function with the same signature as the passed function.
-
-    Each parameter can be modified in the `options` attribute of the wrapper function or
-    passed as a keyword argument with a leading underscore directly.
-
-    !!! hint
-        Run this function sequentially by passing `engine='sequence'` for testing.
 
     ## Example
 
@@ -676,7 +671,7 @@ def chunked(*args,
     ...     n_chunks=2,
     ...     size=vbt.LenSizer('a'),
     ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
-    ...     engine_kwargs=dict(show_progress=True))  # see run_using_sequence
+    ...     engine_kwargs=dict(show_progress=True))  # see SequenceEngine
     ... def f(a):
     ...     return np.mean(a)
 
@@ -708,6 +703,8 @@ def chunked(*args,
             arg_take_spec = kwargs.pop('_arg_take_spec', wrapper.options['arg_take_spec'])
             template_mapping = merge_dicts(wrapper.options['template_mapping'], kwargs.pop('_template_mapping', {}))
             engine = kwargs.pop('_engine', wrapper.options['engine'])
+            if engine is None:
+                engine = chunking_cfg['engine']
             engine_kwargs = merge_dicts(wrapper.options['engine_kwargs'], kwargs.pop('_engine_kwargs', {}))
             merge_func = kwargs.pop('_merge_func', wrapper.options['merge_func'])
 
@@ -729,47 +726,25 @@ def chunked(*args,
                 arg_take_spec=arg_take_spec,
                 template_mapping=template_mapping
             )
-            if engine is None:
-                engine = chunking_cfg['engine']
-            if isinstance(engine, str):
-                if engine.lower() == 'sequence':
-                    engine = SequenceEngine
-                elif engine.lower() == 'ray':
-                    engine = RayEngine
-                elif engine.lower() == 'dask':
-                    engine = DaskEngine
-                else:
-                    raise ValueError(f"Engine '{type(engine)}' is not supported")
-            if isinstance(engine, type) and issubclass(engine, ExecutionEngine):
-                engine = engine(**engine_kwargs)
-            if isinstance(engine, ExecutionEngine):
-                results = engine.run(funcs_args, n_calls=len(chunk_meta))
-            elif callable(engine):
-                results = engine(funcs_args, chunk_meta, **engine_kwargs)
-            else:
-                raise TypeError(f"Engine type {type(engine)} is not supported")
+            results = execute(funcs_args, engine=engine, n_calls=len(chunk_meta), **engine_kwargs)
             if merge_func is not None:
                 return merge_func(results)
             return results
 
         wrapper.options = Config(
             dict(
-                n_chunks=kwargs.pop('n_chunks', None),
-                size=kwargs.pop('size', None),
-                chunk_len=kwargs.pop('chunk_len', None),
-                chunk_meta=kwargs.pop('chunk_meta', None),
-                arg_take_spec=kwargs.pop('arg_take_spec', None),
-                template_mapping=kwargs.pop('template_mapping', None),
+                n_chunks=n_chunks,
+                size=size,
+                chunk_len=chunk_len,
+                chunk_meta=chunk_meta,
+                arg_take_spec=arg_take_spec,
+                template_mapping=template_mapping,
                 engine=engine,
                 engine_kwargs=engine_kwargs,
                 merge_func=merge_func
             ),
             frozen_keys=True
         )
-
-        if len(kwargs) > 0:
-            for k in kwargs:
-                raise TypeError(f"chunked() got an unexpected keyword argument '{k}'")
 
         if prepend_chunk_meta:
             signature = inspect.signature(wrapper)

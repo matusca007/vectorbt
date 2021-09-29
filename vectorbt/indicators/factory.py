@@ -574,7 +574,7 @@ custom_sigma        0.01        0.01
 One can even build input-less indicator that decides on the output shape dynamically:
 
 ```python-repl
->>> from vectorbt.base.combine_fns import apply_and_concat_one
+>>> from vectorbt.base.combine_fns import apply_and_concat
 
 >>> def apply_func(i, ps, input_shape):
 ...      out = np.full(input_shape, 0)
@@ -583,7 +583,7 @@ One can even build input-less indicator that decides on the output shape dynamic
 
 >>> def custom_func(ps):
 ...     input_shape = (np.max(ps),)
-...     return apply_and_concat_one(len(ps), apply_func, ps, input_shape)
+...     return apply_and_concat(len(ps), apply_func, ps, input_shape)
 
 >>> MyInd = vbt.IndicatorFactory(
 ...     param_names=['p'],
@@ -2645,7 +2645,7 @@ class IndicatorFactory:
 
         In contrast to `IndicatorFactory.from_apply_func`, this method offers full flexbility.
         It's up to we to handle caching and concatenate columns for each parameter (for example,
-        by using `vectorbt.base.combine_fns.apply_and_concat_one`). Also, you must ensure that
+        by using `vectorbt.base.combine_fns.apply_and_concat`). Also, you must ensure that
         each output array has an appropriate number of columns, which is the number of columns in
         input arrays multiplied by the number of parameter combinations.
 
@@ -3128,8 +3128,9 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         the resulting arrays into a single array per output.
 
         While this approach is simpler, it's also less flexible, since we can only work with
-        one parameter selection at a time and can't view all parameters. The UDF `apply_func` also can't
-        take keyword arguments, nor it can return anything other than outputs listed in `output_names`.
+        one parameter selection at a time and can't view all parameters.
+
+        The execution and concatenation is performed using `vectorbt.base.combine_fns.apply_and_concat`.
 
         !!! note
             If `apply_func` is a Numba-compiled function:
@@ -3177,14 +3178,11 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
                 Set to True when iterating large number of times over small input,
                 but note that Numba doesn't support variable keyword arguments.
-            **kwargs: Keyword arguments passed to `IndicatorFactory.from_custom_func`.
+            **kwargs: Keyword arguments passed to `IndicatorFactory.from_custom_func`, all the way down
+                to `vectorbt.base.combine_fns.apply_and_concat`.
 
         Returns:
             Indicator
-
-        Additionally, each run method now supports `use_ray` argument, which indicates
-        whether to use Ray to execute `apply_func` in parallel. Only works with `numba_loop` set to False.
-        See `vectorbt.base.combine_fns.apply_using_ray` for related keyword arguments.
 
         ## Example
 
@@ -3198,13 +3196,13 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         >>> MyInd = vbt.IndicatorFactory(
         ...     input_names=['ts1', 'ts2'],
         ...     param_names=['p1', 'p2'],
-        ...     output_names=['o1', 'o2']
+        ...     output_names=['out1', 'out2']
         ... ).from_apply_func(
         ...     apply_func_nb, var_args=True,
         ...     kwargs_to_args=['arg2'], arg2=200)
 
         >>> myInd = MyInd.run(price, price * 2, [1, 2], [3, 4], 100)
-        >>> myInd.o1
+        >>> myInd.out1
         custom_p1              1             2
         custom_p2              3             4
                         a      b      a      b
@@ -3213,7 +3211,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         2020-01-03  103.0  103.0  106.0  106.0
         2020-01-04  104.0  102.0  108.0  104.0
         2020-01-05  105.0  101.0  110.0  102.0
-        >>> myInd.o2
+        >>> myInd.out2
         custom_p1              1             2
         custom_p2              3             4
                         a      b      a      b
@@ -3222,6 +3220,28 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         2020-01-03  218.0  218.0  224.0  224.0
         2020-01-04  224.0  212.0  232.0  216.0
         2020-01-05  230.0  206.0  240.0  208.0
+        ```
+
+        To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
+
+        ```python-repl
+        >>> import time
+
+        >>> def apply_func(ts, p):
+        ...     time.sleep(1)
+        ...     return ts * p
+
+        >>> MyInd = vbt.IndicatorFactory(
+        ...     input_names=['ts'],
+        ...     param_names=['p'],
+        ...     output_names=['out']
+        ... ).from_apply_func(apply_func)
+
+        >>> %timeit MyInd.run(price, [1, 2, 3])
+        3.02 s ± 3.47 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+        >>> %timeit MyInd.run(price, [1, 2, 3], execute_kwargs=dict(engine='dask'))
+        1.02 s ± 2.67 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
         Indicator = self.Indicator
@@ -3290,37 +3310,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                         flex_2d: tp.Optional[bool] = None,
                         return_cache: bool = False,
                         use_cache: tp.Optional[CacheOutputT] = None,
-                        use_ray: bool = False,
                         **_kwargs) -> tp.Union[None, CacheOutputT, tp.Array2d, tp.List[tp.Array2d]]:
             """Custom function that forwards inputs and parameters to `apply_func`."""
-
-            if use_ray:
-                if len(in_output_names) > 0:
-                    raise ValueError("Ray doesn't support in-place outputs")
-            if numba_loop:
-                if use_ray:
-                    raise ValueError("Ray cannot be used within Numba")
-                if num_ret_outputs > 1:
-                    apply_and_concat_func = combine_fns.apply_and_concat_multiple_nb
-                elif num_ret_outputs == 1:
-                    apply_and_concat_func = combine_fns.apply_and_concat_one_nb
-                else:
-                    apply_and_concat_func = combine_fns.apply_and_concat_none_nb
-            else:
-                if num_ret_outputs > 1:
-                    if use_ray:
-                        apply_and_concat_func = combine_fns.apply_and_concat_multiple_ray
-                    else:
-                        apply_and_concat_func = combine_fns.apply_and_concat_multiple
-                elif num_ret_outputs == 1:
-                    if use_ray:
-                        apply_and_concat_func = combine_fns.apply_and_concat_one_ray
-                    else:
-                        apply_and_concat_func = combine_fns.apply_and_concat_one
-                else:
-                    if use_ray:
-                        raise ValueError("Ray requires regular outputs")
-                    apply_and_concat_func = combine_fns.apply_and_concat_none
 
             n_params = len(param_list[0]) if len(param_list) > 0 else 1
             input_tuple = tuple(input_list)
@@ -3381,7 +3372,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
             else:
                 _param_tuples = ()
 
-            return apply_and_concat_func(
+            return combine_fns.apply_and_concat(
                 n_params,
                 select_params_func,
                 args_before,
@@ -3391,7 +3382,9 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                 *args,
                 *more_args,
                 *cache,
-                **_kwargs
+                **_kwargs,
+                n_outputs=num_ret_outputs,
+                numba_loop=numba_loop
             )
 
         return self.from_custom_func(custom_func, as_lists=True, **kwargs)

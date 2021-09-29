@@ -24,7 +24,7 @@ class ExecutionEngine(Configured):
     def __init__(self, **kwargs) -> None:
         Configured.__init__(self, **kwargs)
 
-    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
         """Run an iterable of tuples out of a function, arguments, and keyword arguments.
 
         Provide `n_calls` in case `funcs_args` is a generator and the underlying engine needs it."""
@@ -65,7 +65,7 @@ class SequenceEngine(ExecutionEngine):
         """Keyword arguments passed to tqdm."""
         return self._tqdm_kwargs
 
-    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
         if self.show_progress:
             from tqdm.auto import tqdm
 
@@ -81,7 +81,11 @@ class SequenceEngine(ExecutionEngine):
 class DaskEngine(ExecutionEngine):
     """Class for executing functions in parallel using Dask.
 
-    For defaults, see `execution.dask` in `vectorbt._settings.settings`."""
+    For defaults, see `execution.dask` in `vectorbt._settings.settings`.
+
+    !!! note
+        Use multi-threading mainly on numeric code that releases the GIL
+        (like NumPy, Pandas, Scikit-Learn, Numba)."""
 
     def __init__(self, **compute_kwargs) -> None:
         from vectorbt._settings import settings
@@ -101,7 +105,7 @@ class DaskEngine(ExecutionEngine):
         """Keyword arguments passed to `dask.compute`."""
         return self._compute_kwargs
 
-    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
         import dask
 
         results_delayed = []
@@ -258,7 +262,7 @@ class RayEngine(ExecutionEngine):
             funcs_args_refs.append((func_remote, arg_refs, kwarg_refs))
         return funcs_args_refs
 
-    def run(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
         import ray
 
         if self.restart:
@@ -283,3 +287,45 @@ class RayEngine(ExecutionEngine):
             if self.shutdown:
                 ray.shutdown()
         return results
+
+
+engineT = tp.Union[str, type, ExecutionEngine, tp.Callable]
+
+
+def execute(funcs_args: tp.Iterable[funcs_argsT],
+            engine: engineT = SequenceEngine,
+            n_calls: tp.Optional[int] = None,
+            **kwargs) -> list:
+    """Execute using an engine.
+
+    Supported values for `engine`:
+
+    * Name of the engine (see supported engines)
+    * Subclass of `ExecutionEngine` - will initialize with `**kwargs`
+    * Instance of `ExecutionEngine` - will call `ExecutionEngine.execute` with `n_calls`
+    * Callable - will pass `funcs_args`, `n_calls` (if not None), and `**kwargs`
+
+    Supported engines:
+
+    * 'sequence' (default): See `SequenceEngine`
+    * 'dask': See `DaskEngine`
+    * 'ray': See `RayEngine`
+    """
+    if isinstance(engine, str):
+        if engine.lower() == 'sequence':
+            engine = SequenceEngine
+        elif engine.lower() == 'ray':
+            engine = RayEngine
+        elif engine.lower() == 'dask':
+            engine = DaskEngine
+        else:
+            raise ValueError(f"Engine '{type(engine)}' is not supported")
+    if isinstance(engine, type) and issubclass(engine, ExecutionEngine):
+        engine = engine(**kwargs)
+    if isinstance(engine, ExecutionEngine):
+        return engine.execute(funcs_args, n_calls=n_calls)
+    if callable(engine):
+        if n_calls is not None:
+            kwargs['n_calls'] = n_calls
+        return engine(funcs_args, **kwargs)
+    raise TypeError(f"Engine type {type(engine)} is not supported")
