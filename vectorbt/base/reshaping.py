@@ -3,8 +3,7 @@
 
 """Functions for reshaping arrays.
 
-Reshape functions transform a pandas object/NumPy array in some way, such as tiling, broadcasting,
-and unstacking."""
+Reshape functions transform a pandas object/NumPy array in some way."""
 
 import numpy as np
 from numpy.lib.stride_tricks import _broadcast_shape
@@ -13,10 +12,9 @@ from collections.abc import Sequence
 import functools
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
 from vectorbt.utils import checks
 from vectorbt.utils.config import resolve_dict
-from vectorbt.base import index_fns, wrapping
+from vectorbt.base import indexes, wrapping
 
 
 def shape_to_tuple(shape: tp.RelaxedShape) -> tp.Shape:
@@ -130,13 +128,13 @@ def repeat(arg: tp.ArrayLike, n: int, axis: int = 1, raw: bool = False) -> tp.An
     if axis == 0:
         if checks.is_pandas(arg):
             return wrapping.ArrayWrapper.from_obj(arg).wrap(
-                np.repeat(arg.values, n, axis=0), index=index_fns.repeat_index(arg.index, n))
+                np.repeat(arg.values, n, axis=0), index=indexes.repeat_index(arg.index, n))
         return np.repeat(arg, n, axis=0)
     elif axis == 1:
         arg = to_2d(arg)
         if checks.is_pandas(arg):
             return wrapping.ArrayWrapper.from_obj(arg).wrap(
-                np.repeat(arg.values, n, axis=1), columns=index_fns.repeat_index(arg.columns, n))
+                np.repeat(arg.values, n, axis=1), columns=indexes.repeat_index(arg.columns, n))
         return np.repeat(arg, n, axis=1)
     else:
         raise ValueError("Only axis 0 and 1 are supported")
@@ -149,17 +147,17 @@ def tile(arg: tp.ArrayLike, n: int, axis: int = 1, raw: bool = False) -> tp.AnyA
         if arg.ndim == 2:
             if checks.is_pandas(arg):
                 return wrapping.ArrayWrapper.from_obj(arg).wrap(
-                    np.tile(arg.values, (n, 1)), index=index_fns.tile_index(arg.index, n))
+                    np.tile(arg.values, (n, 1)), index=indexes.tile_index(arg.index, n))
             return np.tile(arg, (n, 1))
         if checks.is_pandas(arg):
             return wrapping.ArrayWrapper.from_obj(arg).wrap(
-                np.tile(arg.values, n), index=index_fns.tile_index(arg.index, n))
+                np.tile(arg.values, n), index=indexes.tile_index(arg.index, n))
         return np.tile(arg, n)
     elif axis == 1:
         arg = to_2d(arg)
         if checks.is_pandas(arg):
             return wrapping.ArrayWrapper.from_obj(arg).wrap(
-                np.tile(arg.values, (1, n)), columns=index_fns.tile_index(arg.columns, n))
+                np.tile(arg.values, (1, n)), columns=indexes.tile_index(arg.columns, n))
         return np.tile(arg, (1, n))
     else:
         raise ValueError("Only axis 0 and 1 are supported")
@@ -185,7 +183,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
             Accepts the following values:
 
             * 'keep' or None - keep the original index/columns of the objects in `args`
-            * 'stack' - stack different indexes/columns using `vectorbt.base.index_fns.stack_indexes`
+            * 'stack' - stack different indexes/columns using `vectorbt.base.indexes.stack_indexes`
             * 'strict' - ensure that all pandas objects have the same index/columns
             * 'reset' - reset any index/columns (they become a simple range)
             * integer - use the index/columns of the i-th object in `args`
@@ -195,7 +193,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
         ignore_sr_names (bool): Whether to ignore Series names if they are in conflict.
 
             Conflicting Series names are those that are different but not None.
-        **kwargs: Keyword arguments passed to `vectorbt.base.index_fns.stack_indexes`.
+        **kwargs: Keyword arguments passed to `vectorbt.base.indexes.stack_indexes`.
 
     For defaults, see `broadcasting` in `vectorbt._settings.settings`.
 
@@ -222,7 +220,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
         # Take index/columns of the object indexed by index_from
         if not checks.is_pandas(args[index_from]):
             raise TypeError(f"Argument under index {index_from} must be a pandas object")
-        new_index = index_fns.get_index(args[index_from], axis)
+        new_index = indexes.get_index(args[index_from], axis)
     elif isinstance(index_from, str):
         if index_from.lower() == 'reset':
             # Ignore index/columns
@@ -233,7 +231,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
             index_conflict = False
             for arg in args:
                 if checks.is_pandas(arg):
-                    index = index_fns.get_index(arg, axis)
+                    index = indexes.get_index(arg, axis)
                     if last_index is not None:
                         if not pd.Index.equals(index, last_index):
                             index_conflict = True
@@ -245,7 +243,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
                 # If pandas objects have different index/columns, stack them together
                 for arg in args:
                     if checks.is_pandas(arg):
-                        index = index_fns.get_index(arg, axis)
+                        index = indexes.get_index(arg, axis)
                         if axis == 1 and checks.is_series(arg) and ignore_sr_names:
                             # ignore Series name
                             continue
@@ -271,10 +269,10 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
                                 if len(index) > 1 and len(new_index) > 1:
                                     raise ValueError("Indexes could not be broadcast together")
                                 if len(index) > len(new_index):
-                                    new_index = index_fns.repeat_index(new_index, len(index))
+                                    new_index = indexes.repeat_index(new_index, len(index))
                                 elif len(index) < len(new_index):
-                                    index = index_fns.repeat_index(index, len(new_index))
-                            new_index = index_fns.stack_indexes([new_index, index], **kwargs)
+                                    index = indexes.repeat_index(index, len(new_index))
+                            new_index = indexes.stack_indexes([new_index, index], **kwargs)
         else:
             raise ValueError(f"Invalid value '{index_from}' for {'columns' if axis == 1 else 'index'}_from")
     else:
@@ -287,7 +285,7 @@ def broadcast_index(args: tp.Sequence[tp.AnyArray],
             # In this case, new pandas index (one element) must be repeated to match this length.
             if maxlen > 1 and len(new_index) > 1:
                 raise ValueError("Indexes could not be broadcast together")
-            new_index = index_fns.repeat_index(new_index, maxlen)
+            new_index = indexes.repeat_index(new_index, maxlen)
     else:
         # new_index=None can mean two things: 1) take original metadata or 2) reset index/columns
         # In case when index_from is not None, we choose 2)
@@ -306,19 +304,19 @@ def wrap_broadcasted(old_arg: tp.AnyArray,
         if checks.is_pandas(old_arg):
             if new_index is None:
                 # Take index from original pandas object
-                old_index = index_fns.get_index(old_arg, 0)
+                old_index = indexes.get_index(old_arg, 0)
                 if old_arg.shape[0] == new_arg.shape[0]:
                     new_index = old_index
                 else:
-                    new_index = index_fns.repeat_index(old_index, new_arg.shape[0])
+                    new_index = indexes.repeat_index(old_index, new_arg.shape[0])
             if new_columns is None:
                 # Take columns from original pandas object
-                old_columns = index_fns.get_index(old_arg, 1)
+                old_columns = indexes.get_index(old_arg, 1)
                 new_ncols = new_arg.shape[1] if new_arg.ndim == 2 else 1
                 if len(old_columns) == new_ncols:
                     new_columns = old_columns
                 else:
-                    new_columns = index_fns.repeat_index(old_columns, new_ncols)
+                    new_columns = indexes.repeat_index(old_columns, new_ncols)
         if new_arg.ndim == 2:
             return pd.DataFrame(new_arg, index=new_index, columns=new_columns)
         if new_columns is not None and len(new_columns) == 1:
@@ -396,7 +394,7 @@ def broadcast(*args: tp.ArrayLike,
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from vectorbt.base.reshape_fns import broadcast
+    >>> from vectorbt.base.reshaping import broadcast
 
     >>> v = 0
     >>> a = np.array([1, 2, 3])
@@ -556,9 +554,9 @@ def broadcast(*args: tp.ArrayLike,
             if checks.is_pandas(arr_args[i]) and len(arr_args[i].index) > 1:
                 index_to_align.append(i)
         if len(index_to_align) > 1:
-            indexes = [arr_args[i].index for i in index_to_align]
-            if len(set(map(len, indexes))) > 1:
-                index_indices = index_fns.align_indexes(indexes)
+            indexes_ = [arr_args[i].index for i in index_to_align]
+            if len(set(map(len, indexes_))) > 1:
+                index_indices = indexes.align_indexes(indexes_)
                 for i in index_to_align:
                     arr_args[i] = arr_args[i].iloc[index_indices[index_to_align.index(i)]]
     if align_columns:
@@ -567,9 +565,9 @@ def broadcast(*args: tp.ArrayLike,
             if checks.is_frame(arr_args[i]) and len(arr_args[i].columns) > 1:
                 cols_to_align.append(i)
         if len(cols_to_align) > 1:
-            indexes = [arr_args[i].columns for i in cols_to_align]
-            if len(set(map(len, indexes))) > 1:
-                col_indices = index_fns.align_indexes(indexes)
+            indexes_ = [arr_args[i].columns for i in cols_to_align]
+            if len(set(map(len, indexes_))) > 1:
+                col_indices = indexes.align_indexes(indexes_)
                 for i in cols_to_align:
                     arr_args[i] = arr_args[i].iloc[:, col_indices[cols_to_align.index(i)]]
 
@@ -658,7 +656,7 @@ def broadcast_to(arg1: tp.ArrayLike,
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
-    >>> from vectorbt.base.reshape_fns import broadcast_to
+    >>> from vectorbt.base.reshaping import broadcast_to
 
     >>> a = np.array([1, 2, 3])
     >>> sr = pd.Series([4, 5, 6], index=pd.Index(['x', 'y', 'z']), name='a')
@@ -680,9 +678,9 @@ def broadcast_to(arg1: tp.ArrayLike,
     if to_pd:
         # Take index and columns from arg2
         if index_from is None:
-            index_from = index_fns.get_index(arg2, 0)
+            index_from = indexes.get_index(arg2, 0)
         if columns_from is None:
-            columns_from = index_fns.get_index(arg2, 1)
+            columns_from = indexes.get_index(arg2, 1)
     return broadcast(arg1, to_shape=arg2.shape, to_pd=to_pd, index_from=index_from, columns_from=columns_from, **kwargs)
 
 
@@ -695,7 +693,7 @@ def broadcast_to_array_of(arg1: tp.ArrayLike, arg2: tp.ArrayLike) -> tp.Array:
 
     ```python-repl
     >>> import numpy as np
-    >>> from vectorbt.base.reshape_fns import broadcast_to_array_of
+    >>> from vectorbt.base.reshaping import broadcast_to_array_of
 
     >>> broadcast_to_array_of([0.1, 0.2], np.empty((2, 2)))
     [[[0.1 0.1]
@@ -764,7 +762,7 @@ def unstack_to_array(arg: tp.SeriesFrame, levels: tp.Optional[tp.MaybeLevelSeque
 
     ```python-repl
     >>> import pandas as pd
-    >>> from vectorbt.base.reshape_fns import unstack_to_array
+    >>> from vectorbt.base.reshaping import unstack_to_array
 
     >>> index = pd.MultiIndex.from_arrays(
     ...     [[1, 1, 2, 2], [3, 4, 3, 4], ['a', 'b', 'c', 'd']])
@@ -799,7 +797,7 @@ def unstack_to_array(arg: tp.SeriesFrame, levels: tp.Optional[tp.MaybeLevelSeque
     if isinstance(levels, (int, str)):
         levels = (levels,)
     for level in levels:
-        vals = index_fns.select_levels(sr.index, level).to_numpy()
+        vals = indexes.select_levels(sr.index, level).to_numpy()
         unique_vals = np.unique(vals)
         unique_idx_list.append(unique_vals)
         idx_map = dict(zip(unique_vals, range(len(unique_vals))))
@@ -825,7 +823,7 @@ def make_symmetric(arg: tp.SeriesFrame, sort: bool = True) -> tp.Frame:
 
     ```python-repl
     >>> import pandas as pd
-    >>> from vectorbt.base.reshape_fns import make_symmetric
+    >>> from vectorbt.base.reshaping import make_symmetric
 
     >>> df = pd.DataFrame([[1, 2], [3, 4]], index=['a', 'b'], columns=['c', 'd'])
 
@@ -892,7 +890,7 @@ def unstack_to_df(arg: tp.SeriesFrame,
 
     ```python-repl
     >>> import pandas as pd
-    >>> from vectorbt.base.reshape_fns import unstack_to_df
+    >>> from vectorbt.base.reshaping import unstack_to_df
 
     >>> index = pd.MultiIndex.from_arrays(
     ...     [[1, 1, 2, 2], [3, 4, 3, 4], ['a', 'b', 'c', 'd']],
@@ -923,8 +921,8 @@ def unstack_to_df(arg: tp.SeriesFrame,
             column_levels = 1
 
     # Build new index and column hierarchies
-    new_index = index_fns.select_levels(arg.index, index_levels).unique()
-    new_columns = index_fns.select_levels(arg.index, column_levels).unique()
+    new_index = indexes.select_levels(arg.index, index_levels).unique()
+    new_columns = indexes.select_levels(arg.index, column_levels).unique()
 
     # Unstack and post-process
     unstacked = unstack_to_array(sr, levels=(index_levels, column_levels))
@@ -932,59 +930,3 @@ def unstack_to_df(arg: tp.SeriesFrame,
     if symmetric:
         return make_symmetric(df, sort=sort)
     return df
-
-
-@register_jit(cache=True)
-def flex_choose_i_and_col_nb(a: tp.Array, flex_2d: bool = True) -> tp.Tuple[int, int]:
-    """Choose selection index and column based on the array's shape.
-
-    Instead of expensive broadcasting, keep the original shape and do indexing in a smart way.
-    A nice feature of this is that it has almost no memory footprint and can broadcast in
-    any direction infinitely.
-
-    Call it once before using `flex_select_nb`.
-
-    if `flex_2d` is True, 1-dim array will correspond to columns, otherwise to rows."""
-    i = -1
-    col = -1
-    if a.ndim == 0:
-        i = 0
-        col = 0
-    elif a.ndim == 1:
-        if flex_2d:
-            i = 0
-            if a.shape[0] == 1:
-                col = 0
-        else:
-            col = 0
-            if a.shape[0] == 1:
-                i = 0
-    else:
-        if a.shape[0] == 1:
-            i = 0
-        if a.shape[1] == 1:
-            col = 0
-    return i, col
-
-
-@register_jit(cache=True)
-def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, flex_2d: bool = True) -> tp.Any:
-    """Select element of `a` as if it has been broadcast."""
-    if flex_i == -1:
-        flex_i = i
-    if flex_col == -1:
-        flex_col = col
-    if a.ndim == 0:
-        return a.item()
-    if a.ndim == 1:
-        if flex_2d:
-            return a[int(flex_col)]
-        return a[flex_i]
-    return a[flex_i, int(flex_col)]
-
-
-@register_jit(cache=True)
-def flex_select_auto_nb(a: tp.Array, i: int, col: int, flex_2d: bool = True) -> tp.Any:
-    """Combines `flex_choose_i_and_col_nb` and `flex_select_nb`."""
-    flex_i, flex_col = flex_choose_i_and_col_nb(a, flex_2d)
-    return flex_select_nb(a, i, col, flex_i, flex_col, flex_2d)

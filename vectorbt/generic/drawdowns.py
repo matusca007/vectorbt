@@ -175,7 +175,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.template import RepEval
-from vectorbt.base.reshape_fns import to_2d_array, to_pd_array
+from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt

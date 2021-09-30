@@ -25,7 +25,7 @@ from vectorbt.utils import (
     attr,
     datetime,
     schedule,
-    tags,
+    tagging,
     template,
     parsing,
     execution,
@@ -2563,17 +2563,17 @@ class TestScheduleManager:
         assert kwargs['call_count'] == 5
 
 
-# ############# tags.py ############# #
+# ############# tagging.py ############# #
 
 
 class TestTags:
     def test_match_tags(self):
-        assert tags.match_tags('hello', 'hello')
-        assert not tags.match_tags('hello', 'world')
-        assert tags.match_tags(['hello', 'world'], 'world')
-        assert tags.match_tags('hello', ['hello', 'world'])
-        assert tags.match_tags('hello and world', ['hello', 'world'])
-        assert not tags.match_tags('hello and not world', ['hello', 'world'])
+        assert tagging.match_tags('hello', 'hello')
+        assert not tagging.match_tags('hello', 'world')
+        assert tagging.match_tags(['hello', 'world'], 'world')
+        assert tagging.match_tags('hello', ['hello', 'world'])
+        assert tagging.match_tags('hello and world', ['hello', 'world'])
+        assert not tagging.match_tags('hello and not world', ['hello', 'world'])
 
 
 # ############# template.py ############# #

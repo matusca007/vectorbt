@@ -91,11 +91,11 @@ class TestFactory:
             return ts * p[i] + a + b  # numba doesn't support **kwargs
 
         def custom_func(ts, p, *args, **kwargs):
-            return vbt.base.combine_fns.apply_and_concat(len(p), apply_func, ts, p, *args, **kwargs)
+            return vbt.base.combining.apply_and_concat(len(p), apply_func, ts, p, *args, **kwargs)
 
         @njit
         def custom_func_nb(ts, p, *args):
-            return vbt.base.combine_fns.apply_and_concat_one_nb(len(p), apply_func_nb, ts, p, *args)
+            return vbt.base.combining.apply_and_concat_one_nb(len(p), apply_func_nb, ts, p, *args)
 
         target = pd.DataFrame(
             np.array([

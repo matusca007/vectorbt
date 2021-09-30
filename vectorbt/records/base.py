@@ -417,7 +417,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_method, class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.attr import get_dict_attr
-from vectorbt.base.reshape_fns import to_1d_array
+from vectorbt.base.reshaping import to_1d_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin

@@ -16,7 +16,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.figure import make_figure
 from vectorbt.utils.config import merge_dicts
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
-from vectorbt.base.reshape_fns import to_2d_array
+from vectorbt.base.reshaping import to_2d_array
 from vectorbt.generic.plotting import clean_labels
 
 

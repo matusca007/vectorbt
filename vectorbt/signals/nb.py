@@ -29,7 +29,7 @@ from numba import prange
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
 from vectorbt.utils.array import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
-from vectorbt.base.reshape_fns import flex_select_auto_nb
+from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.generic.enums import range_dt, RangeStatus
 from vectorbt.generic import nb as generic_nb
 from vectorbt.signals.enums import StopType
@@ -436,7 +436,7 @@ def stop_place_nb(out: tp.Array1d,
             !!! note
                 If `wait` is greater than 0, trailing stop won't update at bars that come before `from_i`.
         pick_first (bool): Whether to stop as soon as the first exit signal is found.
-        flex_2d (bool): See `vectorbt.base.reshape_fns.flex_select_auto_nb`."""
+        flex_2d (bool): See `vectorbt.base.indexing.flex_select_auto_nb`."""
     init_i = from_i - wait
     init_ts = flex_select_auto_nb(ts, init_i, col, flex_2d)
     init_stop = flex_select_auto_nb(np.asarray(stop), init_i, col, flex_2d)
@@ -539,7 +539,7 @@ def ohlc_stop_place_nb(out: tp.Array1d,
                 If `wait` is greater than 0, even with `is_open_safe` set to True,
                 trailing stop won't update at bars that come before `from_i`.
         pick_first (bool): Whether to stop as soon as the first exit signal is found.
-        flex_2d (bool): See `vectorbt.base.reshape_fns.flex_select_auto_nb`.
+        flex_2d (bool): See `vectorbt.base.indexing.flex_select_auto_nb`.
     """
     init_i = from_i - wait
     init_open = flex_select_auto_nb(open, init_i, col, flex_2d)

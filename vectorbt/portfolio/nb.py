@@ -59,7 +59,7 @@ from vectorbt.utils.math import (
     add_nb
 )
 from vectorbt.utils.array import insert_argsort_nb
-from vectorbt.base.reshape_fns import flex_select_auto_nb
+from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.generic import nb as generic_nb
 from vectorbt.returns import nb as returns_nb
 from vectorbt.portfolio.enums import *
@@ -1003,7 +1003,7 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
     Arrays `size`, `size_type`, and `direction` utilize flexible indexing.
     If `ctx_select` is True, selects the elements of each `size`, `size_type`, and `direction`
     using `get_col_elem_nb` assuming that each array can broadcast to `target_shape`.
-    Otherwise, selects using `vectorbt.base.reshape_fns.flex_select_auto_nb` assuming that each array
+    Otherwise, selects using `vectorbt.base.indexing.flex_select_auto_nb` assuming that each array
     can broadcast to `group_len`.
 
     The lengths of `order_value_out` and `call_seq_out` must match the number of columns in the group.

@@ -18,7 +18,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.params import to_typed_list
 from vectorbt.utils.enum import map_enum_fields
-from vectorbt.base import combine_fns
+from vectorbt.base import combining
 from vectorbt.indicators.factory import IndicatorFactory, IndicatorBase, CacheOutputT
 from vectorbt.signals.nb import (
     generate_nb,
@@ -254,7 +254,7 @@ class SignalFactory(IndicatorFactory):
                 * `temp_idx_arr`: Empty integer array used to temporarily store indices.
                     Default is an automatically generated array of shape `input_shape[0]`.
                     You can also pass `temp_idx_arr1`, `temp_idx_arr2`, etc. to generate multiple.
-                * `flex_2d`: See `vectorbt.base.reshape_fns.flex_select_auto_nb`.
+                * `flex_2d`: See `vectorbt.base.indexing.flex_select_auto_nb`.
                     Default is provided by the pipeline if `pass_flex_2d` is True.
             pass_cache (bool): Whether to pass cache from `cache_func` to the placement function.
 
@@ -833,7 +833,7 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _entry_param_tuples = ()
 
-                return combine_fns.apply_and_concat(
+                return combining.apply_and_concat(
                     n_params,
                     apply_func,
                     input_shape,
@@ -862,7 +862,7 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _exit_param_tuples = ()
 
-                return combine_fns.apply_and_concat(
+                return combining.apply_and_concat(
                     n_params,
                     apply_func,
                     input_list[0],
@@ -908,7 +908,7 @@ class SignalFactory(IndicatorFactory):
                 else:
                     _exit_param_tuples = ()
 
-                return combine_fns.apply_and_concat(
+                return combining.apply_and_concat(
                     n_params,
                     apply_func,
                     input_shape,

@@ -96,10 +96,10 @@ from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.datetime import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils.array import get_ranges_arr
 from vectorbt.utils.attr import AttrResolver, AttrResolverT
-from vectorbt.base import index_fns, reshape_fns
+from vectorbt.base import indexes, reshaping
 from vectorbt.base.indexing import IndexingError, PandasIndexer
 from vectorbt.base.grouping import Grouper
-from vectorbt.base.reshape_fns import to_pd_array
+from vectorbt.base.reshaping import to_pd_array
 
 ArrayWrapperT = tp.TypeVar("ArrayWrapperT", bound="ArrayWrapper")
 IndexingMetaT = tp.Tuple[ArrayWrapperT, tp.MaybeArray, tp.MaybeArray, tp.Array1d]
@@ -291,7 +291,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                         raise IndexingError
                 else:
                     raise IndexingError("Selection of a scalar is not allowed")
-            new_index = index_fns.get_index(idx_mapper, 0)
+            new_index = indexes.get_index(idx_mapper, 0)
             if not isinstance(idx_idxs, np.ndarray):
                 # One index selected
                 new_columns = index[[idx_idxs]]
@@ -299,7 +299,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                 # One column selected
                 new_columns = columns[[col_idxs]]
             else:
-                new_columns = index_fns.get_index(idx_mapper, 1)
+                new_columns = indexes.get_index(idx_mapper, 1)
             new_ndim = idx_mapper.ndim
 
         if _self.grouper.is_grouped():
@@ -311,7 +311,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                 # Selection based on groups
                 # Get indices of columns corresponding to selected groups
                 group_idxs = col_idxs
-                group_idxs_arr = reshape_fns.to_1d_array(group_idxs)
+                group_idxs_arr = reshaping.to_1d_array(group_idxs)
                 group_start_idxs = _self.grouper.get_group_start_idxs()[group_idxs_arr]
                 group_end_idxs = _self.grouper.get_group_end_idxs()[group_idxs_arr]
                 ungrouped_col_idxs = get_ranges_arr(group_start_idxs, group_end_idxs)
@@ -338,7 +338,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                 ), idx_idxs, group_idxs, ungrouped_col_idxs
 
             # Selection based on columns
-            col_idxs_arr = reshape_fns.to_1d_array(col_idxs)
+            col_idxs_arr = reshaping.to_1d_array(col_idxs)
             return _self.replace(
                 index=new_index,
                 columns=new_columns,
@@ -364,8 +364,8 @@ class ArrayWrapper(Configured, PandasIndexer):
     def from_obj(cls: tp.Type[ArrayWrapperT], obj: tp.ArrayLike, *args, **kwargs) -> ArrayWrapperT:
         """Derive metadata from an object."""
         pd_obj = to_pd_array(obj)
-        index = index_fns.get_index(pd_obj, 0)
-        columns = index_fns.get_index(pd_obj, 1)
+        index = indexes.get_index(pd_obj, 0)
+        columns = indexes.get_index(pd_obj, 1)
         ndim = pd_obj.ndim
         kwargs.pop('index', None)
         kwargs.pop('columns', None)
@@ -376,7 +376,7 @@ class ArrayWrapper(Configured, PandasIndexer):
     def from_shape(cls: tp.Type[ArrayWrapperT], shape: tp.RelaxedShape,
                    ndim: tp.Optional[int] = None, *args, **kwargs) -> ArrayWrapperT:
         """Derive metadata from shape."""
-        shape = reshape_fns.shape_to_tuple(shape)
+        shape = reshaping.shape_to_tuple(shape)
         index = pd.RangeIndex(start=0, step=1, stop=shape[0])
         columns = pd.RangeIndex(start=0, step=1, stop=shape[1] if len(shape) > 1 else 1)
         if ndim is None:
@@ -575,7 +575,7 @@ class ArrayWrapper(Configured, PandasIndexer):
             checks.assert_ndim(arr, (1, 2))
             if fillna is not None:
                 arr[pd.isnull(arr)] = fillna
-            arr = reshape_fns.soft_to_ndim(arr, self.ndim)
+            arr = reshaping.soft_to_ndim(arr, self.ndim)
             checks.assert_shape_equal(arr, index, axis=(0, 0))
             if arr.ndim == 2:
                 checks.assert_shape_equal(arr, columns, axis=(1, 0))
@@ -661,7 +661,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                 return pd.Series(arr, index=columns, name=name_or_index, dtype=dtype)
             if arr.ndim == 2:
                 if arr.shape[1] == 1 and _self.ndim == 1:
-                    arr = reshape_fns.soft_to_ndim(arr, 1)
+                    arr = reshaping.soft_to_ndim(arr, 1)
                     # Array per Series
                     sr_name = columns[0]
                     if sr_name == 0:  # was arr Series before

@@ -716,7 +716,7 @@ If a segment is inactive, any callback function inside of it will not be execute
 You can still execute the segment's pre- and postprocessing function by enabling 
 `SimulationContext.call_pre_segment` and `SimulationContext.call_post_segment` respectively.
 
-Utilizes flexible indexing using `vectorbt.base.reshape_fns.flex_select_auto_nb` and `flex_2d`, 
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d`, 
 so it can be passed as 
 
 * 2-dim array, 
@@ -748,7 +748,7 @@ __pdoc__['SimulationContext.call_post_segment'] = """Whether to call `post_segme
 Allows, for example, to write user-defined arrays such as returns at the end of each segment."""
 __pdoc__['SimulationContext.close'] = """Latest asset price at each time step.
 
-Utilizes flexible indexing using `vectorbt.base.reshape_fns.flex_select_auto_nb` and `flex_2d`, 
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d`, 
 so it can be passed as 
 
 * 2-dim array, 
@@ -779,7 +779,7 @@ column rather than per row.
 This flag is set automatically when using `vectorbt.portfolio.base.Portfolio.from_order_func` depending upon 
 whether there is any argument that has been broadcast to 2 dimensions.
 
-Has only effect when using flexible indexing, for example, with `vectorbt.base.reshape_fns.flex_select_auto_nb`.
+Has only effect when using flexible indexing, for example, with `vectorbt.base.indexing.flex_select_auto_nb`.
 """
 __pdoc__['SimulationContext.order_records'] = """Order records.
 
@@ -1600,7 +1600,7 @@ __pdoc__['AdjustSLContext.col'] = """Current column.
 Has range `[0, target_shape[1])` and is always within `[from_col, to_col)`."""
 __pdoc__['AdjustSLContext.position_now'] = "Latest position."
 __pdoc__['AdjustSLContext.val_price_now'] = "Latest valuation price."
-__pdoc__['AdjustSLContext.flex_2d'] = "See `vectorbt.base.reshape_fns.flex_select_auto_nb`."
+__pdoc__['AdjustSLContext.flex_2d'] = "See `vectorbt.base.indexing.flex_select_auto_nb`."
 
 # ############# Records ############# #
 

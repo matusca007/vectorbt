@@ -11,8 +11,8 @@ import math
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.base.index_fns import find_first_occurrence
-from vectorbt.base.reshape_fns import to_any_array
+from vectorbt.base.indexes import find_first_occurrence
+from vectorbt.base.reshaping import to_any_array
 
 RangesT = tp.Generator[tp.Sequence[tp.ArrayLikeSequence], None, None]
 

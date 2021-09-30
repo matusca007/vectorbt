@@ -112,7 +112,7 @@ from vectorbt import _typing as tp
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.base.reshape_fns import to_2d_array
+from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.records.base import Records
 from vectorbt.records.decorators import attach_fields, override_field_config

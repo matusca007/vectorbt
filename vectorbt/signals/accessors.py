@@ -200,7 +200,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.random import set_seed_nb
-from vectorbt.base import reshape_fns
+from vectorbt.base import reshaping
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
@@ -487,11 +487,11 @@ class SignalsAccessor(GenericAccessor):
         if len(args) == 2:
             if broadcast_kwargs is None:
                 broadcast_kwargs = {}
-            entries, exits = reshape_fns.broadcast(*args, **broadcast_kwargs)
+            entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
             func = main_nb_registry.redecorate_parallel(nb.clean_enex_nb, parallel=parallel)
             entries_out, exits_out = func(
-                reshape_fns.to_2d_array(entries),
-                reshape_fns.to_2d_array(exits),
+                reshaping.to_2d_array(entries),
+                reshaping.to_2d_array(exits),
                 entry_first
             )
             return (
@@ -759,7 +759,7 @@ class SignalsAccessor(GenericAccessor):
         if seed is not None:
             set_seed_nb(seed)
         if prob is not None:
-            obj, prob = reshape_fns.broadcast(self.obj, prob, keep_raw=[False, True], **broadcast_kwargs)
+            obj, prob = reshaping.broadcast(self.obj, prob, keep_raw=[False, True], **broadcast_kwargs)
             return obj.vbt.signals.generate_exits(
                 nb.rand_by_prob_place_nb,
                 prob,
@@ -803,7 +803,7 @@ class SignalsAccessor(GenericAccessor):
         If `chain` is True, uses `SignalsAccessor.generate_both`.
         Otherwise, uses `SignalsAccessor.generate_exits`.
 
-        Arguments `entries`, `ts` and `stop` will broadcast using `vectorbt.base.reshape_fns.broadcast`
+        Arguments `entries`, `ts` and `stop` will broadcast using `vectorbt.base.reshaping.broadcast`
         and `broadcast_kwargs`.
 
         !!! hint
@@ -846,10 +846,10 @@ class SignalsAccessor(GenericAccessor):
 
         keep_raw = (False, True, True, True)
         broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements='W')), broadcast_kwargs)
-        entries, ts, stop, trailing = reshape_fns.broadcast(
+        entries, ts, stop, trailing = reshaping.broadcast(
             entries, ts, stop, trailing, **broadcast_kwargs, keep_raw=keep_raw)
 
-        entries_arr = reshape_fns.to_2d_array(entries)
+        entries_arr = reshaping.to_2d_array(entries)
         wrapper = ArrayWrapper.from_obj(entries)
         if chain:
             if checks.is_series(entries):
@@ -931,7 +931,7 @@ class SignalsAccessor(GenericAccessor):
         Otherwise, uses `SignalsAccessor.generate_exits`.
 
         All array-like arguments including stops and `out_dict` will broadcast using
-        `vectorbt.base.reshape_fns.broadcast` and `broadcast_kwargs`.
+        `vectorbt.base.reshaping.broadcast` and `broadcast_kwargs`.
 
         For arguments, see `vectorbt.signals.nb.ohlc_stop_place_nb`.
 
@@ -1101,7 +1101,7 @@ class SignalsAccessor(GenericAccessor):
 
         keep_raw = (False, True, True, True, True, True, True, True, True) + (False,) * len(out_args)
         broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements='W')), broadcast_kwargs)
-        entries, open, high, low, close, sl_stop, sl_trail, tp_stop, reverse, *out_args = reshape_fns.broadcast(
+        entries, open, high, low, close, sl_stop, sl_trail, tp_stop, reverse, *out_args = reshaping.broadcast(
             entries, open, high, low, close, sl_stop, sl_trail, tp_stop, reverse, *out_args,
             **broadcast_kwargs, keep_raw=keep_raw)
         if stop_price_out is None:
@@ -1113,10 +1113,10 @@ class SignalsAccessor(GenericAccessor):
             stop_type_out = np.empty_like(entries, dtype=np.int_)
         else:
             stop_type_out = out_args[0]
-        stop_price_out = reshape_fns.to_2d_array(stop_price_out)
-        stop_type_out = reshape_fns.to_2d_array(stop_type_out)
+        stop_price_out = reshaping.to_2d_array(stop_price_out)
+        stop_type_out = reshaping.to_2d_array(stop_type_out)
 
-        entries_arr = reshape_fns.to_2d_array(entries)
+        entries_arr = reshaping.to_2d_array(entries)
         wrapper = ArrayWrapper.from_obj(entries)
         if chain:
             if checks.is_series(entries):
@@ -1199,7 +1199,7 @@ class SignalsAccessor(GenericAccessor):
         with `vectorbt.generic.ranges.Ranges`.
 
         If `other` specified, see `vectorbt.signals.nb.between_two_ranges_nb`.
-        Both will broadcast using `vectorbt.base.reshape_fns.broadcast` and `broadcast_kwargs`.
+        Both will broadcast using `vectorbt.base.reshaping.broadcast` and `broadcast_kwargs`.
 
         ## Example
 
@@ -1267,11 +1267,11 @@ class SignalsAccessor(GenericAccessor):
             to_attach = self.obj
         else:
             # Two input arrays
-            obj, other = reshape_fns.broadcast(self.obj, other, **broadcast_kwargs)
+            obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
             func = main_nb_registry.redecorate_parallel(nb.between_two_ranges_nb, parallel=parallel)
             range_records = func(
-                reshape_fns.to_2d_array(obj),
-                reshape_fns.to_2d_array(other),
+                reshaping.to_2d_array(obj),
+                reshaping.to_2d_array(other),
                 from_other=from_other
             )
             wrapper = ArrayWrapper.from_obj(obj)
@@ -1346,7 +1346,7 @@ class SignalsAccessor(GenericAccessor):
              **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """See `vectorbt.signals.nb.rank_nb`.
 
-        Will broadcast with `reset_by` using `vectorbt.base.reshape_fns.broadcast` and `broadcast_kwargs`.
+        Will broadcast with `reset_by` using `vectorbt.base.reshaping.broadcast` and `broadcast_kwargs`.
 
         Use `prepare_func` to prepare further arguments to be passed before `*args`, such as temporary arrays.
         It must take both broadcasted arrays (`reset_by` can be None) and return a tuple.
@@ -1360,11 +1360,11 @@ class SignalsAccessor(GenericAccessor):
             wrap_kwargs = {}
 
         if reset_by is not None:
-            obj, reset_by = reshape_fns.broadcast(self.obj, reset_by, **broadcast_kwargs)
-            reset_by = reshape_fns.to_2d_array(reset_by)
+            obj, reset_by = reshaping.broadcast(self.obj, reset_by, **broadcast_kwargs)
+            reset_by = reshaping.to_2d_array(reset_by)
         else:
             obj = self.obj
-        obj_arr = reshape_fns.to_2d_array(obj)
+        obj_arr = reshaping.to_2d_array(obj)
         if prepare_func is not None:
             temp_arrs = prepare_func(obj_arr, reset_by)
         else:
@@ -1540,7 +1540,7 @@ class SignalsAccessor(GenericAccessor):
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             squeezed = self.squeeze_grouped(generic_nb.any_reduce_nb, group_by=group_by, parallel=parallel)
-            arr = reshape_fns.to_2d_array(squeezed)
+            arr = reshaping.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
         func = main_nb_registry.redecorate_parallel(nb.nth_index_nb, parallel=parallel)
@@ -1593,7 +1593,7 @@ class SignalsAccessor(GenericAccessor):
         Only True values will be considered."""
         indices = np.arange(len(self.wrapper.index), dtype=np.float_)[:, None]
         indices = np.tile(indices, (1, len(self.wrapper.columns)))
-        indices = reshape_fns.soft_to_ndim(indices, self.wrapper.ndim)
+        indices = reshaping.soft_to_ndim(indices, self.wrapper.ndim)
         indices[~self.obj.values] = np.nan
         return self.wrapper.wrap(indices).vbt.to_mapped(
             dropna=True,
@@ -1611,7 +1611,7 @@ class SignalsAccessor(GenericAccessor):
     def rate(self, wrap_kwargs: tp.KwargsLike = None,
              group_by: tp.GroupByLike = None, **kwargs) -> tp.MaybeSeries:
         """`SignalsAccessor.total` divided by the total index length in each column/group."""
-        total = reshape_fns.to_1d_array(self.total(group_by=group_by, **kwargs))
+        total = reshaping.to_1d_array(self.total(group_by=group_by, **kwargs))
         wrap_kwargs = merge_dicts(dict(name_or_index='rate'), wrap_kwargs)
         total_steps = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
         return self.wrapper.wrap_reduced(total / total_steps, group_by=group_by, **wrap_kwargs)
@@ -1625,8 +1625,8 @@ class SignalsAccessor(GenericAccessor):
     def partition_rate(self, wrap_kwargs: tp.KwargsLike = None,
                        group_by: tp.GroupByLike = None, **kwargs) -> tp.MaybeSeries:
         """`SignalsAccessor.total_partitions` divided by `SignalsAccessor.total` in each column/group."""
-        total_partitions = reshape_fns.to_1d_array(self.total_partitions(group_by=group_by, *kwargs))
-        total = reshape_fns.to_1d_array(self.total(group_by=group_by, *kwargs))
+        total_partitions = reshaping.to_1d_array(self.total_partitions(group_by=group_by, *kwargs))
+        total = reshaping.to_1d_array(self.total(group_by=group_by, *kwargs))
         wrap_kwargs = merge_dicts(dict(name_or_index='partition_rate'), wrap_kwargs)
         return self.wrapper.wrap_reduced(total_partitions / total, group_by=group_by, **wrap_kwargs)
 
@@ -1891,7 +1891,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
         if y is None:
             y = pd.Series.vbt.empty_like(self.obj, 1)
         else:
-            y = reshape_fns.to_pd_array(y)
+            y = reshaping.to_pd_array(y)
 
         return y[self.obj].vbt.scatterplot(**merge_dicts(dict(
             trace_kwargs=dict(

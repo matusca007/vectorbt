@@ -492,7 +492,7 @@ from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.decorators import cached_property
-from vectorbt.base.reshape_fns import to_2d_array
+from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.decorators import attach_fields, override_field_config

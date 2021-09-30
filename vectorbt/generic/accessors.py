@@ -222,7 +222,7 @@ from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.base import index_fns, reshape_fns
+from vectorbt.base import indexes, reshaping
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.base.grouping import Grouper
@@ -1151,10 +1151,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = nb.flatten_grouped_nb
         if order.upper() == 'C':
             out = func(self.to_2d_array(), group_lens, True)
-            new_index = index_fns.repeat_index(self.wrapper.index, np.max(group_lens))
+            new_index = indexes.repeat_index(self.wrapper.index, np.max(group_lens))
         else:
             out = func(self.to_2d_array(), group_lens, False)
-            new_index = index_fns.tile_index(self.wrapper.index, np.max(group_lens))
+            new_index = indexes.tile_index(self.wrapper.index, np.max(group_lens))
         wrap_kwargs = merge_dicts(dict(index=new_index), wrap_kwargs)
         return self.wrapper.wrap(out, group_by=group_by, **wrap_kwargs)
 
@@ -1453,7 +1453,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
         """
         if percentiles is not None:
-            percentiles = reshape_fns.to_1d_array(percentiles)
+            percentiles = reshaping.to_1d_array(percentiles)
         else:
             percentiles = np.array([0.25, 0.5, 0.75])
         percentiles = percentiles.tolist()
@@ -1520,7 +1520,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     bins[0] -= adj
                 else:
                     bins[-1] += adj
-        bin_edges = reshape_fns.to_1d_array(bins)
+        bin_edges = reshaping.to_1d_array(bins)
         mapping = dict()
         if right:
             out = np.digitize(arr, bin_edges[1:], right=right)
@@ -1855,7 +1855,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 split_columns = keys
             else:
                 split_columns = pd.Index(np.arange(len(split_indexes)), name='split_idx')
-            split_columns = index_fns.repeat_index(split_columns, len(self.wrapper.columns))
+            split_columns = indexes.repeat_index(split_columns, len(self.wrapper.columns))
             if stack_kwargs is None:
                 stack_kwargs = {}
             set_df = set_df.vbt.stack_index(split_columns, **stack_kwargs)
@@ -2229,7 +2229,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             ),
             value_counts=dict(
                 title='Value Counts',
-                calc_func=lambda value_counts: reshape_fns.to_dict(value_counts, orient='index_series'),
+                calc_func=lambda value_counts: reshaping.to_dict(value_counts, orient='index_series'),
                 resolve_value_counts=True,
                 check_has_mapping=True,
                 tags=['generic', 'value_counts']
@@ -2477,7 +2477,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
             neg_trace_kwargs = {}
         if hidden_trace_kwargs is None:
             hidden_trace_kwargs = {}
-        obj, other = reshape_fns.broadcast(self.obj, other, columns_from='keep')
+        obj, other = reshaping.broadcast(self.obj, other, columns_from='keep')
         checks.assert_instance_of(other, pd.Series)
         if fig is None:
             fig = make_figure()
@@ -2608,7 +2608,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
 
-        obj, other = reshape_fns.broadcast(self.obj, other, columns_from='keep')
+        obj, other = reshaping.broadcast(self.obj, other, columns_from='keep')
         checks.assert_instance_of(other, pd.Series)
         if fig is None:
             fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -2698,7 +2698,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                 x_labels=x_labels, y_labels=y_labels,
                 return_fig=return_fig, fig=fig, **kwargs)
 
-        (x_level, y_level), (slider_level,) = index_fns.pick_levels(
+        (x_level, y_level), (slider_level,) = indexes.pick_levels(
             self.wrapper.index,
             required_levels=(x_level, y_level),
             optional_levels=(slider_level,)
@@ -2751,7 +2751,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
             ), kwargs)
             default_size = fig is None and 'height' not in _kwargs
             fig = plotting.Heatmap(
-                data=reshape_fns.to_2d_array(df),
+                data=reshaping.to_2d_array(df),
                 x_labels=x_labels,
                 y_labels=y_labels,
                 fig=fig,
@@ -2829,7 +2829,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 
         ![](/docs/img/sr_volume.svg)
         """
-        (x_level, y_level, z_level), (slider_level,) = index_fns.pick_levels(
+        (x_level, y_level, z_level), (slider_level,) = indexes.pick_levels(
             self.wrapper.index,
             required_levels=(x_level, y_level, z_level),
             optional_levels=(slider_level,)

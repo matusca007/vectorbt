@@ -1,10 +1,12 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Functions for working with index/columns.
+"""Functions for working with indexes: index and columns.
 
-Index functions perform operations on index objects, such as stacking, combining,
-and cleansing MultiIndex levels. "Index" in pandas context is referred to both index and columns."""
+They perform operations on index objects, such as stacking, combining, and cleansing MultiIndex levels.
+
+!!! note
+    "Index" in pandas context is referred to both index and columns."""
 
 import numpy as np
 import pandas as pd

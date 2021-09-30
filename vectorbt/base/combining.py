@@ -16,7 +16,7 @@ from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
 from vectorbt.utils import checks
 from vectorbt.utils.execution import execute
-from vectorbt.base import reshape_fns
+from vectorbt.base import reshaping
 
 
 @register_jit
@@ -123,8 +123,8 @@ def apply_and_concat(ntimes: int,
     if n_outputs == 0:
         return None
     if n_outputs == 1:
-        return np.column_stack(tuple(map(reshape_fns.to_2d, out)))
-    return list(map(np.column_stack, zip(*tuple(map(lambda x: tuple(map(reshape_fns.to_2d, x)), out)))))
+        return np.column_stack(tuple(map(reshaping.to_2d, out)))
+    return list(map(np.column_stack, zip(*tuple(map(lambda x: tuple(map(reshaping.to_2d, x)), out)))))
 
 
 @register_jit

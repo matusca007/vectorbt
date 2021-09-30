@@ -20,7 +20,7 @@ class FlexChunkTaker(ChunkTaker):
 
     @property
     def flex_2d(self) -> tp.Optional[bool]:
-        """See `vectorbt.base.reshape_fns.flex_select_auto_nb`."""
+        """See `vectorbt.base.indexing.flex_select_auto_nb`."""
         return self._flex_2d
 
 

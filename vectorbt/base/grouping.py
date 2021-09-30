@@ -19,7 +19,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.array import is_sorted
 from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.config import Configured
-from vectorbt.base import index_fns
+from vectorbt.base import indexes
 
 
 GroupByT = tp.Union[None, bool, tp.Index]
@@ -35,14 +35,14 @@ def group_by_to_index(index: tp.Index, group_by: tp.GroupByLike) -> GroupByT:
     if group_by is True:
         group_by = pd.Index(['group'] * len(index))  # one group
     elif isinstance(group_by, (int, str)):
-        group_by = index_fns.select_levels(index, group_by)
+        group_by = indexes.select_levels(index, group_by)
     elif checks.is_sequence(group_by):
         if len(group_by) != len(index) \
                 and isinstance(group_by[0], (int, str)) \
                 and isinstance(index, pd.MultiIndex) \
                 and len(group_by) <= len(index.names):
             try:
-                group_by = index_fns.select_levels(index, group_by)
+                group_by = indexes.select_levels(index, group_by)
             except (IndexError, KeyError):
                 pass
     if not isinstance(group_by, pd.Index):

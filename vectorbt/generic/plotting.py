@@ -25,7 +25,7 @@ from vectorbt.utils.figure import make_figure
 from vectorbt.utils.array import renormalize
 from vectorbt.utils.colors import rgb_from_cmap
 from vectorbt.utils.config import Configured, resolve_dict
-from vectorbt.base import reshape_fns
+from vectorbt.base import reshaping
 
 
 def clean_labels(labels: tp.ArrayLikeSequence) -> tp.ArrayLikeSequence:
@@ -224,7 +224,7 @@ class Bar(Configured, TraceUpdater):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
         if data is not None:
-            data = reshape_fns.to_2d_array(data)
+            data = reshaping.to_2d_array(data)
             if trace_names is not None:
                 checks.assert_shape_equal(data, trace_names, (1, 0))
         else:
@@ -270,7 +270,7 @@ class Bar(Configured, TraceUpdater):
         ```
         ![](/docs/img/Bar_updated.svg)
         """
-        data = reshape_fns.to_2d_array(data)
+        data = reshaping.to_2d_array(data)
         with self.fig.batch_update():
             for i, bar in enumerate(self.traces):
                 bar.y = data[:, i]
@@ -332,7 +332,7 @@ class Scatter(Configured, TraceUpdater):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
         if data is not None:
-            data = reshape_fns.to_2d_array(data)
+            data = reshaping.to_2d_array(data)
             if trace_names is not None:
                 checks.assert_shape_equal(data, trace_names, (1, 0))
         else:
@@ -369,7 +369,7 @@ class Scatter(Configured, TraceUpdater):
 
     def update(self, data: tp.ArrayLike) -> None:
         """Update the trace data."""
-        data = reshape_fns.to_2d_array(data)
+        data = reshaping.to_2d_array(data)
 
         with self.fig.batch_update():
             for i, trace in enumerate(self.traces):
@@ -442,7 +442,7 @@ class Histogram(Configured, TraceUpdater):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
         if data is not None:
-            data = reshape_fns.to_2d_array(data)
+            data = reshaping.to_2d_array(data)
             if trace_names is not None:
                 checks.assert_shape_equal(data, trace_names, (1, 0))
         else:
@@ -502,7 +502,7 @@ class Histogram(Configured, TraceUpdater):
 
     def update(self, data: tp.ArrayLike) -> None:
         """Update the trace data."""
-        data = reshape_fns.to_2d_array(data)
+        data = reshaping.to_2d_array(data)
 
         with self.fig.batch_update():
             for i, trace in enumerate(self.traces):
@@ -571,7 +571,7 @@ class Box(Configured, TraceUpdater):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
         if data is not None:
-            data = reshape_fns.to_2d_array(data)
+            data = reshaping.to_2d_array(data)
             if trace_names is not None:
                 checks.assert_shape_equal(data, trace_names, (1, 0))
         else:
@@ -629,7 +629,7 @@ class Box(Configured, TraceUpdater):
 
     def update(self, data: tp.ArrayLike) -> None:
         """Update the trace data."""
-        data = reshape_fns.to_2d_array(data)
+        data = reshaping.to_2d_array(data)
 
         with self.fig.batch_update():
             for i, trace in enumerate(self.traces):
@@ -709,7 +709,7 @@ class Heatmap(Configured, TraceUpdater):
         if add_trace_kwargs is None:
             add_trace_kwargs = {}
         if data is not None:
-            data = reshape_fns.to_2d_array(data)
+            data = reshaping.to_2d_array(data)
             if x_labels is not None:
                 checks.assert_shape_equal(data, x_labels, (1, 0))
             if y_labels is not None:
@@ -780,7 +780,7 @@ class Heatmap(Configured, TraceUpdater):
 
     def update(self, data: tp.ArrayLike) -> None:
         """Update the trace data."""
-        data = reshape_fns.to_2d_array(data)
+        data = reshaping.to_2d_array(data)
 
         with self.fig.batch_update():
             self.traces[0].z = data

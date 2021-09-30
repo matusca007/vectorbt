@@ -18,7 +18,7 @@ from numba import prange
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
-from vectorbt.base.reshape_fns import flex_select_auto_nb
+from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.generic import nb as generic_nb
 from vectorbt.labels.enums import TrendMode
 

@@ -25,14 +25,14 @@ For example:
 
 It contains base methods for working with pandas objects. Most of these methods are adaptations
 of combine/reshape/index functions that can work with pandas objects. For example,
-`vectorbt.base.reshape_fns.broadcast` can take an arbitrary number of pandas objects, thus
+`vectorbt.base.reshaping.broadcast` can take an arbitrary number of pandas objects, thus
 you can find its variations as accessor methods.
 
 ```python-repl
 >>> sr = pd.Series([1])
 >>> df = pd.DataFrame([1, 2, 3])
 
->>> vbt.base.reshape_fns.broadcast_to(sr, df)
+>>> vbt.base.reshaping.broadcast_to(sr, df)
    0
 0  1
 1  1
@@ -73,7 +73,7 @@ from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instan
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
-from vectorbt.base import combine_fns, index_fns, reshape_fns
+from vectorbt.base import combining, indexes, reshaping
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 
@@ -175,7 +175,7 @@ class BaseAccessor(Wrapping):
     @classmethod
     def resolve_shape(cls, shape: tp.RelaxedShape) -> tp.Shape:
         """Resolve shape."""
-        shape_2d = reshape_fns.shape_to_2d(shape)
+        shape_2d = reshaping.shape_to_2d(shape)
         try:
             if cls.is_series() and shape_2d[1] > 1:
                 raise ValueError("Use DataFrame accessor")
@@ -230,7 +230,7 @@ class BaseAccessor(Wrapping):
 
     def stack_index(self, index: tp.Index, on_top: bool = True, axis: int = 1,
                     inplace: bool = False, **kwargs) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.stack_indexes`.
+        """See `vectorbt.base.indexes.stack_indexes`.
 
         Set `on_top` to False to stack at bottom.
 
@@ -238,62 +238,62 @@ class BaseAccessor(Wrapping):
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
             if on_top:
-                return index_fns.stack_indexes([index, obj_index], **kwargs)
-            return index_fns.stack_indexes([obj_index, index], **kwargs)
+                return indexes.stack_indexes([index, obj_index], **kwargs)
+            return indexes.stack_indexes([obj_index, index], **kwargs)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def drop_levels(self, levels: tp.MaybeLevelSequence, axis: int = 1,
                     inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.drop_levels`.
+        """See `vectorbt.base.indexes.drop_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
-            return index_fns.drop_levels(obj_index, levels, strict=strict)
+            return indexes.drop_levels(obj_index, levels, strict=strict)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def rename_levels(self, name_dict: tp.Dict[str, tp.Any], axis: int = 1,
                       inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.rename_levels`.
+        """See `vectorbt.base.indexes.rename_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
-            return index_fns.rename_levels(obj_index, name_dict, strict=strict)
+            return indexes.rename_levels(obj_index, name_dict, strict=strict)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def select_levels(self, level_names: tp.MaybeLevelSequence, axis: int = 1,
                       inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.select_levels`.
+        """See `vectorbt.base.indexes.select_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
-            return index_fns.select_levels(obj_index, level_names)
+            return indexes.select_levels(obj_index, level_names)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def drop_redundant_levels(self, axis: int = 1, inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.drop_redundant_levels`.
+        """See `vectorbt.base.indexes.drop_redundant_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
-            return index_fns.drop_redundant_levels(obj_index)
+            return indexes.drop_redundant_levels(obj_index)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def drop_duplicate_levels(self, keep: tp.Optional[str] = None, axis: int = 1,
                               inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
-        """See `vectorbt.base.index_fns.drop_duplicate_levels`.
+        """See `vectorbt.base.indexes.drop_duplicate_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
 
         def apply_func(obj_index: tp.Index) -> tp.Index:
-            return index_fns.drop_duplicate_levels(obj_index, keep=keep)
+            return indexes.drop_duplicate_levels(obj_index, keep=keep)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
@@ -302,47 +302,47 @@ class BaseAccessor(Wrapping):
     def to_1d_array(self) -> tp.Array1d:
         """Convert to 1-dim NumPy array
 
-        See `vectorbt.base.reshape_fns.to_1d`."""
-        return reshape_fns.to_1d_array(self.obj)
+        See `vectorbt.base.reshaping.to_1d`."""
+        return reshaping.to_1d_array(self.obj)
 
     def to_2d_array(self) -> tp.Array2d:
         """Convert to 2-dim NumPy array.
 
-        See `vectorbt.base.reshape_fns.to_2d`."""
-        return reshape_fns.to_2d_array(self.obj)
+        See `vectorbt.base.reshaping.to_2d`."""
+        return reshaping.to_2d_array(self.obj)
 
     def tile(self, n: int, keys: tp.Optional[tp.IndexLike] = None, axis: int = 1,
              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """See `vectorbt.base.reshape_fns.tile`.
+        """See `vectorbt.base.reshaping.tile`.
 
         Set `axis` to 1 for columns and 0 for index.
         Use `keys` as the outermost level."""
-        tiled = reshape_fns.tile(self.obj, n, axis=axis)
+        tiled = reshaping.tile(self.obj, n, axis=axis)
         if keys is not None:
             if axis == 1:
-                new_columns = index_fns.combine_indexes([keys, self.wrapper.columns])
+                new_columns = indexes.combine_indexes([keys, self.wrapper.columns])
                 return ArrayWrapper.from_obj(tiled).wrap(
                     tiled.values, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
             else:
-                new_index = index_fns.combine_indexes([keys, self.wrapper.index])
+                new_index = indexes.combine_indexes([keys, self.wrapper.index])
                 return ArrayWrapper.from_obj(tiled).wrap(
                     tiled.values, **merge_dicts(dict(index=new_index), wrap_kwargs))
         return tiled
 
     def repeat(self, n: int, keys: tp.Optional[tp.IndexLike] = None, axis: int = 1,
                wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """See `vectorbt.base.reshape_fns.repeat`.
+        """See `vectorbt.base.reshaping.repeat`.
 
         Set `axis` to 1 for columns and 0 for index.
         Use `keys` as the outermost level."""
-        repeated = reshape_fns.repeat(self.obj, n, axis=axis)
+        repeated = reshaping.repeat(self.obj, n, axis=axis)
         if keys is not None:
             if axis == 1:
-                new_columns = index_fns.combine_indexes([self.wrapper.columns, keys])
+                new_columns = indexes.combine_indexes([self.wrapper.columns, keys])
                 return ArrayWrapper.from_obj(repeated).wrap(
                     repeated.values, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
             else:
-                new_index = index_fns.combine_indexes([self.wrapper.index, keys])
+                new_index = indexes.combine_indexes([self.wrapper.index, keys])
                 return ArrayWrapper.from_obj(repeated).wrap(
                     repeated.values, **merge_dicts(dict(index=new_index), wrap_kwargs))
         return repeated
@@ -375,45 +375,45 @@ class BaseAccessor(Wrapping):
         ```
         """
         checks.assert_instance_of(other, (pd.Series, pd.DataFrame))
-        obj = reshape_fns.to_2d(self.obj)
-        other = reshape_fns.to_2d(other)
+        obj = reshaping.to_2d(self.obj)
+        other = reshaping.to_2d(other)
 
-        aligned_index = index_fns.align_index_to(obj.index, other.index)
-        aligned_columns = index_fns.align_index_to(obj.columns, other.columns)
+        aligned_index = indexes.align_index_to(obj.index, other.index)
+        aligned_columns = indexes.align_index_to(obj.columns, other.columns)
         obj = obj.iloc[aligned_index, aligned_columns]
         return self.wrapper.wrap(
             obj.values, group_by=False,
             **merge_dicts(dict(index=other.index, columns=other.columns), wrap_kwargs))
 
     @class_or_instancemethod
-    def broadcast(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshape_fns.BCRT:
-        """See `vectorbt.base.reshape_fns.broadcast`."""
+    def broadcast(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+        """See `vectorbt.base.reshaping.broadcast`."""
         others = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, others))
         if isinstance(cls_or_self, type):
-            return reshape_fns.broadcast(*others, **kwargs)
-        return reshape_fns.broadcast(cls_or_self.obj, *others, **kwargs)
+            return reshaping.broadcast(*others, **kwargs)
+        return reshaping.broadcast(cls_or_self.obj, *others, **kwargs)
 
-    def broadcast_to(self, other: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshape_fns.BCRT:
-        """See `vectorbt.base.reshape_fns.broadcast_to`."""
+    def broadcast_to(self, other: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+        """See `vectorbt.base.reshaping.broadcast_to`."""
         if isinstance(other, BaseAccessor):
             other = other.obj
-        return reshape_fns.broadcast_to(self.obj, other, **kwargs)
+        return reshaping.broadcast_to(self.obj, other, **kwargs)
 
     def make_symmetric(self) -> tp.Frame:  # pragma: no cover
-        """See `vectorbt.base.reshape_fns.make_symmetric`."""
-        return reshape_fns.make_symmetric(self.obj)
+        """See `vectorbt.base.reshaping.make_symmetric`."""
+        return reshaping.make_symmetric(self.obj)
 
     def unstack_to_array(self, **kwargs) -> tp.Array:  # pragma: no cover
-        """See `vectorbt.base.reshape_fns.unstack_to_array`."""
-        return reshape_fns.unstack_to_array(self.obj, **kwargs)
+        """See `vectorbt.base.reshaping.unstack_to_array`."""
+        return reshaping.unstack_to_array(self.obj, **kwargs)
 
     def unstack_to_df(self, **kwargs) -> tp.Frame:  # pragma: no cover
-        """See `vectorbt.base.reshape_fns.unstack_to_df`."""
-        return reshape_fns.unstack_to_df(self.obj, **kwargs)
+        """See `vectorbt.base.reshaping.unstack_to_df`."""
+        return reshaping.unstack_to_df(self.obj, **kwargs)
 
     def to_dict(self, **kwargs) -> tp.Mapping:
-        """See `vectorbt.base.reshape_fns.to_dict`."""
-        return reshape_fns.to_dict(self.obj, **kwargs)
+        """See `vectorbt.base.reshaping.to_dict`."""
+        return reshaping.to_dict(self.obj, **kwargs)
 
     # ############# Combining ############# #
 
@@ -454,7 +454,7 @@ class BaseAccessor(Wrapping):
         checks.assert_not_none(apply_func)
         # Optionally cast to 2d array
         if to_2d:
-            obj = reshape_fns.to_2d(self.obj, raw=not keep_pd)
+            obj = reshaping.to_2d(self.obj, raw=not keep_pd)
         else:
             if not keep_pd:
                 obj = np.asarray(self.obj)
@@ -472,7 +472,7 @@ class BaseAccessor(Wrapping):
 
         Args:
             *others (array_like): List of objects to be concatenated with this array.
-            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
+            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
             keys (index_like): Outermost column level.
 
         ## Example
@@ -494,8 +494,8 @@ class BaseAccessor(Wrapping):
             objs = (cls_or_self.obj,) + others
         if broadcast_kwargs is None:
             broadcast_kwargs = {}
-        broadcasted = reshape_fns.broadcast(*objs, **broadcast_kwargs)
-        broadcasted = tuple(map(reshape_fns.to_2d, broadcasted))
+        broadcasted = reshaping.broadcast(*objs, **broadcast_kwargs)
+        broadcasted = tuple(map(reshaping.to_2d, broadcasted))
         out = pd.concat(broadcasted, axis=1, keys=keys)
         if not isinstance(out.columns, pd.MultiIndex) and np.all(out.columns == 0):
             out.columns = pd.RangeIndex(start=0, stop=len(out.columns), step=1)
@@ -513,7 +513,7 @@ class BaseAccessor(Wrapping):
                          **kwargs) -> tp.MaybeTuple[tp.Frame]:
         """Apply `apply_func` `ntimes` times and concatenate the results along columns.
 
-        See `vectorbt.base.combine_fns.apply_and_concat`.
+        See `vectorbt.base.combining.apply_and_concat`.
 
         Args:
             ntimes (int): Number of times to call `apply_func`.
@@ -528,7 +528,7 @@ class BaseAccessor(Wrapping):
             to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
-            **kwargs: Keyword arguments passed to `vectorbt.base.combine_fns.apply_and_concat`
+            **kwargs: Keyword arguments passed to `vectorbt.base.combining.apply_and_concat`
                 and then to `combine_func`.
 
         !!! note
@@ -567,18 +567,18 @@ class BaseAccessor(Wrapping):
         """
         checks.assert_not_none(apply_func)
         if to_2d:
-            obj = reshape_fns.to_2d(self.obj, raw=not keep_pd)
+            obj = reshaping.to_2d(self.obj, raw=not keep_pd)
         else:
             if not keep_pd:
                 obj = np.asarray(self.obj)
             else:
                 obj = self.obj
-        out = combine_fns.apply_and_concat(ntimes, apply_func, obj, *args, n_outputs=n_outputs, **kwargs)
+        out = combining.apply_and_concat(ntimes, apply_func, obj, *args, n_outputs=n_outputs, **kwargs)
         if keys is not None:
-            new_columns = index_fns.combine_indexes([keys, self.wrapper.columns])
+            new_columns = indexes.combine_indexes([keys, self.wrapper.columns])
         else:
             top_columns = pd.Index(np.arange(ntimes), name='apply_idx')
-            new_columns = index_fns.combine_indexes([top_columns, self.wrapper.columns])
+            new_columns = indexes.combine_indexes([top_columns, self.wrapper.columns])
         if out is None:
             return None
         wrap_kwargs = merge_dicts(dict(columns=new_columns), wrap_kwargs)
@@ -615,11 +615,11 @@ class BaseAccessor(Wrapping):
             concat (bool): Whether to concatenate the results along the column axis.
                 Otherwise, pairwise combine into a Series/DataFrame of the same shape.
 
-                If True, see `vectorbt.base.combine_fns.combine_and_concat`.
-                If False, see `vectorbt.base.combine_fns.combine_multiple`.
+                If True, see `vectorbt.base.combining.combine_and_concat`.
+                If False, see `vectorbt.base.combining.combine_multiple`.
 
                 Can only concatenate using the instance method.
-            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
+            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
             keys (index_like): Outermost column level.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
@@ -698,9 +698,9 @@ class BaseAccessor(Wrapping):
         if checks.is_numba_func(combine_func):
             # Numba requires writeable arrays and in the same order
             broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements=['W', 'C'])), broadcast_kwargs)
-        objs = reshape_fns.broadcast(*objs, **broadcast_kwargs)
+        objs = reshaping.broadcast(*objs, **broadcast_kwargs)
         if to_2d:
-            inputs = tuple(map(lambda x: reshape_fns.to_2d(x, raw=not keep_pd), objs))
+            inputs = tuple(map(lambda x: reshaping.to_2d(x, raw=not keep_pd), objs))
         else:
             if not keep_pd:
                 inputs = tuple(map(lambda x: np.asarray(x), objs))
@@ -713,17 +713,17 @@ class BaseAccessor(Wrapping):
             # Concat the results horizontally
             if isinstance(cls_or_self, type):
                 raise TypeError("Use instance method to concatenate")
-            out = combine_fns.combine_and_concat(inputs[0], inputs[1:], combine_func, *args, **kwargs)
+            out = combining.combine_and_concat(inputs[0], inputs[1:], combine_func, *args, **kwargs)
             columns = ArrayWrapper.from_obj(objs[0]).columns
             if keys is not None:
-                new_columns = index_fns.combine_indexes([keys, columns])
+                new_columns = indexes.combine_indexes([keys, columns])
             else:
                 top_columns = pd.Index(np.arange(len(objs) - 1), name='combine_idx')
-                new_columns = index_fns.combine_indexes([top_columns, columns])
+                new_columns = indexes.combine_indexes([top_columns, columns])
             return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
         else:
             # Combine arguments pairwise into one object
-            out = combine_fns.combine_multiple(inputs, combine_func, *args, **kwargs)
+            out = combining.combine_multiple(inputs, combine_func, *args, **kwargs)
             return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts({}, wrap_kwargs))
 
     @classmethod
@@ -785,7 +785,7 @@ class BaseAccessor(Wrapping):
 
         var_names = get_ex_var_names(expression)
         objs = get_context_vars(var_names, frames_back=1, local_dict=local_dict, global_dict=global_dict)
-        objs = reshape_fns.broadcast(*objs, **broadcast_kwargs)
+        objs = reshaping.broadcast(*objs, **broadcast_kwargs)
         vars_by_name = {}
         for i, obj in enumerate(objs):
             vars_by_name[var_names[i]] = np.asarray(obj)

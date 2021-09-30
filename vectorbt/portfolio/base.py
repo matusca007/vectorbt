@@ -25,7 +25,8 @@ Run for the examples below:
 >>> import vectorbt as vbt
 >>> from vectorbt.utils.colors import adjust_opacity
 >>> from vectorbt.utils.enum import map_enum_fields
->>> from vectorbt.base.reshape_fns import broadcast, flex_select_auto_nb, to_2d_array
+>>> from vectorbt.base.reshaping import broadcast, to_2d_array
+>>> from vectorbt.base.indexing import flex_select_auto_nb
 >>> from vectorbt.portfolio.enums import SizeType, Direction, NoOrder, OrderStatus, OrderSide
 >>> from vectorbt.portfolio import nb
 ```
@@ -1425,7 +1426,7 @@ from vectorbt.utils.template import RepEval, deep_substitute
 from vectorbt.utils.random import set_seed
 from vectorbt.utils.colors import adjust_opacity
 from vectorbt.utils.figure import get_domain
-from vectorbt.base.reshape_fns import to_1d_array, to_2d_array, broadcast, broadcast_to, to_pd_array
+from vectorbt.base.reshaping import to_1d_array, to_2d_array, broadcast, broadcast_to, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
@@ -1779,7 +1780,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 Set to a lower number if you run out of memory.
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
             group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
-            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshape_fns.broadcast`.
+            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
             attach_call_seq (bool): Whether to pass `call_seq` to the constructor.
@@ -1788,7 +1789,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 Otherwise, just takes memory.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
-        All broadcastable arguments will broadcast using `vectorbt.base.reshape_fns.broadcast`
+        All broadcastable arguments will broadcast using `vectorbt.base.reshaping.broadcast`
         but keep original shape to utilize flexible indexing and to save memory.
 
         For defaults, see `portfolio` in `vectorbt._settings.settings`.
@@ -2270,7 +2271,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             attach_call_seq (bool): See `Portfolio.from_orders`.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
-        All broadcastable arguments will broadcast using `vectorbt.base.reshape_fns.broadcast`
+        All broadcastable arguments will broadcast using `vectorbt.base.reshaping.broadcast`
         but keep original shape to utilize flexible indexing and to save memory.
 
         For defaults, see `portfolio` in `vectorbt._settings.settings`.
