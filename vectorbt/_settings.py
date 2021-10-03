@@ -55,10 +55,10 @@ Since this is only visible when looking at the source code, the advice is to alw
     Last but not least, some settings are only accessed when importing the package for the first time,
     such as 'numba.on_register'. In any case, make sure to check whether the update actually took place.
 
-## Saving
+## Saving and loading
 
 Like any other class subclassing `vectorbt.utils.config.Config`, we can save settings to the disk,
-load it back, and update in-place:
+load it back, and replace in-place:
 
 ```python-repl
 >>> vbt.settings.save('my_settings')
@@ -66,14 +66,51 @@ load it back, and update in-place:
 >>> vbt.settings['caching']['enabled']
 False
 
->>> vbt.settings.load_update('my_settings')  # load() would return a new object!
+>>> vbt.settings.load_update('my_settings', clear=True)  # replace in-place
 >>> vbt.settings['caching']['enabled']
 True
 ```
 
 Bonus: You can do the same with any sub-config inside `settings`!
+
+Some settings (such as Numba-related ones) are applied on import, so changing them during the runtime
+will have no effect. In this case, change the settings, save them to the disk, and create an environment
+variable that holds the path to the file - vectorbt will load it before any other module.
+
+The following environment variables are supported:
+
+* "VBT_SETTINGS_PATH": Path to the settings file. Will replace the current settings.
+* "VBT_SETTINGS_OVERRIDE_PATH": Path to the settings file. Will override the current settings.
+
+For example, let's disable caching for all Numba functions.
+First, change the settings and save them to the disk:
+
+```python-repl
+>>> import vectorbt as vbt
+>>> vbt.settings['numba']['override_options']['cache'] = False
+>>> vbt.settings.save('my_settings')
+
+>>> from vectorbt.nb_registry import nb_registry
+>>> nb_registry.setups["vectorbt.generic.nb.nancumsum_nb"]['options']['cache']
+True
+```
+
+Then, restart the runtime and instruct vectorbt to load the file with settings before anything else:
+
+```python-repl
+>>> import os
+>>> os.environ['VBT_SETTINGS_PATH'] = "my_settings"
+
+>>> from vectorbt.nb_registry import nb_registry
+>>> nb_registry.setups["vectorbt.generic.nb.nancumsum_nb"]['options']['cache']
+False
+```
+
+!!! note
+    The environment variable must be set before importing vectorbt.
 """
 
+import os
 import numpy as np
 import json
 import pkgutil
@@ -998,3 +1035,9 @@ settings.substitute_sub_config_docs(
         )
     )
 )
+
+if 'VBT_SETTINGS_PATH' in os.environ:
+    settings.load_update(os.environ['VBT_SETTINGS_PATH'], clear=True)
+
+if 'VBT_SETTINGS_OVERRIDE_PATH' in os.environ:
+    settings.load_update(os.environ['VBT_SETTINGS_OVERRIDE_PATH'], clear=False)

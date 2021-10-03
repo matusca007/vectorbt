@@ -388,7 +388,7 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
@@ -657,14 +657,14 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                    parallel: tp.Optional[bool] = None) -> tp.Array1d:
         """Return mask of top N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = main_nb_registry.redecorate_parallel(nb.top_n_mapped_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.top_n_mapped_nb, parallel=parallel)
         return func(self.values, col_map, n)
 
     def bottom_n_mask(self, n: int, group_by: tp.GroupByLike = None,
                       parallel: tp.Optional[bool] = None) -> tp.Array1d:
         """Return mask of bottom N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = main_nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, parallel=parallel)
         return func(self.values, col_map, n)
 
     def top_n(self: MappedArrayT, n: int, group_by: tp.GroupByLike = None,
@@ -756,13 +756,13 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = main_nb_registry.redecorate_parallel(nb.apply_on_mapped_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_meta_nb, parallel=parallel)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = main_nb_registry.redecorate_parallel(nb.apply_on_mapped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_nb, parallel=parallel)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.replace(mapped_arr=mapped_arr, **kwargs).regroup(group_by)
@@ -815,7 +815,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             col_map = col_mapper.get_col_map(group_by=group_by)
             if not returns_array:
                 if not returns_idx:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_meta_nb, parallel=parallel)
                     out = func(
                         col_map,
@@ -825,7 +825,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
                 else:
                     checks.assert_not_none(idx_arr)
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_meta_nb, parallel=parallel)
                     out = func(
                         col_map,
@@ -836,7 +836,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
             else:
                 if not returns_idx:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_array_meta_nb, parallel=parallel)
                     out = func(
                         col_map,
@@ -846,7 +846,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
                 else:
                     checks.assert_not_none(idx_arr)
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_array_meta_nb, parallel=parallel)
                     out = func(
                         col_map,
@@ -865,7 +865,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by)
             if not returns_array:
                 if not returns_idx:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_nb, parallel=parallel)
                     out = func(
                         cls_or_self.values,
@@ -876,7 +876,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
                 else:
                     checks.assert_not_none(idx_arr)
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_nb, parallel=parallel)
                     out = func(
                         cls_or_self.values,
@@ -888,7 +888,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
             else:
                 if not returns_idx:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_array_nb, parallel=parallel)
                     out = func(
                         cls_or_self.values,
@@ -899,7 +899,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     )
                 else:
                     checks.assert_not_none(idx_arr)
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_array_nb, parallel=parallel)
                     out = func(
                         cls_or_self.values,
@@ -1154,7 +1154,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 mapped_codes, len(mapped_uniques), idx_arr, self.wrapper.shape[0])
         elif axis == 1:
             col_map = self.col_mapper.get_col_map(group_by=group_by)
-            func = main_nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, parallel=parallel)
             value_counts = func(mapped_codes, len(mapped_uniques), col_map)
         else:
             value_counts = nb.mapped_value_counts_nb(mapped_codes, len(mapped_uniques))

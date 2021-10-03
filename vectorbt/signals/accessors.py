@@ -192,7 +192,7 @@ import pandas as pd
 import warnings
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod
@@ -292,7 +292,7 @@ class SignalsAccessor(GenericAccessor):
         checks.assert_numba_func(place_func_nb)
 
         shape_2d = cls.resolve_shape(shape)
-        func = main_nb_registry.redecorate_parallel(nb.generate_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_nb, parallel=parallel)
         result = func(shape_2d, place_func_nb, *args)
 
         if wrapper is None:
@@ -406,7 +406,7 @@ class SignalsAccessor(GenericAccessor):
         if exit_args is None:
             exit_args = ()
 
-        func = main_nb_registry.redecorate_parallel(nb.generate_enex_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_enex_nb, parallel=parallel)
         result1, result2 = func(
             shape_2d,
             entry_wait,
@@ -451,7 +451,7 @@ class SignalsAccessor(GenericAccessor):
         """
         checks.assert_numba_func(exit_place_func_nb)
 
-        func = main_nb_registry.redecorate_parallel(nb.generate_ex_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_ex_nb, parallel=parallel)
         exits = func(
             self.to_2d_array(),
             wait,
@@ -488,7 +488,7 @@ class SignalsAccessor(GenericAccessor):
             if broadcast_kwargs is None:
                 broadcast_kwargs = {}
             entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
-            func = main_nb_registry.redecorate_parallel(nb.clean_enex_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.clean_enex_nb, parallel=parallel)
             entries_out, exits_out = func(
                 reshaping.to_2d_array(entries),
                 reshaping.to_2d_array(exits),
@@ -677,7 +677,7 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
-            func = main_nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, parallel=parallel)
             entries, exits = func(shape_2d, n, entry_wait, exit_wait)
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
@@ -1261,14 +1261,14 @@ class SignalsAccessor(GenericAccessor):
 
         if other is None:
             # One input array
-            func = main_nb_registry.redecorate_parallel(nb.between_ranges_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.between_ranges_nb, parallel=parallel)
             range_records = func(self.to_2d_array())
             wrapper = self.wrapper
             to_attach = self.obj
         else:
             # Two input arrays
             obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
-            func = main_nb_registry.redecorate_parallel(nb.between_two_ranges_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, parallel=parallel)
             range_records = func(
                 reshaping.to_2d_array(obj),
                 reshaping.to_2d_array(other),
@@ -1300,7 +1300,7 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                4              5    Open
         ```"""
-        func = main_nb_registry.redecorate_parallel(nb.partition_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, parallel=parallel)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1323,7 +1323,7 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                3              5  Closed
          ```"""
-        func = main_nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, parallel=parallel)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1369,7 +1369,7 @@ class SignalsAccessor(GenericAccessor):
             temp_arrs = prepare_func(obj_arr, reset_by)
         else:
             temp_arrs = ()
-        func = main_nb_registry.redecorate_parallel(nb.rank_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.rank_nb, parallel=parallel)
         rank = func(
             obj_arr,
             reset_by,
@@ -1543,7 +1543,7 @@ class SignalsAccessor(GenericAccessor):
             arr = reshaping.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
-        func = main_nb_registry.redecorate_parallel(nb.nth_index_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.nth_index_nb, parallel=parallel)
         nth_index = func(arr, n)
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
@@ -1577,10 +1577,10 @@ class SignalsAccessor(GenericAccessor):
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = main_nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, parallel=parallel)
             norm_avg_index = func(self.to_2d_array(), group_lens)
         else:
-            func = main_nb_registry.redecorate_parallel(nb.norm_avg_index_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, parallel=parallel)
             norm_avg_index = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
         return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)

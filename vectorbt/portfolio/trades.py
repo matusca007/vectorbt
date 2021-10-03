@@ -485,7 +485,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
@@ -1507,7 +1507,7 @@ class EntryTrades(Trades):
         """Build `EntryTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = main_nb_registry.redecorate_parallel(nb.get_entry_trades_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, parallel=parallel)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1555,7 +1555,7 @@ class ExitTrades(Trades):
         """Build `ExitTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = main_nb_registry.redecorate_parallel(nb.get_exit_trades_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, parallel=parallel)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1611,6 +1611,6 @@ class Positions(Trades):
         """Build `Positions` from `Trades`."""
         if close is None:
             close = trades.close
-        func = main_nb_registry.redecorate_parallel(nb.get_positions_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_positions_nb, parallel=parallel)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

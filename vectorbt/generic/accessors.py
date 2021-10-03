@@ -216,7 +216,7 @@ from sklearn.preprocessing import (
 )
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.figure import make_figure, make_subplots
@@ -408,7 +408,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     parallel: tp.Optional[bool] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.rolling_std_nb`."""
-        func = main_nb_registry.redecorate_parallel(nb.rolling_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.rolling_std_nb, parallel=parallel)
         out = func(self.to_2d_array(), window, minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -418,7 +418,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                       parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.expanding_std_nb`."""
-        func = main_nb_registry.redecorate_parallel(nb.expanding_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, parallel=parallel)
         out = func(self.to_2d_array(), minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -429,7 +429,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_mean_nb`."""
-        func = main_nb_registry.redecorate_parallel(nb.ewm_mean_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, parallel=parallel)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -441,7 +441,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 parallel: tp.Optional[bool] = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_std_nb`."""
-        func = main_nb_registry.redecorate_parallel(nb.ewm_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ewm_std_nb, parallel=parallel)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -490,10 +490,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = main_nb_registry.redecorate_parallel(nb.map_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
-            func = main_nb_registry.redecorate_parallel(nb.map_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -549,15 +549,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             if axis == 0:
-                func = main_nb_registry.redecorate_parallel(nb.row_apply_meta_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, parallel=parallel)
             else:
-                func = main_nb_registry.redecorate_parallel(nb.apply_meta_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.apply_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
             if axis == 0:
-                func = main_nb_registry.redecorate_parallel(nb.row_apply_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.row_apply_nb, parallel=parallel)
             else:
-                func = main_nb_registry.redecorate_parallel(nb.apply_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.apply_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -613,10 +613,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = main_nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d, window, minp, apply_func_nb, *args)
         else:
-            func = main_nb_registry.redecorate_parallel(nb.rolling_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), window, minp, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -695,13 +695,13 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = wrapper.dummy().groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = main_nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = main_nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -757,13 +757,13 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = wrapper.dummy().resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = main_nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = main_nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -833,10 +833,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             reduce_args = ()
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = main_nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d[1], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
         else:
-            func = main_nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, apply_args, reduce_func_nb, reduce_args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -971,18 +971,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if wrapper.grouper.is_grouped(group_by=group_by):
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if returns_array:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_grouped_to_array_meta_nb, parallel=parallel)
                 else:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_grouped_meta_nb, parallel=parallel)
                 out = func(group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_to_array_meta_nb, parallel=parallel)
                 else:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_meta_nb, parallel=parallel)
                 out = func(wrapper.shape_2d[1], reduce_func_nb, *args)
         else:
@@ -992,10 +992,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     checks.assert_in(order.upper(), ['C', 'F'])
                     in_c_order = order.upper() == 'C'
                     if returns_array:
-                        func = main_nb_registry.redecorate_parallel(
+                        func = nb_registry.redecorate_parallel(
                             nb.reduce_flat_grouped_to_array_nb, parallel=parallel)
                     else:
-                        func = main_nb_registry.redecorate_parallel(
+                        func = nb_registry.redecorate_parallel(
                             nb.reduce_flat_grouped_nb, parallel=parallel)
                     out = func(cls_or_self.to_2d_array(), group_lens, in_c_order, reduce_func_nb, *args)
                     if returns_idx:
@@ -1005,18 +1005,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                             out %= cls_or_self.wrapper.shape[0]  # flattened in F order
                 else:
                     if returns_array:
-                        func = main_nb_registry.redecorate_parallel(
+                        func = nb_registry.redecorate_parallel(
                             nb.reduce_grouped_to_array_nb, parallel=parallel)
                     else:
-                        func = main_nb_registry.redecorate_parallel(
+                        func = nb_registry.redecorate_parallel(
                             nb.reduce_grouped_nb, parallel=parallel)
                     out = func(cls_or_self.to_2d_array(), group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_to_array_nb, parallel=parallel)
                 else:
-                    func = main_nb_registry.redecorate_parallel(
+                    func = nb_registry.redecorate_parallel(
                         nb.reduce_nb, parallel=parallel)
                 out = func(cls_or_self.to_2d_array(), reduce_func_nb, *args)
             if wrapper is None:
@@ -1083,7 +1083,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = main_nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, parallel=parallel)
             out = func(wrapper.shape_2d[0], group_lens, squeeze_func_nb, *args)
         else:
             if wrapper is None:
@@ -1091,7 +1091,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = main_nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, parallel=parallel)
             out = func(cls_or_self.to_2d_array(), group_lens, squeeze_func_nb, *args)
 
         return wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
@@ -1181,7 +1181,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nanmin_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmin_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1213,7 +1213,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nanmax_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmax_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1245,7 +1245,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nanmean_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmean_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1277,7 +1277,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nanmedian_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmedian_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1311,7 +1311,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nanstd_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanstd_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr, ddof=ddof), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1343,7 +1343,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nansum_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nansum_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         if arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
@@ -1375,7 +1375,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = main_nb_registry.redecorate_parallel(nb.nancnt_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nancnt_nb, parallel=parallel)
             return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
         return self.wrapper.wrap_reduced(np.sum(~np.isnan(arr), axis=0), group_by=False, **wrap_kwargs)
 
@@ -1643,11 +1643,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             mapping = to_mapping(mapping)
         codes, uniques = pd.factorize(self.obj.values.flatten(), sort=False, na_sentinel=None)
         if axis == 0:
-            func = main_nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, parallel=parallel)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques))
         elif axis == 1:
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = main_nb_registry.redecorate_parallel(nb.value_counts_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.value_counts_nb, parallel=parallel)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques), group_lens)
         else:
             value_counts = nb.value_counts_1d_nb(codes, len(uniques))

@@ -253,9 +253,10 @@ class PickleableDict(Pickleable, dict):
                 config[k] = v.cls.loads(v.dumps, **kwargs)
         return cls(**config)
 
-    def load_update(self, fname: tp.FileName, **kwargs) -> None:
-        """Load dumps from a file and update this instance."""
-        self.clear()
+    def load_update(self, fname: tp.FileName, clear: bool = False, **kwargs) -> None:
+        """Load dumps from a file and update this instance in-place."""
+        if clear:
+            self.clear()
         self.update(self.load(fname, **kwargs))
 
 
@@ -663,16 +664,20 @@ class Config(PickleableDict, Documented):
             as_attrs=obj['as_attrs']
         )
 
-    def load_update(self, fname: tp.FileName, **kwargs) -> None:
-        """Load dumps from a file and update this instance.
+    def load_update(self, fname: tp.FileName, clear: bool = False,
+                    nested: tp.Optional[bool] = None, **kwargs) -> None:
+        """Load dumps from a file and update this instance in-place.
 
         !!! note
             Updates both the config properties and dictionary."""
         loaded = self.load(fname, **kwargs)
-        self.clear(force=True)
-        self.__dict__.clear()
+        if clear:
+            self.clear(force=True)
+            self.__dict__.clear()
         self.__dict__.update(loaded.__dict__)
-        self.update(loaded, nested=False, force=True)
+        if nested is None:
+            nested = self.nested_
+        self.update(loaded, nested=nested, force=True)
 
     def __eq__(self, other: tp.Any) -> bool:
         return checks.is_deep_equal(dict(self), dict(other))

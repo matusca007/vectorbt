@@ -64,7 +64,7 @@ class NumbaRegistry:
         For example, to get all setups with the tag 'can_parallel', pass `expression="'can_parallel' in tags"`."""
         matched_setups = []
         for setup_id, setup in self.setups.items():
-            result = RepEval(expression).eval(mapping=merge_dicts(setup, mapping))
+            result = RepEval(expression).substitute(mapping=merge_dicts(setup, mapping))
             checks.assert_instance_of(result, bool)
 
             if result:
@@ -167,8 +167,8 @@ class NumbaRegistry:
             )
 
 
-main_nb_registry = NumbaRegistry()
-"""Main registry of type `NumbaRegistry`."""
+nb_registry = NumbaRegistry()
+"""Registry of type `NumbaRegistry`."""
 
 
 def decorate_py_func(py_func: tp.Optional[tp.Callable] = None,
@@ -176,7 +176,7 @@ def decorate_py_func(py_func: tp.Optional[tp.Callable] = None,
                      options: tp.KwargsLike = None,
                      register: bool = True,
                      setup_id: tp.Optional[tp.Hashable] = None,
-                     nb_registry: NumbaRegistry = main_nb_registry,
+                     nb_registry: NumbaRegistry = nb_registry,
                      tags: tp.Optional[set] = None) -> tp.Callable:
     """Decorate a Python function using Numba and (optionally) register it."""
     nb_func = nb_decorator(**options)(py_func)
@@ -195,7 +195,7 @@ def decorate_py_func(py_func: tp.Optional[tp.Callable] = None,
 def register_jit(py_func: tp.Optional[tp.Callable] = None,
                  register: bool = True,
                  setup_id: tp.Optional[tp.Hashable] = None,
-                 nb_registry: NumbaRegistry = main_nb_registry,
+                 nb_registry: NumbaRegistry = nb_registry,
                  tags: tp.Optional[set] = None,
                  _nb_decorator: tp.Callable = jit,
                  **options) -> tp.Callable:

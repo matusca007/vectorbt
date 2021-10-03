@@ -412,7 +412,7 @@ import inspect
 import string
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_method, class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config, Configured
@@ -781,12 +781,12 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
-            func = main_nb_registry.redecorate_parallel(nb.map_records_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_records_meta_nb, parallel=parallel)
             mapped_arr = func(len(col_mapper.col_arr), map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
-            func = main_nb_registry.redecorate_parallel(nb.map_records_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_records_nb, parallel=parallel)
             mapped_arr = func(cls_or_self.values, map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, **kwargs)
@@ -817,13 +817,13 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = main_nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, parallel=parallel)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = main_nb_registry.redecorate_parallel(nb.apply_on_records_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_records_nb, parallel=parallel)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)

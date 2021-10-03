@@ -169,7 +169,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
@@ -283,7 +283,7 @@ class Drawdowns(Ranges):
 
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
-        func = main_nb_registry.redecorate_parallel(nb.get_drawdowns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, parallel=parallel)
         records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)

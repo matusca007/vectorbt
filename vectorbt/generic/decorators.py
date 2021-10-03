@@ -6,7 +6,7 @@
 import inspect
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
@@ -39,7 +39,7 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
             replace_signature = settings.get('replace_signature', True)
             default_wrap_kwargs = settings.get('wrap_kwargs', dict(name_or_index=target_name) if is_reducing else None)
             setup_id = func.__module__ + '.' + func.__name__
-            can_parallel = 'can_parallel' in main_nb_registry.setups.get(setup_id, dict(tags=set()))['tags']
+            can_parallel = 'can_parallel' in nb_registry.setups.get(setup_id, dict(tags=set()))['tags']
 
             def new_method(self,
                            *args,
@@ -55,7 +55,7 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
                 inspect.signature(_func).bind(*args, **kwargs)
 
                 if _can_parallel:
-                    _func = main_nb_registry.redecorate_parallel(_func, parallel=parallel)
+                    _func = nb_registry.redecorate_parallel(_func, parallel=parallel)
                 else:
                     if parallel is not None:
                         raise ValueError("This method doesn't support parallelization")

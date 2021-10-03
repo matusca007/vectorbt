@@ -914,7 +914,7 @@ class TestConfig:
             as_attrs=False
         )
         cfg1.save(tmp_path / "config")
-        cfg2.load_update(tmp_path / "config")
+        cfg2.load_update(tmp_path / "config", clear=True)
         assert cfg2 == deepcopy(cfg1)
         assert cfg2.__dict__ == cfg1.__dict__
 

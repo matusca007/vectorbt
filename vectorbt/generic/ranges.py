@@ -116,7 +116,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import main_nb_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
@@ -258,7 +258,7 @@ class Ranges(Records):
                 gap_value = -1
             else:
                 gap_value = np.nan
-        func = main_nb_registry.redecorate_parallel(nb.get_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_ranges_nb, parallel=parallel)
         records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
@@ -274,7 +274,7 @@ class Ranges(Records):
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = main_nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, parallel=parallel)
         mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -286,7 +286,7 @@ class Ranges(Records):
 
     def get_duration(self, parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
-        func = main_nb_registry.redecorate_parallel(nb.range_duration_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.range_duration_nb, parallel=parallel)
         duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -322,7 +322,7 @@ class Ranges(Records):
         See `vectorbt.generic.nb.range_coverage_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
-        func = main_nb_registry.redecorate_parallel(nb.range_coverage_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.range_coverage_nb, parallel=parallel)
         coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
