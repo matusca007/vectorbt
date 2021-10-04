@@ -257,7 +257,7 @@ class SignalsAccessor(GenericAccessor):
 
     @classmethod
     def generate(cls,
-                 shape: tp.RelaxedShape,
+                 shape: tp.ShapeLike,
                  place_func_nb: tp.PlaceFunc, *args,
                  parallel: tp.Optional[bool] = None,
                  wrapper: tp.Optional[ArrayWrapper] = None,
@@ -303,7 +303,7 @@ class SignalsAccessor(GenericAccessor):
 
     @classmethod
     def generate_both(cls,
-                      shape: tp.RelaxedShape,
+                      shape: tp.ShapeLike,
                       entry_place_func_nb: tp.Optional[tp.PlaceFunc] = None,
                       entry_args: tp.ArgsLike = None,
                       exit_place_func_nb: tp.Optional[tp.PlaceFunc] = None,
@@ -504,7 +504,7 @@ class SignalsAccessor(GenericAccessor):
 
     @classmethod
     def generate_random(cls,
-                        shape: tp.RelaxedShape,
+                        shape: tp.ShapeLike,
                         n: tp.Optional[tp.ArrayLike] = None,
                         prob: tp.Optional[tp.ArrayLike] = None,
                         pick_first: bool = False,
@@ -592,7 +592,7 @@ class SignalsAccessor(GenericAccessor):
 
     @classmethod
     def generate_random_both(cls,
-                             shape: tp.RelaxedShape,
+                             shape: tp.ShapeLike,
                              n: tp.Optional[tp.ArrayLike] = None,
                              entry_prob: tp.Optional[tp.ArrayLike] = None,
                              exit_prob: tp.Optional[tp.ArrayLike] = None,

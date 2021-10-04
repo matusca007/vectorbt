@@ -173,7 +173,7 @@ class BaseAccessor(Wrapping):
         return isinstance(cls_or_self.obj, pd.DataFrame)
 
     @classmethod
-    def resolve_shape(cls, shape: tp.RelaxedShape) -> tp.Shape:
+    def resolve_shape(cls, shape: tp.ShapeLike) -> tp.Shape:
         """Resolve shape."""
         shape_2d = reshaping.shape_to_2d(shape)
         try:

@@ -17,14 +17,14 @@ from vectorbt.utils.config import resolve_dict
 from vectorbt.base import indexes, wrapping
 
 
-def shape_to_tuple(shape: tp.RelaxedShape) -> tp.Shape:
+def shape_to_tuple(shape: tp.ShapeLike) -> tp.Shape:
     """Convert a shape-like object to a tuple."""
     if isinstance(shape, int):
         return (shape,)
     return tuple(shape)
 
 
-def shape_to_2d(shape: tp.RelaxedShape) -> tp.Shape:
+def shape_to_2d(shape: tp.ShapeLike) -> tp.Shape:
     """Convert a shape-like object to a 2-dim shape."""
     shape = shape_to_tuple(shape)
     if len(shape) == 1:
@@ -336,7 +336,7 @@ BCRT = tp.Union[
 
 
 def broadcast(*args: tp.ArrayLike,
-              to_shape: tp.Optional[tp.RelaxedShape] = None,
+              to_shape: tp.Optional[tp.ShapeLike] = None,
               to_pd: tp.Optional[tp.MaybeSequence[bool]] = None,
               to_frame: tp.Optional[bool] = None,
               align_index: tp.Optional[bool] = None,

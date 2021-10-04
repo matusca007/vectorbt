@@ -34,7 +34,6 @@ array([nan, 1.5, 2.5, 3.5])
 import numpy as np
 from numba import prange
 from numba.np.numpy_support import as_dtype
-from numba.typed import Dict
 from numba.core.types import Omitted
 
 from vectorbt import _typing as tp
@@ -1603,6 +1602,7 @@ def flatten_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) 
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
     max_len = np.max(group_lens)
+
     for group in range(len(group_lens)):
         from_col = group_start_idxs[group]
         group_len = group_lens[group]
@@ -1621,6 +1621,7 @@ def flatten_uniform_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
     max_len = np.max(group_lens)
+
     for group in range(len(group_lens)):
         from_col = group_start_idxs[group]
         group_len = group_lens[group]
@@ -1811,6 +1812,7 @@ def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     ## Example
 
     Find ranges in time series:
+
     ```python-repl
     >>> import numpy as np
     >>> import pandas as pd
@@ -1969,6 +1971,19 @@ def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
 
 
 # ############# Drawdowns ############# #
+
+@register_jit(cache=True, tags={'can_parallel'})
+def drawdown_nb(ts: tp.Array2d) -> tp.Array2d:
+    """Return drawdown."""
+    out = np.empty_like(ts, dtype=np.float_)
+    for col in prange(ts.shape[1]):
+        max_val = np.nan
+        for i in range(ts.shape[0]):
+            if np.isnan(max_val) or ts[i, col] > max_val:
+                max_val = ts[i, col]
+            out[i, col] = ts[i, col] / max_val - 1
+    return out
+
 
 @register_jit(cache=True, tags={'can_parallel'})
 def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:

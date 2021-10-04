@@ -51,7 +51,7 @@ class SupportsArray(Protocol):
 DTypeLike = Any
 PandasDTypeLike = Any
 Shape = Tuple[int, ...]
-RelaxedShape = Union[int, Shape]
+ShapeLike = Union[int, Shape]
 Array = np.ndarray  # ready to be used for n-dim data
 Array1d = np.ndarray
 Array2d = np.ndarray
@@ -119,8 +119,6 @@ TraceName = Union[str, None]
 TraceNames = MaybeSequence[TraceName]
 
 # Generic
-I = TypeVar("I")
-R = TypeVar("R")
 MapFunc = Callable[[Scalar, VarArg()], Scalar]
 MapMetaFunc = Callable[[int, int, Scalar, VarArg()], Scalar]
 ApplyFunc = Callable[[Array1d, VarArg()], MaybeArray]
@@ -146,8 +144,8 @@ ColRange = Array2d
 ColMap = Tuple[Array1d, Array1d]
 MappedApplyFunc = Callable[[Array1d, VarArg()], Array1d]
 MappedApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
-RecordsMapFunc = Callable[[np.void, VarArg()], R]
-RecordsMapMetaFunc = Callable[[int, VarArg()], R]
+RecordsMapFunc = Callable[[np.void, VarArg()], Scalar]
+RecordsMapMetaFunc = Callable[[int, VarArg()], Scalar]
 RecordsApplyFunc = Callable[[RecordArray, VarArg()], Array1d]
 RecordsApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
 RecordsReduceFunc = Callable[[Array1d, VarArg()], Scalar]
@@ -162,3 +160,6 @@ Params = Union[List[Param], Tuple[Param, ...], NumbaList, Array1d]
 # Mappings
 Enum = NamedTuple
 MappingLike = Union[str, Mapping, Enum, IndexLike]
+
+# Chunking
+ChunkedOption = Union[None, bool, str, Kwargs]

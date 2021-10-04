@@ -373,7 +373,7 @@ class ArrayWrapper(Configured, PandasIndexer):
         return cls(index, columns, ndim, *args, **kwargs)
 
     @classmethod
-    def from_shape(cls: tp.Type[ArrayWrapperT], shape: tp.RelaxedShape,
+    def from_shape(cls: tp.Type[ArrayWrapperT], shape: tp.ShapeLike,
                    ndim: tp.Optional[int] = None, *args, **kwargs) -> ArrayWrapperT:
         """Derive metadata from shape."""
         shape = reshaping.shape_to_tuple(shape)

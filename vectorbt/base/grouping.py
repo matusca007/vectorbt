@@ -19,8 +19,8 @@ from vectorbt.utils import checks
 from vectorbt.utils.array import is_sorted
 from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.config import Configured
+from vectorbt.utils.chunking import ChunkMapper, ArgGetterMixin, ChunkMeta, ann_argsT
 from vectorbt.base import indexes
-
 
 GroupByT = tp.Union[None, bool, tp.Index]
 
@@ -335,3 +335,23 @@ class Grouper(Configured):
         """Get end index of each group as an array."""
         group_lens = self.get_group_lens(**kwargs)
         return np.cumsum(group_lens)
+
+
+class GroupLensMapper(ChunkMapper, ArgGetterMixin):
+    """Class for mapping chunk metadata using group lengths.
+
+    !!! note
+        Source chunk metadata must be generated from the group lengths."""
+
+    def __init__(self, arg: tp.Union[str, int]) -> None:
+        ChunkMapper.__init__(self)
+        ArgGetterMixin.__init__(self, arg)
+
+    def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[ann_argsT] = None, **kwargs) -> ChunkMeta:
+        group_lens = self.get_arg(ann_args)
+        group_lens_cumsum = np.cumsum(group_lens)
+        return ChunkMeta(
+            idx=chunk_meta.idx,
+            range_start=group_lens_cumsum[chunk_meta.range_start] - group_lens[chunk_meta.range_start],
+            range_end=group_lens_cumsum[chunk_meta.range_end - 1]
+        )

@@ -1362,7 +1362,7 @@ def run_pipeline(
         custom_func: tp.Callable,
         *args,
         require_input_shape: bool = False,
-        input_shape: tp.Optional[tp.RelaxedShape] = None,
+        input_shape: tp.Optional[tp.ShapeLike] = None,
         input_index: tp.Optional[tp.IndexLike] = None,
         input_columns: tp.Optional[tp.IndexLike] = None,
         input_list: tp.Optional[tp.Sequence[tp.ArrayLike]] = None,

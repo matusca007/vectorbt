@@ -190,9 +190,12 @@ ${config_doc}
 _settings['execution'] = execution
 
 chunking = dict(
+    option=None,
     engine='sequence',
     n_chunks=None,
+    min_size=None,
     chunk_len=None,
+    skip_one_chunk=True,
     template_mapping=Config(  # flex
         dict()
     )
