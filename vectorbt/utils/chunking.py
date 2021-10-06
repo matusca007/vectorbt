@@ -953,14 +953,14 @@ def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
 
     if option is None:
         return None
-    if isinstance(option, bool) and not option:
-        return None
+    if isinstance(option, bool):
+        if not option:
+            return None
+        return dict()
     if isinstance(option, dict):
         return option
     elif isinstance(option, str):
         return dict(engine=option)
-    elif isinstance(option, bool):
-        return dict()
     raise TypeError(f"Type {type(option)} is not supported for chunking")
 
 
@@ -979,13 +979,12 @@ def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption = None, **kwargs
     chunking_cfg = settings['chunking']
 
     chunked_kwargs = resolve_chunked_option(option)
-
-    if option is not None:
+    if chunked_kwargs is not None:
         if isinstance(chunking_cfg['option'], dict):
-            chunk_kwargs = merge_dicts(chunking_cfg['option'], kwargs, chunked_kwargs)
+            chunked_kwargs = merge_dicts(chunking_cfg['option'], kwargs, chunked_kwargs)
         else:
-            chunk_kwargs = merge_dicts(kwargs, chunked_kwargs)
-        return chunked(func, **chunk_kwargs)
+            chunked_kwargs = merge_dicts(kwargs, chunked_kwargs)
+        return chunked(func, **chunked_kwargs)
     return func
 
 

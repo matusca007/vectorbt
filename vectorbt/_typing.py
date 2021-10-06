@@ -142,16 +142,16 @@ RankFunc = Callable[[int, int, int, int, int, VarArg()], int]
 # Records
 ColRange = Array2d
 ColMap = Tuple[Array1d, Array1d]
-MappedApplyFunc = Callable[[Array1d, VarArg()], Array1d]
-MappedApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
 RecordsMapFunc = Callable[[np.void, VarArg()], Scalar]
 RecordsMapMetaFunc = Callable[[int, VarArg()], Scalar]
 RecordsApplyFunc = Callable[[RecordArray, VarArg()], Array1d]
 RecordsApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
-RecordsReduceFunc = Callable[[Array1d, VarArg()], Scalar]
-RecordsReduceMetaFunc = Callable[[Array1d, int, VarArg()], Scalar]
-RecordsReduceToArrayFunc = Callable[[Array1d, VarArg()], Array1d]
-RecordsReduceToArrayMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
+MappedApplyFunc = Callable[[Array1d, VarArg()], Array1d]
+MappedApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
+MappedReduceFunc = Callable[[Array1d, VarArg()], Scalar]
+MappedReduceMetaFunc = Callable[[Array1d, int, VarArg()], Scalar]
+MappedReduceToArrayFunc = Callable[[Array1d, VarArg()], Array1d]
+MappedReduceToArrayMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
 
 # Indicators
 Param = Any

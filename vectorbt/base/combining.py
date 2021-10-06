@@ -14,7 +14,6 @@ from numba.typed import List
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
-from vectorbt.utils import checks
 from vectorbt.utils.execution import execute
 from vectorbt.base import reshaping
 

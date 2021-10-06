@@ -296,7 +296,7 @@ def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *arg
 
 
 @register_jit(tags={'can_parallel'})
-def map_records_meta_nb(n_records: int, map_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+def map_records_meta_nb(n_records: int, map_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `map_records_nb`.
 
     `map_func_nb` must accept the record index and `*args`. Must return a single value."""
@@ -349,25 +349,41 @@ def apply_on_records_meta_nb(n_records: int, col_map: tp.ColMap,
     return out
 
 
-# ############# Expansion ############# #
+# ############# Coverage ############# #
 
 
 @register_jit(cache=True)
-def is_mapped_expandable_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> bool:
-    """Check whether mapped array can be expanded without positional conflicts."""
+def mapped_has_conflicts_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> bool:
+    """Check whether mapped array has positional conflicts."""
     temp = np.zeros(target_shape)
 
     for i in range(len(col_arr)):
         if temp[idx_arr[i], col_arr[i]] > 0:
-            return False
+            return True
         temp[idx_arr[i], col_arr[i]] = 1
-    return True
+    return False
+
+
+@register_jit(cache=True)
+def mapped_coverage_map_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> tp.Array2d:
+    """Get the coverage map of a mapped array.
+
+    Each element corresponds to the number of times it was referenced (= duplicates of `col_arr` and `idx_arr`).
+    More than one depicts a positional conflict."""
+    out = np.zeros(target_shape, dtype=np.int_)
+
+    for i in range(len(col_arr)):
+        out[idx_arr[i], col_arr[i]] += 1
+    return out
+
+
+# ############# Unstacking ############# #
 
 
 @register_generated_jit(cache=True)
-def expand_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
-                     target_shape: tp.Shape, fill_value: float) -> tp.Array2d:
-    """Set each element to a value by boolean mask."""
+def unstack_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
+                      target_shape: tp.Shape, fill_value: float) -> tp.Array2d:
+    """Unstack mapped array using index data."""
     nb_enabled = not isinstance(mapped_arr, np.ndarray)
     if nb_enabled:
         mapped_arr_dtype = as_dtype(mapped_arr.dtype)
@@ -377,7 +393,7 @@ def expand_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Ar
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(mapped_arr_dtype, fill_value_dtype)
 
-    def _expand_mapped_nb(mapped_arr, col_arr, idx_arr, target_shape, fill_value):
+    def _unstack_mapped_nb(mapped_arr, col_arr, idx_arr, target_shape, fill_value):
         out = np.full(target_shape, fill_value, dtype=dtype)
 
         for r in range(mapped_arr.shape[0]):
@@ -385,14 +401,14 @@ def expand_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Ar
         return out
 
     if not nb_enabled:
-        return _expand_mapped_nb(mapped_arr, col_arr, idx_arr, target_shape, fill_value)
+        return _unstack_mapped_nb(mapped_arr, col_arr, idx_arr, target_shape, fill_value)
 
-    return _expand_mapped_nb
+    return _unstack_mapped_nb
 
 
 @register_generated_jit(cache=True)
-def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float) -> tp.Array2d:
-    """Expand mapped array by stacking without using index data."""
+def ignore_unstack_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float) -> tp.Array2d:
+    """Unstack mapped array by ignoring index data."""
     nb_enabled = not isinstance(mapped_arr, np.ndarray)
     if nb_enabled:
         mapped_arr_dtype = as_dtype(mapped_arr.dtype)
@@ -402,7 +418,7 @@ def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_valu
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(mapped_arr_dtype, fill_value_dtype)
 
-    def _stack_expand_mapped_nb(mapped_arr, col_map, fill_value):
+    def _ignore_unstack_mapped_nb(mapped_arr, col_map, fill_value):
         col_idxs, col_lens = col_map
         col_start_idxs = np.cumsum(col_lens) - col_lens
         out = np.full((np.max(col_lens), col_lens.shape[0]), fill_value, dtype=dtype)
@@ -418,19 +434,62 @@ def stack_expand_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_valu
         return out
 
     if not nb_enabled:
-        return _stack_expand_mapped_nb(mapped_arr, col_map, fill_value)
+        return _ignore_unstack_mapped_nb(mapped_arr, col_map, fill_value)
 
-    return _stack_expand_mapped_nb
+    return _ignore_unstack_mapped_nb
+
+
+@register_jit(cache=True)
+def unstack_index_nb(repeat_cnt_arr: tp.Array1d) -> tp.Array1d:
+    """Unstack index using the number of times each element must repeat.
+
+    `repeat_cnt_arr` can be created from the coverage map."""
+    out = np.empty(np.sum(repeat_cnt_arr), dtype=np.int_)
+
+    k = 0
+    for i in range(len(repeat_cnt_arr)):
+        out[k:k + repeat_cnt_arr[i]] = i
+        k += repeat_cnt_arr[i]
+    return out
+
+
+@register_generated_jit(cache=True)
+def repeat_unstack_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
+                             repeat_cnt_arr: tp.Array1d, n_cols: int, fill_value: float) -> tp.Array2d:
+    """Unstack mapped array using repeated index data."""
+    nb_enabled = not isinstance(mapped_arr, np.ndarray)
+    if nb_enabled:
+        mapped_arr_dtype = as_dtype(mapped_arr.dtype)
+        fill_value_dtype = as_dtype(fill_value)
+    else:
+        mapped_arr_dtype = mapped_arr.dtype
+        fill_value_dtype = np.array(fill_value).dtype
+    dtype = np.promote_types(mapped_arr_dtype, fill_value_dtype)
+
+    def _repeat_unstack_mapped_nb(mapped_arr, col_arr, idx_arr, repeat_cnt_arr, n_cols, fill_value):
+        index_start_arr = np.cumsum(repeat_cnt_arr) - repeat_cnt_arr
+        out = np.full((np.sum(repeat_cnt_arr), n_cols), fill_value, dtype=dtype)
+        temp = np.zeros((len(repeat_cnt_arr), n_cols), dtype=np.int_)
+
+        for i in range(len(col_arr)):
+            out[index_start_arr[idx_arr[i]] + temp[idx_arr[i], col_arr[i]], col_arr[i]] = mapped_arr[i]
+            temp[idx_arr[i], col_arr[i]] += 1
+        return out
+
+    if not nb_enabled:
+        return _repeat_unstack_mapped_nb(mapped_arr, col_arr, idx_arr, repeat_cnt_arr, n_cols, fill_value)
+
+    return _repeat_unstack_mapped_nb
 
 
 # ############# Reducing ############# #
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
-                     reduce_func_nb: tp.RecordsReduceFunc, *args) -> tp.Array1d:
+                     reduce_func_nb: tp.MappedReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to a single value.
 
-    Faster than `expand_mapped_nb` and `vbt.*` used together, and also
+    Faster than `unstack_mapped_nb` and `vbt.*` used together, and also
     requires less memory. But does not take advantage of caching.
 
     `reduce_func_nb` must accept the mapped array and `*args`.
@@ -451,7 +510,7 @@ def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: flo
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
-                          reduce_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+                          reduce_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_mapped_nb`.
 
     `reduce_func_nb` must accept the mapped indices, the column index, and `*args`.
@@ -472,7 +531,7 @@ def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
-                            reduce_func_nb: tp.RecordsReduceFunc, *args) -> tp.Array1d:
+                            reduce_func_nb: tp.MappedReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to an index.
 
     Same as `reduce_mapped_nb` except `idx_arr` must be passed.
@@ -496,7 +555,7 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
-                                 reduce_func_nb: tp.RecordsReduceMetaFunc, *args) -> tp.Array1d:
+                                 reduce_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_mapped_to_idx_nb`.
 
     `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
@@ -517,7 +576,7 @@ def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_v
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
-                              reduce_func_nb: tp.RecordsReduceToArrayFunc, *args) -> tp.Array2d:
+                              reduce_func_nb: tp.MappedReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an array.
 
     `reduce_func_nb` same as for `reduce_mapped_nb` but must return an array."""
@@ -549,7 +608,7 @@ def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_v
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
-                                   reduce_func_nb: tp.RecordsReduceToArrayMetaFunc, *args) -> tp.Array2d:
+                                   reduce_func_nb: tp.MappedReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Meta version of `reduce_mapped_to_array_nb`.
 
     `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
@@ -581,7 +640,7 @@ def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
-                                  reduce_func_nb: tp.RecordsReduceToArrayFunc, *args) -> tp.Array2d:
+                                  reduce_func_nb: tp.MappedReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an index array.
 
     Same as `reduce_mapped_to_array_nb` except `idx_arr` must be passed.
@@ -616,7 +675,7 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
 
 @register_jit(tags={'can_parallel'})
 def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
-                                       reduce_func_nb: tp.RecordsReduceToArrayMetaFunc, *args) -> tp.Array2d:
+                                       reduce_func_nb: tp.MappedReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Meta version of `reduce_mapped_to_idx_array_nb`.
 
     `reduce_func_nb` is the same as in `reduce_mapped_meta_nb`."""
@@ -644,6 +703,7 @@ def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, 
         for i in range(col_0_out.shape[0]):
             out[i, col] = idx_arr[idxs[col_out[i]]]
     return out
+
 
 # ############# Value counts ############# #
 

@@ -653,35 +653,35 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         return df
 
     def get_field_setting(self, field: str, setting: str, default: tp.Any = None) -> tp.Any:
-        """Resolve any setting of the field. Uses `Records.field_config`."""
+        """Get any setting of the field. Uses `Records.field_config`."""
         return self.field_config.get('settings', {}).get(field, {}).get(setting, default)
 
     def get_field_name(self, field: str) -> str:
-        """Resolve the name of the field. Uses `Records.field_config`.."""
+        """Get the name of the field. Uses `Records.field_config`.."""
         return self.get_field_setting(field, 'name', field)
 
     def get_field_title(self, field: str) -> str:
-        """Resolve the title of the field. Uses `Records.field_config`."""
+        """Get the title of the field. Uses `Records.field_config`."""
         return self.get_field_setting(field, 'title', field)
 
     def get_field_mapping(self, field: str) -> tp.Optional[tp.MappingLike]:
-        """Resolve the mapping of the field. Uses `Records.field_config`."""
+        """Get the mapping of the field. Uses `Records.field_config`."""
         return self.get_field_setting(field, 'mapping', None)
 
     def get_field_arr(self, field: str) -> tp.Array1d:
-        """Resolve the array of the field. Uses `Records.field_config`."""
+        """Get the array of the field. Uses `Records.field_config`."""
         return self.values[self.get_field_name(field)]
 
     def get_map_field(self, field: str, **kwargs) -> MappedArray:
-        """Resolve the mapped array of the field. Uses `Records.field_config`."""
+        """Get the mapped array of the field. Uses `Records.field_config`."""
         return self.map_field(self.get_field_name(field), mapping=self.get_field_mapping(field), **kwargs)
 
     def get_apply_mapping_arr(self, field: str, **kwargs) -> tp.Array1d:
-        """Resolve the mapped array on the field, with mapping applied. Uses `Records.field_config`."""
+        """Get the mapped array on the field, with mapping applied. Uses `Records.field_config`."""
         return self.get_map_field(field, **kwargs).apply_mapping().values
 
     def get_map_field_to_index(self, field: str, **kwargs) -> tp.Index:
-        """Resolve the mapped array on the field, with index applied. Uses `Records.field_config`."""
+        """Get the mapped array on the field, with index applied. Uses `Records.field_config`."""
         return self.get_map_field(field, **kwargs).to_index()
 
     @property
@@ -855,6 +855,15 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         return self.wrapper.wrap_reduced(
             self.col_mapper.get_col_map(group_by=group_by)[1],
             group_by=group_by, **wrap_kwargs)
+
+    @cached_method
+    def has_conflicts(self, **kwargs) -> bool:
+        """See `vectorbt.records.mapped_array.MappedArray.has_conflicts`."""
+        return self.get_map_field('col').has_conflicts(**kwargs)
+
+    def coverage_map(self, **kwargs) -> tp.SeriesFrame:
+        """See `vectorbt.records.mapped_array.MappedArray.coverage_map`."""
+        return self.get_map_field('col').coverage_map(**kwargs)
 
     # ############# Stats ############# #
 

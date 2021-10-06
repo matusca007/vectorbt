@@ -133,7 +133,7 @@ Notice how cumsum resets at each column in the first example and at each group i
 
 ## Conversion
 
-You can expand any `MappedArray` instance to pandas:
+You can unstack any `MappedArray` instance to pandas:
 
 * Given `idx_arr` was provided:
 
@@ -386,6 +386,7 @@ Name: first, dtype: object
 
 import numpy as np
 import pandas as pd
+import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry, warn_parallel_enabled
@@ -713,26 +714,48 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         ), **kwargs)
 
     @cached_method
-    def is_expandable(self, idx_arr: tp.Optional[tp.Array1d] = None, group_by: tp.GroupByLike = None) -> bool:
-        """See `vectorbt.records.nb.is_mapped_expandable_nb`."""
+    def has_conflicts(self,
+                      idx_arr: tp.Optional[tp.Array1d] = None,
+                      group_by: tp.GroupByLike = None) -> bool:
+        """See `vectorbt.records.nb.mapped_has_conflicts_nb`."""
         if idx_arr is None:
             if self.idx_arr is None:
                 raise ValueError("Must pass idx_arr")
             idx_arr = self.idx_arr
         col_arr = self.col_mapper.get_col_arr(group_by=group_by)
         target_shape = self.wrapper.get_shape_2d(group_by=group_by)
-        return nb.is_mapped_expandable_nb(col_arr, idx_arr, target_shape)
+        return nb.mapped_has_conflicts_nb(col_arr, idx_arr, target_shape)
+
+    def coverage_map(self,
+                     idx_arr: tp.Optional[tp.Array1d] = None,
+                     group_by: tp.GroupByLike = None,
+                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """See `vectorbt.records.nb.mapped_coverage_map_nb`."""
+        if idx_arr is None:
+            if self.idx_arr is None:
+                raise ValueError("Must pass idx_arr")
+            idx_arr = self.idx_arr
+        col_arr = self.col_mapper.get_col_arr(group_by=group_by)
+        target_shape = self.wrapper.get_shape_2d(group_by=group_by)
+        out = nb.mapped_coverage_map_nb(col_arr, idx_arr, target_shape)
+        return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     def to_pd(self,
               idx_arr: tp.Optional[tp.Array1d] = None,
               ignore_index: bool = False,
+              repeat_index: bool = False,
               fill_value: float = np.nan,
               group_by: tp.GroupByLike = None,
-              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Expand mapped array to a Series/DataFrame.
+              wrap_kwargs: tp.KwargsLike = None,
+              silence_warnings: bool = False) -> tp.SeriesFrame:
+        """Unstack mapped array to a Series/DataFrame.
 
-        If `ignore_index`, will ignore the index and stack data points on top of each other in every column/group
-        (see `vectorbt.records.nb.stack_expand_mapped_nb`). Otherwise, see `vectorbt.records.nb.expand_mapped_nb`.
+        * If `ignore_index`, will ignore the index and place values on top of each other in every column/group.
+            See `vectorbt.records.nb.stack_unstack_mapped_nb`.
+        * If `repeat_index`, will repeat any index pointed from multiple values.
+            Otherwise, in case of positional conflicts, will throw a warning and use the latest value.
+            See `vectorbt.records.nb.repeat_unstack_mapped_nb`.
+        * Otherwise, see `vectorbt.records.nb.unstack_mapped_nb`.
 
         !!! note
             Will raise an error if there are multiple values pointing to the same position.
@@ -750,7 +773,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     **merge_dicts({}, wrap_kwargs)
                 )
             col_map = self.col_mapper.get_col_map(group_by=group_by)
-            out = nb.stack_expand_mapped_nb(self.values, col_map, fill_value)
+            out = nb.ignore_unstack_mapped_nb(self.values, col_map, fill_value)
             return self.wrapper.wrap(
                 out, index=np.arange(out.shape[0]),
                 group_by=group_by, **merge_dicts({}, wrap_kwargs))
@@ -758,12 +781,29 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if self.idx_arr is None:
                 raise ValueError("Must pass idx_arr")
             idx_arr = self.idx_arr
-        if not self.is_expandable(idx_arr=idx_arr, group_by=group_by):
-            raise ValueError("Multiple values are pointing to the same position. Use ignore_index.")
+        has_conflicts = self.has_conflicts(idx_arr=idx_arr, group_by=group_by)
         col_arr = self.col_mapper.get_col_arr(group_by=group_by)
         target_shape = self.wrapper.get_shape_2d(group_by=group_by)
-        out = nb.expand_mapped_nb(self.values, col_arr, idx_arr, target_shape, fill_value)
-        return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        if has_conflicts and repeat_index:
+            coverage_map = nb.mapped_coverage_map_nb(col_arr, idx_arr, target_shape)
+            repeat_cnt_arr = np.max(coverage_map, axis=1)
+            unstacked_index = self.wrapper.index[nb.unstack_index_nb(repeat_cnt_arr)]
+            out = nb.repeat_unstack_mapped_nb(
+                self.values,
+                col_arr,
+                idx_arr,
+                repeat_cnt_arr,
+                target_shape[1],
+                fill_value
+            )
+            wrap_kwargs = merge_dicts(dict(index=unstacked_index), wrap_kwargs)
+            return self.wrapper.wrap(out, group_by=group_by, **wrap_kwargs)
+        else:
+            if has_conflicts and not silence_warnings:
+                warnings.warn("Multiple values are pointing to the same position. "
+                              "Only the latest value is used.", stacklevel=2)
+            out = nb.unstack_mapped_nb(self.values, col_arr, idx_arr, target_shape, fill_value)
+            return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def apply(cls_or_self: tp.Union[tp.Type[MappedArrayT], MappedArrayT],
@@ -818,10 +858,10 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @class_or_instancemethod
     def reduce(cls_or_self,
                reduce_func_nb: tp.Union[
-                   tp.RecordsReduceFunc,
-                   tp.RecordsReduceMetaFunc,
-                   tp.RecordsReduceToArrayFunc,
-                   tp.RecordsReduceToArrayMetaFunc
+                   tp.MappedReduceFunc,
+                   tp.MappedReduceMetaFunc,
+                   tp.MappedReduceToArrayFunc,
+                   tp.MappedReduceToArrayMetaFunc
                ], *args,
                idx_arr: tp.Optional[tp.Array1d] = None,
                returns_array: bool = False,
@@ -1494,11 +1534,11 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
 
     def histplot(self, group_by: tp.GroupByLike = None, **kwargs) -> tp.BaseFigure:  # pragma: no cover
         """Plot histogram by column/group."""
-        return self.to_pd(group_by=group_by, ignore_index=True).vbt.histplot(**kwargs)
+        return self.to_pd(group_by=group_by, stack=True).vbt.histplot(**kwargs)
 
     def boxplot(self, group_by: tp.GroupByLike = None, **kwargs) -> tp.BaseFigure:  # pragma: no cover
         """Plot box plot by column/group."""
-        return self.to_pd(group_by=group_by, ignore_index=True).vbt.boxplot(**kwargs)
+        return self.to_pd(group_by=group_by, stack=True).vbt.boxplot(**kwargs)
 
     @property
     def plots_defaults(self) -> tp.Kwargs:

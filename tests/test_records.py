@@ -312,6 +312,34 @@ class TestMappedArray:
             np.array([0, 0, 2])
         )
 
+    def test_has_conflicts(self):
+        assert not mapped_array.has_conflicts()
+        mapped_array2 = vbt.MappedArray(
+            wrapper,
+            records_arr['some_field1'].tolist() + [1],
+            records_arr['col'].tolist() + [2],
+            idx_arr=records_arr['idx'].tolist() + [2]
+        )
+        assert mapped_array2.has_conflicts()
+
+    def test_coverage_map(self):
+        pd.testing.assert_frame_equal(
+            mapped_array.coverage_map(),
+            pd.DataFrame(
+                [[1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 1, 0]],
+                index=wrapper.index,
+                columns=wrapper.columns
+            )
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.coverage_map(group_by=group_by),
+            pd.DataFrame(
+                [[2, 1], [2, 1], [2, 1]],
+                index=wrapper.index,
+                columns=pd.Index(['g1', 'g2'], dtype='object')
+            )
+        )
+
     def test_to_pd(self):
         target = pd.DataFrame(
             np.array([
@@ -340,8 +368,58 @@ class TestMappedArray:
             records_arr['col'].tolist() + [2],
             idx_arr=records_arr['idx'].tolist() + [2]
         )
-        with pytest.raises(Exception):
-            _ = mapped_array2.to_pd()
+        pd.testing.assert_frame_equal(
+            mapped_array2.to_pd(),
+            pd.DataFrame(
+                np.array([
+                    [10., 13., 12., np.nan],
+                    [11., 14., 11., np.nan],
+                    [12., 13., 1., np.nan]
+                ]),
+                index=wrapper.index,
+                columns=wrapper.columns
+            )
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array2.to_pd(group_by=group_by),
+            pd.DataFrame(
+                np.array([
+                    [13., 12.],
+                    [14., 11.],
+                    [13., 1.]
+                ]),
+                index=wrapper.index,
+                columns=pd.Index(['g1', 'g2'], dtype='object')
+            )
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array2.to_pd(repeat_index=True),
+            pd.DataFrame(
+                np.array([
+                    [10., 13., 12., np.nan],
+                    [11., 14., 11., np.nan],
+                    [12., 13., 10., np.nan],
+                    [np.nan, np.nan, 1., np.nan]
+                ]),
+                index=np.concatenate((wrapper.index, wrapper.index[[-1]])),
+                columns=wrapper.columns
+            )
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array2.to_pd(repeat_index=True, group_by=group_by),
+            pd.DataFrame(
+                np.array([
+                    [10.0, 12.0],
+                    [13.0, np.nan],
+                    [11.0, 11.0],
+                    [14.0, np.nan],
+                    [12.0, 10.0],
+                    [13.0, 1.0]
+                ]),
+                index=np.repeat(wrapper.index, 2),
+                columns=pd.Index(['g1', 'g2'], dtype='object')
+            )
+        )
         pd.testing.assert_series_equal(
             mapped_array['a'].to_pd(ignore_index=True),
             pd.Series(np.array([10., 11., 12.]), name='a')
@@ -1619,6 +1697,27 @@ class TestRecords:
                 np.array([6, 3]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('count')
+        )
+
+    def test_has_conflicts(self):
+        assert not records.has_conflicts()
+
+    def test_coverage_map(self):
+        pd.testing.assert_frame_equal(
+            records.coverage_map(),
+            pd.DataFrame(
+                [[1, 1, 1, 0], [1, 1, 1, 0], [1, 1, 1, 0]],
+                index=wrapper.index,
+                columns=wrapper.columns
+            )
+        )
+        pd.testing.assert_frame_equal(
+            records.coverage_map(group_by=group_by),
+            pd.DataFrame(
+                [[2, 1], [2, 1], [2, 1]],
+                index=wrapper.index,
+                columns=pd.Index(['g1', 'g2'], dtype='object')
+            )
         )
 
     @pytest.mark.parametrize(

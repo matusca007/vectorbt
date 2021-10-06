@@ -14,12 +14,6 @@ from vectorbt.base import (
     reshaping
 )
 
-ray_available = True
-try:
-    import ray
-except:
-    ray_available = False
-
 day_dt = np.timedelta64(86400000000000)
 
 # Initialize global variables
@@ -56,8 +50,6 @@ df5 = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]], index=multi_i, columns=mul
 # ############# Global ############# #
 
 def setup_module():
-    if ray_available:
-        ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.broadcasting['index_from'] = 'stack'
     vbt.settings.broadcasting['columns_from'] = 'stack'
@@ -67,8 +59,6 @@ def setup_module():
 
 
 def teardown_module():
-    if ray_available:
-        ray.shutdown()
     vbt.settings.reset()
 
 
@@ -3267,25 +3257,6 @@ class TestAccessors:
             ),
             target2
         )
-        if ray_available:
-            pd.testing.assert_frame_equal(
-                sr2.vbt.combine(
-                    [10, df4], 10, b=100,
-                    combine_func=combine_func,
-                    concat=True,
-                    execute_kwargs=dict(engine='ray')
-                ),
-                target2
-            )
-            pd.testing.assert_frame_equal(
-                sr2.vbt.combine(
-                    [10, df4], 10, b=100,
-                    combine_func=combine_func_nb,
-                    concat=True,
-                    execute_kwargs=dict(engine='ray')
-                ),
-                target2
-            )
         pd.testing.assert_frame_equal(
             sr2.vbt.combine(
                 [10, df4], 10, b=100,

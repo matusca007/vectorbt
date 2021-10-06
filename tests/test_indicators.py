@@ -8,12 +8,6 @@ from collections import namedtuple
 
 import vectorbt as vbt
 
-ray_available = True
-try:
-    import ray
-except:
-    ray_available = False
-
 ta_available = True
 try:
     import ta
@@ -38,8 +32,6 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
-    if ray_available:
-        ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []
@@ -47,8 +39,6 @@ def setup_module():
 
 
 def teardown_module():
-    if ray_available:
-        ray.shutdown()
     vbt.settings.reset()
 
 
