@@ -48,34 +48,34 @@ def get_return_nb(input_value: float, output_value: float) -> float:
 
 
 @register_jit(cache=True)
-def returns_1d_nb(value: tp.Array1d, init_value: float) -> tp.Array1d:
-    """Calculate returns from value."""
-    out = np.empty(value.shape, dtype=np.float_)
+def returns_1d_nb(arr: tp.Array1d, init_value: float) -> tp.Array1d:
+    """Calculate returns."""
+    out = np.empty(arr.shape, dtype=np.float_)
     input_value = init_value
     for i in range(out.shape[0]):
-        output_value = value[i]
+        output_value = arr[i]
         out[i] = get_return_nb(input_value, output_value)
         input_value = output_value
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def returns_nb(value: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
+def returns_nb(arr: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
     """2-dim version of `returns_1d_nb`."""
-    out = np.empty(value.shape, dtype=np.float_)
+    out = np.empty(arr.shape, dtype=np.float_)
     for col in prange(out.shape[1]):
-        out[:, col] = returns_1d_nb(value[:, col], init_value[col])
+        out[:, col] = returns_1d_nb(arr[:, col], init_value[col])
     return out
 
 
 @register_jit(cache=True)
-def cum_returns_1d_nb(returns: tp.Array1d, start_value: float) -> tp.Array1d:
+def cum_returns_1d_nb(rets: tp.Array1d, start_value: float) -> tp.Array1d:
     """Cumulative returns."""
-    out = np.empty_like(returns, dtype=np.float_)
+    out = np.empty_like(rets, dtype=np.float_)
     cumprod = 1
-    for i in range(returns.shape[0]):
-        if not np.isnan(returns[i]):
-            cumprod *= returns[i] + 1
+    for i in range(rets.shape[0]):
+        if not np.isnan(rets[i]):
+            cumprod *= rets[i] + 1
         out[i] = cumprod
     if start_value == 0:
         return out - 1.
@@ -83,49 +83,49 @@ def cum_returns_1d_nb(returns: tp.Array1d, start_value: float) -> tp.Array1d:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def cum_returns_nb(returns: tp.Array2d, start_value: float) -> tp.Array2d:
+def cum_returns_nb(rets: tp.Array2d, start_value: float) -> tp.Array2d:
     """2-dim version of `cum_returns_1d_nb`."""
-    out = np.empty_like(returns, dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[:, col] = cum_returns_1d_nb(returns[:, col], start_value)
+    out = np.empty_like(rets, dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[:, col] = cum_returns_1d_nb(rets[:, col], start_value)
     return out
 
 
 @register_jit(cache=True)
-def cum_returns_final_1d_nb(returns: tp.Array1d, start_value: float = 0.) -> float:
+def cum_returns_final_1d_nb(rets: tp.Array1d, start_value: float = 0.) -> float:
     """Total return."""
     out = np.nan
-    for i in range(returns.shape[0]):
-        if not np.isnan(returns[i]):
+    for i in range(rets.shape[0]):
+        if not np.isnan(rets[i]):
             if np.isnan(out):
                 out = 1.
-            out *= returns[i] + 1.
+            out *= rets[i] + 1.
     if start_value == 0:
         return out - 1.
     return out * start_value
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def cum_returns_final_nb(returns: tp.Array2d, start_value: float = 0.) -> tp.Array1d:
+def cum_returns_final_nb(rets: tp.Array2d, start_value: float = 0.) -> tp.Array1d:
     """2-dim version of `cum_returns_final_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = cum_returns_final_1d_nb(returns[:, col], start_value)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = cum_returns_final_1d_nb(rets[:, col], start_value)
     return out
 
 
 @register_jit(cache=True)
-def annualized_return_1d_nb(returns: tp.Array1d, ann_factor: float) -> float:
+def annualized_return_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
     """Mean annual growth rate of returns.
 
     This is equivalent to the compound annual growth rate."""
     out = np.nan
     cnt = 0
-    for i in range(returns.shape[0]):
-        if not np.isnan(returns[i]):
+    for i in range(rets.shape[0]):
+        if not np.isnan(rets[i]):
             if np.isnan(out):
                 out = 1.
-            out *= returns[i] + 1.
+            out *= rets[i] + 1.
             cnt += 1
     if cnt == 0:
         return np.nan
@@ -133,63 +133,63 @@ def annualized_return_1d_nb(returns: tp.Array1d, ann_factor: float) -> float:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def annualized_return_nb(returns: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def annualized_return_nb(rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `annualized_return_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = annualized_return_1d_nb(returns[:, col], ann_factor)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = annualized_return_1d_nb(rets[:, col], ann_factor)
     return out
 
 
 @register_jit(cache=True)
-def annualized_volatility_1d_nb(returns: tp.Array1d,
+def annualized_volatility_1d_nb(rets: tp.Array1d,
                                 ann_factor: float,
                                 levy_alpha: float = 2.0,
                                 ddof: int = 1) -> float:
     """Annualized volatility of a strategy."""
-    return generic_nb.nanstd_1d_nb(returns, ddof) * ann_factor ** (1.0 / levy_alpha)
+    return generic_nb.nanstd_1d_nb(rets, ddof) * ann_factor ** (1.0 / levy_alpha)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def annualized_volatility_nb(returns: tp.Array2d,
+def annualized_volatility_nb(rets: tp.Array2d,
                              ann_factor: float,
                              levy_alpha: float = 2.0,
                              ddof: int = 1) -> tp.Array1d:
     """2-dim version of `annualized_volatility_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = annualized_volatility_1d_nb(returns[:, col], ann_factor, levy_alpha, ddof)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = annualized_volatility_1d_nb(rets[:, col], ann_factor, levy_alpha, ddof)
     return out
 
 
 @register_jit(cache=True)
-def drawdown_1d_nb(returns: tp.Array1d) -> tp.Array1d:
+def drawdown_1d_nb(rets: tp.Array1d) -> tp.Array1d:
     """Drawdown of cumulative returns."""
-    cum_returns = cum_returns_1d_nb(returns, start_value=100.)
+    cum_returns = cum_returns_1d_nb(rets, start_value=100.)
     max_returns = generic_nb.expanding_max_1d_nb(cum_returns, minp=1)
     return cum_returns / max_returns - 1
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def drawdown_nb(returns: tp.Array2d) -> tp.Array2d:
+def drawdown_nb(rets: tp.Array2d) -> tp.Array2d:
     """2-dim version of `drawdown_1d_nb`."""
-    out = np.empty_like(returns, dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[:, col] = drawdown_1d_nb(returns[:, col])
+    out = np.empty_like(rets, dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[:, col] = drawdown_1d_nb(rets[:, col])
     return out
 
 
 @register_jit(cache=True)
-def max_drawdown_1d_nb(returns: tp.Array1d) -> float:
+def max_drawdown_1d_nb(rets: tp.Array1d) -> float:
     """Total maximum drawdown (MDD)."""
     cum_ret = np.nan
     value_max = 1.
     out = 0.
-    for i in range(returns.shape[0]):
-        if not np.isnan(returns[i]):
+    for i in range(rets.shape[0]):
+        if not np.isnan(rets[i]):
             if np.isnan(cum_ret):
                 cum_ret = 1.
-            cum_ret *= returns[i] + 1.
+            cum_ret *= rets[i] + 1.
         if cum_ret > value_max:
             value_max = cum_ret
         elif cum_ret < value_max:
@@ -202,32 +202,32 @@ def max_drawdown_1d_nb(returns: tp.Array1d) -> float:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def max_drawdown_nb(returns: tp.Array2d) -> tp.Array1d:
+def max_drawdown_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `max_drawdown_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = max_drawdown_1d_nb(returns[:, col])
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = max_drawdown_1d_nb(rets[:, col])
     return out
 
 
 @register_jit(cache=True)
-def calmar_ratio_1d_nb(returns: tp.Array1d, ann_factor: float) -> float:
+def calmar_ratio_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
     """Calmar ratio, or drawdown ratio, of a strategy."""
-    max_drawdown = max_drawdown_1d_nb(returns)
+    max_drawdown = max_drawdown_1d_nb(rets)
     if max_drawdown == 0:
         return np.nan
-    annualized_return = annualized_return_1d_nb(returns, ann_factor)
+    annualized_return = annualized_return_1d_nb(rets, ann_factor)
     if max_drawdown == 0:
         return np.inf
     return annualized_return / np.abs(max_drawdown)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def calmar_ratio_nb(returns: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def calmar_ratio_nb(rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `calmar_ratio_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = calmar_ratio_1d_nb(returns[:, col], ann_factor)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = calmar_ratio_1d_nb(rets[:, col], ann_factor)
     return out
 
 
@@ -242,12 +242,12 @@ def deannualized_return_nb(ret: float, ann_factor: float) -> float:
 
 
 @register_jit(cache=True)
-def omega_ratio_1d_nb(adj_returns: tp.Array1d) -> float:
+def omega_ratio_1d_nb(adj_rets: tp.Array1d) -> float:
     """Omega ratio of a strategy."""
     numer = 0.
     denom = 0.
-    for i in range(adj_returns.shape[0]):
-        ret = adj_returns[i]
+    for i in range(adj_rets.shape[0]):
+        ret = adj_rets[i]
         if ret > 0:
             numer += ret
         elif ret < 0:
@@ -258,227 +258,227 @@ def omega_ratio_1d_nb(adj_returns: tp.Array1d) -> float:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def omega_ratio_nb(adj_returns: tp.Array2d) -> tp.Array1d:
+def omega_ratio_nb(adj_rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `omega_ratio_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = omega_ratio_1d_nb(adj_returns[:, col])
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = omega_ratio_1d_nb(adj_rets[:, col])
     return out
 
 
 @register_jit(cache=True)
-def sharpe_ratio_1d_nb(adj_returns: tp.Array1d,
+def sharpe_ratio_1d_nb(adj_rets: tp.Array1d,
                        ann_factor: float,
                        ddof: int = 1) -> float:
     """Sharpe ratio of a strategy."""
-    mean = np.nanmean(adj_returns)
-    std = generic_nb.nanstd_1d_nb(adj_returns, ddof)
+    mean = np.nanmean(adj_rets)
+    std = generic_nb.nanstd_1d_nb(adj_rets, ddof)
     if std == 0:
         return np.inf
     return mean / std * np.sqrt(ann_factor)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def sharpe_ratio_nb(adj_returns: tp.Array2d,
+def sharpe_ratio_nb(adj_rets: tp.Array2d,
                     ann_factor: float,
                     ddof: int = 1) -> tp.Array1d:
     """2-dim version of `sharpe_ratio_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = sharpe_ratio_1d_nb(adj_returns[:, col], ann_factor, ddof)
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = sharpe_ratio_1d_nb(adj_rets[:, col], ann_factor, ddof)
     return out
 
 
 @register_jit(cache=True)
-def downside_risk_1d_nb(adj_returns: tp.Array1d, ann_factor: float) -> float:
+def downside_risk_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     """Downside deviation below a threshold."""
     cnt = 0
     adj_ret_sqrd_sum = np.nan
-    for i in range(adj_returns.shape[0]):
-        if not np.isnan(adj_returns[i]):
+    for i in range(adj_rets.shape[0]):
+        if not np.isnan(adj_rets[i]):
             cnt += 1
             if np.isnan(adj_ret_sqrd_sum):
                 adj_ret_sqrd_sum = 0.
-            if adj_returns[i] <= 0:
-                adj_ret_sqrd_sum += adj_returns[i] ** 2
+            if adj_rets[i] <= 0:
+                adj_ret_sqrd_sum += adj_rets[i] ** 2
     adj_ret_sqrd_mean = adj_ret_sqrd_sum / cnt
     return np.sqrt(adj_ret_sqrd_mean) * np.sqrt(ann_factor)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def downside_risk_nb(adj_returns: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def downside_risk_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `downside_risk_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = downside_risk_1d_nb(adj_returns[:, col], ann_factor)
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = downside_risk_1d_nb(adj_rets[:, col], ann_factor)
     return out
 
 
 @register_jit(cache=True)
-def sortino_ratio_1d_nb(adj_returns: tp.Array1d, ann_factor: float) -> float:
+def sortino_ratio_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     """Sortino ratio of a strategy."""
-    avg_annualized_return = np.nanmean(adj_returns) * ann_factor
-    downside_risk = downside_risk_1d_nb(adj_returns, ann_factor)
+    avg_annualized_return = np.nanmean(adj_rets) * ann_factor
+    downside_risk = downside_risk_1d_nb(adj_rets, ann_factor)
     if downside_risk == 0:
         return np.inf
     return avg_annualized_return / downside_risk
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def sortino_ratio_nb(adj_returns: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def sortino_ratio_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `sortino_ratio_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = sortino_ratio_1d_nb(adj_returns[:, col], ann_factor)
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = sortino_ratio_1d_nb(adj_rets[:, col], ann_factor)
     return out
 
 
 @register_jit(cache=True)
-def information_ratio_1d_nb(adj_returns: tp.Array1d, ddof: int = 1) -> float:
+def information_ratio_1d_nb(adj_rets: tp.Array1d, ddof: int = 1) -> float:
     """Information ratio of a strategy."""
-    mean = np.nanmean(adj_returns)
-    std = generic_nb.nanstd_1d_nb(adj_returns, ddof)
+    mean = np.nanmean(adj_rets)
+    std = generic_nb.nanstd_1d_nb(adj_rets, ddof)
     if std == 0:
         return np.inf
     return mean / std
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def information_ratio_nb(adj_returns: tp.Array2d, ddof: int = 1) -> tp.Array1d:
+def information_ratio_nb(adj_rets: tp.Array2d, ddof: int = 1) -> tp.Array1d:
     """2-dim version of `information_ratio_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = information_ratio_1d_nb(adj_returns[:, col], ddof)
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = information_ratio_1d_nb(adj_rets[:, col], ddof)
     return out
 
 
 @register_jit(cache=True)
-def beta_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 1) -> float:
+def beta_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 1) -> float:
     """Beta."""
-    cov = generic_nb.nancov_1d_nb(returns, benchmark_rets, ddof=ddof)
+    cov = generic_nb.nancov_1d_nb(rets, benchmark_rets, ddof=ddof)
     var = generic_nb.nanvar_1d_nb(benchmark_rets, ddof=ddof)
     return cov / var
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def beta_nb(returns: tp.Array2d, benchmark_rets: tp.Array2d, ddof: int = 1) -> tp.Array1d:
+def beta_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ddof: int = 1) -> tp.Array1d:
     """2-dim version of `beta_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = beta_1d_nb(returns[:, col], benchmark_rets[:, col], ddof=ddof)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = beta_1d_nb(rets[:, col], benchmark_rets[:, col], ddof=ddof)
     return out
 
 
 @register_jit
-def beta_rollmeta_nb(from_i: int, to_i: int, col: int, returns: tp.Array2d,
+def beta_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                      benchmark_rets: tp.Array1d, ddof: int = 1) -> float:
     """Rolling apply meta function based on `beta_1d_nb`."""
-    return beta_1d_nb(returns[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ddof)
+    return beta_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ddof)
 
 
 @register_jit(cache=True)
-def alpha_1d_nb(adj_returns: tp.Array1d,
+def alpha_1d_nb(adj_rets: tp.Array1d,
                 adj_benchmark_rets: tp.Array1d,
                 ann_factor: float) -> float:
     """Annualized alpha."""
-    beta = beta_1d_nb(adj_returns, adj_benchmark_rets)
-    return (np.nanmean(adj_returns) - beta * np.nanmean(adj_benchmark_rets) + 1) ** ann_factor - 1
+    beta = beta_1d_nb(adj_rets, adj_benchmark_rets)
+    return (np.nanmean(adj_rets) - beta * np.nanmean(adj_benchmark_rets) + 1) ** ann_factor - 1
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def alpha_nb(adj_returns: tp.Array2d,
+def alpha_nb(adj_rets: tp.Array2d,
              adj_benchmark_rets: tp.Array2d,
              ann_factor: float) -> tp.Array1d:
     """2-dim version of `alpha_1d_nb`."""
-    out = np.empty(adj_returns.shape[1], dtype=np.float_)
-    for col in prange(adj_returns.shape[1]):
-        out[col] = alpha_1d_nb(adj_returns[:, col], adj_benchmark_rets[:, col], ann_factor)
+    out = np.empty(adj_rets.shape[1], dtype=np.float_)
+    for col in prange(adj_rets.shape[1]):
+        out[col] = alpha_1d_nb(adj_rets[:, col], adj_benchmark_rets[:, col], ann_factor)
     return out
 
 
 @register_jit
-def alpha_rollmeta_nb(from_i: int, to_i: int, col: int, adj_returns: tp.Array2d,
+def alpha_rollmeta_nb(from_i: int, to_i: int, col: int, adj_rets: tp.Array2d,
                       adj_benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Rolling apply meta function based on `alpha_1d_nb`."""
-    return alpha_1d_nb(adj_returns[from_i:to_i, col], adj_benchmark_rets[from_i:to_i, col], ann_factor)
+    return alpha_1d_nb(adj_rets[from_i:to_i, col], adj_benchmark_rets[from_i:to_i, col], ann_factor)
 
 
 @register_jit(cache=True)
-def tail_ratio_1d_nb(returns: tp.Array1d) -> float:
+def tail_ratio_1d_nb(rets: tp.Array1d) -> float:
     """Ratio between the right (95%) and left tail (5%)."""
-    perc_95 = np.abs(np.nanpercentile(returns, 95))
-    perc_5 = np.abs(np.nanpercentile(returns, 5))
+    perc_95 = np.abs(np.nanpercentile(rets, 95))
+    perc_5 = np.abs(np.nanpercentile(rets, 5))
     if perc_5 == 0:
         return np.inf
     return perc_95 / perc_5
 
 
 @register_jit(cache=True)
-def tail_ratio_noarr_1d_nb(returns: tp.Array1d) -> float:
+def tail_ratio_noarr_1d_nb(rets: tp.Array1d) -> float:
     """`tail_ratio_1d_nb` that does not allocate any arrays."""
-    perc_95 = np.abs(generic_nb.nanpercentile_noarr_1d_nb(returns, 95))
-    perc_5 = np.abs(generic_nb.nanpercentile_noarr_1d_nb(returns, 5))
+    perc_95 = np.abs(generic_nb.nanpercentile_noarr_1d_nb(rets, 95))
+    perc_5 = np.abs(generic_nb.nanpercentile_noarr_1d_nb(rets, 5))
     if perc_5 == 0:
         return np.inf
     return perc_95 / perc_5
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def tail_ratio_nb(returns: tp.Array2d) -> tp.Array1d:
+def tail_ratio_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `tail_ratio_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = tail_ratio_1d_nb(returns[:, col])
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = tail_ratio_1d_nb(rets[:, col])
     return out
 
 
 @register_jit(cache=True)
-def value_at_risk_1d_nb(returns: tp.Array1d, cutoff: float = 0.05) -> float:
+def value_at_risk_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """Value at risk (VaR) of a returns stream."""
-    return np.nanpercentile(returns, 100 * cutoff)
+    return np.nanpercentile(rets, 100 * cutoff)
 
 
 @register_jit(cache=True)
-def value_at_risk_noarr_1d_nb(returns: tp.Array1d, cutoff: float = 0.05) -> float:
+def value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """`value_at_risk_1d_nb` that does not allocate any arrays."""
-    return generic_nb.nanpercentile_noarr_1d_nb(returns, 100 * cutoff)
+    return generic_nb.nanpercentile_noarr_1d_nb(rets, 100 * cutoff)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def value_at_risk_nb(returns: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
+def value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `value_at_risk_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = value_at_risk_1d_nb(returns[:, col], cutoff)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = value_at_risk_1d_nb(rets[:, col], cutoff)
     return out
 
 
 @register_jit(cache=True)
-def cond_value_at_risk_1d_nb(returns: tp.Array1d, cutoff: float = 0.05) -> float:
+def cond_value_at_risk_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """Conditional value at risk (CVaR) of a returns stream."""
-    cutoff_index = int((len(returns) - 1) * cutoff)
-    return np.mean(np.partition(returns, cutoff_index)[:cutoff_index + 1])
+    cutoff_index = int((len(rets) - 1) * cutoff)
+    return np.mean(np.partition(rets, cutoff_index)[:cutoff_index + 1])
 
 
 @register_jit(cache=True)
-def cond_value_at_risk_noarr_1d_nb(returns: tp.Array1d, cutoff: float = 0.05) -> float:
+def cond_value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """`cond_value_at_risk_1d_nb` that does not allocate any arrays."""
-    return generic_nb.nanpartition_mean_noarr_1d_nb(returns, cutoff * 100)
+    return generic_nb.nanpartition_mean_noarr_1d_nb(rets, cutoff * 100)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def cond_value_at_risk_nb(returns: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
+def cond_value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `cond_value_at_risk_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = cond_value_at_risk_1d_nb(returns[:, col], cutoff)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = cond_value_at_risk_1d_nb(rets[:, col], cutoff)
     return out
 
 
 @register_jit(cache=True)
-def capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
+def capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Capture ratio."""
-    annualized_return1 = annualized_return_1d_nb(returns, ann_factor)
+    annualized_return1 = annualized_return_1d_nb(rets, ann_factor)
     annualized_return2 = annualized_return_1d_nb(benchmark_rets, ann_factor)
     if annualized_return2 == 0:
         return np.inf
@@ -486,23 +486,23 @@ def capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: f
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def capture_nb(returns: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `capture_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = capture_1d_nb(returns[:, col], benchmark_rets[:, col], ann_factor)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = capture_1d_nb(rets[:, col], benchmark_rets[:, col], ann_factor)
     return out
 
 
 @register_jit
-def capture_rollmeta_nb(from_i: int, to_i: int, col: int, returns: tp.Array2d,
+def capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                         benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Rolling apply meta function based on `capture_1d_nb`."""
-    return capture_1d_nb(returns[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)
+    return capture_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)
 
 
 @register_jit(cache=True)
-def up_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
+def up_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Capture ratio for periods when the benchmark return is positive."""
 
     def _annualized_pos_return(a):
@@ -519,7 +519,7 @@ def up_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor
             return np.nan
         return ann_ret ** (ann_factor / ret_cnt) - 1
 
-    annualized_return = _annualized_pos_return(returns)
+    annualized_return = _annualized_pos_return(rets)
     annualized_benchmark_return = _annualized_pos_return(benchmark_rets)
     if annualized_benchmark_return == 0:
         return np.inf
@@ -527,23 +527,23 @@ def up_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def up_capture_nb(returns: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def up_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `up_capture_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = up_capture_1d_nb(returns[:, col], benchmark_rets[:, col], ann_factor)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = up_capture_1d_nb(rets[:, col], benchmark_rets[:, col], ann_factor)
     return out
 
 
 @register_jit
-def up_capture_rollmeta_nb(from_i: int, to_i: int, col: int, returns: tp.Array2d,
+def up_capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                            benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Rolling apply meta function based on `up_capture_1d_nb`."""
-    return up_capture_1d_nb(returns[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)
+    return up_capture_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)
 
 
 @register_jit(cache=True)
-def down_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
+def down_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Capture ratio for periods when the benchmark return is negative."""
 
     def _annualized_neg_return(a):
@@ -560,7 +560,7 @@ def down_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_fact
             return np.nan
         return ann_ret ** (ann_factor / ret_cnt) - 1
 
-    annualized_return = _annualized_neg_return(returns)
+    annualized_return = _annualized_neg_return(rets)
     annualized_benchmark_return = _annualized_neg_return(benchmark_rets)
     if annualized_benchmark_return == 0:
         return np.inf
@@ -568,16 +568,16 @@ def down_capture_1d_nb(returns: tp.Array1d, benchmark_rets: tp.Array1d, ann_fact
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def down_capture_nb(returns: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
+def down_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `down_capture_1d_nb`."""
-    out = np.empty(returns.shape[1], dtype=np.float_)
-    for col in prange(returns.shape[1]):
-        out[col] = down_capture_1d_nb(returns[:, col], benchmark_rets[:, col], ann_factor)
+    out = np.empty(rets.shape[1], dtype=np.float_)
+    for col in prange(rets.shape[1]):
+        out[col] = down_capture_1d_nb(rets[:, col], benchmark_rets[:, col], ann_factor)
     return out
 
 
 @register_jit
-def down_capture_rollmeta_nb(from_i: int, to_i: int, col: int, returns: tp.Array2d,
+def down_capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                              benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Rolling apply meta function based on `down_capture_1d_nb`."""
-    return down_capture_1d_nb(returns[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)
+    return down_capture_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor)

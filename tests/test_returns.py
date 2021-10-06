@@ -95,6 +95,10 @@ class TestAccessors:
             pd.DataFrame.vbt.returns.from_value(ts, nb_parallel=True).obj,
             pd.DataFrame.vbt.returns.from_value(ts, nb_parallel=False).obj
         )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.returns.from_value(ts, chunked=True).obj,
+            pd.DataFrame.vbt.returns.from_value(ts, chunked=False).obj
+        )
         assert pd.Series.vbt.returns.from_value(ts['a'], year_freq='365 days').year_freq == pd.to_timedelta('365 days')
         assert pd.DataFrame.vbt.returns.from_value(ts, year_freq='365 days').year_freq == pd.to_timedelta('365 days')
 
@@ -142,6 +146,10 @@ class TestAccessors:
             ret_12h.vbt.returns.daily(nb_parallel=True),
             ret_12h.vbt.returns.daily(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            ret_12h.vbt.returns.daily(chunked=True),
+            ret_12h.vbt.returns.daily(chunked=False)
+        )
 
     def test_annual(self):
         pd.testing.assert_series_equal(
@@ -163,6 +171,10 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             rets.vbt.returns.annual(nb_parallel=True),
             rets.vbt.returns.annual(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.annual(chunked=True),
+            rets.vbt.returns.annual(chunked=False)
         )
 
     def test_cumulative(self):
@@ -192,6 +204,10 @@ class TestAccessors:
             rets.vbt.returns.cumulative(nb_parallel=True),
             rets.vbt.returns.cumulative(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.cumulative(chunked=True),
+            rets.vbt.returns.cumulative(chunked=False)
+        )
 
     def test_total_return(self):
         assert isclose(rets['a'].vbt.returns.total(), 4.0)
@@ -206,6 +222,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.total(nb_parallel=True),
             rets.vbt.returns.total(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.total(chunked=True),
+            rets.vbt.returns.total(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_total(),
@@ -225,6 +245,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_total(nb_parallel=True),
             rets.vbt.returns.rolling_total(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_total(chunked=True),
+            rets.vbt.returns.rolling_total(chunked=False)
+        )
 
     def test_annualized_return(self):
         assert isclose(rets['a'].vbt.returns.annualized(), 1.0587911840678754e+51)
@@ -239,6 +263,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.annualized(nb_parallel=True),
             rets.vbt.returns.annualized(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.annualized(chunked=True),
+            rets.vbt.returns.annualized(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_annualized(),
@@ -258,6 +286,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_annualized(nb_parallel=True),
             rets.vbt.returns.rolling_annualized(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_annualized(chunked=True),
+            rets.vbt.returns.rolling_annualized(chunked=False)
+        )
 
     def test_annualized_volatility(self):
         assert isclose(rets['a'].vbt.returns.annualized_volatility(), 6.417884083645567)
@@ -272,6 +304,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.annualized_volatility(nb_parallel=True),
             rets.vbt.returns.annualized_volatility(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.annualized_volatility(chunked=True),
+            rets.vbt.returns.annualized_volatility(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_annualized_volatility(),
@@ -291,6 +327,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_annualized_volatility(nb_parallel=True),
             rets.vbt.returns.rolling_annualized_volatility(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_annualized_volatility(chunked=True),
+            rets.vbt.returns.rolling_annualized_volatility(chunked=False)
+        )
 
     def test_calmar_ratio(self):
         assert isclose(rets['a'].vbt.returns.calmar_ratio(), np.nan)
@@ -305,6 +345,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.calmar_ratio(nb_parallel=True),
             rets.vbt.returns.calmar_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.calmar_ratio(chunked=True),
+            rets.vbt.returns.calmar_ratio(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_calmar_ratio(),
@@ -324,6 +368,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_calmar_ratio(nb_parallel=True),
             rets.vbt.returns.rolling_calmar_ratio(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_calmar_ratio(chunked=True),
+            rets.vbt.returns.rolling_calmar_ratio(chunked=False)
+        )
 
     def test_omega_ratio(self):
         assert isclose(rets['a'].vbt.returns.omega_ratio(risk_free=0.01, required_return=0.1), np.inf)
@@ -338,6 +386,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.omega_ratio(nb_parallel=True),
             rets.vbt.returns.omega_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.omega_ratio(chunked=True),
+            rets.vbt.returns.omega_ratio(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_omega_ratio(),
@@ -357,6 +409,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_omega_ratio(nb_parallel=True),
             rets.vbt.returns.rolling_omega_ratio(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_omega_ratio(chunked=True),
+            rets.vbt.returns.rolling_omega_ratio(chunked=False)
+        )
 
     def test_sharpe_ratio(self):
         assert isclose(rets['a'].vbt.returns.sharpe_ratio(risk_free=0.01), 29.052280196490333)
@@ -371,6 +427,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.sharpe_ratio(nb_parallel=True),
             rets.vbt.returns.sharpe_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.sharpe_ratio(chunked=True),
+            rets.vbt.returns.sharpe_ratio(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_sharpe_ratio(),
@@ -389,6 +449,10 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_sharpe_ratio(nb_parallel=True),
             rets.vbt.returns.rolling_sharpe_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_sharpe_ratio(chunked=True),
+            rets.vbt.returns.rolling_sharpe_ratio(chunked=False)
         )
 
     def test_deflated_sharpe_ratio(self):
@@ -415,6 +479,10 @@ class TestAccessors:
             rets.vbt.returns.downside_risk(nb_parallel=True),
             rets.vbt.returns.downside_risk(nb_parallel=False)
         )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.downside_risk(chunked=True),
+            rets.vbt.returns.downside_risk(chunked=False)
+        )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_downside_risk(),
             pd.DataFrame(
@@ -433,6 +501,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_downside_risk(nb_parallel=True),
             rets.vbt.returns.rolling_downside_risk(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_downside_risk(chunked=True),
+            rets.vbt.returns.rolling_downside_risk(chunked=False)
+        )
 
     def test_sortino_ratio(self):
         assert isclose(rets['a'].vbt.returns.sortino_ratio(required_return=0.1), np.inf)
@@ -447,6 +519,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.sortino_ratio(nb_parallel=True),
             rets.vbt.returns.sortino_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.sortino_ratio(chunked=True),
+            rets.vbt.returns.sortino_ratio(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_sortino_ratio(),
@@ -466,6 +542,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_sortino_ratio(nb_parallel=True),
             rets.vbt.returns.rolling_sortino_ratio(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_sortino_ratio(chunked=True),
+            rets.vbt.returns.rolling_sortino_ratio(chunked=False)
+        )
 
     def test_information_ratio(self):
         assert isclose(rets['a'].vbt.returns.information_ratio(benchmark_rets['a']), -0.5575108215121097)
@@ -480,6 +560,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.information_ratio(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.information_ratio(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.information_ratio(benchmark_rets, chunked=True),
+            rets.vbt.returns.information_ratio(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_information_ratio(benchmark_rets),
@@ -499,6 +583,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_information_ratio(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_information_ratio(benchmark_rets, nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_information_ratio(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_information_ratio(benchmark_rets, chunked=False)
+        )
 
     def test_beta(self):
         assert isclose(rets['a'].vbt.returns.beta(benchmark_rets['a']), 0.7853755858374825)
@@ -513,6 +601,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.beta(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.beta(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.beta(benchmark_rets, chunked=True),
+            rets.vbt.returns.beta(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_beta(benchmark_rets),
@@ -532,6 +624,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_beta(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_beta(benchmark_rets, nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_beta(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_beta(benchmark_rets, chunked=False)
+        )
 
     def test_alpha(self):
         assert isclose(rets['a'].vbt.returns.alpha(benchmark_rets['a'], risk_free=0.01), 41819510790.213036)
@@ -546,6 +642,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.alpha(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.alpha(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.alpha(benchmark_rets, chunked=True),
+            rets.vbt.returns.alpha(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_alpha(benchmark_rets),
@@ -565,6 +665,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_alpha(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_alpha(benchmark_rets, nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_alpha(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_alpha(benchmark_rets, chunked=False)
+        )
 
     def test_tail_ratio(self):
         assert isclose(rets['a'].vbt.returns.tail_ratio(), 3.5238095238095237)
@@ -579,6 +683,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.tail_ratio(nb_parallel=True),
             rets.vbt.returns.tail_ratio(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.tail_ratio(chunked=True),
+            rets.vbt.returns.tail_ratio(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_tail_ratio(),
@@ -598,6 +706,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_tail_ratio(nb_parallel=True),
             rets.vbt.returns.rolling_tail_ratio(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_tail_ratio(chunked=True),
+            rets.vbt.returns.rolling_tail_ratio(chunked=False)
+        )
 
     def test_value_at_risk(self):
         assert isclose(rets['a'].vbt.returns.value_at_risk(cutoff=0.05), 0.26249999999999996)
@@ -612,6 +724,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.value_at_risk(nb_parallel=True),
             rets.vbt.returns.value_at_risk(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.value_at_risk(chunked=True),
+            rets.vbt.returns.value_at_risk(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_value_at_risk(),
@@ -631,6 +747,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_value_at_risk(nb_parallel=True),
             rets.vbt.returns.rolling_value_at_risk(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_value_at_risk(chunked=True),
+            rets.vbt.returns.rolling_value_at_risk(chunked=False)
+        )
 
     def test_cond_value_at_risk(self):
         assert isclose(rets['a'].vbt.returns.cond_value_at_risk(cutoff=0.05), 0.25)
@@ -645,6 +765,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.cond_value_at_risk(nb_parallel=True),
             rets.vbt.returns.cond_value_at_risk(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.cond_value_at_risk(chunked=True),
+            rets.vbt.returns.cond_value_at_risk(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_cond_value_at_risk(),
@@ -664,6 +788,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_cond_value_at_risk(nb_parallel=True),
             rets.vbt.returns.rolling_cond_value_at_risk(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_cond_value_at_risk(chunked=True),
+            rets.vbt.returns.rolling_cond_value_at_risk(chunked=False)
+        )
 
     def test_capture(self):
         assert isclose(rets['a'].vbt.returns.capture(benchmark_rets['a']), 0.0007435597416888084)
@@ -678,6 +806,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.capture(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.capture(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_capture(benchmark_rets),
@@ -697,6 +829,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_capture(benchmark_rets, nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_capture(benchmark_rets, chunked=False)
+        )
 
     def test_up_capture(self):
         assert isclose(rets['a'].vbt.returns.up_capture(benchmark_rets['a']), 0.0001227848643711666)
@@ -711,6 +847,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.up_capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.up_capture(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.up_capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.up_capture(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_up_capture(benchmark_rets),
@@ -730,6 +870,10 @@ class TestAccessors:
             rets.vbt.returns.rolling_up_capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_up_capture(benchmark_rets, nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_up_capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_up_capture(benchmark_rets, chunked=False)
+        )
 
     def test_down_capture(self):
         assert isclose(rets['a'].vbt.returns.down_capture(benchmark_rets['a']), np.nan)
@@ -744,6 +888,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.down_capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.down_capture(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.down_capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.down_capture(benchmark_rets, chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_down_capture(benchmark_rets),
@@ -762,6 +910,10 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_down_capture(benchmark_rets, nb_parallel=True),
             rets.vbt.returns.rolling_down_capture(benchmark_rets, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_down_capture(benchmark_rets, chunked=True),
+            rets.vbt.returns.rolling_down_capture(benchmark_rets, chunked=False)
         )
 
     def test_drawdown(self):
@@ -793,6 +945,14 @@ class TestAccessors:
                 columns=rets.columns
             )
         )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.drawdown(nb_parallel=True),
+            rets.vbt.returns.drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.drawdown(chunked=True),
+            rets.vbt.returns.drawdown(chunked=False)
+        )
 
     def test_max_drawdown(self):
         assert isclose(
@@ -806,6 +966,10 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             rets.vbt.returns.max_drawdown(nb_parallel=True),
             rets.vbt.returns.max_drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            rets.vbt.returns.max_drawdown(chunked=True),
+            rets.vbt.returns.max_drawdown(chunked=False)
         )
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_max_drawdown(),
@@ -824,6 +988,10 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             rets.vbt.returns.rolling_max_drawdown(nb_parallel=True),
             rets.vbt.returns.rolling_max_drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            rets.vbt.returns.rolling_max_drawdown(chunked=True),
+            rets.vbt.returns.rolling_max_drawdown(chunked=False)
         )
 
     def test_drawdowns(self):

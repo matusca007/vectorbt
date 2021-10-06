@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Extensions to `vectorbt.utils.chunking` for generic functions."""
+"""Extensions to `vectorbt.utils.chunking` for chunking generic functions."""
 
 import numpy as np
 

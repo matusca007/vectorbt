@@ -941,6 +941,29 @@ def chunked(*args,
     raise ValueError("Either function or keyword arguments must be passed")
 
 
+def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
+    """Return keyword arguments for `chunked`.
+
+    See `resolve_chunked`."""
+    from vectorbt._settings import settings
+    chunking_cfg = settings['chunking']
+
+    if option is None:
+        option = chunking_cfg['option']
+
+    if option is None:
+        return None
+    if isinstance(option, bool) and not option:
+        return None
+    if isinstance(option, dict):
+        return option
+    elif isinstance(option, str):
+        return dict(engine=option)
+    elif isinstance(option, bool):
+        return dict()
+    raise TypeError(f"Type {type(option)} is not supported for chunking")
+
+
 def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption = None, **kwargs) -> tp.Callable:
     """Decorate with `chunked` based on an option.
 
@@ -955,22 +978,13 @@ def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption = None, **kwargs
     from vectorbt._settings import settings
     chunking_cfg = settings['chunking']
 
-    if option is None:
-        option = chunking_cfg['option']
+    chunked_kwargs = resolve_chunked_option(option)
 
-    if option is not None and not (isinstance(option, bool) and not option):
-        if isinstance(option, dict):
-            chunk_kwargs = option
-        elif isinstance(option, str):
-            chunk_kwargs = dict(engine=option)
-        elif isinstance(option, bool):
-            chunk_kwargs = dict()
-        else:
-            raise TypeError(f"Type {type(option)} is not supported for chunking")
+    if option is not None:
         if isinstance(chunking_cfg['option'], dict):
-            chunk_kwargs = merge_dicts(chunking_cfg['option'], kwargs, chunk_kwargs)
+            chunk_kwargs = merge_dicts(chunking_cfg['option'], kwargs, chunked_kwargs)
         else:
-            chunk_kwargs = merge_dicts(kwargs, chunk_kwargs)
+            chunk_kwargs = merge_dicts(kwargs, chunked_kwargs)
         return chunked(func, **chunk_kwargs)
     return func
 
