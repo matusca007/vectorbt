@@ -7,7 +7,6 @@ import numpy as np
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import Config
-from vectorbt.utils.template import Rep
 from vectorbt.utils.chunking import (
     ArgGetterMixin,
     ChunkMeta,
@@ -17,8 +16,7 @@ from vectorbt.utils.chunking import (
     CountAdapter,
     ShapeSlicer,
     ArraySlicer,
-    ChunkMapper,
-    ann_argsT
+    ChunkMapper
 )
 
 n_cols_config = Config(
@@ -63,7 +61,7 @@ arr_ax1_config = Config(
 
 
 def get_group_lens_slice(group_lens: tp.Array1d, chunk_meta: ChunkMeta) -> slice:
-    """Slice elements corresponding to group lengths."""
+    """Get slice of each chunk in group lengths."""
     group_lens_cumsum = np.cumsum(group_lens[:chunk_meta.end])
     start = group_lens_cumsum[chunk_meta.start] - group_lens[chunk_meta.start]
     end = group_lens_cumsum[-1]
@@ -73,11 +71,11 @@ def get_group_lens_slice(group_lens: tp.Array1d, chunk_meta: ChunkMeta) -> slice
 class GroupLensMapper(ChunkMapper, ArgGetterMixin):
     """Class for mapping chunk metadata using group lengths."""
 
-    def __init__(self, arg: tp.Union[str, int]) -> None:
+    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
         ChunkMapper.__init__(self)
-        ArgGetterMixin.__init__(self, arg)
+        ArgGetterMixin.__init__(self, arg_query)
 
-    def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[ann_argsT] = None, **kwargs) -> ChunkMeta:
+    def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> ChunkMeta:
         group_lens = self.get_arg(ann_args)
         group_lens_slice = get_group_lens_slice(group_lens, chunk_meta)
         return ChunkMeta(
@@ -97,45 +95,21 @@ group_lens_config = Config(
 """Config for slicing group lengths."""
 
 arr_group_lens_config = Config(
-    dict(
-        arg_take_spec={'arr': ArraySlicer(1, mapper=GroupLensMapper('group_lens'))}
-    )
+    dict(arg_take_spec={'arr': ArraySlicer(1, mapper=GroupLensMapper('group_lens'))})
 )
 """Config for slicing an array based on group lengths."""
 
 hstack_config = Config(
-    dict(
-        merge_func=np.hstack
-    )
+    dict(merge_func=np.hstack)
 )
 """Config for merging arrays through horizontal stacking (column-wise)."""
 
 vstack_config = Config(
-    dict(
-        merge_func=np.vstack
-    )
+    dict(merge_func=np.vstack)
 )
 """Config for merging arrays through vertical stacking (row-wise)."""
 
 concat_config = Config(
-    dict(
-        merge_func=np.concatenate
-    )
+    dict(merge_func=np.concatenate)
 )
 """Config for merging arrays through concatenating."""
-
-
-def merge_arr_records(results: tp.List[tp.RecordArray], chunk_meta: ChunkMeta) -> tp.RecordArray:
-    """Merge chunks of record arrays given they were generated from an array."""
-    for _chunk_meta in chunk_meta:
-        results[_chunk_meta.idx]['col'] += _chunk_meta.start
-    return np.concatenate(results)
-
-
-merge_arr_records_config = Config(
-    dict(
-        merge_func=merge_arr_records,
-        merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
-    )
-)
-"""Config for merging using `merge_arr_records`."""

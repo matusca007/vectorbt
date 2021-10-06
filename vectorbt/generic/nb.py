@@ -2090,36 +2090,49 @@ def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     return repartition_nb(new_records, counts)
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the drawdown of each drawdown record."""
-    return (valley_val_arr - peak_val_arr) / peak_val_arr
+    out = np.empty(valley_val_arr.shape[0], dtype=np.float_)
+    for r in prange(valley_val_arr.shape[0]):
+        out[r] = (valley_val_arr[r] - peak_val_arr[r]) / peak_val_arr[r]
+    return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the duration of the peak-to-valley phase of each drawdown record."""
-    return valley_idx_arr - start_idx_arr + 1
+    out = np.empty(valley_idx_arr.shape[0], dtype=np.float_)
+    for r in prange(valley_idx_arr.shape[0]):
+        out[r] = valley_idx_arr[r] - start_idx_arr[r] + 1
+    return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d,
                             end_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the duration of the valley-to-recovery phase of each drawdown record."""
-    return end_idx_arr - valley_idx_arr
+    out = np.empty(end_idx_arr.shape[0], dtype=np.float_)
+    for r in prange(end_idx_arr.shape[0]):
+        out[r] = end_idx_arr[r] - valley_idx_arr[r]
+    return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
                                   valley_idx_arr: tp.Array1d,
                                   end_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the ratio of the recovery duration to the decline duration of each drawdown record."""
-    recovery_duration = dd_recovery_duration_nb(valley_idx_arr, end_idx_arr)
-    decline_duration = dd_decline_duration_nb(start_idx_arr, valley_idx_arr)
-    return recovery_duration / decline_duration
+    out = np.empty(start_idx_arr.shape[0], dtype=np.float_)
+    for r in prange(start_idx_arr.shape[0]):
+        out[r] = (end_idx_arr[r] - valley_idx_arr[r]) / (valley_idx_arr[r] - start_idx_arr[r] + 1)
+    return out
 
 
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_return_nb(valley_val_arr: tp.Array1d, end_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the recovery return of each drawdown record."""
-    return (end_val_arr - valley_val_arr) / valley_val_arr
+    out = np.empty(end_val_arr.shape[0], dtype=np.float_)
+    for r in prange(end_val_arr.shape[0]):
+        out[r] = (end_val_arr[r] - valley_val_arr[r]) / valley_val_arr[r]
+    return out

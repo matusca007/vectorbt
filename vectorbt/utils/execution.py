@@ -289,11 +289,8 @@ class RayEngine(ExecutionEngine):
         return results
 
 
-engineT = tp.Union[str, type, ExecutionEngine, tp.Callable]
-
-
 def execute(funcs_args: tp.Iterable[funcs_argsT],
-            engine: engineT = SequenceEngine,
+            engine: tp.EngineLike = SequenceEngine,
             n_calls: tp.Optional[int] = None,
             **kwargs) -> list:
     """Execute using an engine.

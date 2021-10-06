@@ -2690,7 +2690,7 @@ class TestParsing:
             }
         )
 
-    def test_get_from_ann_args(self):
+    def test_match_ann_arg(self):
         def f(a, *args, b=2, **kwargs):
             pass
 
@@ -2699,17 +2699,18 @@ class TestParsing:
 
         ann_args = parsing.annotate_args(f, 0, 1, c=3)
 
-        assert parsing.get_from_ann_args(ann_args, i=0) == 0
-        assert parsing.get_from_ann_args(ann_args, name='a') == 0
-        assert parsing.get_from_ann_args(ann_args, i=1) == 1
-        assert parsing.get_from_ann_args(ann_args, i=2) == 2
-        assert parsing.get_from_ann_args(ann_args, name='b') == 2
-        assert parsing.get_from_ann_args(ann_args, i=3) == 3
-        assert parsing.get_from_ann_args(ann_args, name='c') == 3
+        assert parsing.match_ann_arg(ann_args, 0) == 0
+        assert parsing.match_ann_arg(ann_args, 'a') == 0
+        assert parsing.match_ann_arg(ann_args, 1) == 1
+        assert parsing.match_ann_arg(ann_args, 2) == 2
+        assert parsing.match_ann_arg(ann_args, 'b') == 2
+        assert parsing.match_ann_arg(ann_args, '(a|b)') == 0
+        assert parsing.match_ann_arg(ann_args, 3) == 3
+        assert parsing.match_ann_arg(ann_args, 'c') == 3
         with pytest.raises(Exception):
-            _ = parsing.get_from_ann_args(ann_args, i=4)
+            _ = parsing.match_ann_arg(ann_args, 4)
         with pytest.raises(Exception):
-            _ = parsing.get_from_ann_args(ann_args, name='d')
+            _ = parsing.match_ann_arg(ann_args, 'd')
 
     def test_get_context_vars(self):
         a = 1

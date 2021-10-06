@@ -1506,6 +1506,10 @@ class TestRecords:
             records.map(map_func_nb, nb_parallel=False).values
         )
         np.testing.assert_array_equal(
+            records.map(map_func_nb, chunked=True).values,
+            records.map(map_func_nb, chunked=False).values
+        )
+        np.testing.assert_array_equal(
             records.__class__.map(map_func_meta_nb, records.values, col_mapper=records.col_mapper).values,
             records.map(map_func_nb).values
         )
@@ -1516,6 +1520,15 @@ class TestRecords:
             records.__class__.map(
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, nb_parallel=False).values
+        )
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0))))
+        np.testing.assert_array_equal(
+            records.__class__.map(
+                map_func_meta_nb, records.values,
+                col_mapper=records.col_mapper, chunked=count_chunked).values,
+            records.__class__.map(
+                map_func_meta_nb, records.values,
+                col_mapper=records.col_mapper, chunked=False).values
         )
 
     def test_map_array(self):
@@ -1565,6 +1578,10 @@ class TestRecords:
             records.apply(cumsum_apply_nb, nb_parallel=False).values
         )
         np.testing.assert_array_equal(
+            records.apply(cumsum_apply_nb, chunked=True).values,
+            records.apply(cumsum_apply_nb, chunked=False).values
+        )
+        np.testing.assert_array_equal(
             records.__class__.apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values,
             records.apply(cumsum_apply_nb).values
         )
@@ -1575,6 +1592,15 @@ class TestRecords:
             records.__class__.apply(
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, nb_parallel=False).values
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        np.testing.assert_array_equal(
+            records.__class__.apply(
+                cumsum_apply_meta_nb, records.values,
+                col_mapper=records.col_mapper, chunked=chunked).values,
+            records.__class__.apply(
+                cumsum_apply_meta_nb, records.values,
+                col_mapper=records.col_mapper, chunked=False).values
         )
 
     def test_count(self):
@@ -1904,6 +1930,10 @@ class TestRanges:
             ranges.to_mask(nb_parallel=True),
             ranges.to_mask(nb_parallel=False)
         )
+        pd.testing.assert_frame_equal(
+            ranges.to_mask(chunked=True),
+            ranges.to_mask(chunked=False)
+        )
 
     def test_duration(self):
         np.testing.assert_array_equal(
@@ -1917,6 +1947,10 @@ class TestRanges:
         np.testing.assert_array_equal(
             ranges.get_duration(nb_parallel=True).values,
             ranges.get_duration(nb_parallel=False).values,
+        )
+        np.testing.assert_array_equal(
+            ranges.get_duration(chunked=True).values,
+            ranges.get_duration(chunked=False).values,
         )
 
     def test_avg_duration(self):
@@ -1935,6 +1969,14 @@ class TestRanges:
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_duration')
         )
+        pd.testing.assert_series_equal(
+            ranges.avg_duration(nb_parallel=True),
+            ranges.avg_duration(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            ranges.avg_duration(chunked=True),
+            ranges.avg_duration(chunked=False)
+        )
 
     def test_max_duration(self):
         assert ranges['a'].max_duration() == pd.Timedelta('1 days 00:00:00')
@@ -1951,6 +1993,14 @@ class TestRanges:
                 np.array([259200000000000, 259200000000000], dtype='timedelta64[ns]'),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_duration')
+        )
+        pd.testing.assert_series_equal(
+            ranges.max_duration(nb_parallel=True),
+            ranges.max_duration(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            ranges.max_duration(chunked=True),
+            ranges.max_duration(chunked=False)
         )
 
     def test_coverage(self):
@@ -2001,6 +2051,10 @@ class TestRanges:
         pd.testing.assert_series_equal(
             ranges.coverage(nb_parallel=True),
             ranges.coverage(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            ranges.coverage(chunked=True),
+            ranges.coverage(chunked=False)
         )
 
     def test_stats(self):
@@ -2233,6 +2287,14 @@ class TestDrawdowns:
                 columns=ts2.columns
             )
         )
+        np.testing.assert_array_equal(
+            drawdowns.get_drawdown(nb_parallel=True).values,
+            drawdowns.get_drawdown(nb_parallel=False).values
+        )
+        np.testing.assert_array_equal(
+            drawdowns.get_drawdown(chunked=True).values,
+            drawdowns.get_drawdown(chunked=False).values
+        )
 
     def test_avg_drawdown(self):
         assert drawdowns['a'].avg_drawdown() == -0.6388888888888888
@@ -2250,6 +2312,14 @@ class TestDrawdowns:
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_drawdown')
         )
+        pd.testing.assert_series_equal(
+            drawdowns.avg_drawdown(nb_parallel=True),
+            drawdowns.avg_drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.avg_drawdown(chunked=True),
+            drawdowns.avg_drawdown(chunked=False)
+        )
 
     def test_max_drawdown(self):
         assert drawdowns['a'].max_drawdown() == -0.75
@@ -2266,6 +2336,14 @@ class TestDrawdowns:
                 np.array([-0.75, -0.6666666666666666]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_drawdown')
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.max_drawdown(nb_parallel=True),
+            drawdowns.max_drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.max_drawdown(chunked=True),
+            drawdowns.max_drawdown(chunked=False)
         )
 
     def test_recovery_return(self):
@@ -2292,6 +2370,14 @@ class TestDrawdowns:
                 columns=ts2.columns
             )
         )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_return(nb_parallel=True).values,
+            drawdowns.get_recovery_return(nb_parallel=False).values
+        )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_return(chunked=True).values,
+            drawdowns.get_recovery_return(chunked=False).values
+        )
 
     def test_avg_recovery_return(self):
         assert drawdowns['a'].avg_recovery_return() == 1.6666666666666667
@@ -2309,6 +2395,14 @@ class TestDrawdowns:
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_recovery_return')
         )
+        pd.testing.assert_series_equal(
+            drawdowns.avg_recovery_return(nb_parallel=True),
+            drawdowns.avg_recovery_return(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.avg_recovery_return(chunked=True),
+            drawdowns.avg_recovery_return(chunked=False)
+        )
 
     def test_max_recovery_return(self):
         assert drawdowns['a'].max_recovery_return() == 3.0
@@ -2325,6 +2419,14 @@ class TestDrawdowns:
                 np.array([3.0, 1.0]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_recovery_return')
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.max_recovery_return(nb_parallel=True),
+            drawdowns.max_recovery_return(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.max_recovery_return(chunked=True),
+            drawdowns.max_recovery_return(chunked=False)
         )
 
     def test_duration(self):
@@ -2370,6 +2472,14 @@ class TestDrawdowns:
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_duration')
         )
+        pd.testing.assert_series_equal(
+            drawdowns.max_duration(nb_parallel=True),
+            drawdowns.max_duration(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.max_duration(chunked=True),
+            drawdowns.max_duration(chunked=False)
+        )
 
     def test_coverage(self):
         assert drawdowns['a'].coverage() == 0.5
@@ -2407,6 +2517,14 @@ class TestDrawdowns:
             drawdowns.recovery_duration.values,
             np.array([1, 1, 0, 1, 1, 1])
         )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_duration(nb_parallel=True).values,
+            drawdowns.get_recovery_duration(nb_parallel=False).values
+        )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_duration(chunked=True).values,
+            drawdowns.get_recovery_duration(chunked=False).values
+        )
 
     def test_recovery_duration_ratio(self):
         np.testing.assert_array_almost_equal(
@@ -2416,6 +2534,14 @@ class TestDrawdowns:
         np.testing.assert_array_almost_equal(
             drawdowns.recovery_duration_ratio.values,
             np.array([1., 1., 0., 1., 1., 0.5])
+        )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_duration_ratio(nb_parallel=True).values,
+            drawdowns.get_recovery_duration_ratio(nb_parallel=False).values
+        )
+        np.testing.assert_array_equal(
+            drawdowns.get_recovery_duration_ratio(chunked=True).values,
+            drawdowns.get_recovery_duration_ratio(chunked=False).values
         )
 
     def test_active_records(self):
@@ -2470,6 +2596,14 @@ class TestDrawdowns:
         )
         with pytest.raises(Exception):
             drawdowns_grouped.active_drawdown()
+        pd.testing.assert_series_equal(
+            drawdowns.active_drawdown(nb_parallel=True),
+            drawdowns.active_drawdown(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.active_drawdown(chunked=True),
+            drawdowns.active_drawdown(chunked=False)
+        )
 
     def test_active_duration(self):
         assert drawdowns['a'].active_duration() == np.timedelta64(86400000000000)
@@ -2482,6 +2616,14 @@ class TestDrawdowns:
         )
         with pytest.raises(Exception):
             drawdowns_grouped.active_duration()
+        pd.testing.assert_series_equal(
+            drawdowns.active_duration(nb_parallel=True),
+            drawdowns.active_duration(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.active_duration(chunked=True),
+            drawdowns.active_duration(chunked=False)
+        )
 
     def test_active_recovery(self):
         assert drawdowns['a'].active_recovery() == 0.
@@ -2494,6 +2636,14 @@ class TestDrawdowns:
         )
         with pytest.raises(Exception):
             drawdowns_grouped.active_recovery()
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery(nb_parallel=True),
+            drawdowns.active_recovery(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery(chunked=True),
+            drawdowns.active_recovery(chunked=False)
+        )
 
     def test_active_recovery_return(self):
         assert drawdowns['a'].active_recovery_return() == 0.
@@ -2506,6 +2656,14 @@ class TestDrawdowns:
         )
         with pytest.raises(Exception):
             drawdowns_grouped.active_recovery_return()
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery_return(nb_parallel=True),
+            drawdowns.active_recovery_return(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery_return(chunked=True),
+            drawdowns.active_recovery_return(chunked=False)
+        )
 
     def test_active_recovery_duration(self):
         assert drawdowns['a'].active_recovery_duration() == pd.Timedelta('0 days 00:00:00')
@@ -2518,6 +2676,14 @@ class TestDrawdowns:
         )
         with pytest.raises(Exception):
             drawdowns_grouped.active_recovery_duration()
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery_duration(nb_parallel=True),
+            drawdowns.active_recovery_duration(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            drawdowns.active_recovery_duration(chunked=True),
+            drawdowns.active_recovery_duration(chunked=False)
+        )
 
     def test_stats(self):
         stats_index = pd.Index([
@@ -2902,6 +3068,10 @@ class TestExitTrades:
         record_arrays_close(
             vbt.ExitTrades.from_orders(orders, nb_parallel=True).values,
             vbt.ExitTrades.from_orders(orders, nb_parallel=False).values
+        )
+        record_arrays_close(
+            vbt.ExitTrades.from_orders(orders, chunked=True).values,
+            vbt.ExitTrades.from_orders(orders, chunked=False).values
         )
 
     def test_records_readable(self):
@@ -3414,6 +3584,10 @@ class TestEntryTrades:
             vbt.EntryTrades.from_orders(orders, nb_parallel=True).values,
             vbt.EntryTrades.from_orders(orders, nb_parallel=False).values
         )
+        record_arrays_close(
+            vbt.EntryTrades.from_orders(orders, chunked=True).values,
+            vbt.EntryTrades.from_orders(orders, chunked=False).values
+        )
 
     def test_records_readable(self):
         records_readable = entry_trades.records_readable
@@ -3467,8 +3641,16 @@ class TestPositions:
             vbt.Positions.from_trades(entry_trades, nb_parallel=False).values
         )
         record_arrays_close(
+            vbt.Positions.from_trades(entry_trades, chunked=True).values,
+            vbt.Positions.from_trades(entry_trades, chunked=False).values
+        )
+        record_arrays_close(
             vbt.Positions.from_trades(exit_trades, nb_parallel=True).values,
             vbt.Positions.from_trades(exit_trades, nb_parallel=False).values
+        )
+        record_arrays_close(
+            vbt.Positions.from_trades(exit_trades, chunked=True).values,
+            vbt.Positions.from_trades(exit_trades, chunked=False).values
         )
 
     def test_records_readable(self):

@@ -9,13 +9,14 @@ import inspect
 import multiprocessing
 from functools import wraps
 import warnings
+import re
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.utils.parsing import annotate_args, ann_argsT, get_from_ann_args, get_func_arg_names
+from vectorbt.utils.parsing import annotate_args, match_ann_arg, get_func_arg_names
 from vectorbt.utils.template import deep_substitute, Rep
-from vectorbt.utils.execution import funcs_argsT, engineT, execute
+from vectorbt.utils.execution import funcs_argsT, execute
 
 __pdoc__ = {}
 
@@ -44,19 +45,17 @@ Has priority over `ChunkMeta.start` and `ChunkMeta.end`."""
 class ArgGetterMixin:
     """Class for getting an argument from annotated arguments."""
 
-    def __init__(self, arg: tp.Union[str, int]) -> None:
-        self._arg = arg
+    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
+        self._arg_query = arg_query
 
     @property
-    def arg(self) -> tp.Union[str, int]:
-        """Argument position or name to derive the size from."""
-        return self._arg
+    def arg_query(self) -> tp.AnnArgQuery:
+        """Query for annotated argument to derive the size from."""
+        return self._arg_query
 
-    def get_arg(self, ann_args: ann_argsT) -> tp.Any:
-        """Get argument using `vectorbt.utils.parsing.get_from_ann_args`."""
-        if isinstance(self.arg, int):
-            return get_from_ann_args(ann_args, i=self.arg)
-        return get_from_ann_args(ann_args, name=self.arg)
+    def get_arg(self, ann_args: tp.AnnArgs) -> tp.Any:
+        """Get argument using `vectorbt.utils.parsing.match_ann_arg`."""
+        return match_ann_arg(ann_args, self.arg_query)
 
 
 class AxisMixin:
@@ -91,7 +90,7 @@ class DimRetainerMixin:
 class Sizer:
     """Abstract class for getting the size from annotated arguments."""
 
-    def get_size(self, ann_args: ann_argsT) -> int:
+    def get_size(self, ann_args: tp.AnnArgs) -> int:
         """Get the size given the annotated arguments."""
         raise NotImplementedError
 
@@ -99,29 +98,29 @@ class Sizer:
 class ArgSizer(Sizer, ArgGetterMixin):
     """Class for getting the size from an argument."""
 
-    def __init__(self, arg: tp.Union[str, int]) -> None:
+    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
         Sizer.__init__(self)
-        ArgGetterMixin.__init__(self, arg)
+        ArgGetterMixin.__init__(self, arg_query)
 
-    def get_size(self, ann_args: ann_argsT) -> int:
+    def get_size(self, ann_args: tp.AnnArgs) -> int:
         return self.get_arg(ann_args)
 
 
 class LenSizer(ArgSizer):
     """Class for getting the size from the length of an argument."""
 
-    def get_size(self, ann_args: ann_argsT) -> int:
+    def get_size(self, ann_args: tp.AnnArgs) -> int:
         return len(self.get_arg(ann_args))
 
 
 class ShapeSizer(ArgSizer, AxisMixin):
     """Class for getting the size from the length of an axis in a shape."""
 
-    def __init__(self, arg: tp.Union[str, int], axis: int) -> None:
-        ArgSizer.__init__(self, arg)
+    def __init__(self, arg_query: tp.AnnArgQuery, axis: int) -> None:
+        ArgSizer.__init__(self, arg_query)
         AxisMixin.__init__(self, axis)
 
-    def get_size(self, ann_args: ann_argsT) -> int:
+    def get_size(self, ann_args: tp.AnnArgs) -> int:
         arg = self.get_arg(ann_args)
         if self.axis <= len(arg) - 1:
             return arg[self.axis]
@@ -131,7 +130,7 @@ class ShapeSizer(ArgSizer, AxisMixin):
 class ArraySizer(ShapeSizer):
     """Class for getting the size from the length of an axis in an array."""
 
-    def get_size(self, ann_args: ann_argsT) -> int:
+    def get_size(self, ann_args: tp.AnnArgs) -> int:
         arg = self.get_arg(ann_args)
         if self.axis <= len(arg.shape) - 1:
             return arg.shape[self.axis]
@@ -212,7 +211,7 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
 class ChunkMetaGenerator:
     """Abstract class for generating chunk metadata from annotated arguments."""
 
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+    def get_chunk_meta(self, ann_args: tp.AnnArgs) -> tp.Iterable[ChunkMeta]:
         """Get chunk metadata."""
         raise NotImplementedError
 
@@ -220,18 +219,18 @@ class ChunkMetaGenerator:
 class ArgChunkMeta(ChunkMetaGenerator, ArgGetterMixin):
     """Class for generating chunk metadata from an argument."""
 
-    def __init__(self, arg: tp.Union[str, int]) -> None:
+    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
         ChunkMetaGenerator.__init__(self)
-        ArgGetterMixin.__init__(self, arg)
+        ArgGetterMixin.__init__(self, arg_query)
 
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+    def get_chunk_meta(self, ann_args: tp.AnnArgs) -> tp.Iterable[ChunkMeta]:
         return self.get_arg(ann_args)
 
 
 class LenChunkMeta(ArgChunkMeta):
     """Class for generating chunk metadata from a sequence of chunk lengths."""
 
-    def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
+    def get_chunk_meta(self, ann_args: tp.AnnArgs) -> tp.Iterable[ChunkMeta]:
         arg = self.get_arg(ann_args)
         start = 0
         end = 0
@@ -246,16 +245,12 @@ class LenChunkMeta(ArgChunkMeta):
             start = end
 
 
-any_sizeT = tp.Union[int, Sizer, tp.Callable]
-any_chunk_metaT = tp.Union[tp.Iterable[ChunkMeta], ChunkMetaGenerator, tp.Callable]
-
-
-def get_chunk_meta_from_args(ann_args: ann_argsT,
-                             n_chunks: tp.Optional[any_sizeT] = None,
-                             size: tp.Optional[any_sizeT] = None,
+def get_chunk_meta_from_args(ann_args: tp.AnnArgs,
+                             n_chunks: tp.Optional[tp.SizeLike] = None,
+                             size: tp.Optional[tp.SizeLike] = None,
                              min_size: tp.Optional[int] = None,
-                             chunk_len: tp.Optional[any_sizeT] = None,
-                             chunk_meta: tp.Optional[any_chunk_metaT] = None) -> tp.Iterable[ChunkMeta]:
+                             chunk_len: tp.Optional[tp.SizeLike] = None,
+                             chunk_meta: tp.Optional[tp.ChunkMetaLike] = None) -> tp.Iterable[ChunkMeta]:
     """Get chunk metadata from annotated arguments.
 
     Args:
@@ -473,25 +468,18 @@ class ArraySlicer(ShapeSlicer):
         return obj[tuple(slc)]
 
 
-TakeSpecT = tp.Union[None, ChunkTaker]
-MappingTakeSpecT = tp.Mapping[tp.Union[str, int], TakeSpecT]
-SequenceTakeSpecT = tp.Sequence[TakeSpecT]
-ContainerTakeSpecT = tp.Union[MappingTakeSpecT, SequenceTakeSpecT]
-ArgTakeSpecT = MappingTakeSpecT
-
-
 class ContainerTaker(ChunkTaker):
     """Class for taking from a container with other chunk takers.
 
     Accepts the specification of the container."""
 
-    def __init__(self, cont_take_spec: ContainerTakeSpecT, mapper: tp.Optional[ChunkMapper] = None) -> None:
+    def __init__(self, cont_take_spec: tp.ContainerTakeSpec, mapper: tp.Optional[ChunkMapper] = None) -> None:
         ChunkTaker.__init__(self, mapper=mapper)
 
         self._cont_take_spec = cont_take_spec
 
     @property
-    def cont_take_spec(self) -> ContainerTakeSpecT:
+    def cont_take_spec(self) -> tp.ContainerTakeSpec:
         """Specification of the container."""
         return self._cont_take_spec
 
@@ -543,7 +531,7 @@ class KwargsTaker(MappingTaker):
         MappingTaker.__init__(self, kwargs)
 
 
-def take_from_arg(arg: tp.Any, take_spec: TakeSpecT, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
+def take_from_arg(arg: tp.Any, take_spec: tp.TakeSpec, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
     """Take from the argument given the specification `take_spec`.
 
     If `take_spec` is None, returns the original object. Otherwise, must be an instance of `ChunkTaker`.
@@ -556,8 +544,8 @@ def take_from_arg(arg: tp.Any, take_spec: TakeSpecT, chunk_meta: ChunkMeta, **kw
     raise TypeError(f"Specification of type {type(take_spec)} is not supported")
 
 
-def take_from_args(ann_args: ann_argsT,
-                   arg_take_spec: ArgTakeSpecT,
+def take_from_args(ann_args: tp.AnnArgs,
+                   arg_take_spec: tp.ArgTakeSpec,
                    chunk_meta: ChunkMeta) -> tp.Tuple[tp.Args, tp.Kwargs]:
     """Take from each in the annotated arguments given the specification using `take_from_arg`.
 
@@ -571,15 +559,17 @@ def take_from_args(ann_args: ann_argsT,
     new_args = ()
     new_kwargs = dict()
     for i, (arg_name, ann_arg) in enumerate(ann_args.items()):
-        if arg_name in arg_take_spec:
-            take_spec = arg_take_spec[arg_name]
-        elif i in arg_take_spec:
-            take_spec = arg_take_spec[i]
-        else:
-            take_spec = None
+        found_take_spec = None
+        for take_spec_name, take_spec in arg_take_spec.items():
+            if isinstance(take_spec_name, int):
+                if take_spec_name == i:
+                    found_take_spec = take_spec
+            else:
+                if re.match(take_spec_name, arg_name):
+                    found_take_spec = take_spec
         result = take_from_arg(
             ann_arg['value'],
-            take_spec,
+            found_take_spec,
             chunk_meta,
             ann_args=ann_args,
             arg_take_spec=arg_take_spec
@@ -598,9 +588,9 @@ def take_from_args(ann_args: ann_argsT,
 
 
 def yield_arg_chunks(func: tp.Callable,
-                     ann_args: ann_argsT,
+                     ann_args: tp.AnnArgs,
                      chunk_meta: tp.Iterable[ChunkMeta],
-                     arg_take_spec: tp.Optional[tp.Union[ArgTakeSpecT, tp.Callable]] = None,
+                     arg_take_spec: tp.Optional[tp.Union[tp.ArgTakeSpec, tp.Callable]] = None,
                      template_mapping: tp.Optional[tp.Mapping] = None) -> tp.Generator[funcs_argsT, None, None]:
     """Split annotated arguments into chunks and yield each chunk.
 
@@ -634,18 +624,18 @@ def yield_arg_chunks(func: tp.Callable,
 
 
 def chunked(*args,
-            n_chunks: tp.Optional[any_sizeT] = None,
-            size: tp.Optional[any_sizeT] = None,
+            n_chunks: tp.Optional[tp.SizeLike] = None,
+            size: tp.Optional[tp.SizeLike] = None,
             min_size: tp.Optional[int] = None,
-            chunk_len: tp.Optional[any_sizeT] = None,
-            chunk_meta: tp.Optional[any_chunk_metaT] = None,
+            chunk_len: tp.Optional[tp.SizeLike] = None,
+            chunk_meta: tp.Optional[tp.ChunkMetaLike] = None,
             skip_one_chunk: tp.Optional[bool] = None,
-            arg_take_spec: tp.Optional[tp.Union[ArgTakeSpecT, tp.Callable]] = None,
+            arg_take_spec: tp.Optional[tp.Union[tp.ArgTakeSpec, tp.Callable]] = None,
             template_mapping: tp.Optional[tp.Mapping] = None,
             prepend_chunk_meta: tp.Optional[bool] = None,
             merge_func: tp.Optional[tp.Callable] = None,
             merge_kwargs: tp.KwargsLike = None,
-            engine: engineT = None,
+            engine: tp.EngineLike = None,
             **engine_kwargs) -> tp.Callable:
     """Decorator that chunks the function. Engine-agnostic.
     Returns a new function with the same signature as the passed one.

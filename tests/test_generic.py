@@ -929,10 +929,10 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
-                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, chunked=size_chunked),
+                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, chunked=count_chunked),
             pd.DataFrame.vbt.reduce(
                 sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, chunked=False),
         )
@@ -1013,10 +1013,10 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
-                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=size_chunked),
+                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=count_chunked),
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=False)
         )
@@ -1107,11 +1107,11 @@ class TestAccessors:
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
-                wrapper=df.vbt.wrapper, chunked=size_chunked),
+                wrapper=df.vbt.wrapper, chunked=count_chunked),
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, chunked=False)
@@ -1225,11 +1225,11 @@ class TestAccessors:
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 returns_array=True, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
-                returns_array=True, wrapper=df.vbt.wrapper, chunked=size_chunked),
+                returns_array=True, wrapper=df.vbt.wrapper, chunked=count_chunked),
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 returns_array=True, wrapper=df.vbt.wrapper, chunked=False)

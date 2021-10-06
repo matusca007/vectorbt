@@ -662,7 +662,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.top_n_mapped_nb, nb_parallel)
         chunked_config = merge_dicts(
-            chunking.arr_config,
+            chunking.recarr_col_map_config,
             chunking.col_map_config,
             generic_chunking.concat_config
         )
@@ -677,7 +677,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, nb_parallel)
         chunked_config = merge_dicts(
-            chunking.arr_config,
+            chunking.recarr_col_map_config,
             chunking.col_map_config,
             generic_chunking.concat_config
         )
@@ -795,7 +795,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             func = nb_registry.redecorate_parallel(nb.apply_on_mapped_meta_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.col_map_config,
-                chunking.arr_len_config,
+                chunking.recarr_len_col_map_config,
                 generic_chunking.concat_config
             )
             func = resolve_chunked(func, chunked, **chunked_config)
@@ -806,7 +806,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
             func = nb_registry.redecorate_parallel(nb.apply_on_mapped_nb, nb_parallel)
             chunked_config = merge_dicts(
-                chunking.arr_config,
+                chunking.recarr_col_map_config,
                 chunking.col_map_config,
                 generic_chunking.concat_config
             )
@@ -880,7 +880,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_to_idx_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.concat_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -909,7 +909,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_to_idx_array_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.hstack_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -934,7 +934,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.concat_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -951,7 +951,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_to_idx_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.concat_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -969,7 +969,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_to_array_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.hstack_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -986,7 +986,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                         nb.reduce_mapped_to_idx_array_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
-                        chunking.arr_config,
+                        chunking.recarr_col_map_config,
                         generic_chunking.hstack_config
                     )
                     func = resolve_chunked(func, chunked, **chunked_config)
@@ -1305,7 +1305,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             func = nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.col_map_config,
-                chunking.arr_config,
+                chunking.recarr_col_map_config,
                 generic_chunking.hstack_config
             )
             func = resolve_chunked(func, chunked, **chunked_config)

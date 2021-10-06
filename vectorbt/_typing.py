@@ -161,5 +161,19 @@ Params = Union[List[Param], Tuple[Param, ...], NumbaList, Array1d]
 Enum = NamedTuple
 MappingLike = Union[str, Mapping, Enum, IndexLike]
 
+# Parsing
+AnnArgs = Dict[str, Kwargs]
+AnnArgQuery = Union[int, str]
+
+# Execution
+EngineLike = Union[str, type, 'ExecutionEngine', Callable]
+
 # Chunking
+SizeLike = Union[int, 'Sizer', Callable]
+ChunkMetaLike = Union[Iterable['ChunkMeta'], 'ChunkMetaGenerator', Callable]
+TakeSpec = Union[None, 'ChunkTaker']
+ArgTakeSpec = Dict[AnnArgQuery, TakeSpec]
+MappingTakeSpec = Mapping[Hashable, TakeSpec]
+SequenceTakeSpec = Sequence[TakeSpec]
+ContainerTakeSpec = Union[MappingTakeSpec, SequenceTakeSpec]
 ChunkedOption = Union[None, bool, str, Kwargs]

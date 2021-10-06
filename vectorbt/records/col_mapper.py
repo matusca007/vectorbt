@@ -34,7 +34,7 @@ class ColumnMapper(Wrapping):
         if self.is_sorted():
             new_indices, new_col_arr = nb.col_range_select_nb(self.col_range, to_1d_array(col_idxs))  # faster
         else:
-            new_indices, new_col_arr = nb.col_map_select_nb(self.col_map, to_1d_array(col_idxs))
+            new_indices, new_col_arr = nb.col_map_select_nb(self.col_map, to_1d_array(col_idxs))  # more flexible
         return new_indices, new_col_arr
 
     @property

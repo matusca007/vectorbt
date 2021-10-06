@@ -129,6 +129,7 @@ from vectorbt.generic import nb, chunking
 from vectorbt.records.base import Records
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records import chunking as records_chunking
 
 __pdoc__ = {}
 
@@ -261,10 +262,7 @@ class Ranges(Records):
             else:
                 gap_value = np.nan
         func = nb_registry.redecorate_parallel(nb.get_ranges_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            chunking.arr_ax1_config,
-            chunking.merge_arr_records_config
-        )
+        chunked_config = merge_dicts(chunking.arr_ax1_config, records_chunking.merge_records_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
@@ -275,13 +273,22 @@ class Ranges(Records):
         """Original time series that records are built from (optional)."""
         return self._ts
 
-    def to_mask(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
+    def to_mask(self,
+                group_by: tp.GroupByLike = None,
+                nb_parallel: tp.Optional[bool] = None,
+                chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Convert ranges to a mask.
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, nb_parallel)
+        chunked_config = merge_dicts(
+            records_chunking.recarr_col_map_config,
+            records_chunking.col_map_config,
+            chunking.hstack_config
+        )
+        func = resolve_chunked(func, chunked, **chunked_config)
         mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -291,9 +298,14 @@ class Ranges(Records):
         )
         return self.wrapper.wrap(mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    def get_duration(self, nb_parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
+    def get_duration(self,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
         func = nb_registry.redecorate_parallel(nb.range_duration_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -306,23 +318,46 @@ class Ranges(Records):
         """`Ranges.get_duration` with default arguments."""
         return self.get_duration()
 
-    def avg_duration(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-                     wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def avg_duration(self,
+                     group_by: tp.GroupByLike = None,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.MaybeSeries:
         """Average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
-        return self.get_duration(nb_parallel=nb_parallel).mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        duration = self.get_duration(nb_parallel=nb_parallel, chunked=chunked)
+        return duration.mean(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
-    def max_duration(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-                     wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def max_duration(self,
+                     group_by: tp.GroupByLike = None,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.MaybeSeries:
         """Maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
-        return self.get_duration(nb_parallel=nb_parallel).max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        duration = self.get_duration(nb_parallel=nb_parallel, chunked=chunked)
+        return duration.max(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     def coverage(self,
                  overlapping: bool = False,
                  normalize: bool = True,
                  group_by: tp.GroupByLike = None,
                  nb_parallel: tp.Optional[bool] = None,
+                 chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Coverage, that is, the number of steps that are covered by all ranges.
 
@@ -330,6 +365,13 @@ class Ranges(Records):
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
         func = nb_registry.redecorate_parallel(nb.range_coverage_nb, nb_parallel)
+        chunked_config = merge_dicts(
+            records_chunking.recarr_col_map_config,
+            records_chunking.col_map_config,
+            records_chunking.index_lens_config,
+            chunking.concat_config
+        )
+        func = resolve_chunked(func, chunked, **chunked_config)
         coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),

@@ -183,6 +183,7 @@ from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records import chunking as records_chunking
 
 __pdoc__ = {}
 
@@ -286,10 +287,7 @@ class Drawdowns(Ranges):
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
         func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            chunking.arr_ax1_config,
-            chunking.merge_arr_records_config
-        )
+        chunked_config = merge_dicts(chunking.arr_ax1_config, records_chunking.merge_records_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
@@ -302,11 +300,17 @@ class Drawdowns(Ranges):
 
     # ############# Drawdown ############# #
 
-    def get_drawdown(self, **kwargs) -> MappedArray:
+    def get_drawdown(self,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_drawdown_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        drawdown = nb.dd_drawdown_nb(
+        func = nb_registry.redecorate_parallel(nb.dd_drawdown_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
+        drawdown = func(
             self.get_field_arr('peak_val'),
             self.get_field_arr('valley_val')
         )
@@ -317,29 +321,57 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_drawdown` with default arguments."""
         return self.get_drawdown()
 
-    def avg_drawdown(self, group_by: tp.GroupByLike = None,
-                     wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def avg_drawdown(self,
+                     group_by: tp.GroupByLike = None,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.MaybeSeries:
         """Average drawdown (ADD).
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_drawdown'), wrap_kwargs)
-        return self.drawdown.mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        drawdown = self.get_drawdown(nb_parallel=nb_parallel, chunked=chunked)
+        return drawdown.mean(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
-    def max_drawdown(self, group_by: tp.GroupByLike = None,
-                     wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def max_drawdown(self,
+                     group_by: tp.GroupByLike = None,
+                     nb_parallel: tp.Optional[bool] = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.MaybeSeries:
         """Maximum drawdown (MDD).
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
-        return self.drawdown.min(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        drawdown = self.get_drawdown(nb_parallel=nb_parallel, chunked=chunked)
+        return drawdown.min(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     # ############# Recovery ############# #
 
-    def get_recovery_return(self, **kwargs) -> MappedArray:
+    def get_recovery_return(self,
+                            nb_parallel: tp.Optional[bool] = None,
+                            chunked: tp.ChunkedOption = None,
+                            **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_return_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        recovery_return = nb.dd_recovery_return_nb(
+        func = nb_registry.redecorate_parallel(nb.dd_recovery_return_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
+        recovery_return = func(
             self.get_field_arr('valley_val'),
             self.get_field_arr('end_val')
         )
@@ -350,29 +382,57 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_recovery_return` with default arguments."""
         return self.get_recovery_return()
 
-    def avg_recovery_return(self, group_by: tp.GroupByLike = None,
-                            wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def avg_recovery_return(self,
+                            group_by: tp.GroupByLike = None,
+                            nb_parallel: tp.Optional[bool] = None,
+                            chunked: tp.ChunkedOption = None,
+                            wrap_kwargs: tp.KwargsLike = None,
+                            **kwargs) -> tp.MaybeSeries:
         """Average recovery return.
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_recovery_return'), wrap_kwargs)
-        return self.recovery_return.mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        recovery_return = self.get_recovery_return(nb_parallel=nb_parallel, chunked=chunked)
+        return recovery_return.mean(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
-    def max_recovery_return(self, group_by: tp.GroupByLike = None,
-                            wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def max_recovery_return(self,
+                            group_by: tp.GroupByLike = None,
+                            nb_parallel: tp.Optional[bool] = None,
+                            chunked: tp.ChunkedOption = None,
+                            wrap_kwargs: tp.KwargsLike = None,
+                            **kwargs) -> tp.MaybeSeries:
         """Maximum recovery return.
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_recovery_return'), wrap_kwargs)
-        return self.recovery_return.max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        recovery_return = self.get_recovery_return(nb_parallel=nb_parallel, chunked=chunked)
+        return recovery_return.max(
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     # ############# Duration ############# #
 
-    def get_decline_duration(self, **kwargs) -> MappedArray:
+    def get_decline_duration(self,
+                             nb_parallel: tp.Optional[bool] = None,
+                             chunked: tp.ChunkedOption = None,
+                             **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_decline_duration_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        decline_duration = nb.dd_decline_duration_nb(
+        func = nb_registry.redecorate_parallel(nb.dd_decline_duration_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
+        decline_duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx')
         )
@@ -383,13 +443,19 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_decline_duration` with default arguments."""
         return self.get_decline_duration()
 
-    def get_recovery_duration(self, **kwargs) -> MappedArray:
+    def get_recovery_duration(self,
+                              nb_parallel: tp.Optional[bool] = None,
+                              chunked: tp.ChunkedOption = None,
+                              **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_nb`.
 
         A value higher than 1 means the recovery was slower than the decline.
 
         Takes into account both recovered and active drawdowns."""
-        recovery_duration = nb.dd_recovery_duration_nb(
+        func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
+        recovery_duration = func(
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
         )
@@ -400,11 +466,17 @@ class Drawdowns(Ranges):
         """`Drawdowns.get_recovery_duration` with default arguments."""
         return self.get_recovery_duration()
 
-    def get_recovery_duration_ratio(self, **kwargs) -> MappedArray:
+    def get_recovery_duration_ratio(self,
+                                    nb_parallel: tp.Optional[bool] = None,
+                                    chunked: tp.ChunkedOption = None,
+                                    **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_ratio_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        recovery_duration_ratio = nb.dd_recovery_duration_ratio_nb(
+        func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_ratio_nb, nb_parallel)
+        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
+        recovery_duration_ratio = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
@@ -418,7 +490,10 @@ class Drawdowns(Ranges):
 
     # ############# Status: Active ############# #
 
-    def active_drawdown(self, group_by: tp.GroupByLike = None,
+    def active_drawdown(self,
+                        group_by: tp.GroupByLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Drawdown of the last active drawdown only.
 
@@ -427,22 +502,36 @@ class Drawdowns(Ranges):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(name_or_index='active_drawdown'), wrap_kwargs)
         active = self.active
-        curr_end_val = active.end_val.nth(-1, group_by=group_by)
-        curr_peak_val = active.peak_val.nth(-1, group_by=group_by)
+        curr_end_val = active.end_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
         curr_drawdown = (curr_end_val - curr_peak_val) / curr_peak_val
         return self.wrapper.wrap_reduced(curr_drawdown, group_by=group_by, **wrap_kwargs)
 
-    def active_duration(self, group_by: tp.GroupByLike = None,
-                        wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def active_duration(self,
+                        group_by: tp.GroupByLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
+                        wrap_kwargs: tp.KwargsLike = None,
+                        **kwargs) -> tp.MaybeSeries:
         """Duration of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='active_duration'), wrap_kwargs)
-        return self.active.duration.nth(-1, group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.active.duration.nth(
+            -1,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            group_by=group_by,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
-    def active_recovery(self, group_by: tp.GroupByLike = None,
+    def active_recovery(self,
+                        group_by: tp.GroupByLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Recovery of the last active drawdown only.
 
@@ -451,31 +540,53 @@ class Drawdowns(Ranges):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(name_or_index='active_recovery'), wrap_kwargs)
         active = self.active
-        curr_peak_val = active.peak_val.nth(-1, group_by=group_by)
-        curr_end_val = active.end_val.nth(-1, group_by=group_by)
-        curr_valley_val = active.valley_val.nth(-1, group_by=group_by)
+        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        curr_end_val = active.end_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        curr_valley_val = active.valley_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
         curr_recovery = (curr_end_val - curr_valley_val) / (curr_peak_val - curr_valley_val)
         return self.wrapper.wrap_reduced(curr_recovery, group_by=group_by, **wrap_kwargs)
 
-    def active_recovery_return(self, group_by: tp.GroupByLike = None,
-                               wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def active_recovery_return(self,
+                               group_by: tp.GroupByLike = None,
+                               nb_parallel: tp.Optional[bool] = None,
+                               chunked: tp.ChunkedOption = None,
+                               wrap_kwargs: tp.KwargsLike = None,
+                               **kwargs) -> tp.MaybeSeries:
         """Recovery return of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(name_or_index='active_recovery_return'), wrap_kwargs)
-        return self.active.recovery_return.nth(-1, group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.active.recovery_return.nth(
+            -1,
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
-    def active_recovery_duration(self, group_by: tp.GroupByLike = None,
-                                 wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def active_recovery_duration(self,
+                                 group_by: tp.GroupByLike = None,
+                                 nb_parallel: tp.Optional[bool] = None,
+                                 chunked: tp.ChunkedOption = None,
+                                 wrap_kwargs: tp.KwargsLike = None,
+                                 **kwargs) -> tp.MaybeSeries:
         """Recovery duration of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='active_recovery_duration'), wrap_kwargs)
-        return self.active.recovery_duration.nth(-1, group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.active.recovery_duration.nth(
+            -1,
+            group_by=group_by,
+            nb_parallel=nb_parallel,
+            chunked=chunked,
+            wrap_kwargs=wrap_kwargs,
+            **kwargs
+        )
 
     # ############# Stats ############# #
 

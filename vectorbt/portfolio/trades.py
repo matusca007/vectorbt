@@ -492,13 +492,16 @@ from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.decorators import cached_property
+from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.ranges import Ranges
+from vectorbt.generic import chunking as generic_chunking
 from vectorbt.records.decorators import attach_fields, override_field_config
 from vectorbt.records.mapped_array import MappedArray
+from vectorbt.records import chunking as records_chunking
 from vectorbt.portfolio.enums import TradeDirection, TradeStatus, trade_dt
-from vectorbt.portfolio import nb
+from vectorbt.portfolio import nb, chunking
 from vectorbt.portfolio.orders import Orders
 
 __pdoc__ = {}
@@ -694,50 +697,71 @@ class Trades(Ranges):
         """`Ranges.get_losing_streak` with default arguments."""
         return self.get_losing_streak()
 
-    def win_rate(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-                 wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def win_rate(self,
+                 group_by: tp.GroupByLike = None,
+                 nb_parallel: tp.Optional[bool] = None,
+                 chunked: tp.ChunkedOption = None,
+                 wrap_kwargs: tp.KwargsLike = None,
+                 **kwargs) -> tp.MaybeSeries:
         """Rate of winning trades."""
         wrap_kwargs = merge_dicts(dict(name_or_index='win_rate'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.win_rate_1d_nb,
             group_by=group_by,
             nb_parallel=nb_parallel,
+            chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def profit_factor(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def profit_factor(self,
+                      group_by: tp.GroupByLike = None,
+                      nb_parallel: tp.Optional[bool] = None,
+                      chunked: tp.ChunkedOption = None,
+                      wrap_kwargs: tp.KwargsLike = None,
+                      **kwargs) -> tp.MaybeSeries:
         """Profit factor."""
         wrap_kwargs = merge_dicts(dict(name_or_index='profit_factor'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.profit_factor_1d_nb,
             group_by=group_by,
             nb_parallel=nb_parallel,
+            chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def expectancy(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-                   wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def expectancy(self,
+                   group_by: tp.GroupByLike = None,
+                   nb_parallel: tp.Optional[bool] = None,
+                   chunked: tp.ChunkedOption = None,
+                   wrap_kwargs: tp.KwargsLike = None,
+                   **kwargs) -> tp.MaybeSeries:
         """Average profitability."""
         wrap_kwargs = merge_dicts(dict(name_or_index='expectancy'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.expectancy_1d_nb,
             group_by=group_by,
             nb_parallel=nb_parallel,
+            chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def sqn(self, ddof: int = 1, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
-            wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
+    def sqn(self,
+            ddof: int = 1,
+            group_by: tp.GroupByLike = None,
+            nb_parallel: tp.Optional[bool] = None,
+            chunked: tp.ChunkedOption = None,
+            wrap_kwargs: tp.KwargsLike = None,
+            **kwargs) -> tp.MaybeSeries:
         """System Quality Number (SQN)."""
         wrap_kwargs = merge_dicts(dict(name_or_index='sqn'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.sqn_1d_nb, ddof,
             group_by=group_by,
             nb_parallel=nb_parallel,
+            chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
@@ -1503,16 +1527,20 @@ class EntryTrades(Trades):
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
                     nb_parallel: tp.Optional[bool] = None,
+                    chunked: tp.ChunkedOption = None,
                     **kwargs) -> EntryTradesT:
         """Build `EntryTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, nb_parallel)
-        trade_records_arr = func(
-            orders.values,
-            to_2d_array(close),
-            orders.col_mapper.col_map
+        chunked_config = merge_dicts(
+            records_chunking.recarr_col_map_config,
+            chunking.close_config,
+            records_chunking.col_map_config,
+            records_chunking.merge_records_config
         )
+        func = resolve_chunked(func, chunked, **chunked_config)
+        trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
 
@@ -1551,16 +1579,20 @@ class ExitTrades(Trades):
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
                     nb_parallel: tp.Optional[bool] = None,
+                    chunked: tp.ChunkedOption = None,
                     **kwargs) -> ExitTradesT:
         """Build `ExitTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, nb_parallel)
-        trade_records_arr = func(
-            orders.values,
-            to_2d_array(close),
-            orders.col_mapper.col_map
+        chunked_config = merge_dicts(
+            records_chunking.recarr_col_map_config,
+            chunking.close_config,
+            records_chunking.col_map_config,
+            records_chunking.merge_records_config
         )
+        func = resolve_chunked(func, chunked, **chunked_config)
+        trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
 
@@ -1607,10 +1639,17 @@ class Positions(Trades):
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
                     nb_parallel: tp.Optional[bool] = None,
+                    chunked: tp.ChunkedOption = None,
                     **kwargs) -> PositionsT:
         """Build `Positions` from `Trades`."""
         if close is None:
             close = trades.close
         func = nb_registry.redecorate_parallel(nb.get_positions_nb, nb_parallel)
+        chunked_config = merge_dicts(
+            records_chunking.recarr_col_map_config,
+            records_chunking.col_map_config,
+            generic_chunking.concat_config
+        )
+        func = resolve_chunked(func, chunked, **chunked_config)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

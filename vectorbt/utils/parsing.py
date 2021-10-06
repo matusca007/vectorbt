@@ -6,6 +6,7 @@
 import inspect
 import ast
 import sys
+import re
 
 from vectorbt import _typing as tp
 
@@ -36,10 +37,7 @@ def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[in
     ]
 
 
-ann_argsT = tp.Dict[str, tp.Kwargs]
-
-
-def annotate_args(func: tp.Callable, *args, **kwargs) -> ann_argsT:
+def annotate_args(func: tp.Callable, *args, **kwargs) -> tp.AnnArgs:
     """Annotate arguments and keyword arguments using the function's signature."""
     signature = inspect.signature(func)
     signature.bind(*args, **kwargs)
@@ -67,12 +65,15 @@ def annotate_args(func: tp.Callable, *args, **kwargs) -> ann_argsT:
     return ann_args
 
 
-def get_from_ann_args(ann_args: ann_argsT, i: tp.Optional[int] = None, name: tp.Optional[str] = None) -> tp.Any:
-    """Get argument from annotated arguments using its position or name.
+def match_ann_arg(ann_args: tp.AnnArgs, query: tp.AnnArgQuery) -> tp.Any:
+    """Match an argument from annotated arguments.
+
+    A query can be an integer indicating the position of the argument, or a string containing the name
+    of the argument or a regular expression for matching the name of the argument.
+
+    If multiple arguments were matched, returns the first one.
 
     The position can stretch over any variable argument."""
-    if (i is None and name is None) or (i is not None and name is not None):
-        raise ValueError("Either i or name must be provided")
     flat_args = []
     args_by_name = {}
     for arg_name, ann_arg in ann_args.items():
@@ -85,9 +86,14 @@ def get_from_ann_args(ann_args: ann_argsT, i: tp.Optional[int] = None, name: tp.
         else:
             flat_args.append(ann_arg['value'])
             args_by_name[arg_name] = ann_arg['value']
-    if name is not None:
-        return args_by_name[name]
-    return flat_args[i]
+    if isinstance(query, int):
+        return flat_args[query]
+    if isinstance(query, str):
+        for arg_name, arg in args_by_name.items():
+            if re.match(query, arg_name):
+                return arg
+        raise KeyError(f"Query '{query}' could not be matched with any argument")
+    raise TypeError(f"Query of type {type(query)} is not supported")
 
 
 def get_ex_var_names(expression: str) -> tp.List[str]:
