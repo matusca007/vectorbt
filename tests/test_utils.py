@@ -2857,63 +2857,63 @@ class TestChunking:
         with pytest.raises(Exception):
             _ = list(chunking.yield_chunk_meta(n_chunks=0))
         assert list(chunking.yield_chunk_meta(n_chunks=4)) == [
-            chunking.ChunkMeta(idx=0, start=None, end=None),
-            chunking.ChunkMeta(idx=1, start=None, end=None),
-            chunking.ChunkMeta(idx=2, start=None, end=None),
-            chunking.ChunkMeta(idx=3, start=None, end=None)
+            chunking.ChunkMeta(idx=0, start=None, end=None, indices=None),
+            chunking.ChunkMeta(idx=1, start=None, end=None, indices=None),
+            chunking.ChunkMeta(idx=2, start=None, end=None, indices=None),
+            chunking.ChunkMeta(idx=3, start=None, end=None, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=1, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=2, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=2),
-            chunking.ChunkMeta(idx=1, start=2, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=2, indices=None),
+            chunking.ChunkMeta(idx=1, start=2, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=3, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=2),
-            chunking.ChunkMeta(idx=1, start=2, end=3),
-            chunking.ChunkMeta(idx=2, start=3, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=2, indices=None),
+            chunking.ChunkMeta(idx=1, start=2, end=3, indices=None),
+            chunking.ChunkMeta(idx=2, start=3, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=4, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2),
-            chunking.ChunkMeta(idx=2, start=2, end=3),
-            chunking.ChunkMeta(idx=3, start=3, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None),
+            chunking.ChunkMeta(idx=2, start=2, end=3, indices=None),
+            chunking.ChunkMeta(idx=3, start=3, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=5, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2),
-            chunking.ChunkMeta(idx=2, start=2, end=3),
-            chunking.ChunkMeta(idx=3, start=3, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None),
+            chunking.ChunkMeta(idx=2, start=2, end=3, indices=None),
+            chunking.ChunkMeta(idx=3, start=3, end=4, indices=None)
         ]
         with pytest.raises(Exception):
             _ = list(chunking.yield_chunk_meta(chunk_len=0, size=4))
         assert list(chunking.yield_chunk_meta(chunk_len=1, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2),
-            chunking.ChunkMeta(idx=2, start=2, end=3),
-            chunking.ChunkMeta(idx=3, start=3, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None),
+            chunking.ChunkMeta(idx=2, start=2, end=3, indices=None),
+            chunking.ChunkMeta(idx=3, start=3, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(chunk_len=2, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=2),
-            chunking.ChunkMeta(idx=1, start=2, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=2, indices=None),
+            chunking.ChunkMeta(idx=1, start=2, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(chunk_len=3, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=3),
-            chunking.ChunkMeta(idx=1, start=3, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=3, indices=None),
+            chunking.ChunkMeta(idx=1, start=3, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(chunk_len=4, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(chunk_len=5, size=4)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=4)
+            chunking.ChunkMeta(idx=0, start=0, end=4, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=2, size=2, min_size=2)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None)
         ]
         assert list(chunking.yield_chunk_meta(n_chunks=2, size=2, min_size=3)) == [
-            chunking.ChunkMeta(idx=0, start=0, end=2)
+            chunking.ChunkMeta(idx=0, start=0, end=2, indices=None)
         ]
         with pytest.raises(Exception):
             _ = list(chunking.yield_chunk_meta(n_chunks=2, size=4, chunk_len=2))
@@ -2923,9 +2923,9 @@ class TestChunking:
             pass
 
         chunk_meta = [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=3),
-            chunking.ChunkMeta(idx=2, start=3, end=6)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=3, indices=None),
+            chunking.ChunkMeta(idx=2, start=3, end=6, indices=None)
         ]
         ann_args = parsing.annotate_args(f, chunk_meta)
         assert list(chunking.ArgChunkMeta('a').get_chunk_meta(ann_args)) == chunk_meta
@@ -2938,9 +2938,9 @@ class TestChunking:
             pass
 
         chunk_meta = [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2),
-            chunking.ChunkMeta(idx=2, start=2, end=3)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None),
+            chunking.ChunkMeta(idx=2, start=2, end=3, indices=None)
         ]
 
         ann_args = parsing.annotate_args(f, 2, 3, 1, b=[1, 2, 3])
@@ -2978,9 +2978,9 @@ class TestChunking:
             ann_args, chunk_meta=chunk_meta)) == chunk_meta
         assert list(chunking.get_chunk_meta_from_args(
             ann_args, chunk_meta=chunking.LenChunkMeta('b'))) == [
-                chunking.ChunkMeta(idx=0, start=0, end=1),
-                chunking.ChunkMeta(idx=1, start=1, end=3),
-                chunking.ChunkMeta(idx=2, start=3, end=6)
+                chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+                chunking.ChunkMeta(idx=1, start=1, end=3, indices=None),
+                chunking.ChunkMeta(idx=2, start=3, end=6, indices=None)
             ]
         assert list(chunking.get_chunk_meta_from_args(
             ann_args, chunk_meta=lambda ann_args: chunk_meta)) == chunk_meta
@@ -3009,7 +3009,7 @@ class TestChunking:
                 ))
             )
         )
-        args, kwargs = chunking.take_from_args(ann_args, arg_take_spec, chunking.ChunkMeta(0, 1, 3))
+        args, kwargs = chunking.take_from_args(ann_args, arg_take_spec, chunking.ChunkMeta(0, 1, 3, indices=None))
         assert args == (lst, lst[0], lst, (lst, lst[1:3]))
         assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
 
@@ -3084,9 +3084,9 @@ class TestChunking:
 
         ann_args = parsing.annotate_args(f, 2, 3, 1, b=[1, 2, 3])
         chunk_meta = [
-            chunking.ChunkMeta(idx=0, start=0, end=1),
-            chunking.ChunkMeta(idx=1, start=1, end=2),
-            chunking.ChunkMeta(idx=2, start=2, end=3)
+            chunking.ChunkMeta(idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(idx=1, start=1, end=2, indices=None),
+            chunking.ChunkMeta(idx=2, start=2, end=3, indices=None)
         ]
         arg_take_spec = dict(b=chunking.ChunkSelector())
         result = [

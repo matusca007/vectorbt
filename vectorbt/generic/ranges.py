@@ -235,7 +235,7 @@ class Ranges(Records):
                 ts: tp.ArrayLike,
                 gap_value: tp.Optional[tp.Scalar] = None,
                 attach_ts: bool = True,
-                parallel: tp.Optional[bool] = None,
+                nb_parallel: tp.Optional[bool] = None,
                 chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> RangesT:
@@ -260,7 +260,7 @@ class Ranges(Records):
                 gap_value = -1
             else:
                 gap_value = np.nan
-        func = nb_registry.redecorate_parallel(nb.get_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_ranges_nb, nb_parallel)
         chunked_config = merge_dicts(
             chunking.arr_ax1_config,
             chunking.merge_arr_records_config
@@ -275,13 +275,13 @@ class Ranges(Records):
         """Original time series that records are built from (optional)."""
         return self._ts
 
-    def to_mask(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def to_mask(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Convert ranges to a mask.
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, nb_parallel)
         mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -291,9 +291,9 @@ class Ranges(Records):
         )
         return self.wrapper.wrap(mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
-    def get_duration(self, parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
+    def get_duration(self, nb_parallel: tp.Optional[bool] = None, **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
-        func = nb_registry.redecorate_parallel(nb.range_duration_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.range_duration_nb, nb_parallel)
         duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -306,30 +306,30 @@ class Ranges(Records):
         """`Ranges.get_duration` with default arguments."""
         return self.get_duration()
 
-    def avg_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def avg_duration(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
-        return self.get_duration(parallel=parallel).mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.get_duration(nb_parallel=nb_parallel).mean(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
-    def max_duration(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def max_duration(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
-        return self.get_duration(parallel=parallel).max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
+        return self.get_duration(nb_parallel=nb_parallel).max(group_by=group_by, wrap_kwargs=wrap_kwargs, **kwargs)
 
     def coverage(self,
                  overlapping: bool = False,
                  normalize: bool = True,
                  group_by: tp.GroupByLike = None,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Coverage, that is, the number of steps that are covered by all ranges.
 
         See `vectorbt.generic.nb.range_coverage_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
-        func = nb_registry.redecorate_parallel(nb.range_coverage_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.range_coverage_nb, nb_parallel)
         coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),

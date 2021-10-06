@@ -217,13 +217,13 @@ from sklearn.preprocessing import (
 )
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
+from vectorbt.nb_registry import nb_registry, warn_parallel_enabled
 from vectorbt.utils import checks
 from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils.chunking import resolve_chunked
+from vectorbt.utils.chunking import resolve_chunked, warn_chunked_enabled
 from vectorbt.base import indexes, reshaping
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -408,11 +408,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     window: int,
                     minp: tp.Optional[int] = None,
                     ddof: int = 1,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     chunked: tp.ChunkedOption = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.rolling_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.rolling_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.rolling_std_nb, nb_parallel)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), window, minp=minp, ddof=ddof)
@@ -421,11 +421,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def expanding_std(self,
                       minp: tp.Optional[int] = 1,
                       ddof: int = 1,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.expanding_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), minp=minp, ddof=ddof)
@@ -435,11 +435,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  span: int,
                  minp: tp.Optional[int] = 0,
                  adjust: bool = True,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_mean_nb`."""
-        func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, nb_parallel)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust)
@@ -450,11 +450,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 minp: tp.Optional[int] = 0,
                 adjust: bool = True,
                 ddof: int = 1,
-                parallel: tp.Optional[bool] = None,
+                nb_parallel: tp.Optional[bool] = None,
                 chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.ewm_std_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.ewm_std_nb, nb_parallel)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust, ddof=ddof)
@@ -463,7 +463,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     @class_or_instancemethod
     def map(cls_or_self,
             apply_func_nb: tp.Union[tp.MapFunc, tp.MapMetaFunc], *args,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrapper: tp.Optional[ArrayWrapper] = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -506,12 +506,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = nb_registry.redecorate_parallel(nb.map_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.target_shape_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
-            func = nb_registry.redecorate_parallel(nb.map_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
@@ -524,7 +524,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def apply_along_axis(cls_or_self,
                          apply_func_nb: tp.Union[tp.ApplyFunc, tp.ApplyMetaFunc], *args,
                          axis: int = 1,
-                         parallel: tp.Optional[bool] = None,
+                         nb_parallel: tp.Optional[bool] = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -570,19 +570,19 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             if axis == 0:
-                func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, nb_parallel)
                 chunked_config = merge_dicts(chunking.target_shape_ax0_config, chunking.vstack_config)
             else:
-                func = nb_registry.redecorate_parallel(nb.apply_meta_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
                 chunked_config = merge_dicts(chunking.target_shape_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
             if axis == 0:
-                func = nb_registry.redecorate_parallel(nb.row_apply_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.row_apply_nb, nb_parallel)
                 chunked_config = merge_dicts(chunking.arr_ax0_config, chunking.vstack_config)
             else:
-                func = nb_registry.redecorate_parallel(nb.apply_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
                 chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
@@ -596,7 +596,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                       window: int,
                       apply_func_nb: tp.Union[tp.ApplyFunc, tp.RollApplyMetaFunc], *args,
                       minp: tp.Optional[int] = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -641,12 +641,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.target_shape_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d, window, minp, apply_func_nb, *args)
         else:
-            func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), window, minp, apply_func_nb, *args)
@@ -681,7 +681,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def groupby_apply(cls_or_self,
                       by: tp.PandasGroupByLike,
                       apply_func_nb: tp.Union[tp.ApplyFunc, tp.GroupByApplyMetaFunc], *args,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None,
@@ -728,7 +728,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = wrapper.dummy().groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.n_cols_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
@@ -736,7 +736,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = cls_or_self.obj.groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
@@ -750,7 +750,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def resample_apply(cls_or_self,
                        rule: tp.PandasFrequencyLike,
                        apply_func_nb: tp.Union[tp.ApplyFunc, tp.GroupByApplyMetaFunc], *args,
-                       parallel: tp.Optional[bool] = None,
+                       nb_parallel: tp.Optional[bool] = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None,
@@ -795,7 +795,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = wrapper.dummy().resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.n_cols_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
@@ -803,7 +803,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             pd_group_by = cls_or_self.obj.resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
@@ -827,7 +827,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                          reduce_func_nb: tp.Union[tp.ReduceFunc, tp.ReduceMetaFunc],
                          apply_args: tp.Optional[tuple] = None,
                          reduce_args: tp.Optional[tuple] = None,
-                         parallel: tp.Optional[bool] = None,
+                         nb_parallel: tp.Optional[bool] = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -876,12 +876,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             reduce_args = ()
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
-            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.n_cols_config, chunking.concat_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d[1], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
         else:
-            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.concat_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, apply_args, reduce_func_nb, reduce_args)
@@ -908,7 +908,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                flatten: bool = False,
                order: str = 'C',
                to_index: bool = True,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                wrapper: tp.Optional[ArrayWrapper] = None,
                group_by: tp.GroupByLike = None,
@@ -1020,22 +1020,22 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if returns_array:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_grouped_to_array_meta_nb, parallel=parallel)
+                        nb.reduce_grouped_to_array_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.group_lens_config, chunking.hstack_config)
                 else:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_grouped_meta_nb, parallel=parallel)
+                        nb.reduce_grouped_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.group_lens_config, chunking.concat_config)
                 func = resolve_chunked(func, chunked, **chunked_config)
                 out = func(group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_to_array_meta_nb, parallel=parallel)
+                        nb.reduce_to_array_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.n_cols_config, chunking.hstack_config)
                 else:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_meta_nb, parallel=parallel)
+                        nb.reduce_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.n_cols_config, chunking.concat_config)
                 func = resolve_chunked(func, chunked, **chunked_config)
                 out = func(wrapper.shape_2d[1], reduce_func_nb, *args)
@@ -1047,7 +1047,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     in_c_order = order.upper() == 'C'
                     if returns_array:
                         func = nb_registry.redecorate_parallel(
-                            nb.reduce_flat_grouped_to_array_nb, parallel=parallel)
+                            nb.reduce_flat_grouped_to_array_nb, nb_parallel)
                         chunked_config = merge_dicts(
                             chunking.group_lens_config,
                             chunking.arr_group_lens_config,
@@ -1055,7 +1055,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         )
                     else:
                         func = nb_registry.redecorate_parallel(
-                            nb.reduce_flat_grouped_nb, parallel=parallel)
+                            nb.reduce_flat_grouped_nb, nb_parallel)
                         chunked_config = merge_dicts(
                             chunking.group_lens_config,
                             chunking.arr_group_lens_config,
@@ -1071,7 +1071,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 else:
                     if returns_array:
                         func = nb_registry.redecorate_parallel(
-                            nb.reduce_grouped_to_array_nb, parallel=parallel)
+                            nb.reduce_grouped_to_array_nb, nb_parallel)
                         chunked_config = merge_dicts(
                             chunking.group_lens_config,
                             chunking.arr_group_lens_config,
@@ -1079,7 +1079,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         )
                     else:
                         func = nb_registry.redecorate_parallel(
-                            nb.reduce_grouped_nb, parallel=parallel)
+                            nb.reduce_grouped_nb, nb_parallel)
                         chunked_config = merge_dicts(
                             chunking.group_lens_config,
                             chunking.arr_group_lens_config,
@@ -1090,11 +1090,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             else:
                 if returns_array:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_to_array_nb, parallel=parallel)
+                        nb.reduce_to_array_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
                 else:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_nb, parallel=parallel)
+                        nb.reduce_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.concat_config)
                 func = resolve_chunked(func, chunked, **chunked_config)
                 out = func(cls_or_self.to_2d_array(), reduce_func_nb, *args)
@@ -1112,7 +1112,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     @class_or_instancemethod
     def squeeze_grouped(cls_or_self,
                         squeeze_func_nb: tp.Union[tp.ReduceFunc, tp.GroupSqueezeMetaFunc], *args,
-                        parallel: tp.Optional[bool] = None,
+                        nb_parallel: tp.Optional[bool] = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
                         group_by: tp.GroupByLike = None,
@@ -1163,7 +1163,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.group_lens_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             out = func(wrapper.shape_2d[0], group_lens, squeeze_func_nb, *args)
@@ -1173,7 +1173,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.group_lens_config,
                 chunking.arr_group_lens_config,
@@ -1248,7 +1248,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def min(self,
             use_numba: tp.Optional[bool] = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1258,7 +1258,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.min_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1271,7 +1271,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmin_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmin_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmin, axis=0)
@@ -1283,7 +1283,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def max(self,
             use_numba: tp.Optional[bool] = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1293,7 +1293,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.max_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1306,7 +1306,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmax_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmax_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmax, axis=0)
@@ -1318,7 +1318,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def mean(self,
              use_numba: tp.Optional[bool] = None,
-             parallel: tp.Optional[bool] = None,
+             nb_parallel: tp.Optional[bool] = None,
              chunked: tp.ChunkedOption = None,
              group_by: tp.GroupByLike = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1328,7 +1328,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.mean_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1341,7 +1341,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmean_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmean_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmean, axis=0)
@@ -1353,7 +1353,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def median(self,
                use_numba: tp.Optional[bool] = None,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1363,7 +1363,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.median_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1376,7 +1376,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmedian_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanmedian_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmedian, axis=0)
@@ -1389,7 +1389,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def std(self,
             ddof: int = 1,
             use_numba: tp.Optional[bool] = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1400,7 +1400,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 nb.std_reduce_nb,
                 ddof,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1413,7 +1413,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanstd_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nanstd_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanstd, axis=0)
@@ -1425,7 +1425,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def sum(self,
             use_numba: tp.Optional[bool] = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1435,7 +1435,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.sum_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1448,7 +1448,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nansum_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nansum_nb, nb_parallel)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nansum, axis=0)
@@ -1460,7 +1460,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def count(self,
               use_numba: tp.Optional[bool] = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               chunked: tp.ChunkedOption = None,
               group_by: tp.GroupByLike = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1470,7 +1470,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.count_reduce_nb,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1483,7 +1483,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if use_numba is None:
             use_numba = generic_cfg['use_numba']
         if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nancnt_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.nancnt_nb, nb_parallel)
         else:
             func = lambda a: np.sum(~np.isnan(a), axis=0)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
@@ -1492,7 +1492,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def idxmin(self,
                order: str = 'C',
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1504,7 +1504,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 returns_idx=True,
                 flatten=True,
                 order=order,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1523,7 +1523,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     def idxmax(self,
                order: str = 'C',
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1535,7 +1535,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 returns_idx=True,
                 flatten=True,
                 order=order,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1555,7 +1555,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def describe(self,
                  percentiles: tp.Optional[tp.ArrayLike] = None,
                  ddof: int = 1,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  group_by: tp.GroupByLike = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -1594,7 +1594,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 nb.describe_reduce_nb, percentiles, ddof,
                 returns_array=True,
                 flatten=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs)
@@ -1602,7 +1602,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return self.reduce(
                 nb.describe_reduce_nb, percentiles, ddof,
                 returns_array=True,
-                parallel=parallel,
+                nb_parallel=nb_parallel,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs
             )
@@ -1674,7 +1674,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                      group_by: tp.GroupByLike = None,
                      mapping: tp.Optional[tp.MappingLike] = None,
                      incl_all_keys: bool = False,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.SeriesFrame:
@@ -1692,7 +1692,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 See `vectorbt.base.grouping.Grouper`.
             mapping (mapping_like): Mapping of values to labels.
             incl_all_keys (bool): Whether to include all mapping keys, no only those that are present in the array.
-            parallel (bool): Whether to execute `vectorbt.generic.nb.value_counts_nb` in parallel.
+            nb_parallel (bool): Whether to execute `vectorbt.generic.nb.value_counts_nb` in parallel.
             chunked (bool): Whether to chunk `vectorbt.generic.nb.value_counts_nb`.
 
                 See `vectorbt.utils.chunking.resolve_chunked`.
@@ -1777,13 +1777,13 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             mapping = to_mapping(mapping)
         codes, uniques = pd.factorize(self.obj.values.flatten(), sort=False, na_sentinel=None)
         if axis == 0:
-            func = nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, nb_parallel)
             chunked_config = merge_dicts(chunking.arr_ax0_config, chunking.hstack_config)
             func = resolve_chunked(func, chunked, **chunked_config)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques))
         elif axis == 1:
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.value_counts_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.value_counts_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.group_lens_config,
                 chunking.arr_group_lens_config,
@@ -1792,6 +1792,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = resolve_chunked(func, chunked, **chunked_config)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques), group_lens)
         else:
+            warn_parallel_enabled(nb.value_counts_1d_nb, nb_parallel)
+            warn_chunked_enabled(nb.value_counts_1d_nb, chunked)
             value_counts = nb.value_counts_1d_nb(codes, len(uniques))
         if incl_all_keys and mapping is not None:
             missing_keys = []
@@ -1902,7 +1904,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         return self.scale(with_mean=True, with_std=True, **kwargs)
 
     def rebase(self, base: float, wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Rebase all series to a given intial base.
+        """Rebase all series to the given base.
 
         This makes comparing/plotting different series together easier.
         Will forward and backward fill NaN values."""
@@ -2188,11 +2190,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     # ############# Conversion ############# #
 
     def drawdown(self,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Drawdown series."""
-        func = nb_registry.redecorate_parallel(nb.drawdown_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array())

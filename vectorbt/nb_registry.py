@@ -2,8 +2,8 @@
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
 """Global Numba registry."""
-import warnings
 
+import warnings
 from numba import jit, generated_jit
 from functools import partial
 
@@ -102,8 +102,8 @@ class NumbaRegistry:
 
     def redecorate_parallel(self,
                             setup_id_or_func: tp.Union[tp.Hashable, tp.Callable],
-                            new_setup_id: tp.Optional[tp.Hashable] = None,
                             parallel: tp.Optional[bool] = None,
+                            new_setup_id: tp.Optional[tp.Hashable] = None,
                             silence_warnings: tp.Optional[bool] = None,
                             **kwargs) -> tp.Callable:
         """Redecorate the setup's Numba-compiled function with the `parallel` option.
@@ -165,6 +165,12 @@ class NumbaRegistry:
                 options=dict(parallel=False),
                 **kwargs
             )
+
+
+def warn_parallel_enabled(func: tp.Callable, parallel: tp.Optional[bool]) -> None:
+    """Warn if `parallel` argument is not None."""
+    if parallel is not None:
+        warnings.warn(f"{func.__name__} does not support parallelization with Numba", stacklevel=2)
 
 
 nb_registry = NumbaRegistry()

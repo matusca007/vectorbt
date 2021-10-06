@@ -8,6 +8,7 @@ import pandas as pd
 import inspect
 import multiprocessing
 from functools import wraps
+import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
@@ -950,7 +951,7 @@ def chunked(*args,
     raise ValueError("Either function or keyword arguments must be passed")
 
 
-def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption, **kwargs) -> tp.Callable:
+def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption = None, **kwargs) -> tp.Callable:
     """Decorate with `chunked` based on an option.
 
     `option` can be:
@@ -982,3 +983,9 @@ def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption, **kwargs) -> tp
             chunk_kwargs = merge_dicts(kwargs, chunk_kwargs)
         return chunked(func, **chunk_kwargs)
     return func
+
+
+def warn_chunked_enabled(func: tp.Callable, option: tp.ChunkedOption) -> None:
+    """Warn if `option` argument is not None."""
+    if option is not None:
+        warnings.warn(f"{func.__name__} does not support chunking", stacklevel=2)

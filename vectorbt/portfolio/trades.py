@@ -694,50 +694,50 @@ class Trades(Ranges):
         """`Ranges.get_losing_streak` with default arguments."""
         return self.get_losing_streak()
 
-    def win_rate(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def win_rate(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Rate of winning trades."""
         wrap_kwargs = merge_dicts(dict(name_or_index='win_rate'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.win_rate_1d_nb,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def profit_factor(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def profit_factor(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Profit factor."""
         wrap_kwargs = merge_dicts(dict(name_or_index='profit_factor'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.profit_factor_1d_nb,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def expectancy(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def expectancy(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """Average profitability."""
         wrap_kwargs = merge_dicts(dict(name_or_index='expectancy'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.expectancy_1d_nb,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
 
-    def sqn(self, ddof: int = 1, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def sqn(self, ddof: int = 1, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
             wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.MaybeSeries:
         """System Quality Number (SQN)."""
         wrap_kwargs = merge_dicts(dict(name_or_index='sqn'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.sqn_1d_nb, ddof,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
@@ -1502,12 +1502,12 @@ class EntryTrades(Trades):
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     **kwargs) -> EntryTradesT:
         """Build `EntryTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, nb_parallel)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1550,12 +1550,12 @@ class ExitTrades(Trades):
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     **kwargs) -> ExitTradesT:
         """Build `ExitTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, nb_parallel)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1606,11 +1606,11 @@ class Positions(Trades):
                     trades: Trades,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     **kwargs) -> PositionsT:
         """Build `Positions` from `Trades`."""
         if close is None:
             close = trades.close
-        func = nb_registry.redecorate_parallel(nb.get_positions_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_positions_nb, nb_parallel)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

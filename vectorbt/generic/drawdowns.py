@@ -277,7 +277,7 @@ class Drawdowns(Ranges):
     def from_ts(cls: tp.Type[DrawdownsT],
                 ts: tp.ArrayLike,
                 attach_ts: bool = True,
-                parallel: tp.Optional[bool] = None,
+                nb_parallel: tp.Optional[bool] = None,
                 chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> DrawdownsT:
@@ -285,7 +285,7 @@ class Drawdowns(Ranges):
 
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
-        func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, nb_parallel)
         chunked_config = merge_dicts(
             chunking.arr_ax1_config,
             chunking.merge_arr_records_config

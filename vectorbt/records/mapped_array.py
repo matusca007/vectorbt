@@ -388,13 +388,13 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
+from vectorbt.nb_registry import nb_registry, warn_parallel_enabled
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
-from vectorbt.utils.chunking import resolve_chunked
+from vectorbt.utils.chunking import resolve_chunked, warn_chunked_enabled
 from vectorbt.base.reshaping import to_1d_array, to_dict
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic import nb as generic_nb, chunking as generic_chunking
@@ -656,11 +656,11 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
 
     def top_n_mask(self, n: int,
                    group_by: tp.GroupByLike = None,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    chunked: tp.ChunkedOption = None) -> tp.Array1d:
         """Return mask of top N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = nb_registry.redecorate_parallel(nb.top_n_mapped_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.top_n_mapped_nb, nb_parallel)
         chunked_config = merge_dicts(
             chunking.arr_config,
             chunking.col_map_config,
@@ -671,11 +671,11 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
 
     def bottom_n_mask(self, n: int,
                       group_by: tp.GroupByLike = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None) -> tp.Array1d:
         """Return mask of bottom N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, nb_parallel)
         chunked_config = merge_dicts(
             chunking.arr_config,
             chunking.col_map_config,
@@ -687,28 +687,28 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     def top_n(self: MappedArrayT,
               n: int,
               group_by: tp.GroupByLike = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               chunked: tp.ChunkedOption = None,
               **kwargs) -> MappedArrayT:
         """Filter top N elements from each column/group."""
         return self.apply_mask(self.top_n_mask(
             n,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked
         ), **kwargs)
 
     def bottom_n(self: MappedArrayT,
                  n: int,
                  group_by: tp.GroupByLike = None,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  **kwargs) -> MappedArrayT:
         """Filter bottom N elements from each column/group."""
         return self.apply_mask(self.bottom_n_mask(
             n,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked
         ), **kwargs)
 
@@ -774,7 +774,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
               group_by: tp.GroupByLike = None,
               apply_per_group: bool = False,
               dtype: tp.Optional[tp.DTypeLike] = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               chunked: tp.ChunkedOption = None,
               col_mapper: tp.Optional[ColumnMapper] = None,
               **kwargs) -> MappedArrayT:
@@ -792,7 +792,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_meta_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.col_map_config,
                 chunking.arr_len_config,
@@ -804,7 +804,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_mapped_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.arr_config,
                 chunking.col_map_config,
@@ -828,7 +828,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                returns_idx: bool = False,
                to_index: bool = True,
                fill_value: tp.Scalar = np.nan,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                col_mapper: tp.Optional[ColumnMapper] = None,
                group_by: tp.GroupByLike = None,
@@ -865,7 +865,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if not returns_array:
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_meta_nb, parallel=parallel)
+                        nb.reduce_mapped_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.col_map_config, generic_chunking.concat_config)
                     func = resolve_chunked(func, chunked, **chunked_config)
                     out = func(
@@ -877,7 +877,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 else:
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_idx_meta_nb, parallel=parallel)
+                        nb.reduce_mapped_to_idx_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -894,7 +894,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             else:
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_array_meta_nb, parallel=parallel)
+                        nb.reduce_mapped_to_array_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(chunking.col_map_config, generic_chunking.hstack_config)
                     func = resolve_chunked(func, chunked, **chunked_config)
                     out = func(
@@ -906,7 +906,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 else:
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_idx_array_meta_nb, parallel=parallel)
+                        nb.reduce_mapped_to_idx_array_meta_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -931,7 +931,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if not returns_array:
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_nb, parallel=parallel)
+                        nb.reduce_mapped_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -948,7 +948,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 else:
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_idx_nb, parallel=parallel)
+                        nb.reduce_mapped_to_idx_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -966,7 +966,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             else:
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_array_nb, parallel=parallel)
+                        nb.reduce_mapped_to_array_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -983,7 +983,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 else:
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
-                        nb.reduce_mapped_to_idx_array_nb, parallel=parallel)
+                        nb.reduce_mapped_to_idx_array_nb, nb_parallel)
                     chunked_config = merge_dicts(
                         chunking.col_map_config,
                         chunking.arr_config,
@@ -1012,7 +1012,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     def nth(self,
             n: int,
             group_by: tp.GroupByLike = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -1023,7 +1023,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1033,7 +1033,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     def nth_index(self,
                   n: int,
                   group_by: tp.GroupByLike = None,
-                  parallel: tp.Optional[bool] = None,
+                  nb_parallel: tp.Optional[bool] = None,
                   chunked: tp.ChunkedOption = None,
                   wrap_kwargs: tp.KwargsLike = None,
                   **kwargs) -> tp.MaybeSeries:
@@ -1044,7 +1044,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=True,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1053,7 +1053,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def min(self,
             group_by: tp.GroupByLike = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -1064,7 +1064,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1073,7 +1073,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def max(self,
             group_by: tp.GroupByLike = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -1084,7 +1084,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1093,7 +1093,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def mean(self,
              group_by: tp.GroupByLike = None,
-             parallel: tp.Optional[bool] = None,
+             nb_parallel: tp.Optional[bool] = None,
              chunked: tp.ChunkedOption = None,
              wrap_kwargs: tp.KwargsLike = None,
              **kwargs) -> tp.MaybeSeries:
@@ -1104,7 +1104,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1113,7 +1113,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def median(self,
                group_by: tp.GroupByLike = None,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                wrap_kwargs: tp.KwargsLike = None,
                **kwargs) -> tp.MaybeSeries:
@@ -1124,7 +1124,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1134,7 +1134,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     def std(self,
             ddof: int = 1,
             group_by: tp.GroupByLike = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -1145,7 +1145,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1155,7 +1155,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     def sum(self,
             fill_value: tp.Scalar = 0.,
             group_by: tp.GroupByLike = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -1167,7 +1167,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1176,7 +1176,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def idxmin(self,
                group_by: tp.GroupByLike = None,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                wrap_kwargs: tp.KwargsLike = None,
                **kwargs) -> tp.MaybeSeries:
@@ -1187,7 +1187,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=True,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1196,7 +1196,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     @cached_method
     def idxmax(self,
                group_by: tp.GroupByLike = None,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                wrap_kwargs: tp.KwargsLike = None,
                **kwargs) -> tp.MaybeSeries:
@@ -1207,7 +1207,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=False,
             returns_idx=True,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1218,7 +1218,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                  percentiles: tp.Optional[tp.ArrayLike] = None,
                  ddof: int = 1,
                  group_by: tp.GroupByLike = None,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None,
                  **kwargs) -> tp.SeriesFrame:
@@ -1241,7 +1241,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             returns_array=True,
             returns_idx=False,
             group_by=group_by,
-            parallel=parallel,
+            nb_parallel=nb_parallel,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1273,7 +1273,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                      group_by: tp.GroupByLike = None,
                      mapping: tp.Optional[tp.MappingLike] = None,
                      incl_all_keys: bool = False,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.SeriesFrame:
@@ -1296,11 +1296,13 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if idx_arr is None:
                 idx_arr = self.idx_arr
             checks.assert_not_none(idx_arr)
+            warn_chunked_enabled(nb.mapped_value_counts_per_row_nb, chunked)
+            warn_parallel_enabled(nb.mapped_value_counts_per_row_nb, nb_parallel)
             value_counts = nb.mapped_value_counts_per_row_nb(
                 mapped_codes, len(mapped_uniques), idx_arr, self.wrapper.shape[0])
         elif axis == 1:
             col_map = self.col_mapper.get_col_map(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.col_map_config,
                 chunking.arr_config,
@@ -1309,6 +1311,8 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             func = resolve_chunked(func, chunked, **chunked_config)
             value_counts = func(mapped_codes, len(mapped_uniques), col_map)
         else:
+            warn_chunked_enabled(nb.mapped_value_counts_nb, chunked)
+            warn_parallel_enabled(nb.mapped_value_counts_nb, nb_parallel)
             value_counts = nb.mapped_value_counts_nb(mapped_codes, len(mapped_uniques))
         if incl_all_keys and mapping is not None:
             missing_keys = []

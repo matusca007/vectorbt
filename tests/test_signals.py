@@ -152,8 +152,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, parallel=False),
-            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, parallel=True)
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=False),
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=True)
         )
 
     def test_generate_both(self):
@@ -305,18 +305,18 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, parallel=False)[0],
+                max_one_entry=False, max_one_exit=False, nb_parallel=False)[0],
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, parallel=True)[0]
+                max_one_entry=False, max_one_exit=False, nb_parallel=True)[0]
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, parallel=False)[1],
+                max_one_entry=False, max_one_exit=False, nb_parallel=False)[1],
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, parallel=True)[1]
+                max_one_entry=False, max_one_exit=False, nb_parallel=True)[1]
         )
 
     def test_generate_exits(self):
@@ -389,8 +389,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            mask.vbt.signals.generate_exits(place_func_nb, parallel=False),
-            mask.vbt.signals.generate_exits(place_func_nb, parallel=True)
+            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=False),
+            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=True)
         )
 
     def test_clean(self):
@@ -517,16 +517,16 @@ class TestAccessors:
         with pytest.raises(Exception):
             _ = pd.Series.vbt.signals.clean(entries, entries, entries)
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(parallel=False),
-            entries.vbt.signals.clean(parallel=True)
+            entries.vbt.signals.clean(nb_parallel=False),
+            entries.vbt.signals.clean(nb_parallel=True)
         )
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(exits, parallel=False)[0],
-            entries.vbt.signals.clean(exits, parallel=True)[0]
+            entries.vbt.signals.clean(exits, nb_parallel=False)[0],
+            entries.vbt.signals.clean(exits, nb_parallel=True)[0]
         )
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(exits, parallel=False)[1],
-            entries.vbt.signals.clean(exits, parallel=True)[1]
+            entries.vbt.signals.clean(exits, nb_parallel=False)[1],
+            entries.vbt.signals.clean(exits, nb_parallel=True)[1]
         )
 
     def test_generate_random(self):
@@ -1529,12 +1529,12 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.between_ranges(parallel=False).values,
-            mask.vbt.signals.between_ranges(parallel=True).values
+            mask.vbt.signals.between_ranges(nb_parallel=False).values,
+            mask.vbt.signals.between_ranges(nb_parallel=True).values
         )
         record_arrays_close(
-            mask.vbt.signals.between_ranges(other=other_mask, parallel=False).values,
-            mask.vbt.signals.between_ranges(other=other_mask, parallel=True).values
+            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=False).values,
+            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=True).values
         )
 
     def test_partition_ranges(self):
@@ -1556,8 +1556,8 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.partition_ranges(parallel=False).values,
-            mask.vbt.signals.partition_ranges(parallel=True).values
+            mask.vbt.signals.partition_ranges(nb_parallel=False).values,
+            mask.vbt.signals.partition_ranges(nb_parallel=True).values
         )
 
     def test_between_partition_ranges(self):
@@ -1579,8 +1579,8 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.between_partition_ranges(parallel=False).values,
-            mask.vbt.signals.between_partition_ranges(parallel=True).values
+            mask.vbt.signals.between_partition_ranges(nb_parallel=False).values,
+            mask.vbt.signals.between_partition_ranges(nb_parallel=True).values
         )
 
     def test_pos_rank(self):
@@ -1659,8 +1659,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            (~mask).vbt.signals.pos_rank(parallel=False),
-            (~mask).vbt.signals.pos_rank(parallel=True)
+            (~mask).vbt.signals.pos_rank(nb_parallel=False),
+            (~mask).vbt.signals.pos_rank(nb_parallel=True)
         )
 
     def test_partition_pos_rank(self):
@@ -1725,8 +1725,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            (~mask).vbt.signals.partition_pos_rank(parallel=False),
-            (~mask).vbt.signals.partition_pos_rank(parallel=True)
+            (~mask).vbt.signals.partition_pos_rank(nb_parallel=False),
+            (~mask).vbt.signals.partition_pos_rank(nb_parallel=True)
         )
 
     def test_pos_rank_fns(self):
@@ -1862,8 +1862,8 @@ class TestAccessors:
             ], index=mask.columns, name='nth_index', dtype='datetime64[ns]')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.nth_index(-1, parallel=False),
-            mask.vbt.signals.nth_index(-1, parallel=True)
+            mask.vbt.signals.nth_index(-1, nb_parallel=False),
+            mask.vbt.signals.nth_index(-1, nb_parallel=True)
         )
         pd.testing.assert_series_equal(
             mask.vbt.signals.nth_index(0, group_by=group_by),
@@ -1880,8 +1880,8 @@ class TestAccessors:
             ], index=['g1', 'g2'], name='nth_index', dtype='datetime64[ns]')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.nth_index(-1, group_by=group_by, parallel=False),
-            mask.vbt.signals.nth_index(-1, group_by=group_by, parallel=True)
+            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=False),
+            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=True)
         )
 
     def test_norm_avg_index(self):
@@ -1891,16 +1891,16 @@ class TestAccessors:
             pd.Series([-0.25, 0.25, 0.0], index=mask.columns, name='norm_avg_index')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.norm_avg_index(parallel=False),
-            mask.vbt.signals.norm_avg_index(parallel=True)
+            mask.vbt.signals.norm_avg_index(nb_parallel=False),
+            mask.vbt.signals.norm_avg_index(nb_parallel=True)
         )
         pd.testing.assert_series_equal(
             mask.vbt.signals.norm_avg_index(group_by=group_by),
             pd.Series([0.0, 0.0], index=['g1', 'g2'], name='norm_avg_index')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.norm_avg_index(group_by=group_by, parallel=False),
-            mask.vbt.signals.norm_avg_index(group_by=group_by, parallel=True)
+            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=False),
+            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=True)
         )
 
     def test_index_mapped(self):

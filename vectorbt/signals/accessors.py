@@ -259,7 +259,7 @@ class SignalsAccessor(GenericAccessor):
     def generate(cls,
                  shape: tp.ShapeLike,
                  place_func_nb: tp.PlaceFunc, *args,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  wrapper: tp.Optional[ArrayWrapper] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_nb`.
@@ -292,7 +292,7 @@ class SignalsAccessor(GenericAccessor):
         checks.assert_numba_func(place_func_nb)
 
         shape_2d = cls.resolve_shape(shape)
-        func = nb_registry.redecorate_parallel(nb.generate_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
         result = func(shape_2d, place_func_nb, *args)
 
         if wrapper is None:
@@ -312,7 +312,7 @@ class SignalsAccessor(GenericAccessor):
                       exit_wait: int = 1,
                       max_one_entry: bool = True,
                       max_one_exit: bool = True,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
         """See `vectorbt.signals.nb.generate_enex_nb`.
@@ -406,7 +406,7 @@ class SignalsAccessor(GenericAccessor):
         if exit_args is None:
             exit_args = ()
 
-        func = nb_registry.redecorate_parallel(nb.generate_enex_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
         result1, result2 = func(
             shape_2d,
             entry_wait,
@@ -427,7 +427,7 @@ class SignalsAccessor(GenericAccessor):
                        wait: int = 1,
                        until_next: bool = True,
                        skip_until_exit: bool = False,
-                       parallel: tp.Optional[bool] = None,
+                       nb_parallel: tp.Optional[bool] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_ex_nb`.
 
@@ -451,7 +451,7 @@ class SignalsAccessor(GenericAccessor):
         """
         checks.assert_numba_func(exit_place_func_nb)
 
-        func = nb_registry.redecorate_parallel(nb.generate_ex_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
         exits = func(
             self.to_2d_array(),
             wait,
@@ -469,7 +469,7 @@ class SignalsAccessor(GenericAccessor):
               *args,
               entry_first: bool = True,
               broadcast_kwargs: tp.KwargsLike = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Clean signals.
 
@@ -483,12 +483,12 @@ class SignalsAccessor(GenericAccessor):
             obj = args[0]
             if not isinstance(obj, (pd.Series, pd.DataFrame)):
                 obj = ArrayWrapper.from_obj(obj).wrap(obj)
-            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, parallel=parallel)
+            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, nb_parallel=nb_parallel)
         if len(args) == 2:
             if broadcast_kwargs is None:
                 broadcast_kwargs = {}
             entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
-            func = nb_registry.redecorate_parallel(nb.clean_enex_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.clean_enex_nb, nb_parallel)
             entries_out, exits_out = func(
                 reshaping.to_2d_array(entries),
                 reshaping.to_2d_array(exits),
@@ -601,7 +601,7 @@ class SignalsAccessor(GenericAccessor):
                              exit_wait: int = 1,
                              entry_pick_first: bool = True,
                              exit_pick_first: bool = True,
-                             parallel: tp.Optional[bool] = None,
+                             nb_parallel: tp.Optional[bool] = None,
                              wrapper: tp.Optional[ArrayWrapper] = None,
                              wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
         """Generate chain of entry and exit signals randomly.
@@ -677,7 +677,7 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
-            func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, nb_parallel)
             entries, exits = func(shape_2d, n, entry_wait, exit_wait)
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
@@ -1193,7 +1193,7 @@ class SignalsAccessor(GenericAccessor):
                        group_by: tp.GroupByLike = None,
                        attach_ts: bool = True,
                        attach_other: bool = False,
-                       parallel: tp.Optional[bool] = None,
+                       nb_parallel: tp.Optional[bool] = None,
                        **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
@@ -1261,14 +1261,14 @@ class SignalsAccessor(GenericAccessor):
 
         if other is None:
             # One input array
-            func = nb_registry.redecorate_parallel(nb.between_ranges_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.between_ranges_nb, nb_parallel)
             range_records = func(self.to_2d_array())
             wrapper = self.wrapper
             to_attach = self.obj
         else:
             # Two input arrays
             obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
-            func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, nb_parallel)
             range_records = func(
                 reshaping.to_2d_array(obj),
                 reshaping.to_2d_array(other),
@@ -1284,7 +1284,7 @@ class SignalsAccessor(GenericAccessor):
         ).regroup(group_by)
 
     def partition_ranges(self, group_by: tp.GroupByLike = None, attach_ts: bool = True,
-                         parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
+                         nb_parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.partition_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
 
@@ -1300,7 +1300,7 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                4              5    Open
         ```"""
-        func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, nb_parallel)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1310,7 +1310,7 @@ class SignalsAccessor(GenericAccessor):
         ).regroup(group_by)
 
     def between_partition_ranges(self, group_by: tp.GroupByLike = None, attach_ts: bool = True,
-                                 parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
+                                 nb_parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_partition_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
 
@@ -1323,7 +1323,7 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                3              5  Closed
          ```"""
-        func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, nb_parallel)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1341,7 +1341,7 @@ class SignalsAccessor(GenericAccessor):
              after_false: bool = False,
              broadcast_kwargs: tp.KwargsLike = None,
              as_mapped: bool = False,
-             parallel: tp.Optional[bool] = None,
+             nb_parallel: tp.Optional[bool] = None,
              wrap_kwargs: tp.KwargsLike = None,
              **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """See `vectorbt.signals.nb.rank_nb`.
@@ -1369,7 +1369,7 @@ class SignalsAccessor(GenericAccessor):
             temp_arrs = prepare_func(obj_arr, reset_by)
         else:
             temp_arrs = ()
-        func = nb_registry.redecorate_parallel(nb.rank_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
         rank = func(
             obj_arr,
             reset_by,
@@ -1510,7 +1510,7 @@ class SignalsAccessor(GenericAccessor):
 
     # ############# Index ############# #
 
-    def nth_index(self, n: int, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def nth_index(self, n: int, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.nth_index_nb`.
 
@@ -1539,16 +1539,16 @@ class SignalsAccessor(GenericAccessor):
         Timestamp('2020-01-05 00:00:00')
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
-            squeezed = self.squeeze_grouped(generic_nb.any_reduce_nb, group_by=group_by, parallel=parallel)
+            squeezed = self.squeeze_grouped(generic_nb.any_reduce_nb, group_by=group_by, nb_parallel=nb_parallel)
             arr = reshaping.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
-        func = nb_registry.redecorate_parallel(nb.nth_index_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.nth_index_nb, nb_parallel)
         nth_index = func(arr, n)
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
 
-    def norm_avg_index(self, group_by: tp.GroupByLike = None, parallel: tp.Optional[bool] = None,
+    def norm_avg_index(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.norm_avg_index_nb`.
 
@@ -1577,10 +1577,10 @@ class SignalsAccessor(GenericAccessor):
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, nb_parallel)
             norm_avg_index = func(self.to_2d_array(), group_lens)
         else:
-            func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, nb_parallel)
             norm_avg_index = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
         return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)

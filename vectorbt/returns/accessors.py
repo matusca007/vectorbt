@@ -241,7 +241,7 @@ class ReturnsAccessor(GenericAccessor):
                    value: tp.SeriesFrame,
                    init_value: tp.MaybeSeries = np.nan,
                    broadcast_kwargs: tp.KwargsLike = None,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None,
                    **kwargs) -> ReturnsAccessorT:
         """Returns a new `ReturnsAccessor` instance with returns calculated from `value`."""
@@ -254,7 +254,7 @@ class ReturnsAccessor(GenericAccessor):
         value_2d = to_2d_array(value)
         init_value = broadcast(init_value, to_shape=value_2d.shape[1], **broadcast_kwargs)
 
-        func = nb_registry.redecorate_parallel(nb.returns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.returns_nb, nb_parallel)
         returns = func(value_2d, init_value)
         returns = ArrayWrapper.from_obj(value).wrap(returns, **wrap_kwargs)
         return cls(returns, **kwargs)
@@ -320,21 +320,21 @@ class ReturnsAccessor(GenericAccessor):
 
     def cumulative(self,
                    start_value: tp.Optional[float] = None,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.returns.nb.cum_returns_nb`."""
         if start_value is None:
             start_value = self.defaults['start_value']
-        func = nb_registry.redecorate_parallel(nb.cum_returns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.cum_returns_nb, nb_parallel)
         cumulative = func(self.to_2d_array(), start_value)
         wrap_kwargs = merge_dicts({}, wrap_kwargs)
         return self.wrapper.wrap(cumulative, group_by=False, **wrap_kwargs)
 
     def total(self,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.cum_returns_final_nb`."""
-        func = nb_registry.redecorate_parallel(nb.cum_returns_final_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.cum_returns_final_nb, nb_parallel)
         out = func(self.to_2d_array(), 0.)
         wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -355,10 +355,10 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def annualized(self,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.annualized_return_nb`."""
-        func = nb_registry.redecorate_parallel(nb.annualized_return_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.annualized_return_nb, nb_parallel)
         out = func(self.to_2d_array(), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_return'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -382,14 +382,14 @@ class ReturnsAccessor(GenericAccessor):
     def annualized_volatility(self,
                               levy_alpha: tp.Optional[float] = None,
                               ddof: tp.Optional[int] = None,
-                              parallel: tp.Optional[bool] = None,
+                              nb_parallel: tp.Optional[bool] = None,
                               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.annualized_volatility_nb`."""
         if levy_alpha is None:
             levy_alpha = self.defaults['levy_alpha']
         if ddof is None:
             ddof = self.defaults['ddof']
-        func = nb_registry.redecorate_parallel(nb.annualized_volatility_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.annualized_volatility_nb, nb_parallel)
         out = func(self.to_2d_array(), self.ann_factor, levy_alpha, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_volatility'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -417,10 +417,10 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def calmar_ratio(self,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.calmar_ratio_nb`."""
-        func = nb_registry.redecorate_parallel(nb.calmar_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.calmar_ratio_nb, nb_parallel)
         out = func(self.to_2d_array(), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='calmar_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -444,7 +444,7 @@ class ReturnsAccessor(GenericAccessor):
     def omega_ratio(self,
                     risk_free: tp.Optional[float] = None,
                     required_return: tp.Optional[float] = None,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.omega_ratio_nb`."""
         if risk_free is None:
@@ -452,7 +452,7 @@ class ReturnsAccessor(GenericAccessor):
         if required_return is None:
             required_return = self.defaults['required_return']
         required_return = nb.deannualized_return_nb(required_return, self.ann_factor)
-        func = nb_registry.redecorate_parallel(nb.omega_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.omega_ratio_nb, nb_parallel)
         out = func(self.to_2d_array() - risk_free - required_return)
         wrap_kwargs = merge_dicts(dict(name_or_index='omega_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -483,14 +483,14 @@ class ReturnsAccessor(GenericAccessor):
     def sharpe_ratio(self,
                      risk_free: tp.Optional[float] = None,
                      ddof: tp.Optional[int] = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.sharpe_ratio_nb`."""
         if risk_free is None:
             risk_free = self.defaults['risk_free']
         if ddof is None:
             ddof = self.defaults['ddof']
-        func = nb_registry.redecorate_parallel(nb.sharpe_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.sharpe_ratio_nb, nb_parallel)
         out = func(self.to_2d_array() - risk_free, self.ann_factor, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='sharpe_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -557,12 +557,12 @@ class ReturnsAccessor(GenericAccessor):
 
     def downside_risk(self,
                       required_return: tp.Optional[float] = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.downside_risk_nb`."""
         if required_return is None:
             required_return = self.defaults['required_return']
-        func = nb_registry.redecorate_parallel(nb.downside_risk_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.downside_risk_nb, nb_parallel)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='downside_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -588,12 +588,12 @@ class ReturnsAccessor(GenericAccessor):
 
     def sortino_ratio(self,
                       required_return: tp.Optional[float] = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.sortino_ratio_nb`."""
         if required_return is None:
             required_return = self.defaults['required_return']
-        func = nb_registry.redecorate_parallel(nb.sortino_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.sortino_ratio_nb, nb_parallel)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='sortino_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -620,7 +620,7 @@ class ReturnsAccessor(GenericAccessor):
     def information_ratio(self,
                           benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                           ddof: tp.Optional[int] = None,
-                          parallel: tp.Optional[bool] = None,
+                          nb_parallel: tp.Optional[bool] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.information_ratio_nb`."""
         if ddof is None:
@@ -629,7 +629,7 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.information_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.information_ratio_nb, nb_parallel)
         out = func(self.to_2d_array() - to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='information_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -661,7 +661,7 @@ class ReturnsAccessor(GenericAccessor):
     def beta(self,
              benchmark_rets: tp.Optional[tp.ArrayLike] = None,
              ddof: tp.Optional[int] = None,
-             parallel: tp.Optional[bool] = None,
+             nb_parallel: tp.Optional[bool] = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.beta_nb`."""
         if ddof is None:
@@ -670,7 +670,7 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.beta_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.beta_nb, nb_parallel)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='beta'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -704,7 +704,7 @@ class ReturnsAccessor(GenericAccessor):
     def alpha(self,
               benchmark_rets: tp.Optional[tp.ArrayLike] = None,
               risk_free: tp.Optional[float] = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.alpha_nb`."""
         if risk_free is None:
@@ -713,7 +713,7 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.alpha_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.alpha_nb, nb_parallel)
         out = func(self.to_2d_array() - risk_free, to_2d_array(benchmark_rets) - risk_free, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='alpha'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -745,10 +745,10 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def tail_ratio(self,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.tail_ratio_nb`."""
-        func = nb_registry.redecorate_parallel(nb.tail_ratio_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.tail_ratio_nb, nb_parallel)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='tail_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -775,37 +775,39 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def common_sense_ratio(self,
-                           parallel: tp.Optional[bool] = None,
+                           nb_parallel: tp.Optional[bool] = None,
                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Common Sense Ratio."""
-        out = to_1d_array(self.tail_ratio(parallel=parallel)) * (1 + to_1d_array(self.annualized(parallel=parallel)))
+        tail_ratio = to_1d_array(self.tail_ratio(nb_parallel=nb_parallel))
+        annualized = to_1d_array(self.annualized(nb_parallel=nb_parallel))
+        out = tail_ratio * (1 + annualized)
         wrap_kwargs = merge_dicts(dict(name_or_index='common_sense_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
     def rolling_common_sense_ratio(self,
                                    window: tp.Optional[int] = None,
                                    minp: tp.Optional[int] = None,
-                                   parallel: tp.Optional[bool] = None,
+                                   nb_parallel: tp.Optional[bool] = None,
                                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.common_sense_ratio`."""
         if window is None:
             window = self.defaults['window']
         if minp is None:
             minp = self.defaults['minp']
-        rolling_tail_ratio = to_2d_array(self.rolling_tail_ratio(window, minp=minp, parallel=parallel))
-        rolling_annualized = to_2d_array(self.rolling_annualized(window, minp=minp, parallel=parallel))
+        rolling_tail_ratio = to_2d_array(self.rolling_tail_ratio(window, minp=minp, nb_parallel=nb_parallel))
+        rolling_annualized = to_2d_array(self.rolling_annualized(window, minp=minp, nb_parallel=nb_parallel))
         out = rolling_tail_ratio * (1 + rolling_annualized)
         wrap_kwargs = merge_dicts({}, wrap_kwargs)
         return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     def value_at_risk(self,
                       cutoff: tp.Optional[float] = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.value_at_risk_nb`."""
         if cutoff is None:
             cutoff = self.defaults['cutoff']
-        func = nb_registry.redecorate_parallel(nb.value_at_risk_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.value_at_risk_nb, nb_parallel)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='value_at_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -836,12 +838,12 @@ class ReturnsAccessor(GenericAccessor):
 
     def cond_value_at_risk(self,
                            cutoff: tp.Optional[float] = None,
-                           parallel: tp.Optional[bool] = None,
+                           nb_parallel: tp.Optional[bool] = None,
                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.cond_value_at_risk_nb`."""
         if cutoff is None:
             cutoff = self.defaults['cutoff']
-        func = nb_registry.redecorate_parallel(nb.cond_value_at_risk_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.cond_value_at_risk_nb, nb_parallel)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='cond_value_at_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -872,14 +874,14 @@ class ReturnsAccessor(GenericAccessor):
 
     def capture(self,
                 benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                parallel: tp.Optional[bool] = None,
+                nb_parallel: tp.Optional[bool] = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.capture_nb`."""
         if benchmark_rets is None:
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.capture_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.capture_nb, nb_parallel)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -909,14 +911,14 @@ class ReturnsAccessor(GenericAccessor):
 
     def up_capture(self,
                    benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.up_capture_nb`."""
         if benchmark_rets is None:
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.up_capture_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.up_capture_nb, nb_parallel)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='up_capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -946,14 +948,14 @@ class ReturnsAccessor(GenericAccessor):
 
     def down_capture(self,
                      benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.down_capture_nb`."""
         if benchmark_rets is None:
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.down_capture_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.down_capture_nb, nb_parallel)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='down_capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -982,21 +984,21 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def drawdown(self,
-                 parallel: tp.Optional[bool] = None,
+                 nb_parallel: tp.Optional[bool] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Relative decline from a peak."""
-        func = nb_registry.redecorate_parallel(nb.drawdown_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts({}, wrap_kwargs)
         return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     def max_drawdown(self,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.max_drawdown_nb`.
 
         Yields the same out as `max_drawdown` of `ReturnsAccessor.drawdowns`."""
-        func = nb_registry.redecorate_parallel(nb.max_drawdown_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.max_drawdown_nb, nb_parallel)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -1023,7 +1025,7 @@ class ReturnsAccessor(GenericAccessor):
         return self.get_drawdowns()
 
     def get_drawdowns(self,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       wrapper_kwargs: tp.KwargsLike = None,
                       **kwargs) -> Drawdowns:
         """Generate drawdown records of cumulative returns.
@@ -1031,7 +1033,7 @@ class ReturnsAccessor(GenericAccessor):
         See `vectorbt.generic.drawdowns.Drawdowns`."""
         wrapper_kwargs = merge_dicts(self.wrapper.config, wrapper_kwargs)
         return Drawdowns.from_ts(
-            self.cumulative(start_value=1., parallel=parallel),
+            self.cumulative(start_value=1., nb_parallel=nb_parallel),
             wrapper_kwargs=wrapper_kwargs,
             **kwargs
         )

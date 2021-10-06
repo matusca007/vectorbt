@@ -767,7 +767,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                 tp.RecordsMapMetaFunc
             ], *args,
             dtype: tp.Optional[tp.DTypeLike] = None,
-            parallel: tp.Optional[bool] = None,
+            nb_parallel: tp.Optional[bool] = None,
             col_mapper: tp.Optional[ColumnMapper] = None,
             **kwargs) -> MappedArray:
         """Map each record to a scalar value. Returns mapped array.
@@ -781,12 +781,12 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
-            func = nb_registry.redecorate_parallel(nb.map_records_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_records_meta_nb, nb_parallel)
             mapped_arr = func(len(col_mapper.col_arr), map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
-            func = nb_registry.redecorate_parallel(nb.map_records_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.map_records_nb, nb_parallel)
             mapped_arr = func(cls_or_self.values, map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, **kwargs)
@@ -800,7 +800,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
               group_by: tp.GroupByLike = None,
               apply_per_group: bool = False,
               dtype: tp.Optional[tp.DTypeLike] = None,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               col_mapper: tp.Optional[ColumnMapper] = None,
               **kwargs) -> MappedArray:
         """Apply function on records per column/group. Returns mapped array.
@@ -817,13 +817,13 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, nb_parallel)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_records_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_on_records_nb, nb_parallel)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)

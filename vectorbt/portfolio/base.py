@@ -4049,10 +4049,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Price per unit series."""
         return self._close
 
-    def get_filled_close(self, parallel: tp.Optional[bool] = None,
+    def get_filled_close(self, nb_parallel: tp.Optional[bool] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Forward and backward fill NaN values in `Portfolio.close`."""
-        func = nb_registry.redecorate_parallel(nb.fbfill_close, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.fbfill_close, nb_parallel)
         filled_close = func(to_2d_array(self.close))
         return self.wrapper.wrap(filled_close, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -4168,7 +4168,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def asset_flow(cls_or_self,
                    direction: str = 'both',
-                   parallel: tp.Optional[bool] = None,
+                   nb_parallel: tp.Optional[bool] = None,
                    orders: tp.Optional[Orders] = None,
                    wrapper: tp.Optional[ArrayWrapper] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4184,7 +4184,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = orders.wrapper
 
         direction = map_enum_fields(direction, Direction)
-        func = nb_registry.redecorate_parallel(nb.asset_flow_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.asset_flow_nb, nb_parallel)
         asset_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4196,7 +4196,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def assets(cls_or_self,
                direction: str = 'both',
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                asset_flow: tp.Optional[tp.SeriesFrame] = None,
                wrapper: tp.Optional[ArrayWrapper] = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4205,14 +4205,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         Returns the current position at each time step."""
         if not isinstance(cls_or_self, type):
             if asset_flow is None:
-                asset_flow = cls_or_self.asset_flow(direction='both', parallel=parallel)
+                asset_flow = cls_or_self.asset_flow(direction='both', nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(asset_flow)
 
         direction = map_enum_fields(direction, Direction)
-        func = nb_registry.redecorate_parallel(nb.assets_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.assets_nb, nb_parallel)
         assets = func(to_2d_array(asset_flow))
         if direction == Direction.LongOnly:
             assets = np.where(assets > 0, assets, 0.)
@@ -4224,7 +4224,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def position_mask(cls_or_self,
                       direction: str = 'both',
                       group_by: tp.GroupByLike = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       assets: tp.Optional[tp.SeriesFrame] = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4233,7 +4233,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         An element is True if the asset is in the market at this tick."""
         if not isinstance(cls_or_self, type):
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, parallel=parallel)
+                assets = cls_or_self.assets(direction=direction, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -4242,28 +4242,29 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         position_mask = to_2d_array(assets) != 0
         if wrapper.grouper.is_grouped(group_by=group_by):
             position_mask = wrapper.wrap(position_mask, group_by=False).vbt(wrapper=wrapper).squeeze_grouped(
-                generic_nb.any_reduce_nb, group_by=group_by, parallel=parallel)
+                generic_nb.any_reduce_nb, group_by=group_by, nb_parallel=nb_parallel)
         return wrapper.wrap(position_mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def position_coverage(cls_or_self,
                           direction: str = 'both',
                           group_by: tp.GroupByLike = None,
-                          parallel: tp.Optional[bool] = None,
+                          nb_parallel: tp.Optional[bool] = None,
                           position_mask: tp.Optional[tp.SeriesFrame] = None,
                           wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get position coverage per column/group."""
         if not isinstance(cls_or_self, type):
             if position_mask is None:
-                position_mask = cls_or_self.position_mask(direction=direction, parallel=parallel, group_by=False)
+                position_mask = cls_or_self.position_mask(
+                    direction=direction, nb_parallel=nb_parallel, group_by=False)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(position_mask)
 
         position_coverage = position_mask.vbt(wrapper=wrapper).reduce(
-            generic_nb.mean_reduce_nb, group_by=group_by, parallel=parallel)
+            generic_nb.mean_reduce_nb, group_by=group_by, nb_parallel=nb_parallel)
         wrap_kwargs = merge_dicts(dict(name_or_index='position_coverage'), wrap_kwargs)
         return wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
 
@@ -4273,7 +4274,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def cash_flow(cls_or_self,
                   group_by: tp.GroupByLike = None,
                   free: bool = False,
-                  parallel: tp.Optional[bool] = None,
+                  nb_parallel: tp.Optional[bool] = None,
                   orders: tp.Optional[Orders] = None,
                   wrapper: tp.Optional[ArrayWrapper] = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4290,7 +4291,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             checks.assert_not_none(orders)
             wrapper = orders.wrapper
 
-        func = nb_registry.redecorate_parallel(nb.cash_flow_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.cash_flow_nb, nb_parallel)
         cash_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4299,14 +4300,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
             cash_flow = func(cash_flow, group_lens)
         return wrapper.wrap(cash_flow, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def get_init_cash(cls_or_self,
                       group_by: tp.GroupByLike = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       init_cash_raw: tp.Optional[tp.MaybeSeries] = None,
                       cash_sharing: tp.Optional[bool] = None,
                       cash_flow: tp.Optional[tp.SeriesFrame] = None,
@@ -4331,7 +4332,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if isinstance(init_cash_raw, int):
             if not isinstance(cls_or_self, type):
                 if cash_flow is None:
-                    cash_flow = cls_or_self.cash_flow(group_by=group_by, parallel=parallel)
+                    cash_flow = cls_or_self.cash_flow(group_by=group_by, nb_parallel=nb_parallel)
             cash_min = np.min(np.cumsum(to_2d_array(cash_flow), axis=0), axis=0)
             init_cash = np.where(cash_min < 0, np.abs(cash_min), 1.)
             if init_cash_raw == InitCashMode.AutoAlign:
@@ -4340,7 +4341,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash_raw = to_1d_array(init_cash_raw)
             if wrapper.grouper.is_grouped(group_by=group_by):
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-                func = nb_registry.redecorate_parallel(nb.init_cash_grouped_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.init_cash_grouped_nb, nb_parallel)
                 init_cash = func(init_cash_raw, group_lens, cash_sharing)
             else:
                 group_lens = wrapper.grouper.get_group_lens()
@@ -4358,7 +4359,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
              group_by: tp.GroupByLike = None,
              in_sim_order: bool = False,
              free: bool = False,
-             parallel: tp.Optional[bool] = None,
+             nb_parallel: tp.Optional[bool] = None,
              init_cash: tp.Optional[tp.MaybeSeries] = None,
              cash_sharing: tp.Optional[bool] = None,
              cash_flow: tp.Optional[tp.SeriesFrame] = None,
@@ -4373,7 +4374,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if cash_sharing is None:
                 cash_sharing = cls_or_self.cash_sharing
             if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(group_by=group_by, free=free, parallel=parallel)
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, free=free, nb_parallel=nb_parallel)
             if call_seq is None:
                 call_seq = cls_or_self.call_seq
             if wrapper is None:
@@ -4384,9 +4385,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
-                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.cash_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.cash_grouped_nb, nb_parallel)
             cash = func(
                 wrapper.shape_2d,
                 to_2d_array(cash_flow),
@@ -4403,13 +4404,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     if init_cash is None:
                         init_cash = cls_or_self.init_cash
                 group_lens = wrapper.grouper.get_group_lens()
-                func = nb_registry.redecorate_parallel(nb.cash_in_sim_order_nb, parallel=parallel)
+                func = nb_registry.redecorate_parallel(nb.cash_in_sim_order_nb, nb_parallel)
                 cash = func(to_2d_array(cash_flow), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
             else:
                 if not isinstance(cls_or_self, type):
                     if init_cash is None:
-                        init_cash = cls_or_self.get_init_cash(group_by=False, parallel=parallel)
-                func = nb_registry.redecorate_parallel(nb.cash_nb, parallel=parallel)
+                        init_cash = cls_or_self.get_init_cash(group_by=False, nb_parallel=nb_parallel)
+                func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
                 cash = func(to_2d_array(cash_flow), to_1d_array(init_cash))
         return wrapper.wrap(cash, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4419,7 +4420,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def asset_value(cls_or_self,
                     direction: str = 'both',
                     group_by: tp.GroupByLike = None,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     fillna_close: tp.Optional[bool] = None,
                     close: tp.Optional[tp.SeriesFrame] = None,
                     assets: tp.Optional[tp.SeriesFrame] = None,
@@ -4435,7 +4436,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 else:
                     close = cls_or_self.close
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, parallel=parallel)
+                assets = cls_or_self.assets(direction=direction, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -4447,7 +4448,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         asset_value = nb.asset_value_nb(close, assets)
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
             asset_value = func(asset_value, group_lens)
         return wrapper.wrap(asset_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4455,7 +4456,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def gross_exposure(cls_or_self,
                        direction: str = 'both',
                        group_by: tp.GroupByLike = None,
-                       parallel: tp.Optional[bool] = None,
+                       nb_parallel: tp.Optional[bool] = None,
                        asset_value: tp.Optional[tp.SeriesFrame] = None,
                        free_cash: tp.Optional[tp.SeriesFrame] = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4463,22 +4464,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Get gross exposure."""
         if not isinstance(cls_or_self, type):
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(group_by=group_by, direction=direction, parallel=parallel)
+                asset_value = cls_or_self.asset_value(group_by=group_by, direction=direction, nb_parallel=nb_parallel)
             if free_cash is None:
-                free_cash = cls_or_self.cash(group_by=group_by, free=True, parallel=parallel)
+                free_cash = cls_or_self.cash(group_by=group_by, free=True, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(asset_value)
 
-        func = nb_registry.redecorate_parallel(nb.gross_exposure_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.gross_exposure_nb, nb_parallel)
         gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
         return wrapper.wrap(gross_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def net_exposure(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      long_exposure: tp.Optional[tp.SeriesFrame] = None,
                      short_exposure: tp.Optional[tp.SeriesFrame] = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4487,10 +4488,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if long_exposure is None:
                 long_exposure = cls_or_self.gross_exposure(
-                    direction='longonly', group_by=group_by, parallel=parallel)
+                    direction='longonly', group_by=group_by, nb_parallel=nb_parallel)
             if short_exposure is None:
                 short_exposure = cls_or_self.gross_exposure(
-                    direction='shortonly', group_by=group_by, parallel=parallel)
+                    direction='shortonly', group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -4503,7 +4504,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def value(cls_or_self,
               group_by: tp.GroupByLike = None,
               in_sim_order: bool = False,
-              parallel: tp.Optional[bool] = None,
+              nb_parallel: tp.Optional[bool] = None,
               cash: tp.Optional[tp.SeriesFrame] = None,
               asset_value: tp.Optional[tp.SeriesFrame] = None,
               call_seq: tp.Optional[tp.SeriesFrame] = None,
@@ -4521,9 +4522,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         evolved throughout simulation."""
         if not isinstance(cls_or_self, type):
             if cash is None:
-                cash = cls_or_self.cash(group_by=group_by, in_sim_order=in_sim_order, parallel=parallel)
+                cash = cls_or_self.cash(group_by=group_by, in_sim_order=in_sim_order, nb_parallel=nb_parallel)
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(group_by=group_by, parallel=parallel)
+                asset_value = cls_or_self.asset_value(group_by=group_by, nb_parallel=nb_parallel)
             if call_seq is None:
                 call_seq = cls_or_self.call_seq
             if wrapper is None:
@@ -4537,7 +4538,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                                  "Pass `attach_call_seq=True` to the class method "
                                  "(flexible simulations are not supported)")
             group_lens = wrapper.grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.value_in_sim_order_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.value_in_sim_order_nb, nb_parallel)
             value = func(to_2d_array(cash), to_2d_array(asset_value), group_lens, to_2d_array(call_seq))
         else:
             value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
@@ -4546,7 +4547,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def total_profit(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      fillna_close: tp.Optional[bool] = None,
                      close: tp.Optional[tp.SeriesFrame] = None,
                      orders: tp.Optional[Orders] = None,
@@ -4573,7 +4574,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = orders.wrapper
 
-        func = nb_registry.redecorate_parallel(nb.total_profit_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.total_profit_nb, nb_parallel)
         total_profit = func(
             wrapper.shape_2d,
             to_2d_array(close),
@@ -4582,7 +4583,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.total_profit_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.total_profit_grouped_nb, nb_parallel)
             total_profit = func(total_profit, group_lens)
         wrap_kwargs = merge_dicts(dict(name_or_index='total_profit'), wrap_kwargs)
         return wrapper.wrap_reduced(total_profit, group_by=group_by, **wrap_kwargs)
@@ -4590,7 +4591,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def final_value(cls_or_self,
                     group_by: tp.GroupByLike = None,
-                    parallel: tp.Optional[bool] = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     init_cash: tp.Optional[tp.MaybeSeries] = None,
                     total_profit: tp.Optional[tp.MaybeSeries] = None,
                     wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4598,9 +4599,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Get total profit per column/group."""
         if not isinstance(cls_or_self, type):
             if init_cash is None:
-                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, parallel=parallel)
+                total_profit = cls_or_self.total_profit(group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -4611,7 +4612,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def total_return(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      init_cash: tp.Optional[tp.MaybeSeries] = None,
                      total_profit: tp.Optional[tp.MaybeSeries] = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4619,9 +4620,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Get total return per column/group."""
         if not isinstance(cls_or_self, type):
             if init_cash is None:
-                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, parallel=parallel)
+                total_profit = cls_or_self.total_profit(group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -4633,7 +4634,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def returns(cls_or_self,
                 group_by: tp.GroupByLike = None,
                 in_sim_order=False,
-                parallel: tp.Optional[bool] = None,
+                nb_parallel: tp.Optional[bool] = None,
                 init_cash: tp.Optional[tp.MaybeSeries] = None,
                 value: tp.Optional[tp.SeriesFrame] = None,
                 call_seq: tp.Optional[tp.SeriesFrame] = None,
@@ -4642,7 +4643,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Get return series per column/group based on portfolio value."""
         if not isinstance(cls_or_self, type):
             if value is None:
-                value = cls_or_self.value(group_by=group_by, in_sim_order=in_sim_order, parallel=parallel)
+                value = cls_or_self.value(group_by=group_by, in_sim_order=in_sim_order, nb_parallel=nb_parallel)
             if call_seq is None:
                 call_seq = cls_or_self.call_seq
             if wrapper is None:
@@ -4659,20 +4660,20 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 if init_cash is None:
                     init_cash = cls_or_self.init_cash
             group_lens = wrapper.grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.returns_in_sim_order_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.returns_in_sim_order_nb, nb_parallel)
             returns = func(to_2d_array(value), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
         else:
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
-                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
-            func = nb_registry.redecorate_parallel(returns_nb.returns_nb, parallel=parallel)
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
+            func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
             returns = func(to_2d_array(value), to_1d_array(init_cash))
         return wrapper.wrap(returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def asset_returns(cls_or_self,
                       group_by: tp.GroupByLike = None,
-                      parallel: tp.Optional[bool] = None,
+                      nb_parallel: tp.Optional[bool] = None,
                       cash_flow: tp.Optional[tp.MaybeSeries] = None,
                       asset_value: tp.Optional[tp.MaybeSeries] = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4685,22 +4686,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         all in and keeping available cash at zero."""
         if not isinstance(cls_or_self, type):
             if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(group_by=group_by, parallel=parallel)
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, nb_parallel=nb_parallel)
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(group_by=group_by, parallel=parallel)
+                asset_value = cls_or_self.asset_value(group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(cash_flow)
 
-        func = nb_registry.redecorate_parallel(nb.asset_returns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.asset_returns_nb, nb_parallel)
         asset_returns = func(to_2d_array(cash_flow), to_2d_array(asset_value))
         return wrapper.wrap(asset_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def market_value(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     parallel: tp.Optional[bool] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      fillna_close: tp.Optional[bool] = None,
                      close: tp.Optional[tp.SeriesFrame] = None,
                      init_cash: tp.Optional[tp.MaybeSeries] = None,
@@ -4728,22 +4729,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
-                    init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+                    init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.market_value_grouped_nb, parallel=parallel)
+            func = nb_registry.redecorate_parallel(nb.market_value_grouped_nb, nb_parallel)
             market_value = func(to_2d_array(close), group_lens, to_1d_array(init_cash))
         else:
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
-                    init_cash = cls_or_self.get_init_cash(group_by=False, parallel=parallel)
-            func = nb_registry.redecorate_parallel(nb.market_value_nb, parallel=parallel)
+                    init_cash = cls_or_self.get_init_cash(group_by=False, nb_parallel=nb_parallel)
+            func = nb_registry.redecorate_parallel(nb.market_value_nb, nb_parallel)
             market_value = func(to_2d_array(close), to_1d_array(init_cash))
         return wrapper.wrap(market_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
     @class_or_instancemethod
     def market_returns(cls_or_self,
                        group_by: tp.GroupByLike = None,
-                       parallel: tp.Optional[bool] = None,
+                       nb_parallel: tp.Optional[bool] = None,
                        init_cash: tp.Optional[tp.MaybeSeries] = None,
                        market_value: tp.Optional[tp.SeriesFrame] = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
@@ -4751,15 +4752,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Get market return series per column/group."""
         if not isinstance(cls_or_self, type):
             if market_value is None:
-                market_value = cls_or_self.market_value(group_by=group_by, parallel=parallel)
+                market_value = cls_or_self.market_value(group_by=group_by, nb_parallel=nb_parallel)
             if init_cash is None:
-                init_cash = cls_or_self.get_init_cash(group_by=group_by, parallel=parallel)
+                init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(market_value)
 
-        func = nb_registry.redecorate_parallel(returns_nb.returns_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
         market_returns = func(to_2d_array(market_value), to_1d_array(init_cash))
         return wrapper.wrap(market_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4768,20 +4769,20 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def total_market_return(cls_or_self,
                             group_by: tp.GroupByLike = None,
-                            parallel: tp.Optional[bool] = None,
+                            nb_parallel: tp.Optional[bool] = None,
                             market_value: tp.Optional[tp.SeriesFrame] = None,
                             wrapper: tp.Optional[ArrayWrapper] = None,
                             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total market return."""
         if not isinstance(cls_or_self, type):
             if market_value is None:
-                market_value = cls_or_self.market_value(group_by=group_by, parallel=parallel)
+                market_value = cls_or_self.market_value(group_by=group_by, nb_parallel=nb_parallel)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(market_value)
 
-        func = nb_registry.redecorate_parallel(nb.total_market_return_nb, parallel=parallel)
+        func = nb_registry.redecorate_parallel(nb.total_market_return_nb, nb_parallel)
         total_market_return = func(to_2d_array(market_value))
         wrap_kwargs = merge_dicts(dict(name_or_index='total_market_return'), wrap_kwargs)
         return wrapper.wrap_reduced(total_market_return, group_by=group_by, **wrap_kwargs)
@@ -4798,7 +4799,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         year_freq: tp.Optional[tp.FrequencyLike] = None,
                         use_asset_returns: bool = False,
                         defaults: tp.KwargsLike = None,
-                        parallel: tp.Optional[bool] = None,
+                        nb_parallel: tp.Optional[bool] = None,
                         **kwargs) -> ReturnsAccessor:
         """Get returns accessor of type `vectorbt.returns.accessors.ReturnsAccessor`.
 
@@ -4807,11 +4808,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if freq is None:
             freq = self.wrapper.freq
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by, parallel=parallel)
+            returns = self.asset_returns(group_by=group_by, nb_parallel=nb_parallel)
         else:
-            returns = self.returns(group_by=group_by, parallel=parallel)
+            returns = self.returns(group_by=group_by, nb_parallel=nb_parallel)
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by, parallel=parallel)
+            benchmark_rets = self.market_returns(group_by=group_by, nb_parallel=nb_parallel)
         return returns.vbt.returns(
             benchmark_rets=benchmark_rets,
             freq=freq,
@@ -4831,7 +4832,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                freq: tp.Optional[tp.FrequencyLike] = None,
                year_freq: tp.Optional[tp.FrequencyLike] = None,
                use_asset_returns: bool = False,
-               parallel: tp.Optional[bool] = None,
+               nb_parallel: tp.Optional[bool] = None,
                **kwargs) -> QSAdapterT:
         """Get quantstats adapter of type `vectorbt.returns.qs_adapter.QSAdapter`.
 
@@ -4844,7 +4845,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             freq=freq,
             year_freq=year_freq,
             use_asset_returns=use_asset_returns,
-            parallel=parallel
+            nb_parallel=nb_parallel
         )
         return QSAdapter(returns_acc, **kwargs)
 
