@@ -23,14 +23,18 @@ __pdoc__ = {}
 
 class ChunkMeta(tp.NamedTuple):
     idx: int
-    range_start: tp.Optional[int]
-    range_end: tp.Optional[int]
+    start: tp.Optional[int]
+    end: tp.Optional[int]
+    indices: tp.Optional[tp.Sequence[int]]
 
 
 __pdoc__['ChunkMeta'] = "A named tuple representing a chunk metadata."
-__pdoc__['ChunkMeta.chunk_idx'] = "Chunk index."
-__pdoc__['ChunkMeta.from_idx'] = "Start of the chunk range (including)."
-__pdoc__['ChunkMeta.to_idx'] = "End of the chunk range (excluding)."
+__pdoc__['ChunkMeta.idx'] = "Chunk index."
+__pdoc__['ChunkMeta.start'] = "Start of the chunk range (including). Can be None."
+__pdoc__['ChunkMeta.end'] = "End of the chunk range (excluding). Can be None."
+__pdoc__['ChunkMeta.indices'] = """Indices included in the chunk range. Can be None.
+
+Has priority over `ChunkMeta.start` and `ChunkMeta.end`."""
 
 
 # ############# Mixins ############# #
@@ -159,8 +163,9 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
     if size is not None and min_size is not None and size < min_size:
         yield ChunkMeta(
             idx=0,
-            range_start=0,
-            range_end=size
+            start=0,
+            end=size,
+            indices=None
         )
     else:
         if n_chunks is None and chunk_len is None:
@@ -178,15 +183,17 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
                     si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
                     yield ChunkMeta(
                         idx=i,
-                        range_start=si,
-                        range_end=si + (d + 1 if i < r else d)
+                        start=si,
+                        end=si + (d + 1 if i < r else d),
+                        indices=None
                     )
             else:
                 for i in range(n_chunks):
                     yield ChunkMeta(
                         idx=i,
-                        range_start=None,
-                        range_end=None
+                        start=None,
+                        end=None,
+                        indices=None
                     )
         if chunk_len is not None:
             checks.assert_not_none(size)
@@ -195,8 +202,9 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
             for chunk_i, i in enumerate(range(0, size, chunk_len)):
                 yield ChunkMeta(
                     idx=chunk_i,
-                    range_start=i,
-                    range_end=min(i + chunk_len, size)
+                    start=i,
+                    end=min(i + chunk_len, size),
+                    indices=None
                 )
 
 
@@ -224,12 +232,17 @@ class LenChunkMeta(ArgChunkMeta):
 
     def get_chunk_meta(self, ann_args: ann_argsT) -> tp.Iterable[ChunkMeta]:
         arg = self.get_arg(ann_args)
-        range_start = 0
-        range_end = 0
+        start = 0
+        end = 0
         for i, chunk_len in enumerate(arg):
-            range_end += chunk_len
-            yield ChunkMeta(idx=i, range_start=range_start, range_end=range_end)
-            range_start = range_end
+            end += chunk_len
+            yield ChunkMeta(
+                idx=i,
+                start=start,
+                end=end,
+                indices=None
+            )
+            start = end
 
 
 any_sizeT = tp.Union[int, Sizer, tp.Callable]
@@ -359,17 +372,24 @@ class ChunkSlicer(ChunkTaker):
     """Class for slicing multiple elements based on the chunk range."""
 
     def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Sequence:
-        return obj[chunk_meta.range_start:chunk_meta.range_end]
+        if chunk_meta.indices is not None:
+            return obj[chunk_meta.indices]
+        return obj[chunk_meta.start:chunk_meta.end]
 
 
-class SizeAdapter(ChunkSlicer):
-    """Class for adapting the size based on the chunk range."""
+class CountAdapter(ChunkSlicer):
+    """Class for adapting a count based on the chunk range."""
 
     def take(self, obj: int, chunk_meta: ChunkMeta, **kwargs) -> int:
         checks.assert_instance_of(obj, int)
-        if chunk_meta.range_start >= obj:
+        if chunk_meta.indices is not None:
+            indices = np.asarray(chunk_meta.indices)
+            if np.any(indices >= obj):
+                raise IndexError(f"Positional indexers are out-of-bounds")
+            return len(indices)
+        if chunk_meta.start >= obj:
             return 0
-        return min(obj, chunk_meta.range_end) - chunk_meta.range_start
+        return min(obj, chunk_meta.end) - chunk_meta.start
 
 
 class ShapeSelector(ChunkSelector, AxisMixin):
@@ -405,10 +425,16 @@ class ShapeSlicer(ChunkSlicer, AxisMixin):
         if self.axis >= len(obj):
             raise IndexError(f"Shape is {len(obj)}-dimensional, but {self.axis} were indexed")
         obj = list(obj)
-        if chunk_meta.range_start >= obj[self.axis]:
-            del obj[self.axis]
+        if chunk_meta.indices is not None:
+            indices = np.asarray(chunk_meta.indices)
+            if np.any(indices >= obj[self.axis]):
+                raise IndexError(f"Positional indexers are out-of-bounds")
+            obj[self.axis] = len(indices)
         else:
-            obj[self.axis] = min(obj[self.axis], chunk_meta.range_end) - chunk_meta.range_start
+            if chunk_meta.start >= obj[self.axis]:
+                del obj[self.axis]
+            else:
+                obj[self.axis] = min(obj[self.axis], chunk_meta.end) - chunk_meta.start
         return tuple(obj)
 
 
@@ -437,7 +463,10 @@ class ArraySlicer(ShapeSlicer):
         if self.axis >= len(obj.shape):
             raise IndexError(f"Array is {obj.ndim}-dimensional, but {self.axis} were indexed")
         slc = [slice(None)] * len(obj.shape)
-        slc[self.axis] = slice(chunk_meta.range_start, chunk_meta.range_end)
+        if chunk_meta.indices is not None:
+            slc[self.axis] = np.asarray(chunk_meta.indices)
+        else:
+            slc[self.axis] = slice(chunk_meta.start, chunk_meta.end)
         if isinstance(obj, (pd.Series, pd.DataFrame)):
             return obj.iloc[tuple(slc)]
         return obj[tuple(slc)]
@@ -614,6 +643,7 @@ def chunked(*args,
             template_mapping: tp.Optional[tp.Mapping] = None,
             prepend_chunk_meta: tp.Optional[bool] = None,
             merge_func: tp.Optional[tp.Callable] = None,
+            merge_kwargs: tp.KwargsLike = None,
             engine: engineT = None,
             **engine_kwargs) -> tp.Callable:
     """Decorator that chunks the function. Engine-agnostic.
@@ -626,8 +656,10 @@ def chunked(*args,
     2. Splits arguments and keyword arguments by passing chunk metadata, `arg_take_spec`,
         and `template_mapping` to `yield_arg_chunks`, which yields one chunk at a time.
     3. Executes all chunks by passing `engine` and `**engine_kwargs` to `vectorbt.utils.execution.execute`.
-    4. Optionally, post-processes and merges the results using `merge_func`. Passes chunk metadata
-        if an argument named 'chunk_meta' is present in the signature.
+    4. Optionally, post-processes and merges the results by passing them and `**merge_kwargs` to `merge_func`.
+
+    Any template in both `engine_kwargs` and `merge_kwargs` will be substituted. You can use
+    the keys `ann_args`, `chunk_meta`, `arg_take_spec`, and `funcs_args` to be replaced by the actual objects.
 
     Use `prepend_chunk_meta` to prepend an instance of `ChunkMeta` to the arguments.
     If None, prepends automatically if the first argument is named 'chunk_meta'.
@@ -697,8 +729,8 @@ def chunked(*args,
     >>> from vectorbt.utils.chunking import yield_chunk_meta
 
     >>> list(yield_chunk_meta(n_chunks=2))
-    [ChunkMeta(idx=0, range_start=None, range_end=None),
-     ChunkMeta(idx=1, range_start=None, range_end=None)]
+    [ChunkMeta(idx=0, start=None, end=None, indices=None),
+     ChunkMeta(idx=1, start=None, end=None, indices=None)]
     ```
 
     Additionally, it may contain the start and end index of the space we want to split.
@@ -706,8 +738,8 @@ def chunked(*args,
 
     ```python-repl
     >>> list(yield_chunk_meta(n_chunks=2, size=10))
-    [ChunkMeta(idx=0, range_start=0, range_end=5),
-     ChunkMeta(idx=1, range_start=5, range_end=10)]
+    [ChunkMeta(idx=0, start=0, end=5, indices=None),
+     ChunkMeta(idx=1, start=5, end=10, indices=None)]
     ```
 
     If we know the size of the space in advance, we can pass it as an integer constant.
@@ -775,7 +807,7 @@ def chunked(*args,
     ...     size=vbt.LenSizer('a'),
     ...     merge_func=np.concatenate)
     ... def f(chunk_meta, a):
-    ...     return a[chunk_meta.range_start:chunk_meta.range_end]
+    ...     return a[chunk_meta.start:chunk_meta.end]
 
     >>> f(np.arange(10))
     array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -793,7 +825,7 @@ def chunked(*args,
     ...     merge_func=np.concatenate,
     ...     prepend_chunk_meta=False)
     ... def f(chunk_meta, a):
-    ...     return a[chunk_meta.range_start:chunk_meta.range_end]
+    ...     return a[chunk_meta.start:chunk_meta.end]
 
     >>> f(vbt.Rep('chunk_meta'), np.arange(10))
     array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -848,6 +880,7 @@ def chunked(*args,
                 engine = chunking_cfg['engine']
             engine_kwargs = merge_dicts(wrapper.options['engine_kwargs'], kwargs.pop('_engine_kwargs', {}))
             merge_func = kwargs.pop('_merge_func', wrapper.options['merge_func'])
+            merge_kwargs = merge_dicts(wrapper.options['merge_kwargs'], kwargs.pop('_merge_kwargs', {}))
 
             if prepend_chunk_meta:
                 args = (Rep('chunk_meta'), *args)
@@ -870,9 +903,20 @@ def chunked(*args,
                 arg_take_spec=arg_take_spec,
                 template_mapping=template_mapping
             )
+            mapping = merge_dicts(
+                dict(
+                    ann_args=ann_args,
+                    chunk_meta=chunk_meta,
+                    arg_take_spec=arg_take_spec,
+                ),
+                template_mapping
+            )
+            engine_kwargs = deep_substitute(engine_kwargs, mapping)
             results = execute(funcs_args, engine=engine, n_calls=len(chunk_meta), **engine_kwargs)
             if merge_func is not None:
-                return merge_func(results)
+                mapping['funcs_args'] = funcs_args
+                merge_kwargs = deep_substitute(merge_kwargs, mapping)
+                return merge_func(results, **merge_kwargs)
             return results
 
         wrapper.options = Config(
@@ -887,7 +931,8 @@ def chunked(*args,
                 template_mapping=template_mapping,
                 engine=engine,
                 engine_kwargs=engine_kwargs,
-                merge_func=merge_func
+                merge_func=merge_func,
+                merge_kwargs=merge_kwargs
             ),
             frozen_keys=True
         )

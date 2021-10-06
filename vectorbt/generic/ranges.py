@@ -121,10 +121,11 @@ from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
+from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.enums import RangeStatus, range_dt
-from vectorbt.generic import nb
+from vectorbt.generic import nb, chunking
 from vectorbt.records.base import Records
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
@@ -235,6 +236,7 @@ class Ranges(Records):
                 gap_value: tp.Optional[tp.Scalar] = None,
                 attach_ts: bool = True,
                 parallel: tp.Optional[bool] = None,
+                chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> RangesT:
         """Build `Ranges` from time series `ts`.
@@ -259,6 +261,11 @@ class Ranges(Records):
             else:
                 gap_value = np.nan
         func = nb_registry.redecorate_parallel(nb.get_ranges_nb, parallel=parallel)
+        chunked_config = merge_dicts(
+            chunking.arr_ax1_config,
+            chunking.merge_arr_records_config
+        )
+        func = resolve_chunked(func, chunked, **chunked_config)
         records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)

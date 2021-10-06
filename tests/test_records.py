@@ -56,10 +56,11 @@ records_nosort_grouped = vbt.records.Records(wrapper_grouped, records_nosort_arr
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []
     vbt.settings.caching.blacklist = []
+    vbt.settings.numba['check_func_suffix'] = True
+    vbt.settings.chunking['n_chunks'] = 2
 
 
 def teardown_module():
@@ -277,8 +278,12 @@ class TestMappedArray:
             np.array([False, False, True, False, True, False, True, False, False])
         )
         np.testing.assert_array_equal(
-            mapped_array.top_n_mask(1, parallel=False),
-            mapped_array.top_n_mask(1, parallel=True)
+            mapped_array.top_n_mask(1, parallel=True),
+            mapped_array.top_n_mask(1, parallel=False)
+        )
+        np.testing.assert_array_equal(
+            mapped_array.top_n_mask(1, chunked=True),
+            mapped_array.top_n_mask(1, chunked=False)
         )
 
     def test_bottom_n_mask(self):
@@ -287,8 +292,12 @@ class TestMappedArray:
             np.array([True, False, False, True, False, False, False, False, True])
         )
         np.testing.assert_array_equal(
-            mapped_array.bottom_n_mask(1, parallel=False),
-            mapped_array.bottom_n_mask(1, parallel=True)
+            mapped_array.bottom_n_mask(1, parallel=True),
+            mapped_array.bottom_n_mask(1, parallel=False)
+        )
+        np.testing.assert_array_equal(
+            mapped_array.bottom_n_mask(1, chunked=True),
+            mapped_array.bottom_n_mask(1, chunked=False)
         )
 
     def test_top_n(self):
@@ -403,8 +412,12 @@ class TestMappedArray:
                mapped_array.apply(cumsum_apply_nb, group_by=group_by).wrapper
         assert mapped_array.apply(cumsum_apply_nb, group_by=False).wrapper.grouper.group_by is None
         np.testing.assert_array_equal(
-            mapped_array.apply(cumsum_apply_nb, parallel=False).values,
-            mapped_array.apply(cumsum_apply_nb, parallel=True).values
+            mapped_array.apply(cumsum_apply_nb, parallel=True).values,
+            mapped_array.apply(cumsum_apply_nb, parallel=False).values
+        )
+        np.testing.assert_array_equal(
+            mapped_array.apply(cumsum_apply_nb, chunked=True).values,
+            mapped_array.apply(cumsum_apply_nb, chunked=False).values
         )
         np.testing.assert_array_equal(
             mapped_array.__class__.apply(
@@ -414,10 +427,19 @@ class TestMappedArray:
         np.testing.assert_array_equal(
             mapped_array.__class__.apply(
                 cumsum_apply_meta_nb, mapped_array.values,
-                col_mapper=mapped_array.col_mapper, parallel=False).values,
+                col_mapper=mapped_array.col_mapper, parallel=True).values,
             mapped_array.__class__.apply(
                 cumsum_apply_meta_nb, mapped_array.values,
-                col_mapper=mapped_array.col_mapper, parallel=True).values
+                col_mapper=mapped_array.col_mapper, parallel=False).values
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        np.testing.assert_array_equal(
+            mapped_array.__class__.apply(
+                cumsum_apply_meta_nb, mapped_array.values,
+                col_mapper=mapped_array.col_mapper, chunked=chunked).values,
+            mapped_array.__class__.apply(
+                cumsum_apply_meta_nb, mapped_array.values,
+                col_mapper=mapped_array.col_mapper, chunked=False).values
         )
 
     def test_reduce(self):
@@ -464,8 +486,12 @@ class TestMappedArray:
             mapped_array_grouped.reduce(mean_reduce_nb)
         )
         pd.testing.assert_series_equal(
-            mapped_array.reduce(mean_reduce_nb, parallel=False),
-            mapped_array.reduce(mean_reduce_nb, parallel=True)
+            mapped_array.reduce(mean_reduce_nb, parallel=True),
+            mapped_array.reduce(mean_reduce_nb, parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.reduce(mean_reduce_nb, chunked=True),
+            mapped_array.reduce(mean_reduce_nb, chunked=False)
         )
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
@@ -474,9 +500,16 @@ class TestMappedArray:
         )
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
-                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, parallel=False),
-            mapped_array.__class__.reduce(
                 mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, parallel=True),
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, parallel=False),
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, chunked=chunked),
+            mapped_array.__class__.reduce(
+                mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, chunked=False),
         )
 
     def test_reduce_to_idx(self):
@@ -502,8 +535,12 @@ class TestMappedArray:
             pd.Series(np.array([0, 2], dtype=int), index=pd.Index(['g1', 'g2'], dtype='object')).rename('reduce')
         )
         pd.testing.assert_series_equal(
-            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=False),
-            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=True)
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=True),
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, chunked=True),
+            mapped_array.reduce(argmin_reduce_nb, returns_idx=True, chunked=False)
         )
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
@@ -514,10 +551,19 @@ class TestMappedArray:
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
-                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
             mapped_array.__class__.reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
-                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        pd.testing.assert_series_equal(
+            mapped_array.__class__.reduce(
+                argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=chunked),
+            mapped_array.__class__.reduce(
+                argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=False),
         )
 
     def test_reduce_to_array(self):
@@ -592,8 +638,12 @@ class TestMappedArray:
             pd.DataFrame([[10.], [14.]], columns=pd.Index(['g1'], dtype='object'))
         )
         pd.testing.assert_frame_equal(
-            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=False),
-            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=True)
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=True),
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, chunked=True),
+            mapped_array.reduce(min_max_reduce_nb, returns_array=True, chunked=False)
         )
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
@@ -604,10 +654,19 @@ class TestMappedArray:
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
-                col_mapper=mapped_array.col_mapper, parallel=False),
+                col_mapper=mapped_array.col_mapper, parallel=True),
             mapped_array.__class__.reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
-                col_mapper=mapped_array.col_mapper, parallel=True),
+                col_mapper=mapped_array.col_mapper, parallel=False),
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
+                col_mapper=mapped_array.col_mapper, chunked=chunked),
+            mapped_array.__class__.reduce(
+                min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
+                col_mapper=mapped_array.col_mapper, chunked=False),
         )
 
     def test_reduce_to_idx_array(self):
@@ -680,8 +739,12 @@ class TestMappedArray:
             )
         )
         pd.testing.assert_frame_equal(
-            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=False),
-            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=True)
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=True),
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, chunked=True),
+            mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, chunked=False)
         )
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
@@ -692,10 +755,19 @@ class TestMappedArray:
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
-                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
             mapped_array.__class__.reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
-                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=True),
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, parallel=False),
+        )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        pd.testing.assert_frame_equal(
+            mapped_array.__class__.reduce(
+                idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=chunked),
+            mapped_array.__class__.reduce(
+                idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
+                col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=False),
         )
 
     def test_nth(self):
@@ -919,8 +991,12 @@ class TestMappedArray:
             )
         )
         pd.testing.assert_frame_equal(
-            mapped_array.value_counts(parallel=False),
-            mapped_array.value_counts(parallel=True)
+            mapped_array.value_counts(parallel=True),
+            mapped_array.value_counts(parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            mapped_array.value_counts(chunked=True),
+            mapped_array.value_counts(chunked=False)
         )
         pd.testing.assert_frame_equal(
             mapped_array.value_counts(axis=0),
@@ -1426,8 +1502,8 @@ class TestRecords:
                records.map(map_func_nb, group_by=group_by).wrapper
         assert records_grouped.map(map_func_nb, group_by=False).wrapper.grouper.group_by is None
         np.testing.assert_array_equal(
-            records.map(map_func_nb, parallel=False).values,
-            records.map(map_func_nb, parallel=True).values
+            records.map(map_func_nb, parallel=True).values,
+            records.map(map_func_nb, parallel=False).values
         )
         np.testing.assert_array_equal(
             records.__class__.map(map_func_meta_nb, records.values, col_mapper=records.col_mapper).values,
@@ -1436,10 +1512,10 @@ class TestRecords:
         np.testing.assert_array_equal(
             records.__class__.map(
                 map_func_meta_nb, records.values,
-                col_mapper=records.col_mapper, parallel=False).values,
+                col_mapper=records.col_mapper, parallel=True).values,
             records.__class__.map(
                 map_func_meta_nb, records.values,
-                col_mapper=records.col_mapper, parallel=True).values
+                col_mapper=records.col_mapper, parallel=False).values
         )
 
     def test_map_array(self):
@@ -1485,8 +1561,8 @@ class TestRecords:
                records.apply(cumsum_apply_nb, group_by=group_by).wrapper
         assert records_grouped.apply(cumsum_apply_nb, group_by=False).wrapper.grouper.group_by is None
         np.testing.assert_array_equal(
-            records.apply(cumsum_apply_nb, parallel=False).values,
-            records.apply(cumsum_apply_nb, parallel=True).values
+            records.apply(cumsum_apply_nb, parallel=True).values,
+            records.apply(cumsum_apply_nb, parallel=False).values
         )
         np.testing.assert_array_equal(
             records.__class__.apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values,
@@ -1495,10 +1571,10 @@ class TestRecords:
         np.testing.assert_array_equal(
             records.__class__.apply(
                 cumsum_apply_meta_nb, records.values,
-                col_mapper=records.col_mapper, parallel=False).values,
+                col_mapper=records.col_mapper, parallel=True).values,
             records.__class__.apply(
                 cumsum_apply_meta_nb, records.values,
-                col_mapper=records.col_mapper, parallel=True).values
+                col_mapper=records.col_mapper, parallel=False).values
         )
 
     def test_count(self):
@@ -1754,8 +1830,12 @@ class TestRanges:
             group_by
         )
         record_arrays_close(
-            vbt.Ranges.from_ts(ts, parallel=False).values,
-            vbt.Ranges.from_ts(ts, parallel=True).values
+            vbt.Ranges.from_ts(ts, parallel=True).values,
+            vbt.Ranges.from_ts(ts, parallel=False).values
+        )
+        record_arrays_close(
+            vbt.Ranges.from_ts(ts, chunked=True).values,
+            vbt.Ranges.from_ts(ts, chunked=False).values
         )
 
     def test_records_readable(self):
@@ -1821,8 +1901,8 @@ class TestRanges:
             )
         )
         pd.testing.assert_frame_equal(
-            ranges.to_mask(parallel=False),
-            ranges.to_mask(parallel=True)
+            ranges.to_mask(parallel=True),
+            ranges.to_mask(parallel=False)
         )
 
     def test_duration(self):
@@ -1835,8 +1915,8 @@ class TestRanges:
             np.array([1, 1, 1, 3, 3])
         )
         np.testing.assert_array_equal(
-            ranges.get_duration(parallel=False).values,
             ranges.get_duration(parallel=True).values,
+            ranges.get_duration(parallel=False).values,
         )
 
     def test_avg_duration(self):
@@ -1919,8 +1999,8 @@ class TestRanges:
             ranges_grouped.replace(records_arr=np.repeat(ranges_grouped.values, 2)).coverage()
         )
         pd.testing.assert_series_equal(
-            ranges.coverage(parallel=False),
-            ranges.coverage(parallel=True)
+            ranges.coverage(parallel=True),
+            ranges.coverage(parallel=False)
         )
 
     def test_stats(self):
@@ -2049,8 +2129,12 @@ class TestDrawdowns:
             group_by
         )
         record_arrays_close(
-            vbt.Drawdowns.from_ts(ts2, parallel=False).values,
-            vbt.Drawdowns.from_ts(ts2, parallel=True).values
+            vbt.Drawdowns.from_ts(ts2, parallel=True).values,
+            vbt.Drawdowns.from_ts(ts2, parallel=False).values
+        )
+        record_arrays_close(
+            vbt.Drawdowns.from_ts(ts2, chunked=True).values,
+            vbt.Drawdowns.from_ts(ts2, chunked=False).values
         )
 
     def test_records_readable(self):
@@ -2816,8 +2900,8 @@ class TestExitTrades:
             exit_trades.values
         )
         record_arrays_close(
-            vbt.ExitTrades.from_orders(orders, parallel=False).values,
-            vbt.ExitTrades.from_orders(orders, parallel=True).values
+            vbt.ExitTrades.from_orders(orders, parallel=True).values,
+            vbt.ExitTrades.from_orders(orders, parallel=False).values
         )
 
     def test_records_readable(self):
@@ -3327,8 +3411,8 @@ class TestEntryTrades:
             entry_trades.values
         )
         record_arrays_close(
-            vbt.EntryTrades.from_orders(orders, parallel=False).values,
-            vbt.EntryTrades.from_orders(orders, parallel=True).values
+            vbt.EntryTrades.from_orders(orders, parallel=True).values,
+            vbt.EntryTrades.from_orders(orders, parallel=False).values
         )
 
     def test_records_readable(self):
@@ -3379,12 +3463,12 @@ class TestPositions:
             positions.values
         )
         record_arrays_close(
-            vbt.Positions.from_trades(entry_trades, parallel=False).values,
-            vbt.Positions.from_trades(entry_trades, parallel=True).values
+            vbt.Positions.from_trades(entry_trades, parallel=True).values,
+            vbt.Positions.from_trades(entry_trades, parallel=False).values
         )
         record_arrays_close(
-            vbt.Positions.from_trades(exit_trades, parallel=False).values,
-            vbt.Positions.from_trades(exit_trades, parallel=True).values
+            vbt.Positions.from_trades(exit_trades, parallel=True).values,
+            vbt.Positions.from_trades(exit_trades, parallel=False).values
         )
 
     def test_records_readable(self):

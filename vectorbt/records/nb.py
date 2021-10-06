@@ -666,20 +666,21 @@ def mapped_value_counts_per_col_nb(codes: tp.Array1d, n_uniques: int, col_map: t
 
 
 @register_jit(cache=True)
-def mapped_value_counts_per_row_nb(codes: tp.Array1d, n_uniques: int, idx_arr: tp.Array1d, n_rows: int) -> tp.Array2d:
+def mapped_value_counts_per_row_nb(mapped_arr: tp.Array1d, n_uniques: int,
+                                   idx_arr: tp.Array1d, n_rows: int) -> tp.Array2d:
     """Get value counts per row of an already factorized mapped array."""
     out = np.full((n_uniques, n_rows), 0, dtype=np.int_)
 
-    for c in range(codes.shape[0]):
-        out[codes[c], idx_arr[c]] += 1
+    for c in range(mapped_arr.shape[0]):
+        out[mapped_arr[c], idx_arr[c]] += 1
     return out
 
 
 @register_jit(cache=True)
-def mapped_value_counts_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array2d:
+def mapped_value_counts_nb(mapped_arr: tp.Array1d, n_uniques: int) -> tp.Array2d:
     """Get value counts globally of an already factorized mapped array."""
     out = np.full(n_uniques, 0, dtype=np.int_)
 
-    for c in range(codes.shape[0]):
-        out[codes[c]] += 1
+    for c in range(mapped_arr.shape[0]):
+        out[mapped_arr[c]] += 1
     return out

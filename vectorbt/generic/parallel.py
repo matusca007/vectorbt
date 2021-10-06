@@ -54,15 +54,15 @@ class ColSlicer(FlexChunkTaker, ChunkSlicer):
             if isinstance(obj, pd.Series):
                 return obj
         if isinstance(obj, pd.DataFrame):
-            return obj.iloc[:, chunk_meta.range_start:chunk_meta.range_end]
+            return obj.iloc[:, chunk_meta.start:chunk_meta.end]
         if isinstance(obj, np.ndarray):
             if self.flex_2d is not None:
                 if obj.ndim == 0:
                     return obj
                 if obj.ndim == 1:
                     if self.flex_2d:
-                        return obj[chunk_meta.range_start:chunk_meta.range_end]
+                        return obj[chunk_meta.start:chunk_meta.end]
                     return obj
             if obj.ndim == 2:
-                return obj[:, chunk_meta.range_start:chunk_meta.range_end]
+                return obj[:, chunk_meta.start:chunk_meta.end]
         raise ValueError(f"ColSlicer accepts Series, DataFrame, or NumPy array, not {type(obj)}")

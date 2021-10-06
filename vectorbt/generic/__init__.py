@@ -9,13 +9,15 @@ from vectorbt.generic.enums import *
 from vectorbt.generic.ranges import Ranges
 from vectorbt.generic.drawdowns import Drawdowns
 from vectorbt.generic.splitters import RangeSplitter, RollingSplitter, ExpandingSplitter
+from vectorbt.generic.chunking import GroupLensMapper
 
 __all__ = [
     'Ranges',
     'Drawdowns',
     'RangeSplitter',
     'RollingSplitter',
-    'ExpandingSplitter'
+    'ExpandingSplitter',
+    'GroupLensMapper'
 ]
 
 __pdoc__ = {k: False for k in __all__}

@@ -175,9 +175,10 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.template import RepEval
+from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.generic import nb
+from vectorbt.generic import nb, chunking
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.mapped_array import MappedArray
@@ -277,6 +278,7 @@ class Drawdowns(Ranges):
                 ts: tp.ArrayLike,
                 attach_ts: bool = True,
                 parallel: tp.Optional[bool] = None,
+                chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> DrawdownsT:
         """Build `Drawdowns` from time series `ts`.
@@ -284,6 +286,11 @@ class Drawdowns(Ranges):
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
         func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, parallel=parallel)
+        chunked_config = merge_dicts(
+            chunking.arr_ax1_config,
+            chunking.merge_arr_records_config
+        )
+        func = resolve_chunked(func, chunked, **chunked_config)
         records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)

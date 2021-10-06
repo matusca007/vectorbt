@@ -29,10 +29,11 @@ group_by = np.array(['g1', 'g1', 'g2'])
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
     vbt.settings.caching.whitelist = []
     vbt.settings.caching.blacklist = []
+    vbt.settings.numba['check_func_suffix'] = True
+    vbt.settings.chunking['n_chunks'] = 2
 
 
 def teardown_module():
@@ -970,6 +971,7 @@ class TestAccessors:
                 wrapper=df.vbt.wrapper, group_by=group_by, chunked=False),
         )
 
+    def test_reduce_to_idx(self):
         @njit
         def argmax_nb(a):
             a = a.copy()
@@ -1011,6 +1013,7 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, parallel=False)
         )
+        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=size_chunked),
@@ -1039,6 +1042,7 @@ class TestAccessors:
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, parallel=False),
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1048,6 +1052,7 @@ class TestAccessors:
                 wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, chunked=False),
         )
 
+    def test_reduce_to_array(self):
         @njit
         def min_and_max_nb(a):
             out = np.empty(2)
@@ -1102,6 +1107,7 @@ class TestAccessors:
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, parallel=False)
         )
+        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1138,6 +1144,7 @@ class TestAccessors:
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1147,6 +1154,7 @@ class TestAccessors:
                 wrapper=df.vbt.wrapper, group_by=group_by, chunked=False)
         )
 
+    def test_reduce_to_idx_array(self):
         @njit
         def argmin_and_argmax_nb(a):
             # nanargmin and nanargmax
@@ -1217,6 +1225,7 @@ class TestAccessors:
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 returns_array=True, wrapper=df.vbt.wrapper, parallel=False)
         )
+        size_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1253,6 +1262,7 @@ class TestAccessors:
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,

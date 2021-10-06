@@ -4,13 +4,12 @@
 """Modules with base classes and utilities for pandas objects, such as broadcasting."""
 
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.base.grouping import Grouper, GroupLensMapper
+from vectorbt.base.grouping import Grouper
 
 __all__ = [
     'ArrayWrapper',
     'Wrapping',
-    'Grouper',
-    'GroupLensMapper'
+    'Grouper'
 ]
 
 __pdoc__ = {k: False for k in __all__}

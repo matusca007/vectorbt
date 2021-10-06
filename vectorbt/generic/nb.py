@@ -42,488 +42,488 @@ from vectorbt.generic.enums import RangeStatus, DrawdownStatus, range_dt, drawdo
 
 
 @register_jit(cache=True)
-def shuffle_1d_nb(a: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
-    """Shuffle each column in `a`.
+def shuffle_1d_nb(arr: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
+    """Shuffle each column in the array.
 
     Specify `seed` to make output deterministic."""
     if seed is not None:
         np.random.seed(seed)
-    return np.random.permutation(a)
+    return np.random.permutation(arr)
 
 
 @register_jit(cache=True)
-def shuffle_nb(a: tp.Array2d, seed: tp.Optional[int] = None) -> tp.Array2d:
+def shuffle_nb(arr: tp.Array2d, seed: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `shuffle_1d_nb`."""
     if seed is not None:
         np.random.seed(seed)
-    out = np.empty_like(a, dtype=a.dtype)
+    out = np.empty_like(arr, dtype=arr.dtype)
 
-    for col in range(a.shape[1]):
-        out[:, col] = np.random.permutation(a[:, col])
+    for col in range(arr.shape[1]):
+        out[:, col] = np.random.permutation(arr[:, col])
     return out
 
 
 @register_generated_jit(cache=True)
-def set_by_mask_1d_nb(a: tp.Array1d, mask: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
+def set_by_mask_1d_nb(arr: tp.Array1d, mask: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     """Set each element to a value by boolean mask."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         value_dtype = as_dtype(value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         value_dtype = np.array(value).dtype
     dtype = np.promote_types(a_dtype, value_dtype)
 
-    def _set_by_mask_1d_nb(a, mask, value):
-        out = a.astype(dtype)
+    def _set_by_mask_1d_nb(arr, mask, value):
+        out = arr.astype(dtype)
         out[mask] = value
         return out
 
     if not nb_enabled:
-        return _set_by_mask_1d_nb(a, mask, value)
+        return _set_by_mask_1d_nb(arr, mask, value)
 
     return _set_by_mask_1d_nb
 
 
 @register_generated_jit(cache=True)
-def set_by_mask_nb(a: tp.Array2d, mask: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
+def set_by_mask_nb(arr: tp.Array2d, mask: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
     """2-dim version of `set_by_mask_1d_nb`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         value_dtype = as_dtype(value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         value_dtype = np.array(value).dtype
     dtype = np.promote_types(a_dtype, value_dtype)
 
-    def _set_by_mask_nb(a, mask, value):
-        out = a.astype(dtype)
-        for col in range(a.shape[1]):
+    def _set_by_mask_nb(arr, mask, value):
+        out = arr.astype(dtype)
+        for col in range(arr.shape[1]):
             out[mask[:, col], col] = value
         return out
 
     if not nb_enabled:
-        return _set_by_mask_nb(a, mask, value)
+        return _set_by_mask_nb(arr, mask, value)
 
     return _set_by_mask_nb
 
 
 @register_generated_jit(cache=True)
-def set_by_mask_mult_1d_nb(a: tp.Array1d, mask: tp.Array1d, values: tp.Array1d) -> tp.Array1d:
+def set_by_mask_mult_1d_nb(arr: tp.Array1d, mask: tp.Array1d, values: tp.Array1d) -> tp.Array1d:
     """Set each element in one array to the corresponding element in another by boolean mask.
 
-    `values` must be of the same shape as in `a`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    `values` must be of the same shape as in the array."""
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         value_dtype = as_dtype(values.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         value_dtype = values.dtype
     dtype = np.promote_types(a_dtype, value_dtype)
 
-    def _set_by_mask_mult_1d_nb(a, mask, values):
-        out = a.astype(dtype)
+    def _set_by_mask_mult_1d_nb(arr, mask, values):
+        out = arr.astype(dtype)
         out[mask] = values[mask]
         return out
 
     if not nb_enabled:
-        return _set_by_mask_mult_1d_nb(a, mask, values)
+        return _set_by_mask_mult_1d_nb(arr, mask, values)
 
     return _set_by_mask_mult_1d_nb
 
 
 @register_generated_jit(cache=True)
-def set_by_mask_mult_nb(a: tp.Array2d, mask: tp.Array2d, values: tp.Array2d) -> tp.Array2d:
+def set_by_mask_mult_nb(arr: tp.Array2d, mask: tp.Array2d, values: tp.Array2d) -> tp.Array2d:
     """2-dim version of `set_by_mask_mult_1d_nb`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         value_dtype = as_dtype(values.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         value_dtype = values.dtype
     dtype = np.promote_types(a_dtype, value_dtype)
 
-    def _set_by_mask_mult_nb(a, mask, values):
-        out = a.astype(dtype)
-        for col in range(a.shape[1]):
+    def _set_by_mask_mult_nb(arr, mask, values):
+        out = arr.astype(dtype)
+        for col in range(arr.shape[1]):
             out[mask[:, col], col] = values[mask[:, col], col]
         return out
 
     if not nb_enabled:
-        return _set_by_mask_mult_nb(a, mask, values)
+        return _set_by_mask_mult_nb(arr, mask, values)
 
     return _set_by_mask_mult_nb
 
 
 @register_jit(cache=True)
-def fillna_1d_nb(a: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
+def fillna_1d_nb(arr: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     """Replace NaNs with value.
 
     Numba equivalent to `pd.Series(a).fillna(value)`."""
-    return set_by_mask_1d_nb(a, np.isnan(a), value)
+    return set_by_mask_1d_nb(arr, np.isnan(arr), value)
 
 
 @register_jit(cache=True)
-def fillna_nb(a: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
+def fillna_nb(arr: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
     """2-dim version of `fillna_1d_nb`."""
-    return set_by_mask_nb(a, np.isnan(a), value)
+    return set_by_mask_nb(arr, np.isnan(arr), value)
 
 
 @register_generated_jit(cache=True)
-def bshift_1d_nb(a: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
+def bshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
     """Shift backward by `n` positions.
 
     Numba equivalent to `pd.Series(a).shift(n)`.
 
     !!! warning
         This operation looks ahead."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         if isinstance(fill_value, Omitted):
             fill_value_dtype = np.asarray(fill_value.value).dtype
         else:
             fill_value_dtype = as_dtype(fill_value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(a_dtype, fill_value_dtype)
 
-    def _bshift_1d_nb(a, n, fill_value):
-        out = np.empty_like(a, dtype=dtype)
+    def _bshift_1d_nb(arr, n, fill_value):
+        out = np.empty_like(arr, dtype=dtype)
         out[-n:] = fill_value
-        out[:-n] = a[n:]
+        out[:-n] = arr[n:]
         return out
 
     if not nb_enabled:
-        return _bshift_1d_nb(a, n, fill_value)
+        return _bshift_1d_nb(arr, n, fill_value)
 
     return _bshift_1d_nb
 
 
 @register_generated_jit(cache=True)
-def bshift_nb(a: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
+def bshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `bshift_1d_nb`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         if isinstance(fill_value, Omitted):
             fill_value_dtype = np.asarray(fill_value.value).dtype
         else:
             fill_value_dtype = as_dtype(fill_value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(a_dtype, fill_value_dtype)
 
-    def _bshift_nb(a, n, fill_value):
-        out = np.empty_like(a, dtype=dtype)
-        for col in range(a.shape[1]):
-            out[:, col] = bshift_1d_nb(a[:, col], n=n, fill_value=fill_value)
+    def _bshift_nb(arr, n, fill_value):
+        out = np.empty_like(arr, dtype=dtype)
+        for col in range(arr.shape[1]):
+            out[:, col] = bshift_1d_nb(arr[:, col], n=n, fill_value=fill_value)
         return out
 
     if not nb_enabled:
-        return _bshift_nb(a, n, fill_value)
+        return _bshift_nb(arr, n, fill_value)
 
     return _bshift_nb
 
 
 @register_generated_jit(cache=True)
-def fshift_1d_nb(a: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
+def fshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
     """Shift forward by `n` positions.
 
     Numba equivalent to `pd.Series(a).shift(n)`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         if isinstance(fill_value, Omitted):
             fill_value_dtype = np.asarray(fill_value.value).dtype
         else:
             fill_value_dtype = as_dtype(fill_value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(a_dtype, fill_value_dtype)
 
-    def _fshift_1d_nb(a, n, fill_value):
-        out = np.empty_like(a, dtype=dtype)
+    def _fshift_1d_nb(arr, n, fill_value):
+        out = np.empty_like(arr, dtype=dtype)
         out[:n] = fill_value
-        out[n:] = a[:-n]
+        out[n:] = arr[:-n]
         return out
 
     if not nb_enabled:
-        return _fshift_1d_nb(a, n, fill_value)
+        return _fshift_1d_nb(arr, n, fill_value)
 
     return _fshift_1d_nb
 
 
 @register_generated_jit(cache=True)
-def fshift_nb(a: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
+def fshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `fshift_1d_nb`."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
         if isinstance(fill_value, Omitted):
             fill_value_dtype = np.asarray(fill_value.value).dtype
         else:
             fill_value_dtype = as_dtype(fill_value)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
         fill_value_dtype = np.array(fill_value).dtype
     dtype = np.promote_types(a_dtype, fill_value_dtype)
 
-    def _fshift_nb(a, n, fill_value):
-        out = np.empty_like(a, dtype=dtype)
-        for col in range(a.shape[1]):
-            out[:, col] = fshift_1d_nb(a[:, col], n=n, fill_value=fill_value)
+    def _fshift_nb(arr, n, fill_value):
+        out = np.empty_like(arr, dtype=dtype)
+        for col in range(arr.shape[1]):
+            out[:, col] = fshift_1d_nb(arr[:, col], n=n, fill_value=fill_value)
         return out
 
     if not nb_enabled:
-        return _fshift_nb(a, n, fill_value)
+        return _fshift_nb(arr, n, fill_value)
 
     return _fshift_nb
 
 
 @register_jit(cache=True)
-def diff_1d_nb(a: tp.Array1d, n: int = 1) -> tp.Array1d:
+def diff_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     """Return the 1-th discrete difference.
 
     Numba equivalent to `pd.Series(a).diff()`."""
-    out = np.empty_like(a, dtype=np.float_)
+    out = np.empty_like(arr, dtype=np.float_)
     out[:n] = np.nan
-    out[n:] = a[n:] - a[:-n]
+    out[n:] = arr[n:] - arr[:-n]
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def diff_nb(a: tp.Array2d, n: int = 1) -> tp.Array2d:
+def diff_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `diff_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = diff_1d_nb(a[:, col], n=n)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = diff_1d_nb(arr[:, col], n=n)
     return out
 
 
 @register_jit(cache=True)
-def pct_change_1d_nb(a: tp.Array1d, n: int = 1) -> tp.Array1d:
+def pct_change_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     """Return the percentage change.
 
     Numba equivalent to `pd.Series(a).pct_change()`."""
-    out = np.empty_like(a, dtype=np.float_)
+    out = np.empty_like(arr, dtype=np.float_)
     out[:n] = np.nan
-    out[n:] = a[n:] / a[:-n] - 1
+    out[n:] = arr[n:] / arr[:-n] - 1
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def pct_change_nb(a: tp.Array2d, n: int = 1) -> tp.Array2d:
+def pct_change_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `pct_change_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = pct_change_1d_nb(a[:, col], n=n)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = pct_change_1d_nb(arr[:, col], n=n)
     return out
 
 
 @register_jit(cache=True)
-def bfill_1d_nb(a: tp.Array1d) -> tp.Array1d:
+def bfill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Fill NaNs by propagating first valid observation backward.
 
     Numba equivalent to `pd.Series(a).fillna(method='bfill')`.
 
     !!! warning
         This operation looks ahead."""
-    out = np.empty_like(a, dtype=a.dtype)
-    lastval = a[-1]
-    for i in range(a.shape[0] - 1, -1, -1):
-        if np.isnan(a[i]):
+    out = np.empty_like(arr, dtype=arr.dtype)
+    lastval = arr[-1]
+    for i in range(arr.shape[0] - 1, -1, -1):
+        if np.isnan(arr[i]):
             out[i] = lastval
         else:
-            lastval = out[i] = a[i]
+            lastval = out[i] = arr[i]
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def bfill_nb(a: tp.Array2d) -> tp.Array2d:
+def bfill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `bfill_1d_nb`."""
-    out = np.empty_like(a, dtype=a.dtype)
-    for col in prange(a.shape[1]):
-        out[:, col] = bfill_1d_nb(a[:, col])
+    out = np.empty_like(arr, dtype=arr.dtype)
+    for col in prange(arr.shape[1]):
+        out[:, col] = bfill_1d_nb(arr[:, col])
     return out
 
 
 @register_jit(cache=True)
-def ffill_1d_nb(a: tp.Array1d) -> tp.Array1d:
+def ffill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Fill NaNs by propagating last valid observation forward.
 
     Numba equivalent to `pd.Series(a).fillna(method='ffill')`."""
-    out = np.empty_like(a, dtype=a.dtype)
-    lastval = a[0]
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    out = np.empty_like(arr, dtype=arr.dtype)
+    lastval = arr[0]
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             out[i] = lastval
         else:
-            lastval = out[i] = a[i]
+            lastval = out[i] = arr[i]
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def ffill_nb(a: tp.Array2d) -> tp.Array2d:
+def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `ffill_1d_nb`."""
-    out = np.empty_like(a, dtype=a.dtype)
-    for col in prange(a.shape[1]):
-        out[:, col] = ffill_1d_nb(a[:, col])
+    out = np.empty_like(arr, dtype=arr.dtype)
+    for col in prange(arr.shape[1]):
+        out[:, col] = ffill_1d_nb(arr[:, col])
     return out
 
 
 @register_generated_jit(cache=True, tags={'can_parallel'})
-def nanprod_nb(a: tp.Array2d) -> tp.Array1d:
+def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanprod` along axis 0."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
     dtype = np.promote_types(a_dtype, int)
 
-    def _nanprod_nb(a):
-        out = np.empty(a.shape[1], dtype=dtype)
-        for col in prange(a.shape[1]):
-            out[col] = np.nanprod(a[:, col])
+    def _nanprod_nb(arr):
+        out = np.empty(arr.shape[1], dtype=dtype)
+        for col in prange(arr.shape[1]):
+            out[col] = np.nanprod(arr[:, col])
         return out
 
     if not nb_enabled:
-        return _nanprod_nb(a)
+        return _nanprod_nb(arr)
 
     return _nanprod_nb
 
 
 @register_generated_jit(cache=True, tags={'can_parallel'})
-def nancumsum_nb(a: tp.Array2d) -> tp.Array2d:
+def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumsum` along axis 0."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
     dtype = np.promote_types(a_dtype, int)
 
-    def _nancumsum_nb(a):
-        out = np.empty(a.shape, dtype=dtype)
-        for col in prange(a.shape[1]):
-            out[:, col] = np.nancumsum(a[:, col])
+    def _nancumsum_nb(arr):
+        out = np.empty(arr.shape, dtype=dtype)
+        for col in prange(arr.shape[1]):
+            out[:, col] = np.nancumsum(arr[:, col])
         return out
 
     if not nb_enabled:
-        return _nancumsum_nb(a)
+        return _nancumsum_nb(arr)
 
     return _nancumsum_nb
 
 
 @register_generated_jit(cache=True, tags={'can_parallel'})
-def nancumprod_nb(a: tp.Array2d) -> tp.Array2d:
+def nancumprod_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumprod` along axis 0."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
     dtype = np.promote_types(a_dtype, int)
 
-    def _nancumprod_nb(a):
-        out = np.empty(a.shape, dtype=dtype)
-        for col in prange(a.shape[1]):
-            out[:, col] = np.nancumprod(a[:, col])
+    def _nancumprod_nb(arr):
+        out = np.empty(arr.shape, dtype=dtype)
+        for col in prange(arr.shape[1]):
+            out[:, col] = np.nancumprod(arr[:, col])
         return out
 
     if not nb_enabled:
-        return _nancumprod_nb(a)
+        return _nancumprod_nb(arr)
 
     return _nancumprod_nb
 
 
 @register_jit(cache=True)
-def nancnt_1d_nb(a: tp.Array1d) -> int:
+def nancnt_1d_nb(arr: tp.Array1d) -> int:
     """Compute count while ignoring NaNs and not allocating any arrays."""
     cnt = 0
-    for i in range(a.shape[0]):
-        if not np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if not np.isnan(arr[i]):
             cnt += 1
     return cnt
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nancnt_nb(a: tp.Array2d) -> tp.Array1d:
+def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
     """2-dim version of `nancnt_1d_nb`."""
-    out = np.empty(a.shape[1], dtype=np.int_)
-    for col in prange(a.shape[1]):
-        out[col] = nancnt_1d_nb(a[:, col])
+    out = np.empty(arr.shape[1], dtype=np.int_)
+    for col in prange(arr.shape[1]):
+        out[col] = nancnt_1d_nb(arr[:, col])
     return out
 
 
 @register_generated_jit(cache=True, tags={'can_parallel'})
-def nansum_nb(a: tp.Array2d) -> tp.Array1d:
+def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nansum` along axis 0."""
-    nb_enabled = not isinstance(a, np.ndarray)
+    nb_enabled = not isinstance(arr, np.ndarray)
     if nb_enabled:
-        a_dtype = as_dtype(a.dtype)
+        a_dtype = as_dtype(arr.dtype)
     else:
-        a_dtype = a.dtype
+        a_dtype = arr.dtype
     dtype = np.promote_types(a_dtype, int)
 
-    def _nansum_nb(a):
-        out = np.empty(a.shape[1], dtype=dtype)
-        for col in prange(a.shape[1]):
-            out[col] = np.nansum(a[:, col])
+    def _nansum_nb(arr):
+        out = np.empty(arr.shape[1], dtype=dtype)
+        for col in prange(arr.shape[1]):
+            out[col] = np.nansum(arr[:, col])
         return out
 
     if not nb_enabled:
-        return _nansum_nb(a)
+        return _nansum_nb(arr)
 
     return _nansum_nb
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nanmin_nb(a: tp.Array2d) -> tp.Array1d:
+def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmin` along axis 0."""
-    out = np.empty(a.shape[1], dtype=a.dtype)
-    for col in prange(a.shape[1]):
-        out[col] = np.nanmin(a[:, col])
+    out = np.empty(arr.shape[1], dtype=arr.dtype)
+    for col in prange(arr.shape[1]):
+        out[col] = np.nanmin(arr[:, col])
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nanmax_nb(a: tp.Array2d) -> tp.Array1d:
+def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmax` along axis 0."""
-    out = np.empty(a.shape[1], dtype=a.dtype)
-    for col in prange(a.shape[1]):
-        out[col] = np.nanmax(a[:, col])
+    out = np.empty(arr.shape[1], dtype=arr.dtype)
+    for col in prange(arr.shape[1]):
+        out[col] = np.nanmax(arr[:, col])
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nanmean_nb(a: tp.Array2d) -> tp.Array1d:
+def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmean` along axis 0."""
-    out = np.empty(a.shape[1], dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[col] = np.nanmean(a[:, col])
+    out = np.empty(arr.shape[1], dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[col] = np.nanmean(arr[:, col])
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nanmedian_nb(a: tp.Array2d) -> tp.Array1d:
+def nanmedian_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmedian` along axis 0."""
-    out = np.empty(a.shape[1], dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[col] = np.nanmedian(a[:, col])
+    out = np.empty(arr.shape[1], dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[col] = np.nanmedian(arr[:, col])
     return out
 
 
 @register_jit(cache=True)
-def nanpercentile_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
+def nanpercentile_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     """Numba-equivalent of `np.nanpercentile` that does not allocate any arrays.
 
     !!! note
@@ -536,9 +536,9 @@ def nanpercentile_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
     do_min = q < 50
     if not do_min:
         q = 100 - q
-    cnt = a.shape[0]
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    cnt = arr.shape[0]
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             cnt -= 1
     if cnt == 0:
         return np.nan
@@ -559,23 +559,23 @@ def nanpercentile_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
         n_same = 0
         if do_min:
             curr_val = np.inf
-            for i in range(a.shape[0]):
-                if not np.isnan(a[i]):
-                    if a[i] > prev_val:
-                        if a[i] < curr_val:
-                            curr_val = a[i]
+            for i in range(arr.shape[0]):
+                if not np.isnan(arr[i]):
+                    if arr[i] > prev_val:
+                        if arr[i] < curr_val:
+                            curr_val = arr[i]
                             n_same = 0
-                        if a[i] == curr_val:
+                        if arr[i] == curr_val:
                             n_same += 1
         else:
             curr_val = -np.inf
-            for i in range(a.shape[0]):
-                if not np.isnan(a[i]):
-                    if a[i] < prev_val:
-                        if a[i] > curr_val:
-                            curr_val = a[i]
+            for i in range(arr.shape[0]):
+                if not np.isnan(arr[i]):
+                    if arr[i] < prev_val:
+                        if arr[i] > curr_val:
+                            curr_val = arr[i]
                             n_same = 0
-                        if a[i] == curr_val:
+                        if arr[i] == curr_val:
                             n_same += 1
         prev_val = curr_val
         k += n_same
@@ -591,7 +591,7 @@ def nanpercentile_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
 
 
 @register_jit(cache=True)
-def nanpartition_mean_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
+def nanpartition_mean_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     """Average of `np.partition` that ignores NaN values and does not allocate any arrays.
 
     !!! note
@@ -601,9 +601,9 @@ def nanpartition_mean_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
         q = 0
     elif q > 100:
         q = 100
-    cnt = a.shape[0]
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    cnt = arr.shape[0]
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             cnt -= 1
     if cnt == 0:
         return np.nan
@@ -615,13 +615,13 @@ def nanpartition_mean_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
     while True:
         n_same = 0
         curr_val = np.inf
-        for i in range(a.shape[0]):
-            if not np.isnan(a[i]):
-                if a[i] > prev_val:
-                    if a[i] < curr_val:
-                        curr_val = a[i]
+        for i in range(arr.shape[0]):
+            if not np.isnan(arr[i]):
+                if arr[i] > prev_val:
+                    if arr[i] < curr_val:
+                        curr_val = arr[i]
                         n_same = 0
-                    if a[i] == curr_val:
+                    if arr[i] == curr_val:
                         n_same += 1
         if k + n_same >= nth + 1:
             partition_sum += (nth + 1 - k) * curr_val
@@ -636,54 +636,54 @@ def nanpartition_mean_noarr_1d_nb(a: tp.Array1d, q: float) -> float:
 
 
 @register_jit(cache=True)
-def nancov_1d_nb(a: tp.Array1d, b: tp.Array1d, ddof: int = 0) -> float:
+def nancov_1d_nb(arr: tp.Array1d, arr2: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.cov` that ignores NaN values and does not allocate any arrays."""
-    cnt = a.shape[0]
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]) or np.isnan(b[i]):
+    cnt = arr.shape[0]
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]) or np.isnan(arr2[i]):
             cnt -= 1
     rcount = max(cnt - ddof, 0)
     if rcount == 0:
         return np.nan
     out = 0.
-    a_mean = np.nanmean(a)
-    b_mean = np.nanmean(b)
-    for i in range(len(a)):
-        if not np.isnan(a[i]) and not np.isnan(b[i]):
-            out += (a[i] - a_mean) * (b[i] - b_mean)
+    a_mean = np.nanmean(arr)
+    b_mean = np.nanmean(arr2)
+    for i in range(len(arr)):
+        if not np.isnan(arr[i]) and not np.isnan(arr2[i]):
+            out += (arr[i] - a_mean) * (arr2[i] - b_mean)
     return out / rcount
 
 
 @register_jit(cache=True)
-def nanvar_1d_nb(a: tp.Array1d, ddof: int = 0) -> float:
+def nanvar_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.nanvar` that does not allocate any arrays."""
-    cnt = a.shape[0]
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    cnt = arr.shape[0]
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             cnt -= 1
     rcount = max(cnt - ddof, 0)
     if rcount == 0:
         return np.nan
     out = 0.
-    a_mean = np.nanmean(a)
-    for i in range(len(a)):
-        if not np.isnan(a[i]):
-            out += abs(a[i] - a_mean) ** 2
+    a_mean = np.nanmean(arr)
+    for i in range(len(arr)):
+        if not np.isnan(arr[i]):
+            out += abs(arr[i] - a_mean) ** 2
     return out / rcount
 
 
 @register_jit(cache=True)
-def nanstd_1d_nb(a: tp.Array1d, ddof: int = 0) -> float:
+def nanstd_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.nanstd`."""
-    return np.sqrt(nanvar_1d_nb(a, ddof=ddof))
+    return np.sqrt(nanvar_1d_nb(arr, ddof=ddof))
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nanstd_nb(a: tp.Array2d, ddof: int = 0) -> tp.Array1d:
+def nanstd_nb(arr: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     """2-dim version of `nanstd_1d_nb`."""
-    out = np.empty(a.shape[1], dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[col] = nanstd_1d_nb(a[:, col], ddof=ddof)
+    out = np.empty(arr.shape[1], dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[col] = nanstd_1d_nb(arr[:, col], ddof=ddof)
     return out
 
 
@@ -691,7 +691,7 @@ def nanstd_nb(a: tp.Array2d, ddof: int = 0) -> tp.Array1d:
 
 
 @register_jit(cache=True)
-def rolling_min_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
+def rolling_min_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling min.
 
     Numba equivalent to `pd.Series(a).rolling(window, min_periods=minp).min()`."""
@@ -699,15 +699,15 @@ def rolling_min_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None)
         minp = window
     if minp > window:
         raise ValueError("minp must be <= window")
-    out = np.empty_like(a, dtype=np.float_)
-    for i in range(a.shape[0]):
-        minv = a[i]
+    out = np.empty_like(arr, dtype=np.float_)
+    for i in range(arr.shape[0]):
+        minv = arr[i]
         cnt = 0
         for j in range(max(i - window + 1, 0), i + 1):
-            if np.isnan(a[j]):
+            if np.isnan(arr[j]):
                 continue
-            if np.isnan(minv) or a[j] < minv:
-                minv = a[j]
+            if np.isnan(minv) or arr[j] < minv:
+                minv = arr[j]
             cnt += 1
         if cnt < minp:
             out[i] = np.nan
@@ -717,16 +717,16 @@ def rolling_min_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def rolling_min_nb(a: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
+def rolling_min_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_min_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = rolling_min_1d_nb(a[:, col], window, minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = rolling_min_1d_nb(arr[:, col], window, minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def rolling_max_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
+def rolling_max_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling max.
 
     Numba equivalent to `pd.Series(a).rolling(window, min_periods=minp).max()`."""
@@ -734,15 +734,15 @@ def rolling_max_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None)
         minp = window
     if minp > window:
         raise ValueError("minp must be <= window")
-    out = np.empty_like(a, dtype=np.float_)
-    for i in range(a.shape[0]):
-        maxv = a[i]
+    out = np.empty_like(arr, dtype=np.float_)
+    for i in range(arr.shape[0]):
+        maxv = arr[i]
         cnt = 0
         for j in range(max(i - window + 1, 0), i + 1):
-            if np.isnan(a[j]):
+            if np.isnan(arr[j]):
                 continue
-            if np.isnan(maxv) or a[j] > maxv:
-                maxv = a[j]
+            if np.isnan(maxv) or arr[j] > maxv:
+                maxv = arr[j]
             cnt += 1
         if cnt < minp:
             out[i] = np.nan
@@ -752,16 +752,16 @@ def rolling_max_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def rolling_max_nb(a: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
+def rolling_max_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_max_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = rolling_max_1d_nb(a[:, col], window, minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = rolling_max_1d_nb(arr[:, col], window, minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def rolling_mean_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
+def rolling_mean_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling mean.
 
     Numba equivalent to `pd.Series(a).rolling(window, min_periods=minp).mean()`."""
@@ -769,16 +769,16 @@ def rolling_mean_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None
         minp = window
     if minp > window:
         raise ValueError("minp must be <= window")
-    out = np.empty_like(a, dtype=np.float_)
-    cumsum_arr = np.zeros_like(a)
+    out = np.empty_like(arr, dtype=np.float_)
+    cumsum_arr = np.zeros_like(arr)
     cumsum = 0
-    nancnt_arr = np.zeros_like(a)
+    nancnt_arr = np.zeros_like(arr)
     nancnt = 0
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             nancnt = nancnt + 1
         else:
-            cumsum = cumsum + a[i]
+            cumsum = cumsum + arr[i]
         nancnt_arr[i] = nancnt
         cumsum_arr[i] = cumsum
         if i < window:
@@ -795,16 +795,16 @@ def rolling_mean_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def rolling_mean_nb(a: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
+def rolling_mean_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_mean_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = rolling_mean_1d_nb(a[:, col], window, minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = rolling_mean_1d_nb(arr[:, col], window, minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def rolling_std_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array1d:
+def rolling_std_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array1d:
     """Return rolling standard deviation.
 
     Numba equivalent to `pd.Series(a).rolling(window, min_periods=minp).std(ddof=ddof)`."""
@@ -812,19 +812,19 @@ def rolling_std_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None,
         minp = window
     if minp > window:
         raise ValueError("minp must be <= window")
-    out = np.empty_like(a, dtype=np.float_)
-    cumsum_arr = np.zeros_like(a)
+    out = np.empty_like(arr, dtype=np.float_)
+    cumsum_arr = np.zeros_like(arr)
     cumsum = 0
-    cumsum_sq_arr = np.zeros_like(a)
+    cumsum_sq_arr = np.zeros_like(arr)
     cumsum_sq = 0
-    nancnt_arr = np.zeros_like(a)
+    nancnt_arr = np.zeros_like(arr)
     nancnt = 0
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             nancnt = nancnt + 1
         else:
-            cumsum = cumsum + a[i]
-            cumsum_sq = cumsum_sq + a[i] ** 2
+            cumsum = cumsum + arr[i]
+            cumsum_sq = cumsum_sq + arr[i] ** 2
         nancnt_arr[i] = nancnt
         cumsum_arr[i] = cumsum
         cumsum_sq_arr[i] = cumsum_sq
@@ -846,16 +846,16 @@ def rolling_std_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int] = None,
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def rolling_std_nb(a: tp.Array2d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array2d:
+def rolling_std_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `rolling_std_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = rolling_std_1d_nb(a[:, col], window, minp=minp, ddof=ddof)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = rolling_std_1d_nb(arr[:, col], window, minp=minp, ddof=ddof)
     return out
 
 
 @register_jit(cache=True)
-def ewm_mean_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array1d:
+def ewm_mean_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array1d:
     """Return exponential weighted average.
 
     Numba equivalent to `pd.Series(a).ewm(span=span, min_periods=minp, adjust=adjust).mean()`.
@@ -865,7 +865,7 @@ def ewm_mean_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False
         minp = span
     if minp > span:
         raise ValueError("minp must be <= span")
-    N = len(a)
+    N = len(arr)
     out = np.empty(N, dtype=np.float_)
     if N == 0:
         return out
@@ -873,14 +873,14 @@ def ewm_mean_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False
     alpha = 1. / (1. + com)
     old_wt_factor = 1. - alpha
     new_wt = 1. if adjust else alpha
-    weighted_avg = a[0]
+    weighted_avg = arr[0]
     is_observation = (weighted_avg == weighted_avg)
     nobs = int(is_observation)
     out[0] = weighted_avg if (nobs >= minp) else np.nan
     old_wt = 1.
 
     for i in range(1, N):
-        cur = a[i]
+        cur = arr[i]
         is_observation = (cur == cur)
         nobs += is_observation
         if weighted_avg == weighted_avg:
@@ -900,16 +900,16 @@ def ewm_mean_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def ewm_mean_nb(a: tp.Array2d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array2d:
+def ewm_mean_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array2d:
     """2-dim version of `ewm_mean_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = ewm_mean_1d_nb(a[:, col], span, minp=minp, adjust=adjust)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = ewm_mean_1d_nb(arr[:, col], span, minp=minp, adjust=adjust)
     return out
 
 
 @register_jit(cache=True)
-def ewm_std_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array1d:
+def ewm_std_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array1d:
     """Return exponential weighted standard deviation.
 
     Numba equivalent to `pd.Series(a).ewm(span=span, min_periods=minp).std(ddof=ddof)`.
@@ -919,7 +919,7 @@ def ewm_std_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False,
         minp = span
     if minp > span:
         raise ValueError("minp must be <= span")
-    N = len(a)
+    N = len(arr)
     out = np.empty(N, dtype=np.float_)
     if N == 0:
         return out
@@ -927,8 +927,8 @@ def ewm_std_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False,
     alpha = 1. / (1. + com)
     old_wt_factor = 1. - alpha
     new_wt = 1. if adjust else alpha
-    mean_x = a[0]
-    mean_y = a[0]
+    mean_x = arr[0]
+    mean_y = arr[0]
     is_observation = ((mean_x == mean_x) and (mean_y == mean_y))
     nobs = int(is_observation)
     if not is_observation:
@@ -941,8 +941,8 @@ def ewm_std_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False,
     old_wt = 1.
 
     for i in range(1, N):
-        cur_x = a[i]
-        cur_y = a[i]
+        cur_x = arr[i]
+        cur_y = arr[i]
         is_observation = ((cur_x == cur_x) and (cur_y == cur_y))
         nobs += is_observation
         if mean_x == mean_x:
@@ -990,11 +990,11 @@ def ewm_std_1d_nb(a: tp.Array1d, span: int, minp: int = 0, adjust: bool = False,
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def ewm_std_nb(a: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array2d:
+def ewm_std_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `ewm_std_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = ewm_std_1d_nb(a[:, col], span, minp=minp, adjust=adjust, ddof=ddof)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = ewm_std_1d_nb(arr[:, col], span, minp=minp, adjust=adjust, ddof=ddof)
     return out
 
 
@@ -1002,17 +1002,17 @@ def ewm_std_nb(a: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, dd
 
 
 @register_jit(cache=True)
-def expanding_min_1d_nb(a: tp.Array1d, minp: int = 1) -> tp.Array1d:
+def expanding_min_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding min.
 
     Numba equivalent to `pd.Series(a).expanding(min_periods=minp).min()`."""
-    out = np.empty_like(a, dtype=np.float_)
-    minv = a[0]
+    out = np.empty_like(arr, dtype=np.float_)
+    minv = arr[0]
     cnt = 0
-    for i in range(a.shape[0]):
-        if np.isnan(minv) or a[i] < minv:
-            minv = a[i]
-        if not np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if np.isnan(minv) or arr[i] < minv:
+            minv = arr[i]
+        if not np.isnan(arr[i]):
             cnt += 1
         if cnt < minp:
             out[i] = np.nan
@@ -1022,26 +1022,26 @@ def expanding_min_1d_nb(a: tp.Array1d, minp: int = 1) -> tp.Array1d:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def expanding_min_nb(a: tp.Array2d, minp: int = 1) -> tp.Array2d:
+def expanding_min_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_min_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = expanding_min_1d_nb(a[:, col], minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = expanding_min_1d_nb(arr[:, col], minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def expanding_max_1d_nb(a: tp.Array1d, minp: int = 1) -> tp.Array1d:
+def expanding_max_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding max.
 
     Numba equivalent to `pd.Series(a).expanding(min_periods=minp).max()`."""
-    out = np.empty_like(a, dtype=np.float_)
-    maxv = a[0]
+    out = np.empty_like(arr, dtype=np.float_)
+    maxv = arr[0]
     cnt = 0
-    for i in range(a.shape[0]):
-        if np.isnan(maxv) or a[i] > maxv:
-            maxv = a[i]
-        if not np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if np.isnan(maxv) or arr[i] > maxv:
+            maxv = arr[i]
+        if not np.isnan(arr[i]):
             cnt += 1
         if cnt < minp:
             out[i] = np.nan
@@ -1051,45 +1051,45 @@ def expanding_max_1d_nb(a: tp.Array1d, minp: int = 1) -> tp.Array1d:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def expanding_max_nb(a: tp.Array2d, minp: int = 1) -> tp.Array2d:
+def expanding_max_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_max_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = expanding_max_1d_nb(a[:, col], minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = expanding_max_1d_nb(arr[:, col], minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def expanding_mean_1d_nb(a: tp.Array1d, minp: int = 1) -> tp.Array1d:
+def expanding_mean_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding mean.
 
     Numba equivalent to `pd.Series(a).expanding(min_periods=minp).mean()`."""
-    return rolling_mean_1d_nb(a, a.shape[0], minp=minp)
+    return rolling_mean_1d_nb(arr, arr.shape[0], minp=minp)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def expanding_mean_nb(a: tp.Array2d, minp: int = 1) -> tp.Array2d:
+def expanding_mean_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_mean_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = expanding_mean_1d_nb(a[:, col], minp=minp)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = expanding_mean_1d_nb(arr[:, col], minp=minp)
     return out
 
 
 @register_jit(cache=True)
-def expanding_std_1d_nb(a: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Array1d:
+def expanding_std_1d_nb(arr: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Array1d:
     """Return expanding standard deviation.
 
     Numba equivalent to `pd.Series(a).expanding(min_periods=minp).std(ddof=ddof)`."""
-    return rolling_std_1d_nb(a, a.shape[0], minp=minp, ddof=ddof)
+    return rolling_std_1d_nb(arr, arr.shape[0], minp=minp, ddof=ddof)
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def expanding_std_nb(a: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
+def expanding_std_nb(arr: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `expanding_std_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = expanding_std_1d_nb(a[:, col], minp=minp, ddof=ddof)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = expanding_std_1d_nb(arr[:, col], minp=minp, ddof=ddof)
     return out
 
 
@@ -1097,26 +1097,26 @@ def expanding_std_nb(a: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
 
 
 @register_jit
-def map_1d_nb(a: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
+def map_1d_nb(arr: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
     """Map elements element-wise using `map_func_nb`.
 
     `map_func_nb` must accept the element and `*args`. Must return a single value."""
-    i_0_out = map_func_nb(a[0], *args)
-    out = np.empty_like(a, dtype=np.asarray(i_0_out).dtype)
+    i_0_out = map_func_nb(arr[0], *args)
+    out = np.empty_like(arr, dtype=np.asarray(i_0_out).dtype)
     out[0] = i_0_out
-    for i in range(1, a.shape[0]):
-        out[i] = map_func_nb(a[i], *args)
+    for i in range(1, arr.shape[0]):
+        out[i] = map_func_nb(arr[i], *args)
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def map_nb(a: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
+def map_nb(arr: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
     """2-dim version of `map_1d_nb`."""
-    col_0_out = map_1d_nb(a[:, 0], map_func_nb, *args)
-    out = np.empty_like(a, dtype=col_0_out.dtype)
+    col_0_out = map_1d_nb(arr[:, 0], map_func_nb, *args)
+    out = np.empty_like(arr, dtype=col_0_out.dtype)
     out[:, 0] = col_0_out
     for col in prange(1, out.shape[1]):
-        out[:, col] = map_1d_nb(a[:, col], map_func_nb, *args)
+        out[:, col] = map_1d_nb(arr[:, col], map_func_nb, *args)
     return out
 
 
@@ -1146,16 +1146,16 @@ def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> t
 
 
 @register_jit(tags={'can_parallel'})
-def apply_nb(a: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
+def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """Apply function on each column of an object.
 
     `apply_func_nb` must accept the array and `*args`.
     Must return a single value or an array of shape `a.shape[1]`."""
-    col_0_out = apply_func_nb(a[:, 0], *args)
-    out = np.empty_like(a, dtype=np.asarray(col_0_out).dtype)
+    col_0_out = apply_func_nb(arr[:, 0], *args)
+    out = np.empty_like(arr, dtype=np.asarray(col_0_out).dtype)
     out[:, 0] = col_0_out
-    for col in prange(1, a.shape[1]):
-        out[:, col] = apply_func_nb(a[:, col], *args)
+    for col in prange(1, arr.shape[1]):
+        out[:, col] = apply_func_nb(arr[:, col], *args)
     return out
 
 
@@ -1171,13 +1171,13 @@ def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args
 
 
 @register_jit(tags={'can_parallel'})
-def row_apply_nb(a: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
+def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """`apply_nb` but applied on rows rather than columns."""
-    row_0_out = apply_func_nb(a[0, :], *args)
-    out = np.empty_like(a, dtype=np.asarray(row_0_out).dtype)
+    row_0_out = apply_func_nb(arr[0, :], *args)
+    out = np.empty_like(arr, dtype=np.asarray(row_0_out).dtype)
     out[0, :] = row_0_out
-    for i in prange(1, a.shape[0]):
-        out[i, :] = apply_func_nb(a[i, :], *args)
+    for i in prange(1, arr.shape[0]):
+        out[i, :] = apply_func_nb(arr[i, :], *args)
     return out
 
 
@@ -1193,18 +1193,18 @@ def row_apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *
 
 
 @register_jit
-def rolling_apply_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int],
+def rolling_apply_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int],
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide rolling window calculations.
 
     `apply_func_nb` must accept the array and `*args`. Must return a single value."""
     if minp is None:
         minp = window
-    out = np.empty_like(a, dtype=np.float_)
-    nancnt_arr = np.empty(a.shape[0], dtype=np.int_)
+    out = np.empty_like(arr, dtype=np.float_)
+    nancnt_arr = np.empty(arr.shape[0], dtype=np.int_)
     nancnt = 0
-    for i in range(a.shape[0]):
-        if np.isnan(a[i]):
+    for i in range(arr.shape[0]):
+        if np.isnan(arr[i]):
             nancnt = nancnt + 1
         nancnt_arr[i] = nancnt
         if i < window:
@@ -1216,18 +1216,18 @@ def rolling_apply_1d_nb(a: tp.Array1d, window: int, minp: tp.Optional[int],
         else:
             from_i = max(0, i + 1 - window)
             to_i = i + 1
-            window_a = a[from_i:to_i]
+            window_a = arr[from_i:to_i]
             out[i] = apply_func_nb(window_a, *args)
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def rolling_apply_nb(a: tp.Array2d, window: int, minp: tp.Optional[int],
+def rolling_apply_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int],
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """2-dim version of `rolling_apply_1d_nb`."""
-    out = np.empty_like(a, dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[:, col] = rolling_apply_1d_nb(a[:, col], window, minp, apply_func_nb, *args)
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
+        out[:, col] = rolling_apply_1d_nb(arr[:, col], window, minp, apply_func_nb, *args)
     return out
 
 
@@ -1263,7 +1263,7 @@ def rolling_apply_meta_nb(target_shape: tp.Shape, window: int, minp: tp.Optional
 
 
 @register_jit
-def groupby_apply_1d_nb(a: tp.Array1d, group_map: tp.GroupMap,
+def groupby_apply_1d_nb(arr: tp.Array1d, group_map: tp.GroupMap,
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide group-by calculations.
 
@@ -1271,7 +1271,7 @@ def groupby_apply_1d_nb(a: tp.Array1d, group_map: tp.GroupMap,
     group_idxs, group_lens = group_map
     group_start_idxs = np.cumsum(group_lens) - group_lens
     group_0_idxs = group_idxs[group_start_idxs[0]:group_start_idxs[0] + group_lens[0]]
-    group_0_out = apply_func_nb(a[group_0_idxs], *args)
+    group_0_out = apply_func_nb(arr[group_0_idxs], *args)
     out = np.empty(group_lens.shape[0], dtype=np.asarray(group_0_out).dtype)
     out[0] = group_0_out
 
@@ -1279,19 +1279,19 @@ def groupby_apply_1d_nb(a: tp.Array1d, group_map: tp.GroupMap,
         group_len = group_lens[group]
         start_idx = group_start_idxs[group]
         idxs = group_idxs[start_idx:start_idx + group_len]
-        out[group] = apply_func_nb(a[idxs], *args)
+        out[group] = apply_func_nb(arr[idxs], *args)
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def groupby_apply_nb(a: tp.Array2d, group_map: tp.GroupMap,
+def groupby_apply_nb(arr: tp.Array2d, group_map: tp.GroupMap,
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """2-dim version of `groupby_apply_1d_nb`."""
-    col_0_out = groupby_apply_1d_nb(a[:, 0], group_map, apply_func_nb, *args)
-    out = np.empty((col_0_out.shape[0], a.shape[1]), dtype=col_0_out.dtype)
+    col_0_out = groupby_apply_1d_nb(arr[:, 0], group_map, apply_func_nb, *args)
+    out = np.empty((col_0_out.shape[0], arr.shape[1]), dtype=col_0_out.dtype)
     out[:, 0] = col_0_out
-    for col in prange(1, a.shape[1]):
-        out[:, col] = groupby_apply_1d_nb(a[:, col], group_map, apply_func_nb, *args)
+    for col in prange(1, arr.shape[1]):
+        out[:, col] = groupby_apply_1d_nb(arr[:, col], group_map, apply_func_nb, *args)
     return out
 
 
@@ -1330,7 +1330,7 @@ def groupby_apply_meta_nb(n_cols: int, group_map: tp.GroupMap,
 
 
 @register_jit
-def apply_and_reduce_1d_nb(a: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
+def apply_and_reduce_1d_nb(arr: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
                            reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Scalar:
     """Apply `apply_func_nb` and reduce into a single value using `reduce_func_nb`.
 
@@ -1339,19 +1339,19 @@ def apply_and_reduce_1d_nb(a: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_arg
 
     `reduce_func_nb` must accept the array of results from `apply_func_nb` and `*reduce_args`.
     Must return a single value."""
-    temp = apply_func_nb(a, *apply_args)
+    temp = apply_func_nb(arr, *apply_args)
     return reduce_func_nb(temp, *reduce_args)
 
 
 @register_jit(tags={'can_parallel'})
-def apply_and_reduce_nb(a: tp.Array2d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
+def apply_and_reduce_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
                         reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Array1d:
     """2-dim version of `apply_and_reduce_1d_nb`."""
-    col_0_out = apply_and_reduce_1d_nb(a[:, 0], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
-    out = np.empty(a.shape[1], dtype=np.asarray(col_0_out).dtype)
+    col_0_out = apply_and_reduce_1d_nb(arr[:, 0], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
+    out = np.empty(arr.shape[1], dtype=np.asarray(col_0_out).dtype)
     out[0] = col_0_out
-    for col in prange(1, a.shape[1]):
-        out[col] = apply_and_reduce_1d_nb(a[:, col], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
+    for col in prange(1, arr.shape[1]):
+        out[col] = apply_and_reduce_1d_nb(arr[:, col], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
     return out
 
 
@@ -1382,15 +1382,15 @@ def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
+def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce each column into a single value using `reduce_func_nb`.
 
     `reduce_func_nb` must accept the array and `*args`. Must return a single value."""
-    col_0_out = reduce_func_nb(a[:, 0], *args)
-    out = np.empty(a.shape[1], dtype=np.asarray(col_0_out).dtype)
+    col_0_out = reduce_func_nb(arr[:, 0], *args)
+    out = np.empty(arr.shape[1], dtype=np.asarray(col_0_out).dtype)
     out[0] = col_0_out
-    for col in prange(1, a.shape[1]):
-        out[col] = reduce_func_nb(a[:, col], *args)
+    for col in prange(1, arr.shape[1]):
+        out[col] = reduce_func_nb(arr[:, col], *args)
     return out
 
 
@@ -1408,13 +1408,13 @@ def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_to_array_nb(a: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
+def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_nb` but `reduce_func_nb` must return an array."""
-    col_0_out = reduce_func_nb(a[:, 0], *args)
-    out = np.empty((col_0_out.shape[0], a.shape[1]), dtype=col_0_out.dtype)
+    col_0_out = reduce_func_nb(arr[:, 0], *args)
+    out = np.empty((col_0_out.shape[0], arr.shape[1]), dtype=col_0_out.dtype)
     out[:, 0] = col_0_out
-    for col in prange(1, a.shape[1]):
-        out[:, col] = reduce_func_nb(a[:, col], *args)
+    for col in prange(1, arr.shape[1]):
+        out[:, col] = reduce_func_nb(arr[:, col], *args)
     return out
 
 
@@ -1430,12 +1430,12 @@ def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFun
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
+def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                       reduce_func_nb: tp.ReduceGroupedFunc, *args) -> tp.Array1d:
     """Reduce each group of columns into a single value using `reduce_func_nb`.
 
     `reduce_func_nb` must accept the 2-dim array and `*args`. Must return a single value."""
-    group_0_out = reduce_func_nb(a[:, 0:group_lens[0]], *args)
+    group_0_out = reduce_func_nb(arr[:, 0:group_lens[0]], *args)
     out = np.empty(len(group_lens), dtype=np.asarray(group_0_out).dtype)
     out[0] = group_0_out
     group_end_idxs = np.cumsum(group_lens)
@@ -1443,7 +1443,7 @@ def reduce_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
     for group in prange(1, len(group_lens)):
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
-        out[group] = reduce_func_nb(a[:, from_col:to_col], *args)
+        out[group] = reduce_func_nb(arr[:, from_col:to_col], *args)
     return out
 
 
@@ -1466,22 +1466,22 @@ def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGrou
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def flatten_forder_nb(a: tp.Array2d) -> tp.Array1d:
-    """Flatten `a` in F order."""
-    out = np.empty(a.shape[0] * a.shape[1], dtype=a.dtype)
-    for col in prange(a.shape[1]):
-        out[col * a.shape[0]:(col + 1) * a.shape[0]] = a[:, col]
+def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
+    """Flatten the array in F order."""
+    out = np.empty(arr.shape[0] * arr.shape[1], dtype=arr.dtype)
+    for col in prange(arr.shape[1]):
+        out[col * arr.shape[0]:(col + 1) * arr.shape[0]] = arr[:, col]
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_flat_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
+def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                            reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array1d:
     """Same as `reduce_grouped_nb` but passes flattened array."""
     if in_c_order:
-        group_0_out = reduce_func_nb(a[:, 0:group_lens[0]].flatten(), *args)
+        group_0_out = reduce_func_nb(arr[:, 0:group_lens[0]].flatten(), *args)
     else:
-        group_0_out = reduce_func_nb(flatten_forder_nb(a[:, 0:group_lens[0]]), *args)
+        group_0_out = reduce_func_nb(flatten_forder_nb(arr[:, 0:group_lens[0]]), *args)
     out = np.empty(len(group_lens), dtype=np.asarray(group_0_out).dtype)
     out[0] = group_0_out
     group_end_idxs = np.cumsum(group_lens)
@@ -1490,17 +1490,17 @@ def reduce_flat_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bo
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
         if in_c_order:
-            out[group] = reduce_func_nb(a[:, from_col:to_col].flatten(), *args)
+            out[group] = reduce_func_nb(arr[:, from_col:to_col].flatten(), *args)
         else:
-            out[group] = reduce_func_nb(flatten_forder_nb(a[:, from_col:to_col]), *args)
+            out[group] = reduce_func_nb(flatten_forder_nb(arr[:, from_col:to_col]), *args)
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d,
+def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                                reduce_func_nb: tp.ReduceGroupedToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_grouped_nb` but `reduce_func_nb` must return an array."""
-    group_0_out = reduce_func_nb(a[:, 0:group_lens[0]], *args)
+    group_0_out = reduce_func_nb(arr[:, 0:group_lens[0]], *args)
     out = np.empty((group_0_out.shape[0], len(group_lens)), dtype=group_0_out.dtype)
     out[:, 0] = group_0_out
     group_end_idxs = np.cumsum(group_lens)
@@ -1508,7 +1508,7 @@ def reduce_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d,
     for group in prange(1, len(group_lens)):
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
-        out[:, group] = reduce_func_nb(a[:, from_col:to_col], *args)
+        out[:, group] = reduce_func_nb(arr[:, from_col:to_col], *args)
     return out
 
 
@@ -1529,13 +1529,13 @@ def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
 
 
 @register_jit(tags={'can_parallel'})
-def reduce_flat_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
+def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                                     reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_grouped_to_array_nb` but passes flattened array."""
     if in_c_order:
-        group_0_out = reduce_func_nb(a[:, 0:group_lens[0]].flatten(), *args)
+        group_0_out = reduce_func_nb(arr[:, 0:group_lens[0]].flatten(), *args)
     else:
-        group_0_out = reduce_func_nb(flatten_forder_nb(a[:, 0:group_lens[0]]), *args)
+        group_0_out = reduce_func_nb(flatten_forder_nb(arr[:, 0:group_lens[0]]), *args)
     out = np.empty((group_0_out.shape[0], len(group_lens)), dtype=group_0_out.dtype)
     out[:, 0] = group_0_out
     group_end_idxs = np.cumsum(group_lens)
@@ -1544,30 +1544,30 @@ def reduce_flat_grouped_to_array_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
         if in_c_order:
-            out[:, group] = reduce_func_nb(a[:, from_col:to_col].flatten(), *args)
+            out[:, group] = reduce_func_nb(arr[:, from_col:to_col].flatten(), *args)
         else:
-            out[:, group] = reduce_func_nb(flatten_forder_nb(a[:, from_col:to_col]), *args)
+            out[:, group] = reduce_func_nb(flatten_forder_nb(arr[:, from_col:to_col]), *args)
     return out
 
 
 @register_jit(tags={'can_parallel'})
-def squeeze_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d,
+def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                        squeeze_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
     """Squeeze each group of columns into a single column using `squeeze_func_nb`.
 
     `squeeze_func_nb` must accept index the array and `*args`. Must return a single value."""
-    group_i_0_out = squeeze_func_nb(a[0, 0:group_lens[0]], *args)
-    out = np.empty((a.shape[0], len(group_lens)), dtype=np.asarray(group_i_0_out).dtype)
+    group_i_0_out = squeeze_func_nb(arr[0, 0:group_lens[0]], *args)
+    out = np.empty((arr.shape[0], len(group_lens)), dtype=np.asarray(group_i_0_out).dtype)
     out[0, 0] = group_i_0_out
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
     for group in prange(len(group_lens)):
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
-        for i in range(a.shape[0]):
+        for i in range(arr.shape[0]):
             if group == 0 and i == 0:
                 continue
-            out[i, group] = squeeze_func_nb(a[i, from_col:to_col], *args)
+            out[i, group] = squeeze_func_nb(arr[i, from_col:to_col], *args)
     return out
 
 
@@ -1596,9 +1596,9 @@ def squeeze_grouped_meta_nb(n_rows: int, group_lens: tp.Array1d,
 # ############# Flattening ############# #
 
 @register_jit(cache=True)
-def flatten_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
+def flatten_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
     """Flatten each group of columns."""
-    out = np.full((a.shape[0] * np.max(group_lens), len(group_lens)), np.nan, dtype=np.float_)
+    out = np.full((arr.shape[0] * np.max(group_lens), len(group_lens)), np.nan, dtype=np.float_)
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
     max_len = np.max(group_lens)
@@ -1608,16 +1608,16 @@ def flatten_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) 
         group_len = group_lens[group]
         for k in range(group_len):
             if in_c_order:
-                out[k::max_len, group] = a[:, from_col + k]
+                out[k::max_len, group] = arr[:, from_col + k]
             else:
-                out[k * a.shape[0]:(k + 1) * a.shape[0], group] = a[:, from_col + k]
+                out[k * arr.shape[0]:(k + 1) * arr.shape[0], group] = arr[:, from_col + k]
     return out
 
 
 @register_jit(cache=True)
-def flatten_uniform_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
+def flatten_uniform_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
     """Flatten each group of columns of the same length."""
-    out = np.empty((a.shape[0] * np.max(group_lens), len(group_lens)), dtype=a.dtype)
+    out = np.empty((arr.shape[0] * np.max(group_lens), len(group_lens)), dtype=arr.dtype)
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
     max_len = np.max(group_lens)
@@ -1627,9 +1627,9 @@ def flatten_uniform_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order
         group_len = group_lens[group]
         for k in range(group_len):
             if in_c_order:
-                out[k::max_len, group] = a[:, from_col + k]
+                out[k::max_len, group] = arr[:, from_col + k]
             else:
-                out[k * a.shape[0]:(k + 1) * a.shape[0], group] = a[:, from_col + k]
+                out[k * arr.shape[0]:(k + 1) * arr.shape[0], group] = arr[:, from_col + k]
     return out
 
 
@@ -1637,113 +1637,113 @@ def flatten_uniform_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d, in_c_order
 
 
 @register_jit(cache=True)
-def nth_reduce_nb(a: tp.Array1d, n: int) -> float:
+def nth_reduce_nb(arr: tp.Array1d, n: int) -> float:
     """Return n-th element."""
-    if (n < 0 and abs(n) > a.shape[0]) or n >= a.shape[0]:
+    if (n < 0 and abs(n) > arr.shape[0]) or n >= arr.shape[0]:
         raise ValueError("index is out of bounds")
-    return a[n]
+    return arr[n]
 
 
 @register_jit(cache=True)
-def nth_index_reduce_nb(a: tp.Array1d, n: int) -> int:
+def nth_index_reduce_nb(arr: tp.Array1d, n: int) -> int:
     """Return index of n-th element."""
-    if (n < 0 and abs(n) > a.shape[0]) or n >= a.shape[0]:
+    if (n < 0 and abs(n) > arr.shape[0]) or n >= arr.shape[0]:
         raise ValueError("index is out of bounds")
     if n >= 0:
         return n
-    return a.shape[0] + n
+    return arr.shape[0] + n
 
 
 @register_jit(cache=True)
-def any_reduce_nb(a: tp.Array1d) -> bool:
+def any_reduce_nb(arr: tp.Array1d) -> bool:
     """Return whether any of the elements are True."""
-    return np.any(a)
+    return np.any(arr)
 
 
 @register_jit(cache=True)
-def all_reduce_nb(a: tp.Array1d) -> bool:
+def all_reduce_nb(arr: tp.Array1d) -> bool:
     """Return whether all of the elements are True."""
-    return np.all(a)
+    return np.all(arr)
 
 
 @register_jit(cache=True)
-def min_reduce_nb(a: tp.Array1d) -> float:
+def min_reduce_nb(arr: tp.Array1d) -> float:
     """Return min (ignores NaNs)."""
-    return np.nanmin(a)
+    return np.nanmin(arr)
 
 
 @register_jit(cache=True)
-def max_reduce_nb(a: tp.Array1d) -> float:
+def max_reduce_nb(arr: tp.Array1d) -> float:
     """Return max (ignores NaNs)."""
-    return np.nanmax(a)
+    return np.nanmax(arr)
 
 
 @register_jit(cache=True)
-def mean_reduce_nb(a: tp.Array1d) -> float:
+def mean_reduce_nb(arr: tp.Array1d) -> float:
     """Return mean (ignores NaNs)."""
-    return np.nanmean(a)
+    return np.nanmean(arr)
 
 
 @register_jit(cache=True)
-def median_reduce_nb(a: tp.Array1d) -> float:
+def median_reduce_nb(arr: tp.Array1d) -> float:
     """Return median (ignores NaNs)."""
-    return np.nanmedian(a)
+    return np.nanmedian(arr)
 
 
 @register_jit(cache=True)
-def std_reduce_nb(a: tp.Array1d, ddof) -> float:
+def std_reduce_nb(arr: tp.Array1d, ddof) -> float:
     """Return std (ignores NaNs)."""
-    return nanstd_1d_nb(a, ddof=ddof)
+    return nanstd_1d_nb(arr, ddof=ddof)
 
 
 @register_jit(cache=True)
-def sum_reduce_nb(a: tp.Array1d) -> float:
+def sum_reduce_nb(arr: tp.Array1d) -> float:
     """Return sum (ignores NaNs)."""
-    return np.nansum(a)
+    return np.nansum(arr)
 
 
 @register_jit(cache=True)
-def count_reduce_nb(a: tp.Array1d) -> int:
+def count_reduce_nb(arr: tp.Array1d) -> int:
     """Return count (ignores NaNs)."""
-    return np.sum(~np.isnan(a))
+    return np.sum(~np.isnan(arr))
 
 
 @register_jit(cache=True)
-def argmin_reduce_nb(a: tp.Array1d) -> int:
+def argmin_reduce_nb(arr: tp.Array1d) -> int:
     """Return position of min."""
-    a = np.copy(a)
-    mask = np.isnan(a)
+    arr = np.copy(arr)
+    mask = np.isnan(arr)
     if np.all(mask):
         raise ValueError("All-NaN slice encountered")
-    a[mask] = np.inf
-    return np.argmin(a)
+    arr[mask] = np.inf
+    return np.argmin(arr)
 
 
 @register_jit(cache=True)
-def argmax_reduce_nb(a: tp.Array1d) -> int:
+def argmax_reduce_nb(arr: tp.Array1d) -> int:
     """Return position of max."""
-    a = np.copy(a)
-    mask = np.isnan(a)
+    arr = np.copy(arr)
+    mask = np.isnan(arr)
     if np.all(mask):
         raise ValueError("All-NaN slice encountered")
-    a[mask] = -np.inf
-    return np.argmax(a)
+    arr[mask] = -np.inf
+    return np.argmax(arr)
 
 
 @register_jit(cache=True)
-def describe_reduce_nb(a: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array1d:
+def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array1d:
     """Return descriptive statistics (ignores NaNs).
 
     Numba equivalent to `pd.Series(a).describe(perc)`."""
-    a = a[~np.isnan(a)]
+    arr = arr[~np.isnan(arr)]
     out = np.empty(5 + len(perc), dtype=np.float_)
-    out[0] = len(a)
-    if len(a) > 0:
-        out[1] = np.mean(a)
-        out[2] = nanstd_1d_nb(a, ddof=ddof)
-        out[3] = np.min(a)
-        out[4:-1] = np.percentile(a, perc * 100)
-        out[4 + len(perc)] = np.max(a)
+    out[0] = len(arr)
+    if len(arr) > 0:
+        out[1] = np.mean(arr)
+        out[2] = nanstd_1d_nb(arr, ddof=ddof)
+        out[3] = np.min(arr)
+        out[4:-1] = np.percentile(arr, perc * 100)
+        out[4 + len(perc)] = np.max(arr)
     else:
         out[1:] = np.nan
     return out
@@ -1753,7 +1753,7 @@ def describe_reduce_nb(a: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array1d
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
+def value_counts_nb(arr: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
     """Return value counts per column/group."""
     out = np.full((n_uniques, group_lens.shape[0]), 0, dtype=np.int_)
 
@@ -1763,28 +1763,28 @@ def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
         for col in range(from_col, to_col):
-            for i in range(codes.shape[0]):
-                out[codes[i, col], group] += 1
+            for i in range(arr.shape[0]):
+                out[arr[i, col], group] += 1
     return out
 
 
 @register_jit(cache=True)
-def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
+def value_counts_1d_nb(arr: tp.Array1d, n_uniques: int) -> tp.Array1d:
     """Return value counts."""
     out = np.full(n_uniques, 0, dtype=np.int_)
 
-    for i in prange(codes.shape[0]):
-        out[codes[i]] += 1
+    for i in range(arr.shape[0]):
+        out[arr[i]] += 1
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
+def value_counts_per_row_nb(arr: tp.Array2d, n_uniques: int) -> tp.Array2d:
     """Return value counts per row."""
-    out = np.empty((n_uniques, codes.shape[0]), dtype=np.int_)
+    out = np.empty((n_uniques, arr.shape[0]), dtype=np.int_)
 
-    for i in prange(codes.shape[0]):
-        out[:, i] = value_counts_1d_nb(codes[i, :], n_uniques)
+    for i in prange(arr.shape[0]):
+        out[:, i] = value_counts_1d_nb(arr[i, :], n_uniques)
     return out
 
 
@@ -1792,12 +1792,12 @@ def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
 
 
 @register_jit(cache=True)
-def repartition_nb(a: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
+def repartition_nb(arr: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
     """Repartition a 2-dimensional array into a 1-dimensional by removing empty elements."""
-    out = np.empty(np.sum(counts), dtype=a.dtype)
+    out = np.empty(np.sum(counts), dtype=arr.dtype)
     j = 0
     for col in range(counts.shape[0]):
-        out[j:j + counts[col]] = a[:counts[col], col]
+        out[j:j + counts[col]] = arr[:counts[col], col]
         j += counts[col]
     return out
 
@@ -1806,7 +1806,7 @@ def repartition_nb(a: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
+def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     """Fill range records between gaps.
 
     ## Example
@@ -1818,7 +1818,7 @@ def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     >>> import pandas as pd
     >>> from vectorbt.generic.nb import get_ranges_nb
 
-    >>> ts = np.asarray([
+    >>> a = np.asarray([
     ...     [np.nan, np.nan, np.nan, np.nan],
     ...     [     2, np.nan, np.nan, np.nan],
     ...     [     3,      3, np.nan, np.nan],
@@ -1826,7 +1826,7 @@ def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     ...     [     5, np.nan,      5,      5],
     ...     [     6,      6, np.nan,      6]
     ... ])
-    >>> records = get_ranges_nb(ts, np.nan)
+    >>> records = get_ranges_nb(a, np.nan)
 
     >>> pd.DataFrame.from_records(records)
        id  col  start_idx  end_idx  status
@@ -1838,18 +1838,18 @@ def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     5   0    3          4        5       0
     ```
     """
-    new_records = np.empty(ts.shape, dtype=range_dt)
-    counts = np.full(ts.shape[1], 0, dtype=np.int_)
+    new_records = np.empty(arr.shape, dtype=range_dt)
+    counts = np.full(arr.shape[1], 0, dtype=np.int_)
 
-    for col in prange(ts.shape[1]):
+    for col in prange(arr.shape[1]):
         range_started = False
         start_idx = -1
         end_idx = -1
         store_record = False
         status = -1
 
-        for i in range(ts.shape[0]):
-            cur_val = ts[i, col]
+        for i in range(arr.shape[0]):
+            cur_val = arr[i, col]
 
             if cur_val == gap_value or np.isnan(cur_val) and np.isnan(gap_value):
                 if range_started:
@@ -1864,9 +1864,9 @@ def get_ranges_nb(ts: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
                     start_idx = i
                     range_started = True
 
-            if i == ts.shape[0] - 1 and range_started:
+            if i == arr.shape[0] - 1 and range_started:
                 # If still running, mark for save
-                end_idx = ts.shape[0] - 1
+                end_idx = arr.shape[0] - 1
                 range_started = False
                 store_record = True
                 status = RangeStatus.Open
@@ -1973,20 +1973,20 @@ def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
 # ############# Drawdowns ############# #
 
 @register_jit(cache=True, tags={'can_parallel'})
-def drawdown_nb(ts: tp.Array2d) -> tp.Array2d:
+def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
     """Return drawdown."""
-    out = np.empty_like(ts, dtype=np.float_)
-    for col in prange(ts.shape[1]):
+    out = np.empty_like(arr, dtype=np.float_)
+    for col in prange(arr.shape[1]):
         max_val = np.nan
-        for i in range(ts.shape[0]):
-            if np.isnan(max_val) or ts[i, col] > max_val:
-                max_val = ts[i, col]
-            out[i, col] = ts[i, col] / max_val - 1
+        for i in range(arr.shape[0]):
+            if np.isnan(max_val) or arr[i, col] > max_val:
+                max_val = arr[i, col]
+            out[i, col] = arr[i, col] / max_val - 1
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
+def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     """Fill drawdown records by analyzing a time series.
 
     ## Example
@@ -1996,14 +1996,14 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
     >>> import pandas as pd
     >>> from vectorbt.generic.nb import get_drawdowns_nb
 
-    >>> ts = np.asarray([
+    >>> a = np.asarray([
     ...     [1, 5, 1, 3],
     ...     [2, 4, 2, 2],
     ...     [3, 3, 3, 1],
     ...     [4, 2, 2, 2],
     ...     [5, 1, 1, 3]
     ... ])
-    >>> records = get_drawdowns_nb(ts)
+    >>> records = get_drawdowns_nb(a)
 
     >>> pd.DataFrame.from_records(records)
        id  col  peak_idx  start_idx  valley_idx  end_idx  peak_val  valley_val  \\
@@ -2017,20 +2017,20 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
     2      3.0       1
     ```
     """
-    new_records = np.empty(ts.shape, dtype=drawdown_dt)
-    counts = np.full(ts.shape[1], 0, dtype=np.int_)
+    new_records = np.empty(arr.shape, dtype=drawdown_dt)
+    counts = np.full(arr.shape[1], 0, dtype=np.int_)
 
-    for col in prange(ts.shape[1]):
+    for col in prange(arr.shape[1]):
         drawdown_started = False
         peak_idx = -1
         valley_idx = -1
-        peak_val = ts[0, col]
-        valley_val = ts[0, col]
+        peak_val = arr[0, col]
+        valley_val = arr[0, col]
         store_record = False
         status = -1
 
-        for i in range(ts.shape[0]):
-            cur_val = ts[i, col]
+        for i in range(arr.shape[0]):
+            cur_val = arr[i, col]
 
             if not np.isnan(cur_val):
                 if np.isnan(peak_val) or cur_val >= peak_val:
@@ -2058,7 +2058,7 @@ def get_drawdowns_nb(ts: tp.Array2d) -> tp.RecordArray:
                             valley_val = cur_val
                             valley_idx = i
 
-                if i == ts.shape[0] - 1 and drawdown_started:
+                if i == arr.shape[0] - 1 and drawdown_started:
                     # If still running, mark for save
                     drawdown_started = False
                     store_record = True
