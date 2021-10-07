@@ -66,14 +66,13 @@ MaybeSeriesFrame = Union[T, Series, Frame]
 AnyArray = Union[Array, Series, Frame]
 AnyArray1d = Union[Array1d, Series]
 AnyArray2d = Union[Array2d, Frame]
-_ArrayLike = Union[Scalar, Sequence[Scalar], Sequence[Sequence[Any]], SupportsArray]
-ArrayLike = Union[_ArrayLike, Array, Index, Series, Frame]  # must be converted
-IndexLike = Union[_ArrayLike, Array1d, Index, Series]
-ArrayLikeSequence = Union[Sequence[T], Array1d, Index, Series]  # sequence for 1-dim data
+ArrayLike = Union[Scalar, Sequence[Scalar], Sequence[Sequence[Any]], SupportsArray]
+IndexLike = Union[range, Sequence[Scalar], SupportsArray]
+FlexArray = Array
 
 # Labels
 Label = Hashable
-Labels = ArrayLikeSequence[Label]
+Labels = Sequence[Label]
 Level = Union[str, int]
 LevelSequence = Sequence[Level]
 MaybeLevelSequence = Union[Level, LevelSequence]
@@ -140,17 +139,12 @@ PlaceFunc = Callable[[Array1d, int, int, int, VarArg()], None]
 RankFunc = Callable[[int, int, int, int, int, VarArg()], int]
 
 # Records
-ColRange = Array2d
-ColMap = Tuple[Array1d, Array1d]
+ColIdxs = Array1d
+ColLens = Array1d
+ColMap = Tuple[ColIdxs, ColLens]
 RecordsMapFunc = Callable[[np.void, VarArg()], Scalar]
 RecordsMapMetaFunc = Callable[[int, VarArg()], Scalar]
-RecordsApplyFunc = Callable[[RecordArray, VarArg()], Array1d]
-RecordsApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
-MappedApplyFunc = Callable[[Array1d, VarArg()], Array1d]
-MappedApplyMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
-MappedReduceFunc = Callable[[Array1d, VarArg()], Scalar]
 MappedReduceMetaFunc = Callable[[Array1d, int, VarArg()], Scalar]
-MappedReduceToArrayFunc = Callable[[Array1d, VarArg()], Array1d]
 MappedReduceToArrayMetaFunc = Callable[[Array1d, int, VarArg()], Array1d]
 
 # Indicators

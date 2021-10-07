@@ -286,7 +286,7 @@ class Ranges(Records):
         chunked_config = merge_dicts(
             records_chunking.recarr_col_map_config,
             records_chunking.col_map_config,
-            chunking.hstack_config
+            chunking.column_stack_config
         )
         func = resolve_chunked(func, chunked, **chunked_config)
         mask = func(

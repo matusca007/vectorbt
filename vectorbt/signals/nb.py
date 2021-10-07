@@ -257,7 +257,7 @@ def clean_enex_nb(entries: tp.Array2d,
 
 
 @register_jit(cache=True)
-def rand_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, n: tp.ArrayLike) -> None:
+def rand_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, n: tp.FlexArray) -> None:
     """`place_func_nb` to randomly pick `n` values.
 
     `n` uses flexible indexing."""
@@ -275,7 +275,7 @@ def rand_by_prob_place_nb(out: tp.Array1d,
                           from_i: int,
                           to_i: int,
                           col: int,
-                          prob: tp.ArrayLike,
+                          prob: tp.FlexArray,
                           pick_first: bool,
                           flex_2d: bool) -> None:
     """`place_func_nb` to randomly place signals with probability `prob`.
@@ -290,7 +290,7 @@ def rand_by_prob_place_nb(out: tp.Array1d,
 
 @register_jit(tags={'can_parallel'})
 def generate_rand_enex_nb(shape: tp.Shape,
-                          n: tp.MaybeArray[int],
+                          n: tp.FlexArray,
                           entry_wait: int,
                           exit_wait: int) -> tp.Tuple[tp.Array2d, tp.Array2d]:
     """Pick a number of entries and the same number of exits one after another.
@@ -303,23 +303,22 @@ def generate_rand_enex_nb(shape: tp.Shape,
     distribution of entries and exit is similar to a uniform distribution. This means
     randomizing the position of first entry, last exit, and all signals between them.
 
-    `n` uses flexible indexing."""
+    `n` uses flexible indexing and thus must be at least a 0-dim array."""
     entries = np.full(shape, False)
     exits = np.full(shape, False)
     if entry_wait == 0 and exit_wait == 0:
         raise ValueError("entry_wait and exit_wait cannot be both 0")
-    ns = np.asarray(n)
 
     if entry_wait == 1 and exit_wait == 1:
         # Basic case
-        both = generate_nb(shape, rand_place_nb, ns * 2)
+        both = generate_nb(shape, rand_place_nb, n * 2)
         for col in prange(both.shape[1]):
             both_idxs = np.flatnonzero(both[:, col])
             entries[both_idxs[0::2], col] = True
             exits[both_idxs[1::2], col] = True
     else:
         for col in prange(shape[1]):
-            _n = flex_select_auto_nb(ns, 0, col, True)
+            _n = flex_select_auto_nb(n, 0, col, True)
             if _n == 1:
                 entry_idx = np.random.randint(0, shape[0] - exit_wait)
                 entries[entry_idx, col] = True
@@ -385,7 +384,7 @@ def generate_rand_enex_nb(shape: tp.Shape,
 
 
 def rand_enex_apply_nb(input_shape: tp.Shape,
-                       n: tp.MaybeArray[int],
+                       n: tp.FlexArray,
                        entry_wait: int,
                        exit_wait: int) -> tp.Tuple[tp.Array2d, tp.Array2d]:
     """`apply_func_nb` that calls `generate_rand_enex_nb`."""
@@ -409,9 +408,9 @@ def stop_place_nb(out: tp.Array1d,
                   from_i: int,
                   to_i: int,
                   col: int,
-                  ts: tp.ArrayLike,
-                  stop: tp.ArrayLike,
-                  trailing: tp.ArrayLike,
+                  ts: tp.FlexArray,
+                  stop: tp.FlexArray,
+                  trailing: tp.FlexArray,
                   wait: int,
                   pick_first: bool,
                   flex_2d: bool) -> None:
@@ -423,12 +422,14 @@ def stop_place_nb(out: tp.Array1d,
         to_i (int): Index to run generation to (exclusive).
         col (int): Current column.
         ts (array of float): 2-dim time series array such as price.
-        stop (float or array_like): Stop value for stop loss.
+        stop (array of float): Stop value for stop loss.
 
-            Can be per frame, column, row, or element-wise. Set to `np.nan` to disable.
-        trailing (bool or array_like): Whether to use trailing stop.
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
+            Set an element to `np.nan` to disable.
+        trailing (array of bool): Whether to use trailing stop.
 
-            Can be per frame, column, row, or element-wise. Set to False to disable.
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
+            Set an element to False to disable.
         wait (int): Number of ticks to wait before placing exits.
 
             Setting False or 0 may result in two signals at one bar.
@@ -439,8 +440,8 @@ def stop_place_nb(out: tp.Array1d,
         flex_2d (bool): See `vectorbt.base.indexing.flex_select_auto_nb`."""
     init_i = from_i - wait
     init_ts = flex_select_auto_nb(ts, init_i, col, flex_2d)
-    init_stop = flex_select_auto_nb(np.asarray(stop), init_i, col, flex_2d)
-    init_trailing = flex_select_auto_nb(np.asarray(trailing), init_i, col, flex_2d)
+    init_stop = flex_select_auto_nb(stop, init_i, col, flex_2d)
+    init_trailing = flex_select_auto_nb(trailing, init_i, col, flex_2d)
     max_high = min_low = init_ts
 
     for i in range(from_i, to_i):
@@ -480,16 +481,16 @@ def ohlc_stop_place_nb(out: tp.Array1d,
                        from_i: int,
                        to_i: int,
                        col: int,
-                       open: tp.ArrayLike,
-                       high: tp.ArrayLike,
-                       low: tp.ArrayLike,
-                       close: tp.ArrayLike,
+                       open: tp.FlexArray,
+                       high: tp.FlexArray,
+                       low: tp.FlexArray,
+                       close: tp.FlexArray,
                        stop_price_out: tp.Array2d,
                        stop_type_out: tp.Array2d,
-                       sl_stop: tp.ArrayLike,
-                       sl_trail: tp.ArrayLike,
-                       tp_stop: tp.ArrayLike,
-                       reverse: tp.ArrayLike,
+                       sl_stop: tp.FlexArray,
+                       sl_trail: tp.FlexArray,
+                       tp_stop: tp.FlexArray,
+                       reverse: tp.FlexArray,
                        is_open_safe: bool,
                        wait: int,
                        pick_first: bool,
@@ -518,16 +519,21 @@ def ohlc_stop_place_nb(out: tp.Array1d,
         stop_type_out (array of int): Array where stop type of each exit will be stored.
 
             0 for stop loss, 1 for take profit.
-        sl_stop (float or array_like): Percentage value for stop loss.
+        sl_stop (array of float): Percentage value for stop loss.
 
-            Can be per frame, column, row, or element-wise. Set to `np.nan` to disable.
-        sl_trail (bool or array_like): Whether `sl_stop` is trailing.
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
+            Set an element to `np.nan` to disable.
+        sl_trail (array of bool): Whether `sl_stop` is trailing.
 
-            Can be per frame, column, row, or element-wise. Set to False to disable.
-        tp_stop (float or array_like): Percentage value for take profit.
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
+            Set an element to False to disable.
+        tp_stop (array of float): Percentage value for take profit.
 
-            Can be per frame, column, row, or element-wise. Set to `np.nan` to disable.
-        reverse (bool or array_like): Whether to do the opposite, i.e.: prices are followed downwards.
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
+            Set an element to `np.nan` to disable.
+        reverse (array of float): Whether to do the opposite, i.e.: prices are followed downwards.
+
+            Can be per frame, column, row, or element-wise. Must be at least a 0-dim array.
         is_open_safe (bool): Whether entry price comes right at or before open.
 
             If True and wait is 0, can use high/low at entry bar. Otherwise uses only close.
@@ -543,14 +549,14 @@ def ohlc_stop_place_nb(out: tp.Array1d,
     """
     init_i = from_i - wait
     init_open = flex_select_auto_nb(open, init_i, col, flex_2d)
-    init_sl_stop = flex_select_auto_nb(np.asarray(sl_stop), init_i, col, flex_2d)
+    init_sl_stop = flex_select_auto_nb(sl_stop, init_i, col, flex_2d)
     if init_sl_stop < 0:
         raise ValueError("Stop value must be 0 or greater")
-    init_sl_trail = flex_select_auto_nb(np.asarray(sl_trail), init_i, col, flex_2d)
-    init_tp_stop = flex_select_auto_nb(np.asarray(tp_stop), init_i, col, flex_2d)
+    init_sl_trail = flex_select_auto_nb(sl_trail, init_i, col, flex_2d)
+    init_tp_stop = flex_select_auto_nb(tp_stop, init_i, col, flex_2d)
     if init_tp_stop < 0:
         raise ValueError("Stop value must be 0 or greater")
-    init_reverse = flex_select_auto_nb(np.asarray(reverse), init_i, col, flex_2d)
+    init_reverse = flex_select_auto_nb(reverse, init_i, col, flex_2d)
     max_p = min_p = init_open
 
     for i in range(from_i, to_i):

@@ -254,7 +254,7 @@ class ReturnsAccessor(GenericAccessor):
         init_value = broadcast(init_value, to_shape=value_2d.shape[1], **broadcast_kwargs)
 
         func = nb_registry.redecorate_parallel(nb.returns_nb, nb_parallel)
-        chunked_config = merge_dicts(generic_chunking.arr_ax1_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(generic_chunking.arr_ax1_config, generic_chunking.column_stack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         returns = func(value_2d, init_value)
         returns = ArrayWrapper.from_obj(value).wrap(returns, **wrap_kwargs)
@@ -328,7 +328,7 @@ class ReturnsAccessor(GenericAccessor):
         if start_value is None:
             start_value = self.defaults['start_value']
         func = nb_registry.redecorate_parallel(nb.cum_returns_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.column_stack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         cumulative = func(self.to_2d_array(), start_value)
         wrap_kwargs = merge_dicts({}, wrap_kwargs)
@@ -340,7 +340,7 @@ class ReturnsAccessor(GenericAccessor):
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.cum_returns_final_nb`."""
         func = nb_registry.redecorate_parallel(nb.cum_returns_final_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), 0.)
         wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
@@ -367,7 +367,7 @@ class ReturnsAccessor(GenericAccessor):
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.annualized_return_nb`."""
         func = nb_registry.redecorate_parallel(nb.annualized_return_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_return'), wrap_kwargs)
@@ -401,7 +401,7 @@ class ReturnsAccessor(GenericAccessor):
         if ddof is None:
             ddof = self.defaults['ddof']
         func = nb_registry.redecorate_parallel(nb.annualized_volatility_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), self.ann_factor, levy_alpha, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_volatility'), wrap_kwargs)
@@ -435,7 +435,7 @@ class ReturnsAccessor(GenericAccessor):
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.calmar_ratio_nb`."""
         func = nb_registry.redecorate_parallel(nb.calmar_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='calmar_ratio'), wrap_kwargs)
@@ -470,7 +470,7 @@ class ReturnsAccessor(GenericAccessor):
             required_return = self.defaults['required_return']
         required_return = nb.deannualized_return_nb(required_return, self.ann_factor)
         func = nb_registry.redecorate_parallel(nb.omega_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - risk_free - required_return)
         wrap_kwargs = merge_dicts(dict(name_or_index='omega_ratio'), wrap_kwargs)
@@ -511,7 +511,7 @@ class ReturnsAccessor(GenericAccessor):
         if ddof is None:
             ddof = self.defaults['ddof']
         func = nb_registry.redecorate_parallel(nb.sharpe_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - risk_free, self.ann_factor, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='sharpe_ratio'), wrap_kwargs)
@@ -586,7 +586,7 @@ class ReturnsAccessor(GenericAccessor):
         if required_return is None:
             required_return = self.defaults['required_return']
         func = nb_registry.redecorate_parallel(nb.downside_risk_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='downside_risk'), wrap_kwargs)
@@ -620,7 +620,7 @@ class ReturnsAccessor(GenericAccessor):
         if required_return is None:
             required_return = self.defaults['required_return']
         func = nb_registry.redecorate_parallel(nb.sortino_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='sortino_ratio'), wrap_kwargs)
@@ -659,7 +659,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.information_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='information_ratio'), wrap_kwargs)
@@ -703,7 +703,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.beta_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='beta'), wrap_kwargs)
@@ -754,7 +754,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.alpha_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array() - risk_free, to_2d_array(benchmark_rets) - risk_free, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='alpha'), wrap_kwargs)
@@ -797,7 +797,7 @@ class ReturnsAccessor(GenericAccessor):
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.tail_ratio_nb`."""
         func = nb_registry.redecorate_parallel(nb.tail_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='tail_ratio'), wrap_kwargs)
@@ -863,7 +863,7 @@ class ReturnsAccessor(GenericAccessor):
         if cutoff is None:
             cutoff = self.defaults['cutoff']
         func = nb_registry.redecorate_parallel(nb.value_at_risk_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='value_at_risk'), wrap_kwargs)
@@ -902,7 +902,7 @@ class ReturnsAccessor(GenericAccessor):
         if cutoff is None:
             cutoff = self.defaults['cutoff']
         func = nb_registry.redecorate_parallel(nb.cond_value_at_risk_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='cond_value_at_risk'), wrap_kwargs)
@@ -943,7 +943,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.capture_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='capture'), wrap_kwargs)
@@ -988,7 +988,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.up_capture_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='up_capture'), wrap_kwargs)
@@ -1033,7 +1033,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.down_capture_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='down_capture'), wrap_kwargs)
@@ -1073,7 +1073,7 @@ class ReturnsAccessor(GenericAccessor):
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Relative decline from a peak."""
         func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.column_stack_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts({}, wrap_kwargs)
@@ -1087,7 +1087,7 @@ class ReturnsAccessor(GenericAccessor):
 
         Yields the same out as `max_drawdown` of `ReturnsAccessor.drawdowns`."""
         func = nb_registry.redecorate_parallel(nb.max_drawdown_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.hstack_config)
+        chunked_config = merge_dicts(chunking.returns_config, generic_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)

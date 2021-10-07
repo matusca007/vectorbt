@@ -122,8 +122,8 @@ def apply_and_concat(ntimes: int,
     if n_outputs == 0:
         return None
     if n_outputs == 1:
-        return np.column_stack(tuple(map(reshaping.to_2d, out)))
-    return list(map(np.column_stack, zip(*tuple(map(lambda x: tuple(map(reshaping.to_2d, x)), out)))))
+        return np.column_stack(out)
+    return list(map(np.column_stack, zip(*out)))
 
 
 @register_jit

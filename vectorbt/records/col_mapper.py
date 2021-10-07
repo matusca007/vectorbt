@@ -30,9 +30,9 @@ class ColumnMapper(Wrapping):
         """Get metadata of column indices.
 
         Returns element indices and new column array.
-        Automatically decides whether to use column range or column map."""
+        Automatically decides whether to use column lengths or column map."""
         if self.is_sorted():
-            new_indices, new_col_arr = nb.col_range_select_nb(self.col_range, to_1d_array(col_idxs))  # faster
+            new_indices, new_col_arr = nb.col_lens_select_nb(self.col_lens, to_1d_array(col_idxs))  # faster
         else:
             new_indices, new_col_arr = nb.col_map_select_nb(self.col_map, to_1d_array(col_idxs))  # more flexible
         return new_indices, new_col_arr
@@ -53,27 +53,26 @@ class ColumnMapper(Wrapping):
         return col_arr
 
     @cached_property
-    def col_range(self) -> tp.ColRange:
-        """Column index.
+    def col_lens(self) -> tp.ColLens:
+        """Column lengths.
 
-        Faster than `ColumnMapper.col_map` but only compatible with sorted columns.
-        More suited for records."""
-        return nb.col_range_nb(self.col_arr, len(self.wrapper.columns))
+        Faster than `ColumnMapper.col_map` but only compatible with sorted columns."""
+        return nb.col_lens_nb(self.col_arr, len(self.wrapper.columns))
 
     @cached_method
-    def get_col_range(self, group_by: tp.GroupByLike = None) -> tp.ColRange:
-        """Get group-aware column range."""
+    def get_col_lens(self, group_by: tp.GroupByLike = None) -> tp.ColLens:
+        """Get group-aware column lengths."""
         if not self.wrapper.grouper.is_grouped(group_by=group_by):
-            return self.col_range
+            return self.col_lens
         col_arr = self.get_col_arr(group_by=group_by)
         columns = self.wrapper.get_columns(group_by=group_by)
-        return nb.col_range_nb(col_arr, len(columns))
+        return nb.col_lens_nb(col_arr, len(columns))
 
     @cached_property
     def col_map(self) -> tp.ColMap:
         """Column map.
 
-        More flexible than `ColumnMapper.col_range`.
+        More flexible than `ColumnMapper.col_lens`.
         More suited for mapped arrays."""
         return nb.col_map_nb(self.col_arr, len(self.wrapper.columns))
 

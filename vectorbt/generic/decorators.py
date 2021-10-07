@@ -71,7 +71,7 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
                     if _is_reducing:
                         chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.concat_config)
                     else:
-                        chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.hstack_config)
+                        chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.column_stack_config)
                     _func = resolve_chunked(_func, chunked, **chunked_config)
                 elif chunked is not None:
                     raise ValueError("This method doesn't support chunking")

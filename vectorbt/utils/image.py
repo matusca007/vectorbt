@@ -32,7 +32,7 @@ def vstack_image_arrays(a: tp.Array3d, b: tp.Array3d) -> tp.Array3d:
 
 
 def save_animation(fname: str,
-                   index: tp.ArrayLikeSequence,
+                   index: tp.Sequence,
                    plot_func: tp.Callable,
                    *args,
                    delta: tp.Optional[int] = None,
@@ -47,7 +47,7 @@ def save_animation(fname: str,
 
     Args:
         fname (str): File name.
-        index (iterable): Index to iterate over.
+        index (sequence): Index to iterate over.
         plot_func (callable): Plotting function.
 
             Must take subset of `index`, `*args`, and `**kwargs`, and return either a Plotly figure,

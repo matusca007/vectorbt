@@ -903,15 +903,15 @@ def build_call_seq(target_shape: tp.Shape,
 # ############# Helper functions ############# #
 
 @register_jit(cache=True)
-def get_col_elem_nb(ctx: tp.Union[RowContext, SegmentContext, FlexOrderContext], col: int,
-                    a: tp.ArrayLike) -> tp.Scalar:
+def get_col_elem_nb(ctx: tp.Union[RowContext, SegmentContext, FlexOrderContext],
+                    col: int, a: tp.FlexArray) -> tp.Scalar:
     """Get the current element using flexible indexing given the context and the column."""
     return flex_select_auto_nb(a, ctx.i, col, ctx.flex_2d)
 
 
 @register_jit(cache=True)
 def get_elem_nb(ctx: tp.Union[OrderContext, PostOrderContext, SignalContext],
-                a: tp.ArrayLike) -> tp.Scalar:
+                a: tp.FlexArray) -> tp.Scalar:
     """Get the current element using flexible indexing given just the context."""
     return flex_select_auto_nb(a, ctx.i, ctx.col, ctx.flex_2d)
 
@@ -989,9 +989,9 @@ def approx_order_value_nb(size: float,
 
 @register_jit(cache=True)
 def sort_call_seq_out_nb(ctx: SegmentContext,
-                         size: tp.ArrayLike,
-                         size_type: tp.ArrayLike,
-                         direction: tp.ArrayLike,
+                         size: tp.FlexArray,
+                         size_type: tp.FlexArray,
+                         direction: tp.FlexArray,
                          order_value_out: tp.Array1d,
                          call_seq_out: tp.Array1d,
                          ctx_select: bool = True) -> None:
@@ -1000,7 +1000,7 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
     Accepts `vectorbt.portfolio.enums.SegmentContext` and other arguments, sorts `call_seq_out` in place,
     and returns nothing.
 
-    Arrays `size`, `size_type`, and `direction` utilize flexible indexing.
+    Arrays `size`, `size_type`, and `direction` utilize flexible indexing and must have at least 0 dimensions.
     If `ctx_select` is True, selects the elements of each `size`, `size_type`, and `direction`
     using `get_col_elem_nb` assuming that each array can broadcast to `target_shape`.
     Otherwise, selects using `vectorbt.base.indexing.flex_select_auto_nb` assuming that each array
@@ -1019,9 +1019,6 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
         Should be used in flexible simulation functions."""
     if not ctx.cash_sharing:
         raise ValueError("Cash sharing must be enabled")
-    size_arr = np.asarray(size)
-    size_type_arr = np.asarray(size_type)
-    direction_arr = np.asarray(direction)
 
     group_value_now = get_group_value_ctx_nb(ctx)
     group_len = ctx.to_col - ctx.from_col
@@ -1030,13 +1027,13 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
             raise ValueError("call_seq_out must follow CallSeqType.Default")
         col = ctx.from_col + k
         if ctx_select:
-            _size = get_col_elem_nb(ctx, col, size_arr)
-            _size_type = get_col_elem_nb(ctx, col, size_type_arr)
-            _direction = get_col_elem_nb(ctx, col, direction_arr)
+            _size = get_col_elem_nb(ctx, col, size)
+            _size_type = get_col_elem_nb(ctx, col, size_type)
+            _direction = get_col_elem_nb(ctx, col, direction)
         else:
-            _size = flex_select_auto_nb(size_arr, k, 0, False)
-            _size_type = flex_select_auto_nb(size_type_arr, k, 0, False)
-            _direction = flex_select_auto_nb(direction_arr, k, 0, False)
+            _size = flex_select_auto_nb(size, k, 0, False)
+            _size_type = flex_select_auto_nb(size_type, k, 0, False)
+            _direction = flex_select_auto_nb(direction, k, 0, False)
         if ctx.cash_sharing:
             cash_now = ctx.last_cash[ctx.group]
             free_cash_now = ctx.last_free_cash[ctx.group]
@@ -1059,9 +1056,9 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
 
 @register_jit(cache=True)
 def sort_call_seq_nb(ctx: SegmentContext,
-                     size: tp.ArrayLike,
-                     size_type: tp.ArrayLike,
-                     direction: tp.ArrayLike,
+                     size: tp.FlexArray,
+                     size_type: tp.FlexArray,
+                     direction: tp.FlexArray,
                      order_value_out: tp.Array1d,
                      ctx_select: bool = True) -> None:
     """Sort call sequence attached to `vectorbt.portfolio.enums.SegmentContext`.
@@ -1275,22 +1272,22 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                             group_lens: tp.Array1d,
                             init_cash: tp.Array1d,
                             call_seq: tp.Array2d,
-                            size: tp.ArrayLike = np.asarray(np.inf),
-                            price: tp.ArrayLike = np.asarray(np.inf),
-                            size_type: tp.ArrayLike = np.asarray(SizeType.Amount),
-                            direction: tp.ArrayLike = np.asarray(Direction.Both),
-                            fees: tp.ArrayLike = np.asarray(0.),
-                            fixed_fees: tp.ArrayLike = np.asarray(0.),
-                            slippage: tp.ArrayLike = np.asarray(0.),
-                            min_size: tp.ArrayLike = np.asarray(0.),
-                            max_size: tp.ArrayLike = np.asarray(np.inf),
-                            reject_prob: tp.ArrayLike = np.asarray(0.),
-                            lock_cash: tp.ArrayLike = np.asarray(False),
-                            allow_partial: tp.ArrayLike = np.asarray(True),
-                            raise_reject: tp.ArrayLike = np.asarray(False),
-                            log: tp.ArrayLike = np.asarray(False),
-                            val_price: tp.ArrayLike = np.asarray(np.inf),
-                            close: tp.ArrayLike = np.asarray(np.nan),
+                            size: tp.FlexArray = np.asarray(np.inf),
+                            price: tp.FlexArray = np.asarray(np.inf),
+                            size_type: tp.FlexArray = np.asarray(SizeType.Amount),
+                            direction: tp.FlexArray = np.asarray(Direction.Both),
+                            fees: tp.FlexArray = np.asarray(0.),
+                            fixed_fees: tp.FlexArray = np.asarray(0.),
+                            slippage: tp.FlexArray = np.asarray(0.),
+                            min_size: tp.FlexArray = np.asarray(0.),
+                            max_size: tp.FlexArray = np.asarray(np.inf),
+                            reject_prob: tp.FlexArray = np.asarray(0.),
+                            lock_cash: tp.FlexArray = np.asarray(False),
+                            allow_partial: tp.FlexArray = np.asarray(True),
+                            raise_reject: tp.FlexArray = np.asarray(False),
+                            log: tp.FlexArray = np.asarray(False),
+                            val_price: tp.FlexArray = np.asarray(np.inf),
+                            close: tp.FlexArray = np.asarray(np.nan),
                             auto_call_seq: bool = False,
                             ffill_val_price: bool = True,
                             update_value: bool = False,
@@ -1822,36 +1819,36 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  call_seq: tp.Array2d,
                                  signal_func_nb: SignalFuncT = no_signal_func_nb,
                                  signal_args: tp.ArgsLike = (),
-                                 size: tp.ArrayLike = np.asarray(np.inf),
-                                 price: tp.ArrayLike = np.asarray(np.inf),
-                                 size_type: tp.ArrayLike = np.asarray(SizeType.Amount),
-                                 fees: tp.ArrayLike = np.asarray(0.),
-                                 fixed_fees: tp.ArrayLike = np.asarray(0.),
-                                 slippage: tp.ArrayLike = np.asarray(0.),
-                                 min_size: tp.ArrayLike = np.asarray(0.),
-                                 max_size: tp.ArrayLike = np.asarray(np.inf),
-                                 reject_prob: tp.ArrayLike = np.asarray(0.),
-                                 lock_cash: tp.ArrayLike = np.asarray(False),
-                                 allow_partial: tp.ArrayLike = np.asarray(True),
-                                 raise_reject: tp.ArrayLike = np.asarray(False),
-                                 log: tp.ArrayLike = np.asarray(False),
-                                 accumulate: tp.ArrayLike = np.asarray(AccumulationMode.Disabled),
-                                 upon_long_conflict: tp.ArrayLike = np.asarray(ConflictMode.Ignore),
-                                 upon_short_conflict: tp.ArrayLike = np.asarray(ConflictMode.Ignore),
-                                 upon_dir_conflict: tp.ArrayLike = np.asarray(DirectionConflictMode.Ignore),
-                                 upon_opposite_entry: tp.ArrayLike = np.asarray(OppositeEntryMode.ReverseReduce),
-                                 val_price: tp.ArrayLike = np.asarray(np.inf),
-                                 open: tp.ArrayLike = np.asarray(np.nan),
-                                 high: tp.ArrayLike = np.asarray(np.nan),
-                                 low: tp.ArrayLike = np.asarray(np.nan),
-                                 close: tp.ArrayLike = np.asarray(np.nan),
-                                 sl_stop: tp.ArrayLike = np.asarray(np.nan),
-                                 sl_trail: tp.ArrayLike = np.asarray(False),
-                                 tp_stop: tp.ArrayLike = np.asarray(np.nan),
-                                 stop_entry_price: tp.ArrayLike = np.asarray(StopEntryPrice.Close),
-                                 stop_exit_price: tp.ArrayLike = np.asarray(StopExitPrice.StopLimit),
-                                 upon_stop_exit: tp.ArrayLike = np.asarray(StopExitMode.Close),
-                                 upon_stop_update: tp.ArrayLike = np.asarray(StopUpdateMode.Override),
+                                 size: tp.FlexArray = np.asarray(np.inf),
+                                 price: tp.FlexArray = np.asarray(np.inf),
+                                 size_type: tp.FlexArray = np.asarray(SizeType.Amount),
+                                 fees: tp.FlexArray = np.asarray(0.),
+                                 fixed_fees: tp.FlexArray = np.asarray(0.),
+                                 slippage: tp.FlexArray = np.asarray(0.),
+                                 min_size: tp.FlexArray = np.asarray(0.),
+                                 max_size: tp.FlexArray = np.asarray(np.inf),
+                                 reject_prob: tp.FlexArray = np.asarray(0.),
+                                 lock_cash: tp.FlexArray = np.asarray(False),
+                                 allow_partial: tp.FlexArray = np.asarray(True),
+                                 raise_reject: tp.FlexArray = np.asarray(False),
+                                 log: tp.FlexArray = np.asarray(False),
+                                 accumulate: tp.FlexArray = np.asarray(AccumulationMode.Disabled),
+                                 upon_long_conflict: tp.FlexArray = np.asarray(ConflictMode.Ignore),
+                                 upon_short_conflict: tp.FlexArray = np.asarray(ConflictMode.Ignore),
+                                 upon_dir_conflict: tp.FlexArray = np.asarray(DirectionConflictMode.Ignore),
+                                 upon_opposite_entry: tp.FlexArray = np.asarray(OppositeEntryMode.ReverseReduce),
+                                 val_price: tp.FlexArray = np.asarray(np.inf),
+                                 open: tp.FlexArray = np.asarray(np.nan),
+                                 high: tp.FlexArray = np.asarray(np.nan),
+                                 low: tp.FlexArray = np.asarray(np.nan),
+                                 close: tp.FlexArray = np.asarray(np.nan),
+                                 sl_stop: tp.FlexArray = np.asarray(np.nan),
+                                 sl_trail: tp.FlexArray = np.asarray(False),
+                                 tp_stop: tp.FlexArray = np.asarray(np.nan),
+                                 stop_entry_price: tp.FlexArray = np.asarray(StopEntryPrice.Close),
+                                 stop_exit_price: tp.FlexArray = np.asarray(StopExitPrice.StopLimit),
+                                 upon_stop_exit: tp.FlexArray = np.asarray(StopExitMode.Close),
+                                 upon_stop_update: tp.FlexArray = np.asarray(StopUpdateMode.Override),
                                  adjust_sl_func_nb: AdjustSLFuncT = no_adjust_sl_func_nb,
                                  adjust_sl_args: tp.Args = (),
                                  adjust_tp_func_nb: AdjustTPFuncT = no_adjust_tp_func_nb,
@@ -2328,9 +2325,9 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
 
 @register_jit
 def dir_enex_signal_func_nb(c: SignalContext,
-                            entries: tp.ArrayLike,
-                            exits: tp.ArrayLike,
-                            direction: tp.ArrayLike) -> tp.Tuple[bool, bool, bool, bool]:
+                            entries: tp.FlexArray,
+                            exits: tp.FlexArray,
+                            direction: tp.FlexArray) -> tp.Tuple[bool, bool, bool, bool]:
     """Resolve direction-aware signals out of entries, exits, and direction."""
     is_entry = flex_select_auto_nb(entries, c.i, c.col, c.flex_2d)
     is_exit = flex_select_auto_nb(exits, c.i, c.col, c.flex_2d)
@@ -2344,10 +2341,10 @@ def dir_enex_signal_func_nb(c: SignalContext,
 
 @register_jit
 def ls_enex_signal_func_nb(c: SignalContext,
-                           long_entries: tp.ArrayLike,
-                           long_exits: tp.ArrayLike,
-                           short_entries: tp.ArrayLike,
-                           short_exits: tp.ArrayLike) -> tp.Tuple[bool, bool, bool, bool]:
+                           long_entries: tp.FlexArray,
+                           long_exits: tp.FlexArray,
+                           short_entries: tp.FlexArray,
+                           short_exits: tp.FlexArray) -> tp.Tuple[bool, bool, bool, bool]:
     """Get an element of direction-aware signals."""
     is_long_entry = flex_select_auto_nb(long_entries, c.i, c.col, c.flex_2d)
     is_long_exit = flex_select_auto_nb(long_exits, c.i, c.col, c.flex_2d)
@@ -2392,7 +2389,7 @@ def simulate_nb(target_shape: tp.Shape,
                 init_cash: tp.Array1d,
                 cash_sharing: bool,
                 call_seq: tp.Array2d,
-                segment_mask: tp.ArrayLike = np.asarray(True),
+                segment_mask: tp.FlexArray = np.asarray(True),
                 call_pre_segment: bool = False,
                 call_post_segment: bool = False,
                 pre_sim_func_nb: PreSimFuncT = no_pre_func_nb,
@@ -2411,7 +2408,7 @@ def simulate_nb(target_shape: tp.Shape,
                 order_args: tp.Args = (),
                 post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                 post_order_args: tp.Args = (),
-                close: tp.ArrayLike = np.asarray(np.nan),
+                close: tp.FlexArray = np.asarray(np.nan),
                 ffill_val_price: bool = True,
                 update_value: bool = False,
                 fill_pos_record: bool = True,
@@ -3270,7 +3267,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          init_cash: tp.Array1d,
                          cash_sharing: bool,
                          call_seq: tp.Array2d,
-                         segment_mask: tp.ArrayLike = np.asarray(True),
+                         segment_mask: tp.FlexArray = np.asarray(True),
                          call_pre_segment: bool = False,
                          call_post_segment: bool = False,
                          pre_sim_func_nb: PreSimFuncT = no_pre_func_nb,
@@ -3289,7 +3286,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          order_args: tp.Args = (),
                          post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                          post_order_args: tp.Args = (),
-                         close: tp.ArrayLike = np.asarray(np.nan),
+                         close: tp.FlexArray = np.asarray(np.nan),
                          ffill_val_price: bool = True,
                          update_value: bool = False,
                          fill_pos_record: bool = True,
@@ -3907,7 +3904,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      group_lens: tp.Array1d,
                      init_cash: tp.Array1d,
                      cash_sharing: bool,
-                     segment_mask: tp.ArrayLike = np.asarray(True),
+                     segment_mask: tp.FlexArray = np.asarray(True),
                      call_pre_segment: bool = False,
                      call_post_segment: bool = False,
                      pre_sim_func_nb: PreSimFuncT = no_pre_func_nb,
@@ -3926,7 +3923,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      flex_order_args: tp.Args = (),
                      post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                      post_order_args: tp.Args = (),
-                     close: tp.ArrayLike = np.asarray(np.nan),
+                     close: tp.FlexArray = np.asarray(np.nan),
                      ffill_val_price: bool = True,
                      update_value: bool = False,
                      fill_pos_record: bool = True,
@@ -4607,7 +4604,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               group_lens: tp.Array1d,
                               init_cash: tp.Array1d,
                               cash_sharing: bool,
-                              segment_mask: tp.ArrayLike = np.asarray(True),
+                              segment_mask: tp.FlexArray = np.asarray(True),
                               call_pre_segment: bool = False,
                               call_post_segment: bool = False,
                               pre_sim_func_nb: PreSimFuncT = no_pre_func_nb,
@@ -4626,7 +4623,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               flex_order_args: tp.Args = (),
                               post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                               post_order_args: tp.Args = (),
-                              close: tp.ArrayLike = np.asarray(np.nan),
+                              close: tp.FlexArray = np.asarray(np.nan),
                               ffill_val_price: bool = True,
                               update_value: bool = False,
                               fill_pos_record: bool = True,
@@ -5353,7 +5350,7 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
             if order_record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = order_record['id']
 
             order_idx = order_record['idx']
@@ -5586,7 +5583,7 @@ def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
             if order_record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = order_record['id']
 
             i = order_record['idx']
@@ -5854,7 +5851,7 @@ def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.Re
             record = trade_records[trade_r]
 
             if record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = record['id']
 
             parent_id = record['parent_id']
@@ -6056,7 +6053,7 @@ def asset_flow_nb(target_shape: tp.Shape,
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
             if order_record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = order_record['id']
 
             i = order_record['idx']
@@ -6169,7 +6166,7 @@ def cash_flow_nb(target_shape: tp.Shape,
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
             if order_record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = order_record['id']
 
             i = order_record['idx']
@@ -6385,7 +6382,7 @@ def total_profit_nb(target_shape: tp.Shape,
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
 
             if order_record['id'] < last_id:
-                raise ValueError("id must come in ascending order per column")
+                raise ValueError("Ids must come in ascending order per column")
             last_id = order_record['id']
 
             # Fill assets

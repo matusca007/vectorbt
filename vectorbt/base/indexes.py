@@ -42,7 +42,7 @@ def get_index(arg: tp.SeriesFrame, axis: int) -> tp.Index:
             return arg.columns
 
 
-def index_from_values(values: tp.ArrayLikeSequence, name: tp.Optional[str] = None) -> tp.Index:
+def index_from_values(values: tp.Sequence, name: tp.Optional[str] = None) -> tp.Index:
     """Create a new `pd.Index` with `name` by parsing an iterable `values`.
 
     Each in `values` will correspond to an element in the new index."""

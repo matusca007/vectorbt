@@ -9,12 +9,20 @@ occupying the user's memory."""
 
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.base import Records
-from vectorbt.records.chunking import ColMapSizer, ColMapSlicer, ColIdxsMapper
+from vectorbt.records.chunking import (
+    ColLensSizer,
+    ColLensSlicer,
+    ColLensMapper,
+    ColMapSlicer,
+    ColIdxsMapper
+)
 
 __all__ = [
     'MappedArray',
     'Records',
-    'ColMapSizer',
+    'ColLensSizer',
+    'ColLensSlicer',
+    'ColLensMapper',
     'ColMapSlicer',
     'ColIdxsMapper'
 ]

@@ -95,40 +95,28 @@ class TestColumnMapper:
             np.array([0, 0, 0, 0, 0, 0, 1, 1, 1])
         )
 
-    def test_col_range(self):
+    def test_col_lens(self):
         np.testing.assert_array_equal(
-            records['a'].col_mapper.col_range,
-            np.array([
-                [0, 3]
-            ])
+            records['a'].col_mapper.col_lens,
+            np.array([3])
         )
         np.testing.assert_array_equal(
-            records.col_mapper.col_range,
-            np.array([
-                [0, 3],
-                [3, 6],
-                [6, 9],
-                [-1, -1]
-            ])
+            records.col_mapper.col_lens,
+            np.array([3, 3, 3, 0])
         )
 
-    def test_get_col_range(self):
+    def test_get_col_lens(self):
         np.testing.assert_array_equal(
-            records.col_mapper.get_col_range(),
-            np.array([
-                [0, 3],
-                [3, 6],
-                [6, 9],
-                [-1, -1]
-            ])
+            records.col_mapper.get_col_lens(),
+            np.array([3, 3, 3, 0])
         )
         np.testing.assert_array_equal(
-            records_grouped['g1'].col_mapper.get_col_range(),
-            np.array([[0, 6]])
+            records_grouped['g1'].col_mapper.get_col_lens(),
+            np.array([6])
         )
         np.testing.assert_array_equal(
-            records_grouped.col_mapper.get_col_range(),
-            np.array([[0, 6], [6, 9]])
+            records_grouped.col_mapper.get_col_lens(),
+            np.array([6, 3])
         )
 
     def test_col_map(self):
@@ -518,6 +506,86 @@ class TestMappedArray:
             mapped_array.__class__.apply(
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, chunked=False).values
+        )
+
+    def test_reduce_segments(self):
+        @njit
+        def sum_reduce_nb(a):
+            return np.sum(a)
+
+        np.testing.assert_array_equal(
+            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 1, 2])).values,
+            np.array([10., 11., 12.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 2])).values,
+            np.array([21., 12.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0])).values,
+            np.array([33.])
+        )
+        with pytest.raises(Exception):
+            _ = mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([2, 1, 0]))
+        np.testing.assert_array_equal(
+            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0])).values,
+            np.array([33.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).values,
+            np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 1, 2, 0, 1, 2, 0, 1, 2])).values,
+            np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])).values,
+            np.array([33., 40., 33.])
+        )
+        mapped_array2 = vbt.MappedArray(
+            wrapper,
+            np.repeat(records_arr['some_field1'], 2),
+            np.repeat(records_arr['col'], 2),
+            idx_arr=np.repeat(records_arr['idx'], 2)
+        )
+        result = mapped_array2.reduce_segments(
+            sum_reduce_nb, segment_arr=(mapped_array2.idx_arr, mapped_array2.col_arr))
+        np.testing.assert_array_equal(
+            result.values,
+            mapped_array.values * 2
+        )
+        np.testing.assert_array_equal(
+            result.col_arr,
+            mapped_array.col_arr
+        )
+        np.testing.assert_array_equal(
+            result.idx_arr,
+            mapped_array.idx_arr
+        )
+        np.testing.assert_array_equal(
+            result.id_arr,
+            np.array([1, 3, 5, 1, 3, 5, 1, 3, 5])
+        )
+        np.testing.assert_array_equal(
+            mapped_array_grouped.reduce_segments(
+                sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
+                apply_per_group=False).values,
+            np.array([33., 40., 33.])
+        )
+        np.testing.assert_array_equal(
+            mapped_array_grouped.reduce_segments(
+                sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
+                apply_per_group=True).values,
+            np.array([33., 40., 33.])
+        )
+        assert mapped_array_grouped.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).wrapper == \
+               mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), group_by=group_by).wrapper
+        assert mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), group_by=False)\
+                   .wrapper.grouper.group_by is None
+        np.testing.assert_array_equal(
+            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), chunked=True).values,
+            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), chunked=False).values
         )
 
     def test_reduce(self):

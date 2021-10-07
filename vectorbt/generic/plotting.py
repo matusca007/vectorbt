@@ -28,7 +28,7 @@ from vectorbt.utils.config import Configured, resolve_dict
 from vectorbt.base import reshaping
 
 
-def clean_labels(labels: tp.ArrayLikeSequence) -> tp.ArrayLikeSequence:
+def clean_labels(labels: tp.Labels) -> tp.Labels:
     """Clean labels.
 
     Plotly doesn't support multi-indexes."""

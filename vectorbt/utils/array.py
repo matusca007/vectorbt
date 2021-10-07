@@ -129,3 +129,31 @@ def rescale_float_to_int_nb(floats: tp.Array, int_range: tp.Tuple[float, float],
     for i in range(leftover):
         ints[np.random.choice(len(ints))] += 1
     return ints
+
+
+@register_jit(cache=True)
+def int_digit_count_nb(number: int) -> int:
+    """Get the digit count in a number."""
+    out = 0
+    while number != 0:
+        number //= 10
+        out += 1
+    return out
+
+
+@register_jit(cache=True)
+def hash_int_rows_nb(arr: tp.Array2d) -> tp.Array1d:
+    """Hash rows in a 2-dim array.
+
+    First digits of each hash correspond to the left-most column, the last digits to the right-most column.
+    Thus, the resulting hashes are not suitable for sorting by value."""
+    out = np.full(arr.shape[0], 0, dtype=np.int_)
+    prefix = 1
+    for col in range(arr.shape[1]):
+        vmax = np.nan
+        for i in range(arr.shape[0]):
+            if np.isnan(vmax) or arr[i, col] > vmax:
+                vmax = arr[i, col]
+            out[i] += arr[i, col] * prefix
+        prefix *= 10 ** int_digit_count_nb(vmax)
+    return out

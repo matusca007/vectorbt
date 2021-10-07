@@ -14,7 +14,7 @@ from vectorbt.utils import checks
 from vectorbt.base.indexes import find_first_occurrence
 from vectorbt.base.reshaping import to_any_array
 
-RangesT = tp.Generator[tp.Sequence[tp.ArrayLikeSequence], None, None]
+RangesT = tp.Generator[tp.Tuple[tp.Array1d, ...], None, None]
 
 
 def split_ranges_into_sets(start_idxs: tp.ArrayLike,

@@ -628,10 +628,10 @@ class SimulationContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -983,10 +983,10 @@ class GroupContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -1061,10 +1061,10 @@ class RowContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -1108,10 +1108,10 @@ class SegmentContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -1175,10 +1175,10 @@ class OrderContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -1253,10 +1253,10 @@ class PostOrderContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
@@ -1349,10 +1349,10 @@ class FlexOrderContext(tp.NamedTuple):
     init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
-    segment_mask: tp.ArrayLike
+    segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
-    close: tp.ArrayLike
+    close: tp.Array
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool

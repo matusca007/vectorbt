@@ -575,8 +575,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         Returns new records array."""
         if self.col_mapper.is_sorted():
-            new_records_arr = nb.record_col_range_select_nb(
-                self.values, self.col_mapper.col_range, to_1d_array(col_idxs))  # faster
+            new_records_arr = nb.record_col_lens_select_nb(
+                self.values, self.col_mapper.col_lens, to_1d_array(col_idxs))  # faster
         else:
             new_records_arr = nb.record_col_map_select_nb(
                 self.values, self.col_mapper.col_map, to_1d_array(col_idxs))  # more flexible
@@ -706,7 +706,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
     def is_sorted(self, incl_id: bool = False) -> bool:
         """Check whether records are sorted."""
         if incl_id:
-            return nb.is_col_idx_sorted_nb(self.col_arr, self.id_arr)
+            return nb.is_col_id_sorted_nb(self.col_arr, self.id_arr)
         return nb.is_col_sorted_nb(self.col_arr)
 
     def sort(self: RecordsT, incl_id: bool = False, group_by: tp.GroupByLike = None, **kwargs) -> RecordsT:
@@ -801,8 +801,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
     @class_or_instancemethod
     def apply(cls_or_self,
               apply_func_nb: tp.Union[
-                  tp.RecordsApplyFunc,
-                  tp.RecordsApplyMetaFunc
+                  tp.ApplyFunc,
+                  tp.ApplyMetaFunc
               ], *args,
               group_by: tp.GroupByLike = None,
               apply_per_group: bool = False,
@@ -815,9 +815,9 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         Applies per group if `apply_per_group` is True.
 
-        See `vectorbt.records.nb.apply_on_records_nb`.
+        See `vectorbt.records.nb.apply_nb`.
 
-        For details on the meta version, see `vectorbt.records.nb.apply_on_records_meta_nb`.
+        For details on the meta version, see `vectorbt.records.nb.apply_meta_nb`.
 
         `**kwargs` are passed to `Records.map_array`."""
         checks.assert_numba_func(apply_func_nb)
@@ -825,7 +825,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_records_meta_nb, nb_parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.col_map_config,
                 chunking.recarr_len_col_map_config,
@@ -837,7 +837,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_on_records_nb, nb_parallel)
+            func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
             chunked_config = merge_dicts(
                 chunking.recarr_col_map_config,
                 chunking.col_map_config,

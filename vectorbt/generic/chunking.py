@@ -4,6 +4,7 @@
 """Extensions to `vectorbt.utils.chunking` for chunking generic functions."""
 
 import numpy as np
+from numba.typed import List
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import Config
@@ -99,17 +100,41 @@ arr_group_lens_config = Config(
 )
 """Config for slicing an array based on group lengths."""
 
-hstack_config = Config(
-    dict(merge_func=np.hstack)
+
+def column_stack(results: list) -> tp.MaybeTuple[list]:
+    """Stack columns from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.column_stack, zip(*results)))
+    return np.column_stack(results)
+
+
+column_stack_config = Config(
+    dict(merge_func=column_stack)
 )
 """Config for merging arrays through horizontal stacking (column-wise)."""
 
-vstack_config = Config(
-    dict(merge_func=np.vstack)
+
+def row_stack(results: list) -> tp.MaybeTuple[list]:
+    """Stack rows from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.row_stack, zip(*results)))
+    return np.row_stack(results)
+
+
+row_stack_config = Config(
+    dict(merge_func=row_stack)
 )
 """Config for merging arrays through vertical stacking (row-wise)."""
 
+
+def concat(results: list) -> tp.MaybeTuple[list]:
+    """Concatenate elements from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.concatenate, zip(*results)))
+    return np.concatenate(results)
+
+
 concat_config = Config(
-    dict(merge_func=np.concatenate)
+    dict(merge_func=concat)
 )
 """Config for merging arrays through concatenating."""
