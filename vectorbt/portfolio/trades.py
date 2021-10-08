@@ -495,8 +495,8 @@ from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.base import chunking as base_chunking
 from vectorbt.generic.ranges import Ranges
-from vectorbt.generic import chunking as generic_chunking
 from vectorbt.records.decorators import attach_fields, override_field_config
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records import chunking as records_chunking
@@ -621,7 +621,7 @@ class Trades(Ranges):
     def __init__(self,
                  wrapper: ArrayWrapper,
                  records_arr: tp.RecordArray,
-                 close: tp.ArrayLike,
+                 close: tp.Optional[tp.SeriesFrame],
                  **kwargs) -> None:
         Ranges.__init__(
             self,
@@ -1648,7 +1648,7 @@ class Positions(Trades):
         chunked_config = merge_dicts(
             records_chunking.recarr_col_map_config,
             records_chunking.col_map_config,
-            generic_chunking.concat_config
+            base_chunking.concat_config
         )
         func = resolve_chunked(func, chunked, **chunked_config)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)

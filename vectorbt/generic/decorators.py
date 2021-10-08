@@ -11,6 +11,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.chunking import resolve_chunked
+from vectorbt.base import chunking as base_chunking
 from vectorbt.generic import chunking
 
 WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
@@ -69,9 +70,9 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
                     raise ValueError("This method doesn't support parallelization")
                 if not _disable_chunked:
                     if _is_reducing:
-                        chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.concat_config)
+                        chunked_config = merge_dicts(chunking.arr_ax1_config, base_chunking.concat_config)
                     else:
-                        chunked_config = merge_dicts(chunking.arr_ax1_config, chunking.column_stack_config)
+                        chunked_config = merge_dicts(chunking.arr_ax1_config, base_chunking.column_stack_config)
                     _func = resolve_chunked(_func, chunked, **chunked_config)
                 elif chunked is not None:
                     raise ValueError("This method doesn't support chunking")

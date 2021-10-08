@@ -124,6 +124,7 @@ from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.base import chunking as base_chunking
 from vectorbt.generic.enums import RangeStatus, range_dt
 from vectorbt.generic import nb, chunking
 from vectorbt.records.base import Records
@@ -206,7 +207,7 @@ class Ranges(Records):
     def __init__(self,
                  wrapper: ArrayWrapper,
                  records_arr: tp.RecordArray,
-                 ts: tp.Optional[tp.ArrayLike] = None,
+                 ts: tp.Optional[tp.SeriesFrame] = None,
                  **kwargs) -> None:
         Records.__init__(
             self,
@@ -286,7 +287,7 @@ class Ranges(Records):
         chunked_config = merge_dicts(
             records_chunking.recarr_col_map_config,
             records_chunking.col_map_config,
-            chunking.column_stack_config
+            base_chunking.column_stack_config
         )
         func = resolve_chunked(func, chunked, **chunked_config)
         mask = func(
@@ -304,7 +305,7 @@ class Ranges(Records):
                      **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
         func = nb_registry.redecorate_parallel(nb.range_duration_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         duration = func(
             self.get_field_arr('start_idx'),
@@ -369,7 +370,7 @@ class Ranges(Records):
             records_chunking.recarr_col_map_config,
             records_chunking.col_map_config,
             records_chunking.index_lens_config,
-            chunking.concat_config
+            base_chunking.concat_config
         )
         func = resolve_chunked(func, chunked, **chunked_config)
         coverage = func(

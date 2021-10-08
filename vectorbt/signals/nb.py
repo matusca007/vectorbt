@@ -289,7 +289,7 @@ def rand_by_prob_place_nb(out: tp.Array1d,
 
 
 @register_jit(tags={'can_parallel'})
-def generate_rand_enex_nb(shape: tp.Shape,
+def generate_rand_enex_nb(target_shape: tp.Shape,
                           n: tp.FlexArray,
                           entry_wait: int,
                           exit_wait: int) -> tp.Tuple[tp.Array2d, tp.Array2d]:
@@ -304,23 +304,23 @@ def generate_rand_enex_nb(shape: tp.Shape,
     randomizing the position of first entry, last exit, and all signals between them.
 
     `n` uses flexible indexing and thus must be at least a 0-dim array."""
-    entries = np.full(shape, False)
-    exits = np.full(shape, False)
+    entries = np.full(target_shape, False)
+    exits = np.full(target_shape, False)
     if entry_wait == 0 and exit_wait == 0:
         raise ValueError("entry_wait and exit_wait cannot be both 0")
 
     if entry_wait == 1 and exit_wait == 1:
         # Basic case
-        both = generate_nb(shape, rand_place_nb, n * 2)
+        both = generate_nb(target_shape, rand_place_nb, n * 2)
         for col in prange(both.shape[1]):
             both_idxs = np.flatnonzero(both[:, col])
             entries[both_idxs[0::2], col] = True
             exits[both_idxs[1::2], col] = True
     else:
-        for col in prange(shape[1]):
+        for col in prange(target_shape[1]):
             _n = flex_select_auto_nb(n, 0, col, True)
             if _n == 1:
-                entry_idx = np.random.randint(0, shape[0] - exit_wait)
+                entry_idx = np.random.randint(0, target_shape[0] - exit_wait)
                 entries[entry_idx, col] = True
             else:
                 # Minimum range between two entries
@@ -328,17 +328,17 @@ def generate_rand_enex_nb(shape: tp.Shape,
 
                 # Minimum total range between first and last entry
                 min_total_range = min_range * (_n - 1)
-                if shape[0] < min_total_range + exit_wait + 1:
+                if target_shape[0] < min_total_range + exit_wait + 1:
                     raise ValueError("Cannot take a larger sample than population")
 
                 # We should decide how much space should be allocate before first and after last entry
                 # Maximum space outside of min_total_range
-                max_free_space = shape[0] - min_total_range - 1
+                max_free_space = target_shape[0] - min_total_range - 1
 
                 # If min_total_range is tiny compared to max_free_space, limit it
                 # otherwise we would have huge space before first and after last entry
                 # Limit it such as distribution of entries mimics uniform
-                free_space = min(max_free_space, 3 * shape[0] // (_n + 1))
+                free_space = min(max_free_space, 3 * target_shape[0] // (_n + 1))
 
                 # What about last exit? it requires exit_wait space
                 free_space -= exit_wait
@@ -350,7 +350,7 @@ def generate_rand_enex_nb(shape: tp.Shape,
                 rand_floats = uniform_summing_to_one_nb(6)
                 chosen_spaces = rescale_float_to_int_nb(rand_floats, (0, free_space), free_space)
                 first_idx = chosen_spaces[0]
-                last_idx = shape[0] - np.sum(chosen_spaces[-2:]) - exit_wait - 1
+                last_idx = target_shape[0] - np.sum(chosen_spaces[-2:]) - exit_wait - 1
 
                 # Selected range between first and last entry
                 total_range = last_idx - first_idx
@@ -370,7 +370,7 @@ def generate_rand_enex_nb(shape: tp.Shape,
                 entries[entry_idxs, col] = True
 
         # Generate exits
-        for col in range(shape[1]):
+        for col in range(target_shape[1]):
             entry_idxs = np.flatnonzero(entries[:, col])
             for j in range(len(entry_idxs)):
                 entry_i = entry_idxs[j] + exit_wait
@@ -383,22 +383,22 @@ def generate_rand_enex_nb(shape: tp.Shape,
     return entries, exits
 
 
-def rand_enex_apply_nb(input_shape: tp.Shape,
+def rand_enex_apply_nb(target_shape: tp.Shape,
                        n: tp.FlexArray,
                        entry_wait: int,
                        exit_wait: int) -> tp.Tuple[tp.Array2d, tp.Array2d]:
     """`apply_func_nb` that calls `generate_rand_enex_nb`."""
-    return generate_rand_enex_nb(input_shape, n, entry_wait, exit_wait)
+    return generate_rand_enex_nb(target_shape, n, entry_wait, exit_wait)
 
 
 # ############# Stop signals ############# #
 
 
 @register_jit(cache=True)
-def first_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, a: tp.Array2d) -> None:
-    """`place_func_nb` that returns the index of the first signal in `a`."""
+def first_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, mask: tp.Array2d) -> None:
+    """`place_func_nb` that returns the index of the first signal in `mask`."""
     for i in range(from_i, to_i):
-        if a[i, col]:
+        if mask[i, col]:
             out[i - from_i] = True
             break
 
@@ -633,15 +633,15 @@ def ohlc_stop_place_nb(out: tp.Array1d,
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def between_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
-    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `a`."""
-    new_records = np.empty(a.shape, dtype=range_dt)
-    counts = np.full(a.shape[1], 0, dtype=np.int_)
+def between_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
+    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `mask`."""
+    new_records = np.empty(mask.shape, dtype=range_dt)
+    counts = np.full(mask.shape[1], 0, dtype=np.int_)
 
-    for col in prange(a.shape[1]):
+    for col in prange(mask.shape[1]):
         from_i = -1
-        for i in range(a.shape[0]):
-            if a[i, col]:
+        for i in range(mask.shape[0]):
+            if mask[i, col]:
                 if from_i > -1:
                     to_i = i
                     r = counts[col]
@@ -657,24 +657,25 @@ def between_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def between_two_ranges_nb(a: tp.Array2d, b: tp.Array2d, from_other: bool = False) -> tp.RecordArray:
-    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `a` and `b`.
+def between_two_ranges_nb(mask: tp.Array2d, other_mask: tp.Array2d, from_other: bool = False) -> tp.RecordArray:
+    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two
+    signals in `mask` and `other_mask`.
 
-    If `from_other` is False, returns ranges from each in `a` to the succeeding in `b`.
-    Otherwise, returns ranges from each in `b` to the preceding in `a`.
+    If `from_other` is False, returns ranges from each in `mask` to the succeeding in `other_mask`.
+    Otherwise, returns ranges from each in `other_mask` to the preceding in `mask`.
 
-    When `a` and `b` overlap (two signals at the same time), the distance between overlapping
+    When `mask` and `other_mask` overlap (two signals at the same time), the distance between overlapping
     signals is still considered and `from_i` would match `to_i`."""
-    new_records = np.empty(a.shape, dtype=range_dt)
-    counts = np.full(a.shape[1], 0, dtype=np.int_)
+    new_records = np.empty(mask.shape, dtype=range_dt)
+    counts = np.full(mask.shape[1], 0, dtype=np.int_)
 
-    for col in prange(a.shape[1]):
+    for col in prange(mask.shape[1]):
         if from_other:
             to_i = -1
-            for i in range(a.shape[0] - 1, -1, -1):
-                if b[i, col]:
+            for i in range(mask.shape[0] - 1, -1, -1):
+                if other_mask[i, col]:
                     to_i = i
-                if a[i, col]:
+                if mask[i, col]:
                     from_i = i
                     r = counts[col]
                     new_records['id'][r, col] = r
@@ -685,10 +686,10 @@ def between_two_ranges_nb(a: tp.Array2d, b: tp.Array2d, from_other: bool = False
                     counts[col] += 1
         else:
             from_i = -1
-            for i in range(a.shape[0]):
-                if a[i, col]:
+            for i in range(mask.shape[0]):
+                if mask[i, col]:
                     from_i = i
-                if b[i, col]:
+                if other_mask[i, col]:
                     to_i = i
                     r = counts[col]
                     new_records['id'][r, col] = r
@@ -702,16 +703,16 @@ def between_two_ranges_nb(a: tp.Array2d, b: tp.Array2d, from_other: bool = False
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
-    """Create a record of type `vectorbt.generic.enums.range_dt` for each partition of signals in `a`."""
-    new_records = np.empty(a.shape, dtype=range_dt)
-    counts = np.full(a.shape[1], 0, dtype=np.int_)
+def partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
+    """Create a record of type `vectorbt.generic.enums.range_dt` for each partition of signals in `mask`."""
+    new_records = np.empty(mask.shape, dtype=range_dt)
+    counts = np.full(mask.shape[1], 0, dtype=np.int_)
 
-    for col in prange(a.shape[1]):
+    for col in prange(mask.shape[1]):
         is_partition = False
         from_i = -1
-        for i in range(a.shape[0]):
-            if a[i, col]:
+        for i in range(mask.shape[0]):
+            if mask[i, col]:
                 if not is_partition:
                     from_i = i
                 is_partition = True
@@ -725,9 +726,9 @@ def partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
                 new_records['status'][r, col] = RangeStatus.Closed
                 counts[col] += 1
                 is_partition = False
-            if i == a.shape[0] - 1:
+            if i == mask.shape[0] - 1:
                 if is_partition:
-                    to_i = a.shape[0] - 1
+                    to_i = mask.shape[0] - 1
                     r = counts[col]
                     new_records['id'][r, col] = r
                     new_records['col'][r, col] = col
@@ -740,16 +741,16 @@ def partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def between_partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
-    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two partitions in `a`."""
-    new_records = np.empty(a.shape, dtype=range_dt)
-    counts = np.full(a.shape[1], 0, dtype=np.int_)
+def between_partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
+    """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two partitions in `mask`."""
+    new_records = np.empty(mask.shape, dtype=range_dt)
+    counts = np.full(mask.shape[1], 0, dtype=np.int_)
 
-    for col in prange(a.shape[1]):
+    for col in prange(mask.shape[1]):
         is_partition = False
         from_i = -1
-        for i in range(a.shape[0]):
-            if a[i, col]:
+        for i in range(mask.shape[0]):
+            if mask[i, col]:
                 if not is_partition and from_i != -1:
                     to_i = i
                     r = counts[col]
@@ -770,8 +771,8 @@ def between_partition_ranges_nb(a: tp.Array2d) -> tp.RecordArray:
 # ############# Ranking ############# #
 
 @register_jit(tags={'can_parallel'})
-def rank_nb(a: tp.Array2d,
-            reset_by: tp.Optional[tp.Array1d],
+def rank_nb(mask: tp.Array2d,
+            reset_by_mask: tp.Optional[tp.Array2d],
             after_false: bool,
             rank_func_nb: tp.RankFunc, *args) -> tp.Array2d:
     """Rank each signal using `rank_func_nb`.
@@ -783,24 +784,24 @@ def rank_nb(a: tp.Array2d,
 
     Setting `after_false` to True will disregard the first partition of True values
     if there is no False value before them."""
-    out = np.full(a.shape, -1, dtype=np.int_)
+    out = np.full(mask.shape, -1, dtype=np.int_)
 
-    for col in prange(a.shape[1]):
+    for col in prange(mask.shape[1]):
         reset_i = 0
         prev_part_end_i = -1
         part_start_i = -1
         in_partition = False
         false_seen = not after_false
-        for i in range(a.shape[0]):
-            if reset_by is not None:
-                if reset_by[i, col]:
+        for i in range(mask.shape[0]):
+            if reset_by_mask is not None:
+                if reset_by_mask[i, col]:
                     reset_i = i
-            if a[i, col] and not (after_false and not false_seen):
+            if mask[i, col] and not (after_false and not false_seen):
                 if not in_partition:
                     part_start_i = i
                 in_partition = True
                 out[i, col] = rank_func_nb(i, col, reset_i, prev_part_end_i, part_start_i, *args)
-            elif not a[i, col]:
+            elif not mask[i, col]:
                 if in_partition:
                     prev_part_end_i = i - 1
                 in_partition = False
@@ -835,22 +836,22 @@ def part_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_
 
 
 @register_jit(cache=True)
-def nth_index_1d_nb(a: tp.Array1d, n: int) -> int:
+def nth_index_1d_nb(mask: tp.Array1d, n: int) -> int:
     """Get the index of the n-th True value.
 
     !!! note
         `n` starts with 0 and can be negative."""
     if n >= 0:
         found = -1
-        for i in range(a.shape[0]):
-            if a[i]:
+        for i in range(mask.shape[0]):
+            if mask[i]:
                 found += 1
                 if found == n:
                     return i
     else:
         found = 0
-        for i in range(a.shape[0] - 1, -1, -1):
-            if a[i]:
+        for i in range(mask.shape[0] - 1, -1, -1):
+            if mask[i]:
                 found -= 1
                 if found == n:
                     return i
@@ -858,32 +859,32 @@ def nth_index_1d_nb(a: tp.Array1d, n: int) -> int:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def nth_index_nb(a: tp.Array2d, n: int) -> tp.Array1d:
+def nth_index_nb(mask: tp.Array2d, n: int) -> tp.Array1d:
     """2-dim version of `nth_index_1d_nb`."""
-    out = np.empty(a.shape[1], dtype=np.int_)
-    for col in prange(a.shape[1]):
-        out[col] = nth_index_1d_nb(a[:, col], n)
+    out = np.empty(mask.shape[1], dtype=np.int_)
+    for col in prange(mask.shape[1]):
+        out[col] = nth_index_1d_nb(mask[:, col], n)
     return out
 
 
 @register_jit(cache=True)
-def norm_avg_index_1d_nb(a: tp.Array1d) -> float:
+def norm_avg_index_1d_nb(mask: tp.Array1d) -> float:
     """Get mean index normalized to (-1, 1)."""
-    mean_index = np.mean(np.flatnonzero(a))
-    return renormalize_nb(mean_index, (0, len(a) - 1), (-1, 1))
+    mean_index = np.mean(np.flatnonzero(mask))
+    return renormalize_nb(mean_index, (0, len(mask) - 1), (-1, 1))
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def norm_avg_index_nb(a: tp.Array2d) -> tp.Array1d:
+def norm_avg_index_nb(mask: tp.Array2d) -> tp.Array1d:
     """2-dim version of `norm_avg_index_1d_nb`."""
-    out = np.empty(a.shape[1], dtype=np.float_)
-    for col in prange(a.shape[1]):
-        out[col] = norm_avg_index_1d_nb(a[:, col])
+    out = np.empty(mask.shape[1], dtype=np.float_)
+    for col in prange(mask.shape[1]):
+        out[col] = norm_avg_index_1d_nb(mask[:, col])
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def norm_avg_index_grouped_nb(a, group_lens):
+def norm_avg_index_grouped_nb(mask, group_lens):
     """Grouped version of `norm_avg_index_nb`."""
     out = np.empty(len(group_lens), dtype=np.float_)
     group_end_idxs = np.cumsum(group_lens)
@@ -895,9 +896,9 @@ def norm_avg_index_grouped_nb(a, group_lens):
         temp_sum = 0
         temp_cnt = 0
         for col in range(from_col, to_col):
-            for i in range(a.shape[0]):
-                if a[i, col]:
+            for i in range(mask.shape[0]):
+                if mask[i, col]:
                     temp_sum += i
                     temp_cnt += 1
-        out[group] = renormalize_nb(temp_sum / temp_cnt, (0, a.shape[0] - 1), (-1, 1))
+        out[group] = renormalize_nb(temp_sum / temp_cnt, (0, mask.shape[0] - 1), (-1, 1))
     return out

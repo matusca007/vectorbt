@@ -5,11 +5,15 @@
 
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.base.grouping import Grouper
+from vectorbt.base.chunking import GroupLensMapper, FlexArraySelector, FlexArraySlicer
 
 __all__ = [
     'ArrayWrapper',
     'Wrapping',
-    'Grouper'
+    'Grouper',
+    'GroupLensMapper',
+    'FlexArraySelector',
+    'FlexArraySlicer'
 ]
 
 __pdoc__ = {k: False for k in __all__}

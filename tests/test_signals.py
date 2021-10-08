@@ -116,19 +116,14 @@ class TestAccessors:
     def test_generate(self):
         @njit
         def place_func_nb(out, from_i, to_i, col, n):
-            if col == 0:
-                out[:] = True
-            elif col == 1:
-                out[0] = True
-            else:
-                out[-n] = True
+            out[-n] = True
 
         pd.testing.assert_series_equal(
             pd.Series.vbt.signals.generate(
                 5, place_func_nb, 1,
                 wrap_kwargs=dict(index=mask['a'].index, columns=['a'])),
             pd.Series(
-                np.array([True, True, True, True, True]),
+                np.array([False, False, False, False, True]),
                 index=mask['a'].index,
                 name='a'
             )
@@ -141,19 +136,23 @@ class TestAccessors:
                 wrap_kwargs=dict(index=mask.index, columns=mask.columns)),
             pd.DataFrame(
                 np.array([
-                    [True, True, False],
-                    [True, False, False],
-                    [True, False, False],
-                    [True, False, False],
-                    [True, False, True]
+                    [False, False, False],
+                    [False, False, False],
+                    [False, False, False],
+                    [False, False, False],
+                    [True, True, True]
                 ]),
                 index=mask.index,
                 columns=mask.columns
             )
         )
         pd.testing.assert_frame_equal(
-            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=False),
-            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=True)
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=True),
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=True),
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=False)
         )
 
     def test_generate_both(self):
@@ -305,18 +304,34 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, nb_parallel=False)[0],
+                max_one_entry=False, max_one_exit=False, nb_parallel=True)[0],
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, nb_parallel=True)[0]
+                max_one_entry=False, max_one_exit=False, nb_parallel=False)[0]
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, nb_parallel=False)[1],
+                max_one_entry=False, max_one_exit=False, nb_parallel=True)[1],
             pd.DataFrame.vbt.signals.generate_both(
                 (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
-                max_one_entry=False, max_one_exit=False, nb_parallel=True)[1]
+                max_one_entry=False, max_one_exit=False, nb_parallel=False)[1]
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.signals.generate_both(
+                (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
+                max_one_entry=False, max_one_exit=False, chunked=True)[0],
+            pd.DataFrame.vbt.signals.generate_both(
+                (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
+                max_one_entry=False, max_one_exit=False, chunked=False)[0]
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.signals.generate_both(
+                (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
+                max_one_entry=False, max_one_exit=False, chunked=True)[1],
+            pd.DataFrame.vbt.signals.generate_both(
+                (5, 3), entry_place_func_nb=entry_place_func2_nb, exit_place_func_nb=exit_place_func2_nb,
+                max_one_entry=False, max_one_exit=False, chunked=False)[1]
         )
 
     def test_generate_exits(self):
@@ -389,8 +404,12 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=False),
-            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=True)
+            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=True),
+            mask.vbt.signals.generate_exits(place_func_nb, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            mask.vbt.signals.generate_exits(place_func_nb, chunked=True),
+            mask.vbt.signals.generate_exits(place_func_nb, chunked=False)
         )
 
     def test_clean(self):
@@ -517,16 +536,28 @@ class TestAccessors:
         with pytest.raises(Exception):
             _ = pd.Series.vbt.signals.clean(entries, entries, entries)
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(nb_parallel=False),
-            entries.vbt.signals.clean(nb_parallel=True)
+            entries.vbt.signals.clean(nb_parallel=True),
+            entries.vbt.signals.clean(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(exits, nb_parallel=False)[0],
-            entries.vbt.signals.clean(exits, nb_parallel=True)[0]
+            entries.vbt.signals.clean(exits, nb_parallel=True)[0],
+            entries.vbt.signals.clean(exits, nb_parallel=False)[0]
         )
         pd.testing.assert_frame_equal(
-            entries.vbt.signals.clean(exits, nb_parallel=False)[1],
-            entries.vbt.signals.clean(exits, nb_parallel=True)[1]
+            entries.vbt.signals.clean(exits, nb_parallel=True)[1],
+            entries.vbt.signals.clean(exits, nb_parallel=False)[1]
+        )
+        pd.testing.assert_frame_equal(
+            entries.vbt.signals.clean(chunked=True),
+            entries.vbt.signals.clean(chunked=False)
+        )
+        pd.testing.assert_frame_equal(
+            entries.vbt.signals.clean(exits, chunked=True)[0],
+            entries.vbt.signals.clean(exits, chunked=False)[0]
+        )
+        pd.testing.assert_frame_equal(
+            entries.vbt.signals.clean(exits, chunked=True)[1],
+            entries.vbt.signals.clean(exits, chunked=False)[1]
         )
 
     def test_generate_random(self):
@@ -573,6 +604,14 @@ class TestAccessors:
                 index=mask.index,
                 columns=mask.columns
             )
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.signals.generate_random(
+                (5, 3), n=[0, 1, 2], seed=seed,
+                wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=True),
+            pd.DataFrame.vbt.signals.generate_random(
+                (5, 3), n=[0, 1, 2], seed=seed,
+                wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=False)
         )
         pd.testing.assert_series_equal(
             pd.Series.vbt.signals.generate_random(
@@ -635,6 +674,14 @@ class TestAccessors:
                 index=mask.index,
                 columns=mask.columns
             )
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.signals.generate_random(
+                (5, 3), prob=[0., 0.5, 1.], pick_first=True, seed=seed,
+                wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=True),
+            pd.DataFrame.vbt.signals.generate_random(
+                (5, 3), prob=[0., 0.5, 1.], pick_first=True, seed=seed,
+                wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=False)
         )
 
     def test_generate_random_both(self):
@@ -720,6 +767,11 @@ class TestAccessors:
                 columns=mask.columns
             )
         )
+        en2, ex2 = pd.DataFrame.vbt.signals.generate_random_both(
+            (5, 3), n=[0, 1, 2], seed=seed,
+            wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=True)
+        pd.testing.assert_frame_equal(en2, en)
+        pd.testing.assert_frame_equal(ex2, ex)
         en, ex = pd.DataFrame.vbt.signals.generate_random_both((2, 3), n=2, seed=seed, entry_wait=1, exit_wait=0)
         pd.testing.assert_frame_equal(
             en,
@@ -881,6 +933,11 @@ class TestAccessors:
                 columns=mask.columns
             )
         )
+        en2, ex2 = pd.DataFrame.vbt.signals.generate_random_both(
+            (5, 3), entry_prob=[0., 0.5, 1.], exit_prob=[0., 0.5, 1.],
+            seed=seed, wrap_kwargs=dict(index=mask.index, columns=mask.columns), chunked=True)
+        pd.testing.assert_frame_equal(en2, en)
+        pd.testing.assert_frame_equal(ex2, ex)
         en, ex = pd.DataFrame.vbt.signals.generate_random_both(
             (5, 3), entry_prob=1., exit_prob=1., exit_wait=0,
             seed=seed, wrap_kwargs=dict(index=mask.index, columns=mask.columns))
@@ -1002,6 +1059,10 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
+            mask.vbt.signals.generate_random_exits(seed=seed, chunked=True),
+            mask.vbt.signals.generate_random_exits(seed=seed, chunked=False)
+        )
+        pd.testing.assert_frame_equal(
             mask.vbt.signals.generate_random_exits(seed=seed, wait=0),
             pd.DataFrame(
                 np.array([
@@ -1050,6 +1111,10 @@ class TestAccessors:
                 index=mask.index,
                 columns=mask.columns
             )
+        )
+        pd.testing.assert_frame_equal(
+            mask.vbt.signals.generate_random_exits(prob=[0., 0.5, 1.], seed=seed, chunked=True),
+            mask.vbt.signals.generate_random_exits(prob=[0., 0.5, 1.], seed=seed, chunked=False)
         )
         pd.testing.assert_frame_equal(
             mask.vbt.signals.generate_random_exits(prob=1., wait=0, seed=seed),
@@ -1140,6 +1205,12 @@ class TestAccessors:
             e.vbt.signals.generate_stop_exits(4 - t, 0.1, trailing=True, exit_wait=3),
             pd.Series(np.array([False, False, False, False, True, False]))
         )
+        pd.testing.assert_frame_equal(
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, pick_first=False, chunked=True),
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, pick_first=False, chunked=False)
+        )
         # chain
         e = pd.Series([True, True, True, True, True, True])
         en, ex = e.vbt.signals.generate_stop_exits(t, -0.1, trailing=True, chain=True)
@@ -1176,6 +1247,18 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             ex,
             pd.Series(np.array([False, True, True, True, True, True]))
+        )
+        pd.testing.assert_frame_equal(
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, chain=True, chunked=True)[0],
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, chain=True, chunked=False)[0]
+        )
+        pd.testing.assert_frame_equal(
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, chain=True, chunked=True)[1],
+            e.vbt.signals.generate_stop_exits(
+                t.vbt.tile(3), [np.nan, -0.5, -1.], trailing=True, chain=True, chunked=False)[1]
         )
 
     def test_generate_ohlc_stop_exits(self):
@@ -1408,6 +1491,24 @@ class TestAccessors:
                 [-1, -1, 1]
             ]), index=mask.index, columns=mask.columns)
         )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[0],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[0]
+        )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[1],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[1]
+        )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[2],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[2]
+        )
         ex, stop_price, stop_type = _test_ohlc_stop_exits(sl_stop=0.1, sl_trail=True, tp_stop=0.1, exit_wait=0)
         pd.testing.assert_frame_equal(
             ex,
@@ -1481,6 +1582,30 @@ class TestAccessors:
                 [1, -1, -1]
             ]), index=mask.index, columns=mask.columns)
         )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[0][0],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[0][0]
+        )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[0][0],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[0][0]
+        )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[1],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[1]
+        )
+        pd.testing.assert_frame_equal(
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=True)[2],
+            _test_ohlc_stop_exits(
+                sl_stop=[np.nan, 0.1, 0.2], sl_trail=True, chain=True, tp_stop=[np.nan, 0.1, 0.2], chunked=False)[2]
+        )
 
     def test_between_ranges(self):
         ranges = mask.vbt.signals.between_ranges()
@@ -1529,12 +1654,20 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.between_ranges(nb_parallel=False).values,
-            mask.vbt.signals.between_ranges(nb_parallel=True).values
+            mask.vbt.signals.between_ranges(nb_parallel=True).values,
+            mask.vbt.signals.between_ranges(nb_parallel=False).values
         )
         record_arrays_close(
-            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=False).values,
-            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=True).values
+            mask.vbt.signals.between_ranges(chunked=True).values,
+            mask.vbt.signals.between_ranges(chunked=False).values
+        )
+        record_arrays_close(
+            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=True).values,
+            mask.vbt.signals.between_ranges(other=other_mask, nb_parallel=False).values
+        )
+        record_arrays_close(
+            mask.vbt.signals.between_ranges(other=other_mask, chunked=True).values,
+            mask.vbt.signals.between_ranges(other=other_mask, chunked=False).values
         )
 
     def test_partition_ranges(self):
@@ -1556,8 +1689,12 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.partition_ranges(nb_parallel=False).values,
-            mask.vbt.signals.partition_ranges(nb_parallel=True).values
+            mask.vbt.signals.partition_ranges(nb_parallel=True).values,
+            mask.vbt.signals.partition_ranges(nb_parallel=False).values
+        )
+        record_arrays_close(
+            mask.vbt.signals.partition_ranges(chunked=True).values,
+            mask.vbt.signals.partition_ranges(chunked=False).values
         )
 
     def test_between_partition_ranges(self):
@@ -1579,8 +1716,12 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         record_arrays_close(
-            mask.vbt.signals.between_partition_ranges(nb_parallel=False).values,
-            mask.vbt.signals.between_partition_ranges(nb_parallel=True).values
+            mask.vbt.signals.between_partition_ranges(nb_parallel=True).values,
+            mask.vbt.signals.between_partition_ranges(nb_parallel=False).values
+        )
+        record_arrays_close(
+            mask.vbt.signals.between_partition_ranges(chunked=True).values,
+            mask.vbt.signals.between_partition_ranges(chunked=False).values
         )
 
     def test_pos_rank(self):
@@ -1659,8 +1800,12 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            (~mask).vbt.signals.pos_rank(nb_parallel=False),
-            (~mask).vbt.signals.pos_rank(nb_parallel=True)
+            (~mask).vbt.signals.pos_rank(nb_parallel=True),
+            (~mask).vbt.signals.pos_rank(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            (~mask).vbt.signals.pos_rank(chunked=True),
+            (~mask).vbt.signals.pos_rank(chunked=False)
         )
 
     def test_partition_pos_rank(self):
@@ -1725,8 +1870,12 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            (~mask).vbt.signals.partition_pos_rank(nb_parallel=False),
-            (~mask).vbt.signals.partition_pos_rank(nb_parallel=True)
+            (~mask).vbt.signals.partition_pos_rank(nb_parallel=True),
+            (~mask).vbt.signals.partition_pos_rank(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            (~mask).vbt.signals.partition_pos_rank(chunked=True),
+            (~mask).vbt.signals.partition_pos_rank(chunked=False)
         )
 
     def test_pos_rank_fns(self):
@@ -1862,8 +2011,8 @@ class TestAccessors:
             ], index=mask.columns, name='nth_index', dtype='datetime64[ns]')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.nth_index(-1, nb_parallel=False),
-            mask.vbt.signals.nth_index(-1, nb_parallel=True)
+            mask.vbt.signals.nth_index(-1, nb_parallel=True),
+            mask.vbt.signals.nth_index(-1, nb_parallel=False)
         )
         pd.testing.assert_series_equal(
             mask.vbt.signals.nth_index(0, group_by=group_by),
@@ -1880,8 +2029,12 @@ class TestAccessors:
             ], index=['g1', 'g2'], name='nth_index', dtype='datetime64[ns]')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=False),
-            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=True)
+            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=True),
+            mask.vbt.signals.nth_index(-1, group_by=group_by, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            mask.vbt.signals.nth_index(-1, group_by=group_by, chunked=True),
+            mask.vbt.signals.nth_index(-1, group_by=group_by, chunked=False)
         )
 
     def test_norm_avg_index(self):
@@ -1891,16 +2044,24 @@ class TestAccessors:
             pd.Series([-0.25, 0.25, 0.0], index=mask.columns, name='norm_avg_index')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.norm_avg_index(nb_parallel=False),
-            mask.vbt.signals.norm_avg_index(nb_parallel=True)
+            mask.vbt.signals.norm_avg_index(nb_parallel=True),
+            mask.vbt.signals.norm_avg_index(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            mask.vbt.signals.norm_avg_index(chunked=True),
+            mask.vbt.signals.norm_avg_index(chunked=False)
         )
         pd.testing.assert_series_equal(
             mask.vbt.signals.norm_avg_index(group_by=group_by),
             pd.Series([0.0, 0.0], index=['g1', 'g2'], name='norm_avg_index')
         )
         pd.testing.assert_series_equal(
-            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=False),
-            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=True)
+            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=True),
+            mask.vbt.signals.norm_avg_index(group_by=group_by, nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            mask.vbt.signals.norm_avg_index(group_by=group_by, chunked=True),
+            mask.vbt.signals.norm_avg_index(group_by=group_by, chunked=False)
         )
 
     def test_index_mapped(self):

@@ -178,6 +178,7 @@ from vectorbt.utils.template import RepEval
 from vectorbt.utils.chunking import resolve_chunked
 from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.base import chunking as base_chunking
 from vectorbt.generic import nb, chunking
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
@@ -308,7 +309,7 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_drawdown_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         drawdown = func(
             self.get_field_arr('peak_val'),
@@ -369,7 +370,7 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_return_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         recovery_return = func(
             self.get_field_arr('valley_val'),
@@ -430,7 +431,7 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_decline_duration_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         decline_duration = func(
             self.get_field_arr('start_idx'),
@@ -453,7 +454,7 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         recovery_duration = func(
             self.get_field_arr('valley_idx'),
@@ -474,7 +475,7 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, chunking.concat_config)
+        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
         func = resolve_chunked(func, chunked, **chunked_config)
         recovery_duration_ratio = func(
             self.get_field_arr('start_idx'),

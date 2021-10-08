@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Extensions to `vectorbt.utils.chunking` for chunking records and mapped arrays."""
+"""Extensions to `vectorbt.utils.chunking`."""
 
 import numpy as np
 
@@ -18,7 +18,7 @@ from vectorbt.utils.chunking import (
     CountAdapter,
     ChunkMapper
 )
-from vectorbt.generic.chunking import get_group_lens_slice
+from vectorbt.base.chunking import get_group_lens_slice
 
 recarr_config = Config(
     dict(
@@ -52,7 +52,10 @@ class ColLensSizer(ArgSizer):
 class ColLensSlicer(ChunkSlicer):
     """Class for slicing multiple elements from column lengths based on the chunk range."""
 
-    def take(self, obj: tp.Union[tp.ColLens, tp.ColMap], chunk_meta: ChunkMeta, **kwargs) -> tp.ColMap:
+    def take(self, obj: tp.Optional[tp.Union[tp.ColLens, tp.ColMap]],
+             chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.ColMap]:
+        if obj is None:
+            return None
         if isinstance(obj, tuple):
             return obj[1][chunk_meta.start:chunk_meta.end]
         return obj[chunk_meta.start:chunk_meta.end]
@@ -83,7 +86,9 @@ class ColLensMapper(ChunkMapper, ArgGetterMixin):
 class ColMapSlicer(ChunkSlicer):
     """Class for slicing multiple elements from a column map based on the chunk range."""
 
-    def take(self, obj: tp.ColMap, chunk_meta: ChunkMeta, **kwargs) -> tp.ColMap:
+    def take(self, obj: tp.Optional[tp.ColMap], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.ColMap]:
+        if obj is None:
+            return None
         col_idxs, col_lens = obj
         col_lens = col_lens[chunk_meta.start:chunk_meta.end]
         return np.arange(np.sum(col_lens)), col_lens

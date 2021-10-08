@@ -75,7 +75,7 @@ class AxisMixin:
 class DimRetainerMixin:
     """Mixin class with an attribute for retaining dimensions."""
 
-    def __init__(self, retain_dim: bool) -> None:
+    def __init__(self, retain_dim: bool = False) -> None:
         self._retain_dim = retain_dim
 
     @property
@@ -356,9 +356,11 @@ class ChunkSelector(ChunkTaker, DimRetainerMixin):
 
     def __init__(self, mapper: tp.Optional[ChunkMapper] = None, retain_dim: bool = False) -> None:
         ChunkTaker.__init__(self, mapper=mapper)
-        DimRetainerMixin.__init__(self, retain_dim)
+        DimRetainerMixin.__init__(self, retain_dim=retain_dim)
 
-    def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
+    def take(self, obj: tp.Optional[tp.Sequence], chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
+        if obj is None:
+            return None
         if self.retain_dim:
             return obj[chunk_meta.idx:chunk_meta.idx + 1]
         return obj[chunk_meta.idx]
@@ -367,7 +369,9 @@ class ChunkSelector(ChunkTaker, DimRetainerMixin):
 class ChunkSlicer(ChunkTaker):
     """Class for slicing multiple elements based on the chunk range."""
 
-    def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Sequence:
+    def take(self, obj: tp.Optional[tp.Sequence], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.Sequence]:
+        if obj is None:
+            return None
         if chunk_meta.indices is not None:
             return obj[chunk_meta.indices]
         return obj[chunk_meta.start:chunk_meta.end]
@@ -376,7 +380,9 @@ class ChunkSlicer(ChunkTaker):
 class CountAdapter(ChunkSlicer):
     """Class for adapting a count based on the chunk range."""
 
-    def take(self, obj: int, chunk_meta: ChunkMeta, **kwargs) -> int:
+    def take(self, obj: tp.Optional[int], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[int]:
+        if obj is None:
+            return None
         checks.assert_instance_of(obj, int)
         if chunk_meta.indices is not None:
             indices = np.asarray(chunk_meta.indices)
@@ -395,7 +401,9 @@ class ShapeSelector(ChunkSelector, AxisMixin):
         ChunkSelector.__init__(self, mapper=mapper, retain_dim=retain_dim)
         AxisMixin.__init__(self, axis)
 
-    def take(self, obj: tp.Shape, chunk_meta: ChunkMeta, **kwargs) -> tp.Shape:
+    def take(self, obj: tp.Optional[tp.Shape], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.Shape]:
+        if obj is None:
+            return None
         checks.assert_instance_of(obj, tuple)
         if self.axis >= len(obj):
             raise IndexError(f"Shape is {len(obj)}-dimensional, but {self.axis} were indexed")
@@ -416,7 +424,9 @@ class ShapeSlicer(ChunkSlicer, AxisMixin):
         ChunkSlicer.__init__(self, mapper=mapper)
         AxisMixin.__init__(self, axis)
 
-    def take(self, obj: tp.Shape, chunk_meta: ChunkMeta, **kwargs) -> tp.Shape:
+    def take(self, obj: tp.Optional[tp.Shape], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.Shape]:
+        if obj is None:
+            return None
         checks.assert_instance_of(obj, tuple)
         if self.axis >= len(obj):
             raise IndexError(f"Shape is {len(obj)}-dimensional, but {self.axis} were indexed")
@@ -437,7 +447,9 @@ class ShapeSlicer(ChunkSlicer, AxisMixin):
 class ArraySelector(ShapeSelector):
     """Class for selecting one element from an array's axis based on the chunk index."""
 
-    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.ArrayLike:
+    def take(self, obj: tp.Optional[tp.AnyArray], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.ArrayLike]:
+        if obj is None:
+            return None
         checks.assert_instance_of(obj, (pd.Series, pd.DataFrame, np.ndarray))
         if self.axis >= len(obj.shape):
             raise IndexError(f"Array is {obj.ndim}-dimensional, but {self.axis} were indexed")
@@ -454,7 +466,9 @@ class ArraySelector(ShapeSelector):
 class ArraySlicer(ShapeSlicer):
     """Class for slicing multiple elements from an array's axis based on the chunk range."""
 
-    def take(self, obj: tp.AnyArray, chunk_meta: ChunkMeta, **kwargs) -> tp.AnyArray:
+    def take(self, obj: tp.Optional[tp.AnyArray], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.AnyArray]:
+        if obj is None:
+            return None
         checks.assert_instance_of(obj, (pd.Series, pd.DataFrame, np.ndarray))
         if self.axis >= len(obj.shape):
             raise IndexError(f"Array is {obj.ndim}-dimensional, but {self.axis} were indexed")
@@ -492,7 +506,9 @@ class SequenceTaker(ContainerTaker):
 
     Calls `take_from_arg` on each element."""
 
-    def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Sequence:
+    def take(self, obj: tp.Optional[tp.Sequence], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.Sequence]:
+        if obj is None:
+            return None
         new_obj = []
         for i, v in enumerate(obj):
             if i < len(self.cont_take_spec):
@@ -510,7 +526,9 @@ class MappingTaker(ContainerTaker):
 
     Calls `take_from_arg` on each element."""
 
-    def take(self, obj: tp.Mapping, chunk_meta: ChunkMeta, **kwargs) -> tp.Mapping:
+    def take(self, obj: tp.Optional[tp.Mapping], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.Mapping]:
+        if obj is None:
+            return None
         new_obj = {}
         for k, v in obj.items():
             new_obj[k] = take_from_arg(v, self.cont_take_spec.get(k, None), chunk_meta, **kwargs)

@@ -200,14 +200,17 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.random import set_seed_nb
+from vectorbt.utils.chunking import resolve_chunked, resolve_chunked_option, ArgsTaker, ArraySlicer
 from vectorbt.base import reshaping
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.base import chunking as base_chunking
 from vectorbt.records.mapped_array import MappedArray
+from vectorbt.records import chunking as records_chunking
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic import plotting
 from vectorbt.generic.ranges import Ranges
-from vectorbt.generic import nb as generic_nb
-from vectorbt.signals import nb
+from vectorbt.generic import nb as generic_nb, chunking as generic_chunking
+from vectorbt.signals import nb, chunking
 
 __pdoc__ = {}
 
@@ -260,6 +263,7 @@ class SignalsAccessor(GenericAccessor):
                  shape: tp.ShapeLike,
                  place_func_nb: tp.PlaceFunc, *args,
                  nb_parallel: tp.Optional[bool] = None,
+                 chunked: tp.ChunkedOption = None,
                  wrapper: tp.Optional[ArrayWrapper] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_nb`.
@@ -293,6 +297,8 @@ class SignalsAccessor(GenericAccessor):
 
         shape_2d = cls.resolve_shape(shape)
         func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
+        chunked_config = merge_dicts(generic_chunking.target_shape_ax1_config, base_chunking.column_stack_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         result = func(shape_2d, place_func_nb, *args)
 
         if wrapper is None:
@@ -313,6 +319,7 @@ class SignalsAccessor(GenericAccessor):
                       max_one_entry: bool = True,
                       max_one_exit: bool = True,
                       nb_parallel: tp.Optional[bool] = None,
+                      chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
         """See `vectorbt.signals.nb.generate_enex_nb`.
@@ -407,6 +414,8 @@ class SignalsAccessor(GenericAccessor):
             exit_args = ()
 
         func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
+        chunked_config = merge_dicts(generic_chunking.target_shape_ax1_config, base_chunking.column_stack_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         result1, result2 = func(
             shape_2d,
             entry_wait,
@@ -428,6 +437,7 @@ class SignalsAccessor(GenericAccessor):
                        until_next: bool = True,
                        skip_until_exit: bool = False,
                        nb_parallel: tp.Optional[bool] = None,
+                       chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_ex_nb`.
 
@@ -452,6 +462,8 @@ class SignalsAccessor(GenericAccessor):
         checks.assert_numba_func(exit_place_func_nb)
 
         func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
+        chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         exits = func(
             self.to_2d_array(),
             wait,
@@ -470,6 +482,7 @@ class SignalsAccessor(GenericAccessor):
               entry_first: bool = True,
               broadcast_kwargs: tp.KwargsLike = None,
               nb_parallel: tp.Optional[bool] = None,
+              chunked: tp.ChunkedOption = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Clean signals.
 
@@ -483,12 +496,14 @@ class SignalsAccessor(GenericAccessor):
             obj = args[0]
             if not isinstance(obj, (pd.Series, pd.DataFrame)):
                 obj = ArrayWrapper.from_obj(obj).wrap(obj)
-            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, nb_parallel=nb_parallel)
+            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, nb_parallel=nb_parallel, chunked=chunked)
         if len(args) == 2:
             if broadcast_kwargs is None:
                 broadcast_kwargs = {}
             entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
             func = nb_registry.redecorate_parallel(nb.clean_enex_nb, nb_parallel)
+            chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
+            func = resolve_chunked(func, chunked, **chunked_config)
             entries_out, exits_out = func(
                 reshaping.to_2d_array(entries),
                 reshaping.to_2d_array(exits),
@@ -509,6 +524,7 @@ class SignalsAccessor(GenericAccessor):
                         prob: tp.Optional[tp.ArrayLike] = None,
                         pick_first: bool = False,
                         seed: tp.Optional[int] = None,
+                        chunked: tp.ChunkedOption = None,
                         **kwargs) -> tp.SeriesFrame:
         """Generate signals randomly.
 
@@ -572,20 +588,35 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=True))}),
+                    chunked
+                )
             return cls.generate(
                 shape,
                 nb.rand_place_nb,
                 n,
+                chunked=chunked,
                 **kwargs
             )
         if prob is not None:
             prob = np.broadcast_to(prob, shape)
+            flex_2d = isinstance(shape, tuple) and len(shape) > 1
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))}),
+                    chunked
+                )
             return cls.generate(
                 shape,
                 nb.rand_by_prob_place_nb,
                 prob,
                 pick_first,
-                isinstance(shape, tuple) and len(shape) > 1,
+                flex_2d,
+                chunked=chunked,
                 **kwargs
             )
         raise ValueError("At least n or prob must be provided")
@@ -602,6 +633,7 @@ class SignalsAccessor(GenericAccessor):
                              entry_pick_first: bool = True,
                              exit_pick_first: bool = True,
                              nb_parallel: tp.Optional[bool] = None,
+                             chunked: tp.ChunkedOption = None,
                              wrapper: tp.Optional[ArrayWrapper] = None,
                              wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
         """Generate chain of entry and exit signals randomly.
@@ -678,6 +710,12 @@ class SignalsAccessor(GenericAccessor):
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
             func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, nb_parallel)
+            chunked_config = merge_dicts(
+                generic_chunking.target_shape_ax1_config,
+                dict(arg_take_spec={'n': base_chunking.FlexArraySlicer(1, flex_2d=True)}),
+                base_chunking.column_stack_config
+            )
+            func = resolve_chunked(func, chunked, **chunked_config)
             entries, exits = func(shape_2d, n, entry_wait, exit_wait)
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
@@ -687,24 +725,36 @@ class SignalsAccessor(GenericAccessor):
         elif entry_prob is not None and exit_prob is not None:
             entry_prob = np.broadcast_to(entry_prob, shape)
             exit_prob = np.broadcast_to(exit_prob, shape)
+            flex_2d = isinstance(shape, tuple) and len(shape) > 1
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={
+                        'entry_args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)),
+                        'exit_args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))
+                    }),
+                    chunked
+                )
             return cls.generate_both(
                 shape,
                 entry_place_func_nb=nb.rand_by_prob_place_nb,
                 entry_args=(
                     entry_prob,
                     entry_pick_first,
-                    isinstance(shape, tuple) and len(shape) > 1
+                    flex_2d
                 ),
                 exit_place_func_nb=nb.rand_by_prob_place_nb,
                 exit_args=(
                     exit_prob,
                     exit_pick_first,
-                    isinstance(shape, tuple) and len(shape) > 1
+                    flex_2d
                 ),
                 entry_wait=entry_wait,
                 exit_wait=exit_wait,
                 max_one_entry=entry_pick_first,
                 max_one_exit=exit_pick_first,
+                nb_parallel=nb_parallel,
+                chunked=chunked,
                 wrapper=wrapper,
                 wrap_kwargs=wrap_kwargs
             )
@@ -717,6 +767,7 @@ class SignalsAccessor(GenericAccessor):
                               until_next: bool = True,
                               skip_until_exit: bool = False,
                               broadcast_kwargs: tp.KwargsLike = None,
+                              chunked: tp.ChunkedOption = None,
                               wrap_kwargs: tp.KwargsLike = None,
                               **kwargs) -> tp.SeriesFrame:
         """Generate exit signals randomly.
@@ -760,24 +811,39 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if prob is not None:
             obj, prob = reshaping.broadcast(self.obj, prob, keep_raw=[False, True], **broadcast_kwargs)
+            flex_2d = obj.ndim == 2
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))}),
+                    chunked
+                )
             return obj.vbt.signals.generate_exits(
                 nb.rand_by_prob_place_nb,
                 prob,
                 True,
-                obj.ndim == 2,
+                flex_2d,
                 wait=wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
             )
         n = np.broadcast_to(1, (self.wrapper.shape_2d[1],))
+        chunked = resolve_chunked_option(chunked)
+        if chunked is not None:
+            chunked = merge_dicts(
+                dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=True))}),
+                chunked
+            )
         return self.generate_exits(
             nb.rand_place_nb,
             n,
             wait=wait,
             until_next=until_next,
             skip_until_exit=skip_until_exit,
+            chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
         )
@@ -795,6 +861,7 @@ class SignalsAccessor(GenericAccessor):
                             pick_first: bool = True,
                             chain: bool = False,
                             broadcast_kwargs: tp.KwargsLike = None,
+                            chunked: tp.ChunkedOption = None,
                             wrap_kwargs: tp.KwargsLike = None,
                             **kwargs) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Generate exits based on when `ts` hits the stop.
@@ -848,6 +915,7 @@ class SignalsAccessor(GenericAccessor):
         broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements='W')), broadcast_kwargs)
         entries, ts, stop, trailing = reshaping.broadcast(
             entries, ts, stop, trailing, **broadcast_kwargs, keep_raw=keep_raw)
+        flex_2d = entries.ndim == 2
 
         entries_arr = reshaping.to_2d_array(entries)
         wrapper = ArrayWrapper.from_obj(entries)
@@ -856,6 +924,19 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.sr_accessor_cls
             else:
                 cls = self.df_accessor_cls
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={
+                        'entry_args': ArgsTaker(ArraySlicer(1)),
+                        'exit_args': ArgsTaker(
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        )
+                    }),
+                    chunked
+                )
             return cls.generate_both(
                 entries.shape,
                 entry_place_func_nb=nb.first_place_nb,
@@ -867,17 +948,30 @@ class SignalsAccessor(GenericAccessor):
                     trailing,
                     exit_wait,
                     pick_first,
-                    entries.ndim == 2
+                    flex_2d
                 ),
                 entry_wait=entry_wait,
                 exit_wait=exit_wait,
                 max_one_entry=True,
                 max_one_exit=pick_first,
                 wrapper=wrapper,
+                chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
             )
         else:
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={
+                        'args': ArgsTaker(
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        )
+                    }),
+                    chunked
+                )
             if skip_until_exit and until_next:
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
             return entries.vbt.signals.generate_exits(
@@ -887,10 +981,11 @@ class SignalsAccessor(GenericAccessor):
                 trailing,
                 exit_wait,
                 pick_first,
-                entries.ndim == 2,
+                flex_2d,
                 wait=exit_wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
             )
@@ -913,6 +1008,7 @@ class SignalsAccessor(GenericAccessor):
                                  pick_first: bool = True,
                                  chain: bool = False,
                                  broadcast_kwargs: tp.KwargsLike = None,
+                                 chunked: tp.ChunkedOption = None,
                                  wrap_kwargs: tp.KwargsLike = None,
                                  **kwargs) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Generate exits based on when the price hits (trailing) stop loss or take profit.
@@ -1104,6 +1200,7 @@ class SignalsAccessor(GenericAccessor):
         entries, open, high, low, close, sl_stop, sl_trail, tp_stop, reverse, *out_args = reshaping.broadcast(
             entries, open, high, low, close, sl_stop, sl_trail, tp_stop, reverse, *out_args,
             **broadcast_kwargs, keep_raw=keep_raw)
+        flex_2d = entries.ndim == 2
         if stop_price_out is None:
             stop_price_out = np.empty_like(entries, dtype=np.float_)
         else:
@@ -1123,6 +1220,26 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.sr_accessor_cls
             else:
                 cls = self.df_accessor_cls
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={
+                        'entry_args': ArgsTaker(ArraySlicer(1)),
+                        'exit_args': ArgsTaker(
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            ArraySlicer(1),
+                            ArraySlicer(1),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        )
+                    }),
+                    chunked
+                )
             new_entries, exits = cls.generate_both(
                 entries.shape,
                 entry_place_func_nb=nb.first_place_nb,
@@ -1142,13 +1259,14 @@ class SignalsAccessor(GenericAccessor):
                     is_open_safe,
                     exit_wait,
                     pick_first,
-                    entries.ndim == 2
+                    flex_2d
                 ),
                 entry_wait=entry_wait,
                 exit_wait=exit_wait,
                 max_one_entry=True,
                 max_one_exit=pick_first,
                 wrapper=wrapper,
+                chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
             )
@@ -1158,6 +1276,25 @@ class SignalsAccessor(GenericAccessor):
         else:
             if skip_until_exit and until_next:
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
+            chunked = resolve_chunked_option(chunked)
+            if chunked is not None:
+                chunked = merge_dicts(
+                    dict(arg_take_spec={
+                        'args': ArgsTaker(
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            ArraySlicer(1),
+                            ArraySlicer(1),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        )
+                    }),
+                    chunked
+                )
             exits = entries.vbt.signals.generate_exits(
                 nb.ohlc_stop_place_nb,
                 open,
@@ -1173,10 +1310,11 @@ class SignalsAccessor(GenericAccessor):
                 is_open_safe,
                 exit_wait,
                 pick_first,
-                entries.ndim == 2,
+                flex_2d,
                 wait=exit_wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
             )
@@ -1194,6 +1332,7 @@ class SignalsAccessor(GenericAccessor):
                        attach_ts: bool = True,
                        attach_other: bool = False,
                        nb_parallel: tp.Optional[bool] = None,
+                       chunked: tp.ChunkedOption = None,
                        **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
@@ -1262,6 +1401,8 @@ class SignalsAccessor(GenericAccessor):
         if other is None:
             # One input array
             func = nb_registry.redecorate_parallel(nb.between_ranges_nb, nb_parallel)
+            chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
+            func = resolve_chunked(func, chunked, **chunked_config)
             range_records = func(self.to_2d_array())
             wrapper = self.wrapper
             to_attach = self.obj
@@ -1269,6 +1410,8 @@ class SignalsAccessor(GenericAccessor):
             # Two input arrays
             obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
             func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, nb_parallel)
+            chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
+            func = resolve_chunked(func, chunked, **chunked_config)
             range_records = func(
                 reshaping.to_2d_array(obj),
                 reshaping.to_2d_array(other),
@@ -1283,8 +1426,12 @@ class SignalsAccessor(GenericAccessor):
             **kwargs
         ).regroup(group_by)
 
-    def partition_ranges(self, group_by: tp.GroupByLike = None, attach_ts: bool = True,
-                         nb_parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
+    def partition_ranges(self,
+                         group_by: tp.GroupByLike = None,
+                         attach_ts: bool = True,
+                         nb_parallel: tp.Optional[bool] = None,
+                         chunked: tp.ChunkedOption = None,
+                         **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.partition_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
 
@@ -1301,6 +1448,8 @@ class SignalsAccessor(GenericAccessor):
         1         1       0                4              5    Open
         ```"""
         func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, nb_parallel)
+        chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1309,8 +1458,12 @@ class SignalsAccessor(GenericAccessor):
             **kwargs
         ).regroup(group_by)
 
-    def between_partition_ranges(self, group_by: tp.GroupByLike = None, attach_ts: bool = True,
-                                 nb_parallel: tp.Optional[bool] = None, **kwargs) -> Ranges:
+    def between_partition_ranges(self,
+                                 group_by: tp.GroupByLike = None,
+                                 attach_ts: bool = True,
+                                 nb_parallel: tp.Optional[bool] = None,
+                                 chunked: tp.ChunkedOption = None,
+                                 **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_partition_ranges_nb`
         with `vectorbt.generic.ranges.Ranges`.
 
@@ -1324,6 +1477,8 @@ class SignalsAccessor(GenericAccessor):
         1         1       0                3              5  Closed
          ```"""
         func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, nb_parallel)
+        chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1342,6 +1497,7 @@ class SignalsAccessor(GenericAccessor):
              broadcast_kwargs: tp.KwargsLike = None,
              as_mapped: bool = False,
              nb_parallel: tp.Optional[bool] = None,
+             chunked: tp.ChunkedOption = None,
              wrap_kwargs: tp.KwargsLike = None,
              **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """See `vectorbt.signals.nb.rank_nb`.
@@ -1370,6 +1526,8 @@ class SignalsAccessor(GenericAccessor):
         else:
             temp_arrs = ()
         func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
+        chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         rank = func(
             obj_arr,
             reset_by,
@@ -1510,7 +1668,11 @@ class SignalsAccessor(GenericAccessor):
 
     # ############# Index ############# #
 
-    def nth_index(self, n: int, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
+    def nth_index(self,
+                  n: int,
+                  group_by: tp.GroupByLike = None,
+                  nb_parallel: tp.Optional[bool] = None,
+                  chunked: tp.ChunkedOption = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.nth_index_nb`.
 
@@ -1539,16 +1701,26 @@ class SignalsAccessor(GenericAccessor):
         Timestamp('2020-01-05 00:00:00')
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
-            squeezed = self.squeeze_grouped(generic_nb.any_reduce_nb, group_by=group_by, nb_parallel=nb_parallel)
+            squeezed = self.squeeze_grouped(
+                generic_nb.any_reduce_nb,
+                group_by=group_by,
+                nb_parallel=nb_parallel,
+                chunked=chunked
+            )
             arr = reshaping.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
         func = nb_registry.redecorate_parallel(nb.nth_index_nb, nb_parallel)
+        chunked_config = merge_dicts(chunking.mask_config, base_chunking.concat_config)
+        func = resolve_chunked(func, chunked, **chunked_config)
         nth_index = func(arr, n)
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
 
-    def norm_avg_index(self, group_by: tp.GroupByLike = None, nb_parallel: tp.Optional[bool] = None,
+    def norm_avg_index(self,
+                       group_by: tp.GroupByLike = None,
+                       nb_parallel: tp.Optional[bool] = None,
+                       chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.norm_avg_index_nb`.
 
@@ -1578,9 +1750,17 @@ class SignalsAccessor(GenericAccessor):
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, nb_parallel)
+            chunked_config = merge_dicts(
+                chunking.mask_group_lens_config,
+                base_chunking.group_lens_config,
+                base_chunking.concat_config
+            )
+            func = resolve_chunked(func, chunked, **chunked_config)
             norm_avg_index = func(self.to_2d_array(), group_lens)
         else:
             func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, nb_parallel)
+            chunked_config = merge_dicts(chunking.mask_config, base_chunking.concat_config)
+            func = resolve_chunked(func, chunked, **chunked_config)
             norm_avg_index = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
         return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)
