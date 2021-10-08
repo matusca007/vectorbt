@@ -197,33 +197,6 @@ def is_col_id_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
     return True
 
 
-# ############# Mapping ############# #
-
-
-@register_jit(tags={'can_parallel'})
-def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *args) -> tp.Array1d:
-    """Map each record to a single value.
-
-    `map_func_nb` must accept a single record and `*args`. Must return a single value."""
-    out = np.empty(records.shape[0], dtype=np.float_)
-
-    for ridx in prange(records.shape[0]):
-        out[ridx] = map_func_nb(records[ridx], *args)
-    return out
-
-
-@register_jit(tags={'can_parallel'})
-def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
-    """Meta version of `map_records_nb`.
-
-    `map_func_nb` must accept the record index and `*args`. Must return a single value."""
-    out = np.empty(n_values, dtype=np.float_)
-
-    for ridx in prange(n_values):
-        out[ridx] = map_func_nb(ridx, *args)
-    return out
-
-
 # ############# Filtering ############# #
 
 
@@ -261,7 +234,30 @@ def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp
     return out
 
 
-# ############# Applying ############# #
+# ############# Mapping ############# #
+
+@register_jit(tags={'can_parallel'})
+def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *args) -> tp.Array1d:
+    """Map each record to a single value.
+
+    `map_func_nb` must accept a single record and `*args`. Must return a single value."""
+    out = np.empty(records.shape[0], dtype=np.float_)
+
+    for ridx in prange(records.shape[0]):
+        out[ridx] = map_func_nb(records[ridx], *args)
+    return out
+
+
+@register_jit(tags={'can_parallel'})
+def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
+    """Meta version of `map_records_nb`.
+
+    `map_func_nb` must accept the record index and `*args`. Must return a single value."""
+    out = np.empty(n_values, dtype=np.float_)
+
+    for ridx in prange(n_values):
+        out[ridx] = map_func_nb(ridx, *args)
+    return out
 
 
 @register_jit(tags={'can_parallel'})
@@ -308,11 +304,11 @@ def apply_meta_nb(n_values: int, col_map: tp.ColMap,
 
 # ############# Reducing ############# #
 
-@register_jit(cache=True)
+@register_jit
 def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
                               idx_arr: tp.Array1d,
                               id_arr: tp.Array1d,
-                              col_lens: tp.ColLens,
+                              col_map: tp.ColMap,
                               segment_arr: tp.Array1d,
                               reduce_func_nb: tp.ReduceFunc, *args) \
         -> tp.Tuple[tp.Array1d, tp.Array1d, tp.Array1d, tp.Array1d]:
@@ -325,45 +321,51 @@ def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
     !!! note
         Groups must come in ascending order per column, and `idx_arr` and `id_arr`
         must come in ascending order per segment of values."""
-    col_end_idxs = np.cumsum(col_lens)
-    col_start_idxs = col_end_idxs - col_lens
+    col_idxs, col_lens = col_map
+    col_start_idxs = np.cumsum(col_lens) - col_lens
     out = np.empty(len(mapped_arr), dtype=mapped_arr.dtype)
     col_arr_out = np.empty(len(mapped_arr), dtype=np.int_)
     idx_arr_out = np.empty(len(mapped_arr), dtype=np.int_)
     id_arr_out = np.empty(len(mapped_arr), dtype=np.int_)
 
     k = 0
-    for c in range(len(col_lens)):
-        from_r = col_start_idxs[c]
-        to_r = col_end_idxs[c]
-        if from_r == to_r:
+    for col in range(col_lens.shape[0]):
+        col_len = col_lens[col]
+        if col_len == 0:
             continue
 
-        last_segment = segment_arr[from_r]
-        last_idx = idx_arr[from_r]
-        last_id = id_arr[from_r]
-        segment_start_r = from_r
-        for r in range(from_r, to_r):
-            if segment_arr[r] < last_segment:
-                raise ValueError("segment_arr must come in ascending order per column")
-            last_segment = segment_arr[r]
-            if r - 1 >= from_r:
-                if segment_arr[r] == segment_arr[r - 1]:
-                    if idx_arr[r] < last_idx:
+        col_start_idx = col_start_idxs[col]
+        idxs = col_idxs[col_start_idx:col_start_idx + col_len]
+
+        segment_start_i = 0
+        for i in range(len(idxs)):
+            r = idxs[i]
+            if i == 0:
+                prev_r = -1
+            else:
+                prev_r = idxs[i - 1]
+            if i < len(idxs) - 1:
+                next_r = idxs[i + 1]
+            else:
+                next_r = -1
+
+            if prev_r != -1:
+                if segment_arr[r] < segment_arr[prev_r]:
+                    raise ValueError("segment_arr must come in ascending order per column")
+                elif segment_arr[r] == segment_arr[prev_r]:
+                    if idx_arr[r] < idx_arr[prev_r]:
                         raise ValueError("idx_arr must come in ascending order per segment")
-                    if id_arr[r] < last_id:
+                    if id_arr[r] < id_arr[prev_r]:
                         raise ValueError("id_arr must come in ascending order per segment")
                 else:
-                    segment_start_r = r
-                    last_idx = idx_arr[r]
-                    last_id = id_arr[r]
-            if r == to_r - 1 or segment_arr[r] != segment_arr[r + 1]:
-                n_values = r - segment_start_r + 1
+                    segment_start_i = i
+            if next_r == -1 or segment_arr[r] != segment_arr[next_r]:
+                n_values = i - segment_start_i + 1
                 if n_values > 1:
-                    out[k] = reduce_func_nb(mapped_arr[segment_start_r:r + 1], *args)
+                    out[k] = reduce_func_nb(mapped_arr[idxs[segment_start_i:i + 1]], *args)
                 else:
                     out[k] = mapped_arr[r]
-                col_arr_out[k] = c
+                col_arr_out[k] = col
                 idx_arr_out[k] = idx_arr[r]
                 id_arr_out[k] = id_arr[r]
                 k += 1

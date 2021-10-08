@@ -25,7 +25,7 @@ Consider the following example:
 
 ## Reducing
 
-Using `MappedArray`, you can then reduce by column as follows:
+Using `MappedArray`, we can then reduce by column as follows:
 
 * Use already provided reducers such as `MappedArray.mean`:
 
@@ -133,7 +133,7 @@ Notice how cumsum resets at each column in the first example and at each group i
 
 ## Conversion
 
-You can unstack any `MappedArray` instance to pandas:
+We can unstack any `MappedArray` instance to pandas:
 
 * Given `idx_arr` was provided:
 
@@ -146,7 +146,7 @@ z  12.0  15.0  18.0
 ```
 
 !!! note
-    Will raise an error if there are multiple values pointing to the same position.
+    Will throw a warning if there are multiple values pointing to the same position.
 
 * In case `group_by` was provided, index can be ignored, or there are position conflicts:
 
@@ -159,6 +159,36 @@ z  12.0  15.0  18.0
 3   13.0     NaN
 4   14.0     NaN
 5   15.0     NaN
+```
+
+## Resolving conflicts
+
+Sometimes, we may encounter multiple values for each index and column combination.
+In such case, we can use `MappedArray.reduce_segments` to aggregate "duplicate" elements.
+For example, let's sum up duplicate values per each index and column combination:
+
+```python-repl
+>>> ma_conf = ma.replace(idx_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]))
+>>> ma_conf.to_pd()
+UserWarning: Multiple values are pointing to the same position. Only the latest value is used.
+      a     b     c
+x  12.0   NaN   NaN
+y   NaN  15.0   NaN
+z   NaN   NaN  18.0
+
+>>> @njit
+... def sum_reduce_nb(a):
+...     return np.sum(a)
+
+>>> ma_no_conf = ma_conf.reduce_segments(
+...     sum_reduce_nb,
+...     segment_arr=(ma_conf.idx_arr, ma_conf.col_arr)
+... )
+>>> ma_no_conf.to_pd()
+      a     b     c
+x  33.0   NaN   NaN
+y   NaN  42.0   NaN
+z   NaN   NaN  51.0
 ```
 
 ## Filtering
@@ -178,27 +208,9 @@ dtype: int64
 array([0, 2, 4, 6, 8])
 ```
 
-## Plotting
-
-You can build histograms and boxplots of `MappedArray` directly:
-
-```python-repl
->>> ma.boxplot()
-```
-
-![](/docs/img/mapped_boxplot.svg)
-
-To use scatterplots or any other plots that require index, convert to pandas first:
-
-```python-repl
->>> ma.to_pd().vbt.plot()
-```
-
-![](/docs/img/mapped_to_pd_plot.svg)
-
 ## Grouping
 
-One of the key features of `MappedArray` is that you can perform reducing operations on a group
+One of the key features of `MappedArray` is that we can perform reducing operations on a group
 of columns as if they were a single column. Groups can be specified by `group_by`, which
 can be anything from positions or names of column levels, to a NumPy array with actual groups.
 
@@ -235,7 +247,7 @@ second    17.0
 dtype: float64
 ```
 
-By the same way you can disable or modify any existing grouping:
+By the same way we can disable or modify any existing grouping:
 
 ```python-repl
 >>> grouped_ma.mean(group_by=False)
@@ -250,7 +262,7 @@ dtype: float64
 
 ## Operators
 
-`MappedArray` implements arithmetic, comparison and logical operators. You can perform basic
+`MappedArray` implements arithmetic, comparison, and logical operators. We can perform basic
 operations (such as addition) on mapped arrays as if they were NumPy arrays.
 
 ```python-repl
@@ -371,6 +383,22 @@ Name: first, dtype: object
 
 ## Plots
 
+We can build histograms and boxplots of `MappedArray` directly:
+
+```python-repl
+>>> ma.boxplot()
+```
+
+![](/docs/img/mapped_boxplot.svg)
+
+To use scatterplots or any other plots that require index, convert to pandas first:
+
+```python-repl
+>>> ma.to_pd().vbt.plot()
+```
+
+![](/docs/img/mapped_to_pd_plot.svg)
+
 !!! hint
     See `vectorbt.generic.plots_builder.PlotsBuilderMixin.plots` and `MappedArray.subplots`.
 
@@ -396,6 +424,7 @@ from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.chunking import resolve_chunked, warn_chunked_enabled
+from vectorbt.utils.array import index_repeating_rows_nb
 from vectorbt.base.reshaping import to_1d_array, to_dict
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic import nb as generic_nb, chunking as generic_chunking
@@ -717,7 +746,23 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             chunked=chunked
         ), **kwargs)
 
-    # ############# Applying ############# #
+    # ############# Mapping ############# #
+
+    def apply_mapping(self: MappedArrayT, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> MappedArrayT:
+        """Apply mapping on each element."""
+        if mapping is None:
+            mapping = self.mapping
+        if isinstance(mapping, str):
+            if mapping.lower() == 'index':
+                mapping = self.wrapper.index
+            elif mapping.lower() == 'columns':
+                mapping = self.wrapper.columns
+            mapping = to_mapping(mapping)
+        return self.replace(mapped_arr=apply_mapping(self.values, mapping), **kwargs)
+
+    def to_index(self) -> tp.Index:
+        """Convert to index."""
+        return self.wrapper.index[self.values]
 
     @class_or_instancemethod
     def apply(cls_or_self: tp.Union[tp.Type[MappedArrayT], MappedArrayT],
@@ -786,9 +831,17 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         It must have the same length as the mapped array. You can also pass a list of such arrays.
         In this case, each unique combination of values will be considered a single segment.
 
+        !!! warning
+            Each segment or combination of segments in `segment_arr` is assumed to be coherent and non-repeating.
+            That is, `np.array([0, 1, 0])` for a single column annotates three different segments, not two.
+            See `vectorbt.utils.array.index_repeating_rows_nb`.
+
+        !!! hint
+            Use `MappedArray.sort` to bring the mapped array to the desired order, if required.
+
         Applies per group of columns if `apply_per_group` is True.
 
-        See `vectorbt.records.nb.agg_mapped_nb`.
+        See `vectorbt.records.nb.reduce_mapped_segments_nb`.
 
         `**kwargs` are passed to `MappedArray.replace`."""
         checks.assert_numba_func(reduce_func_nb)
@@ -798,22 +851,19 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if self.idx_arr is None:
                 raise ValueError("Must pass idx_arr")
             idx_arr = self.idx_arr
-        col_lens = self.col_mapper.get_col_lens(group_by=group_by if apply_per_group else False)
+        col_map = self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
         if isinstance(segment_arr, tuple):
             stacked_segment_arr = np.column_stack(segment_arr)
-            segment_arr_temp = np.zeros(len(stacked_segment_arr), dtype=np.int_)
-            one_idxs = np.unique(stacked_segment_arr, axis=0, return_index=True)[1][1:]
-            segment_arr_temp[one_idxs] = 1
-            segment_arr = np.cumsum(segment_arr_temp)
+            segment_arr = index_repeating_rows_nb(stacked_segment_arr)
 
         chunked_config = merge_dicts(
-            chunking.recarr_col_lens_config,
-            chunking.col_lens_config,
+            chunking.recarr_col_map_config,
+            chunking.col_map_config,
             generic_chunking.concat_config
         )
         func = resolve_chunked(nb.reduce_mapped_segments_nb, chunked, **chunked_config)
         new_mapped_arr, new_col_arr, new_idx_arr, new_id_arr = \
-            func(self.values, idx_arr, self.id_arr, col_lens, segment_arr, reduce_func_nb, *args)
+            func(self.values, idx_arr, self.id_arr, col_map, segment_arr, reduce_func_nb, *args)
         new_mapped_arr = np.asarray(new_mapped_arr, dtype=dtype)
         return self.replace(
             mapped_arr=new_mapped_arr,
@@ -1383,7 +1433,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             value_counts_pd.index = apply_mapping(value_counts_pd.index, mapping, **kwargs)
         return value_counts_pd
 
-    # ############# Coverage ############# #
+    # ############# Conflicts ############# #
 
     @cached_method
     def has_conflicts(self,
@@ -1478,24 +1528,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                               "Only the latest value is used.", stacklevel=2)
             out = nb.unstack_mapped_nb(self.values, col_arr, idx_arr, target_shape, fill_value)
             return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
-
-    # ############# Mapping ############# #
-
-    def apply_mapping(self: MappedArrayT, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> MappedArrayT:
-        """Apply mapping on each element."""
-        if mapping is None:
-            mapping = self.mapping
-        if isinstance(mapping, str):
-            if mapping.lower() == 'index':
-                mapping = self.wrapper.index
-            elif mapping.lower() == 'columns':
-                mapping = self.wrapper.columns
-            mapping = to_mapping(mapping)
-        return self.replace(mapped_arr=apply_mapping(self.values, mapping), **kwargs)
-
-    def to_index(self) -> tp.Index:
-        """Convert to index."""
-        return self.wrapper.index[self.values]
 
     # ############# Stats ############# #
 

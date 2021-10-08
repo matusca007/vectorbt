@@ -157,3 +157,22 @@ def hash_int_rows_nb(arr: tp.Array2d) -> tp.Array1d:
             out[i] += arr[i, col] * prefix
         prefix *= 10 ** int_digit_count_nb(vmax)
     return out
+
+
+@register_jit(cache=True)
+def index_repeating_rows_nb(arr):
+    """Index repeating rows using monotonically increasing numbers."""
+    out = np.empty(arr.shape[0], dtype=np.int_)
+    temp = np.copy(arr[0])
+
+    k = 0
+    for i in range(arr.shape[0]):
+        new_unique = False
+        for col in range(arr.shape[1]):
+            if arr[i, col] != temp[col]:
+                if not new_unique:
+                    k += 1
+                    new_unique = True
+                temp[col] = arr[i, col]
+        out[i] = k
+    return out

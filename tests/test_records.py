@@ -528,10 +528,6 @@ class TestMappedArray:
         with pytest.raises(Exception):
             _ = mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([2, 1, 0]))
         np.testing.assert_array_equal(
-            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0])).values,
-            np.array([33.])
-        )
-        np.testing.assert_array_equal(
             mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).values,
             np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
         )

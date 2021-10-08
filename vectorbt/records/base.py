@@ -702,6 +702,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             return None
         return self.values[idx_field_name]
 
+    # ############# Sorting ############# #
+
     @cached_method
     def is_sorted(self, incl_id: bool = False) -> bool:
         """Check whether records are sorted."""
@@ -722,6 +724,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             ind = np.argsort(self.col_arr)
         return self.replace(records_arr=self.values[ind], **kwargs).regroup(group_by)
 
+    # ############# Filtering ############# #
+
     def apply_mask(self: RecordsT, mask: tp.Array1d, group_by: tp.GroupByLike = None, **kwargs) -> RecordsT:
         """Return a new class instance, filtered by mask."""
         mask_indices = np.flatnonzero(mask)
@@ -729,6 +733,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             records_arr=np.take(self.values, mask_indices),
             **kwargs
         ).regroup(group_by)
+
+    # ############# Mapping ############# #
 
     def map_array(self,
                   a: tp.ArrayLike,
@@ -848,6 +854,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)
 
+    # ############# Reducing ############# #
+
     @cached_method
     def count(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Return count by column."""
@@ -855,6 +863,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         return self.wrapper.wrap_reduced(
             self.col_mapper.get_col_map(group_by=group_by)[1],
             group_by=group_by, **wrap_kwargs)
+
+    # ############# Conflicts ############# #
 
     @cached_method
     def has_conflicts(self, **kwargs) -> bool:
