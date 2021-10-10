@@ -5135,6 +5135,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                       year_freq: tp.Optional[tp.FrequencyLike] = None,
                       use_asset_returns: bool = False,
                       defaults: tp.KwargsLike = None,
+                      chunked: tp.ChunkedOption = None,
                       **kwargs) -> tp.SeriesFrame:
         """Compute various statistics on returns of this portfolio.
 
@@ -5148,7 +5149,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             freq=freq,
             year_freq=year_freq,
             use_asset_returns=use_asset_returns,
-            defaults=defaults
+            defaults=defaults,
+            chunked=chunked
         )
         return getattr(returns_acc, 'stats')(**kwargs)
 
@@ -5182,6 +5184,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_asset_flow(self,
                         column: tp.Optional[tp.Label] = None,
                         direction: str = 'both',
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
                         xref: str = 'x',
                         yref: str = 'y',
                         hline_shape_kwargs: tp.KwargsLike = None,
@@ -5199,6 +5203,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        asset_flow = self.asset_flow(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+        asset_flow = self.select_one_from_obj(asset_flow, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5207,8 +5213,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 name='Assets'
             )
         ), kwargs)
-        asset_flow = self.asset_flow(direction=direction)
-        asset_flow = self.select_one_from_obj(asset_flow, self.wrapper.regroup(False), column=column)
         fig = asset_flow.vbt.plot(**kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5229,6 +5233,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_cash_flow(self,
                        column: tp.Optional[tp.Label] = None,
                        group_by: tp.GroupByLike = None,
+                       nb_parallel: tp.Optional[bool] = None,
+                       chunked: tp.ChunkedOption = None,
                        free: bool = False,
                        xref: str = 'x',
                        yref: str = 'y',
@@ -5248,6 +5254,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        cash_flow = self.cash_flow(group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
+        cash_flow = self.select_one_from_obj(cash_flow, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5256,8 +5264,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 name='Cash'
             )
         ), kwargs)
-        cash_flow = self.cash_flow(group_by=group_by, free=free)
-        cash_flow = self.select_one_from_obj(cash_flow, self.wrapper.regroup(group_by), column=column)
         fig = cash_flow.vbt.plot(**kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5278,6 +5284,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_assets(self,
                     column: tp.Optional[tp.Label] = None,
                     direction: str = 'both',
+                    nb_parallel: tp.Optional[bool] = None,
+                    chunked: tp.ChunkedOption = None,
                     xref: str = 'x',
                     yref: str = 'y',
                     hline_shape_kwargs: tp.KwargsLike = None,
@@ -5295,6 +5303,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        assets = self.assets(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+        assets = self.select_one_from_obj(assets, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5310,8 +5320,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        assets = self.assets(direction=direction)
-        assets = self.select_one_from_obj(assets, self.wrapper.regroup(False), column=column)
         fig = assets.vbt.plot_against(0, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5332,6 +5340,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_cash(self,
                   column: tp.Optional[tp.Label] = None,
                   group_by: tp.GroupByLike = None,
+                  nb_parallel: tp.Optional[bool] = None,
+                  chunked: tp.ChunkedOption = None,
                   free: bool = False,
                   xref: str = 'x',
                   yref: str = 'y',
@@ -5351,6 +5361,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        init_cash = self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
+        init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
+        cash = self.cash(group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
+        cash = self.select_one_from_obj(cash, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5366,10 +5380,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        init_cash = self.get_init_cash(group_by=group_by)
-        init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        cash = self.cash(group_by=group_by, free=free)
-        cash = self.select_one_from_obj(cash, self.wrapper.regroup(group_by), column=column)
         fig = cash.vbt.plot_against(init_cash, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5391,6 +5401,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          column: tp.Optional[tp.Label] = None,
                          group_by: tp.GroupByLike = None,
                          direction: str = 'both',
+                         nb_parallel: tp.Optional[bool] = None,
+                         chunked: tp.ChunkedOption = None,
                          xref: str = 'x',
                          yref: str = 'y',
                          hline_shape_kwargs: tp.KwargsLike = None,
@@ -5409,6 +5421,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        asset_value = self.asset_value(
+            direction=direction, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        asset_value = self.select_one_from_obj(asset_value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5424,8 +5439,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        asset_value = self.asset_value(direction=direction, group_by=group_by)
-        asset_value = self.select_one_from_obj(asset_value, self.wrapper.regroup(group_by), column=column)
         fig = asset_value.vbt.plot_against(0, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5446,6 +5459,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_value(self,
                    column: tp.Optional[tp.Label] = None,
                    group_by: tp.GroupByLike = None,
+                   nb_parallel: tp.Optional[bool] = None,
+                   chunked: tp.ChunkedOption = None,
                    xref: str = 'x',
                    yref: str = 'y',
                    hline_shape_kwargs: tp.KwargsLike = None,
@@ -5464,6 +5479,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        init_cash = self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
+        init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
+        value = self.value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        value = self.select_one_from_obj(value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5473,10 +5492,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        init_cash = self.get_init_cash(group_by=group_by)
-        init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        value = self.value(group_by=group_by)
-        value = self.select_one_from_obj(value, self.wrapper.regroup(group_by), column=column)
         fig = value.vbt.plot_against(init_cash, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5499,6 +5514,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          group_by: tp.GroupByLike = None,
                          benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                          use_asset_returns: bool = False,
+                         nb_parallel: tp.Optional[bool] = None,
+                         chunked: tp.ChunkedOption = None,
                          **kwargs) -> tp.BaseFigure:  # pragma: no cover
         """Plot one column/group of cumulative returns.
 
@@ -5515,10 +5532,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by)
+            benchmark_rets = self.market_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
         else:
             benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         benchmark_rets = self.select_one_from_obj(benchmark_rets, self.wrapper.regroup(group_by), column=column)
+        if use_asset_returns:
+            returns = self.asset_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        else:
+            returns = self.returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        returns = self.select_one_from_obj(returns, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             benchmark_rets=benchmark_rets,
             main_kwargs=dict(
@@ -5537,11 +5559,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 )
             )
         ), kwargs)
-        if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by)
-        else:
-            returns = self.returns(group_by=group_by)
-        returns = self.select_one_from_obj(returns, self.wrapper.regroup(group_by), column=column)
         return returns.vbt.returns.plot_cumulative(**kwargs)
 
     def plot_drawdowns(self,
@@ -5571,6 +5588,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_underwater(self,
                         column: tp.Optional[tp.Label] = None,
                         group_by: tp.GroupByLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
                         xref: str = 'x',
                         yref: str = 'y',
                         hline_shape_kwargs: tp.KwargsLike = None,
@@ -5588,6 +5607,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        drawdown = self.drawdown(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        drawdown = self.select_one_from_obj(drawdown, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5598,8 +5619,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 name='Drawdown'
             )
         ), kwargs)
-        drawdown = self.drawdown(group_by=group_by)
-        drawdown = self.select_one_from_obj(drawdown, self.wrapper.regroup(group_by), column=column)
         fig = drawdown.vbt.plot(**kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5623,6 +5642,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                             column: tp.Optional[tp.Label] = None,
                             group_by: tp.GroupByLike = None,
                             direction: str = 'both',
+                            nb_parallel: tp.Optional[bool] = None,
+                            chunked: tp.ChunkedOption = None,
                             xref: str = 'x',
                             yref: str = 'y',
                             hline_shape_kwargs: tp.KwargsLike = None,
@@ -5641,6 +5662,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        gross_exposure = self.gross_exposure(
+            direction=direction, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        gross_exposure = self.select_one_from_obj(gross_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5656,8 +5680,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        gross_exposure = self.gross_exposure(direction=direction, group_by=group_by)
-        gross_exposure = self.select_one_from_obj(gross_exposure, self.wrapper.regroup(group_by), column=column)
         fig = gross_exposure.vbt.plot_against(1, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
@@ -5678,6 +5700,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_net_exposure(self,
                           column: tp.Optional[tp.Label] = None,
                           group_by: tp.GroupByLike = None,
+                          nb_parallel: tp.Optional[bool] = None,
+                          chunked: tp.ChunkedOption = None,
                           xref: str = 'x',
                           yref: str = 'y',
                           hline_shape_kwargs: tp.KwargsLike = None,
@@ -5695,6 +5719,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
+        net_exposure = self.net_exposure(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        net_exposure = self.select_one_from_obj(net_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
                 line=dict(
@@ -5710,8 +5736,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             other_trace_kwargs='hidden'
         ), kwargs)
-        net_exposure = self.net_exposure(group_by=group_by)
-        net_exposure = self.select_one_from_obj(net_exposure, self.wrapper.regroup(group_by), column=column)
         fig = net_exposure.vbt.plot_against(0, **kwargs)
         x_domain = get_domain(xref, fig)
         fig.add_shape(**merge_dicts(dict(
