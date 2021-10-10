@@ -1648,15 +1648,34 @@ class TestFromOrders:
 
     def test_max_orders(self):
         _ = from_orders_both(close=price_wide)
-        _ = from_orders_both(close=price_wide, max_orders=9)
+        _ = from_orders_both(close=price_wide, max_orders=3)
         with pytest.raises(Exception):
-            _ = from_orders_both(close=price_wide, max_orders=8)
+            _ = from_orders_both(close=price_wide, max_orders=2)
 
     def test_max_logs(self):
         _ = from_orders_both(close=price_wide, log=True)
-        _ = from_orders_both(close=price_wide, log=True, max_logs=15)
+        _ = from_orders_both(close=price_wide, log=True, max_logs=5)
         with pytest.raises(Exception):
-            _ = from_orders_both(close=price_wide, log=True, max_logs=14)
+            _ = from_orders_both(close=price_wide, log=True, max_logs=4)
+
+    def test_chunked(self):
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        pf = from_orders_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=True)
+        pf2 = from_orders_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
 
 
 # ############# from_signals ############# #
@@ -3350,15 +3369,34 @@ class TestFromSignals:
 
     def test_max_orders(self):
         _ = from_signals_both(close=price_wide)
-        _ = from_signals_both(close=price_wide, max_orders=6)
+        _ = from_signals_both(close=price_wide, max_orders=2)
         with pytest.raises(Exception):
-            _ = from_signals_both(close=price_wide, max_orders=5)
+            _ = from_signals_both(close=price_wide, max_orders=1)
 
     def test_max_logs(self):
         _ = from_signals_both(close=price_wide, log=True)
-        _ = from_signals_both(close=price_wide, log=True, max_logs=6)
+        _ = from_signals_both(close=price_wide, log=True, max_logs=2)
         with pytest.raises(Exception):
-            _ = from_signals_both(close=price_wide, log=True, max_logs=5)
+            _ = from_signals_both(close=price_wide, log=True, max_logs=1)
+
+    def test_chunked(self):
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        pf = from_signals_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=True)
+        pf2 = from_signals_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
 
 
 # ############# from_holding ############# #
@@ -4322,7 +4360,7 @@ class TestFromOrderFunc:
             post_sim_args=(lst,),
             row_wise=test_row_wise,
             update_value=True,
-            max_logs=price_wide.shape[0] * price_wide.shape[1],
+            max_logs=price_wide.shape[0],
             use_numba=False,
             group_by=[0, 0, 1],
             cash_sharing=True,
@@ -5453,11 +5491,11 @@ class TestFromOrderFunc:
             row_wise=test_row_wise, flexible=test_flexible)
         _ = vbt.Portfolio.from_order_func(
             price_wide, order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, max_orders=15, flexible=test_flexible)
+            row_wise=test_row_wise, max_orders=5, flexible=test_flexible)
         with pytest.raises(Exception):
             _ = vbt.Portfolio.from_order_func(
                 price_wide, order_func, np.asarray(np.inf),
-                row_wise=test_row_wise, max_orders=14, flexible=test_flexible)
+                row_wise=test_row_wise, max_orders=4, flexible=test_flexible)
 
     @pytest.mark.parametrize("test_row_wise", [False, True])
     @pytest.mark.parametrize("test_flexible", [False, True])
@@ -5468,11 +5506,34 @@ class TestFromOrderFunc:
             row_wise=test_row_wise, flexible=test_flexible)
         _ = vbt.Portfolio.from_order_func(
             price_wide, log_order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, max_logs=15, flexible=test_flexible)
+            row_wise=test_row_wise, max_logs=5, flexible=test_flexible)
         with pytest.raises(Exception):
             _ = vbt.Portfolio.from_order_func(
                 price_wide, log_order_func, np.asarray(np.inf),
-                row_wise=test_row_wise, max_logs=14, flexible=test_flexible)
+                row_wise=test_row_wise, max_logs=4, flexible=test_flexible)
+
+    @pytest.mark.parametrize("test_row_wise", [False, True])
+    @pytest.mark.parametrize("test_flexible", [False, True])
+    def test_chunked(self, test_row_wise, test_flexible):
+        order_func = flex_order_func_nb if test_flexible else order_func_nb
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        chunked = dict(arg_take_spec=dict(order_args=vbt.ArgsTaker(vbt.FlexArraySlicer(1))))
+        pf = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            row_wise=test_row_wise, flexible=test_flexible, chunked=chunked)
+        pf2 = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            row_wise=test_row_wise, flexible=test_flexible, chunked=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
 
 
 # ############# Portfolio ############# #
@@ -6042,6 +6103,14 @@ class TestPortfolio:
             pf.get_filled_close(),
             price_na.ffill().bfill()
         )
+        pd.testing.assert_frame_equal(
+            pf.get_filled_close(nb_parallel=True),
+            pf.get_filled_close(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf.get_filled_close(chunked=True),
+            pf.get_filled_close(chunked=False)
+        )
 
     def test_asset_flow(self):
         pd.testing.assert_frame_equal(
@@ -6100,8 +6169,12 @@ class TestPortfolio:
             pf.__class__.asset_flow(orders=pf.orders, wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.asset_flow(nb_parallel=False),
-            pf.asset_flow(nb_parallel=True)
+            pf.asset_flow(nb_parallel=True),
+            pf.asset_flow(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf.asset_flow(chunked=False),
+            pf.asset_flow(chunked=True)
         )
 
     def test_assets(self):
@@ -6161,8 +6234,12 @@ class TestPortfolio:
             pf.__class__.assets(asset_flow=pf.asset_flow(), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.assets(nb_parallel=False),
-            pf.assets(nb_parallel=True)
+            pf.assets(nb_parallel=True),
+            pf.assets(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf.assets(chunked=False),
+            pf.assets(chunked=True)
         )
 
     def test_position_mask(self):
@@ -6245,8 +6322,12 @@ class TestPortfolio:
             pf.__class__.position_mask(assets=pf.assets(), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.position_mask(nb_parallel=False),
-            pf_grouped.position_mask(nb_parallel=True)
+            pf_grouped.position_mask(nb_parallel=True),
+            pf_grouped.position_mask(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.position_mask(chunked=False),
+            pf_grouped.position_mask(chunked=True)
         )
 
     def test_position_coverage(self):
@@ -6292,8 +6373,12 @@ class TestPortfolio:
             pf.__class__.position_coverage(position_mask=pf.position_mask(), wrapper=pf.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf_grouped.position_coverage(nb_parallel=False),
-            pf_grouped.position_coverage(nb_parallel=True)
+            pf_grouped.position_coverage(nb_parallel=True),
+            pf_grouped.position_coverage(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.position_coverage(chunked=False),
+            pf_grouped.position_coverage(chunked=True)
         )
 
     def test_cash_flow(self):
@@ -6366,12 +6451,20 @@ class TestPortfolio:
             pf_grouped.__class__.cash_flow(orders=pf_grouped.orders, wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.cash_flow(nb_parallel=False),
-            pf.cash_flow(nb_parallel=True)
+            pf.cash_flow(nb_parallel=True),
+            pf.cash_flow(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.cash_flow(nb_parallel=False),
-            pf_grouped.cash_flow(nb_parallel=True)
+            pf.cash_flow(chunked=False),
+            pf.cash_flow(chunked=True)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash_flow(nb_parallel=True),
+            pf_grouped.cash_flow(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash_flow(chunked=False),
+            pf_grouped.cash_flow(chunked=True)
         )
 
     def test_init_cash(self):
@@ -6472,8 +6565,8 @@ class TestPortfolio:
                 cash_flow=pf2.cash_flow(), wrapper=pf2.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.get_init_cash(nb_parallel=False),
-            pf.get_init_cash(nb_parallel=True)
+            pf.get_init_cash(nb_parallel=True),
+            pf.get_init_cash(nb_parallel=False)
         )
 
     def test_cash(self):
@@ -6581,16 +6674,28 @@ class TestPortfolio:
                 cash_flow=pf_shared.cash_flow(group_by=False), call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.cash(nb_parallel=False),
-            pf.cash(nb_parallel=True)
+            pf.cash(nb_parallel=True),
+            pf.cash(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.cash(nb_parallel=False),
-            pf_grouped.cash(nb_parallel=True)
+            pf.cash(chunked=True),
+            pf.cash(chunked=False)
         )
         pd.testing.assert_frame_equal(
-            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=False),
-            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=True)
+            pf_grouped.cash(nb_parallel=True),
+            pf_grouped.cash(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash(chunked=True),
+            pf_grouped.cash(chunked=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=True),
+            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cash(group_by=False, in_sim_order=True, chunked=True),
+            pf_shared.cash(group_by=False, in_sim_order=True, chunked=False)
         )
 
     def test_asset_value(self):
@@ -6681,8 +6786,12 @@ class TestPortfolio:
                 assets=pf_grouped.assets(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.asset_value(nb_parallel=False),
-            pf_grouped.asset_value(nb_parallel=True)
+            pf_grouped.asset_value(nb_parallel=True),
+            pf_grouped.asset_value(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_value(chunked=True),
+            pf_grouped.asset_value(chunked=False)
         )
 
     def test_gross_exposure(self):
@@ -6783,8 +6892,12 @@ class TestPortfolio:
                 free_cash=pf_grouped.cash(free=True), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.gross_exposure(nb_parallel=False),
-            pf.gross_exposure(nb_parallel=True)
+            pf.gross_exposure(nb_parallel=True),
+            pf.gross_exposure(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf.gross_exposure(chunked=True),
+            pf.gross_exposure(chunked=False)
         )
 
     def test_net_exposure(self):
@@ -6857,8 +6970,12 @@ class TestPortfolio:
                 short_exposure=pf_grouped.gross_exposure(direction='shortonly'), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.net_exposure(nb_parallel=False),
-            pf.net_exposure(nb_parallel=True)
+            pf.net_exposure(nb_parallel=True),
+            pf.net_exposure(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf.net_exposure(chunked=True),
+            pf.net_exposure(chunked=False)
         )
 
     def test_value(self):
@@ -6953,8 +7070,12 @@ class TestPortfolio:
                 call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=False),
-            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=True)
+            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=True),
+            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.value(group_by=False, in_sim_order=True, chunked=True),
+            pf_shared.value(group_by=False, in_sim_order=True, chunked=False)
         )
 
     def test_total_profit(self):
@@ -7003,12 +7124,16 @@ class TestPortfolio:
                 orders=pf_grouped.orders, wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.total_profit(nb_parallel=False),
-            pf.total_profit(nb_parallel=True)
+            pf.total_profit(nb_parallel=True),
+            pf.total_profit(nb_parallel=False)
         )
         pd.testing.assert_series_equal(
-            pf_grouped.total_profit(nb_parallel=False),
-            pf_grouped.total_profit(nb_parallel=True)
+            pf.total_profit(chunked=True),
+            pf.total_profit(chunked=False)
+        )
+        pd.testing.assert_series_equal(
+            pf_grouped.total_profit(nb_parallel=True),
+            pf_grouped.total_profit(nb_parallel=False)
         )
 
     def test_final_value(self):
@@ -7058,12 +7183,12 @@ class TestPortfolio:
                 init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.final_value(nb_parallel=False),
-            pf.final_value(nb_parallel=True)
+            pf.final_value(nb_parallel=True),
+            pf.final_value(nb_parallel=False)
         )
         pd.testing.assert_series_equal(
-            pf_grouped.final_value(nb_parallel=False),
-            pf_grouped.final_value(nb_parallel=True)
+            pf_grouped.final_value(nb_parallel=True),
+            pf_grouped.final_value(nb_parallel=False)
         )
 
     def test_total_return(self):
@@ -7113,12 +7238,12 @@ class TestPortfolio:
                 init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.total_return(nb_parallel=False),
-            pf.total_return(nb_parallel=True)
+            pf.total_return(nb_parallel=True),
+            pf.total_return(nb_parallel=False)
         )
         pd.testing.assert_series_equal(
-            pf_grouped.total_return(nb_parallel=False),
-            pf_grouped.total_return(nb_parallel=True)
+            pf_grouped.total_return(nb_parallel=True),
+            pf_grouped.total_return(nb_parallel=False)
         )
 
     def test_returns(self):
@@ -7212,16 +7337,28 @@ class TestPortfolio:
                 call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.returns(nb_parallel=False),
-            pf.returns(nb_parallel=True)
+            pf.returns(nb_parallel=True),
+            pf.returns(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.returns(nb_parallel=False),
-            pf_grouped.returns(nb_parallel=True)
+            pf.returns(chunked=True),
+            pf.returns(chunked=False)
         )
         pd.testing.assert_frame_equal(
-            pf_shared.returns(group_by=False, in_sim_order=True, nb_parallel=False),
-            pf_shared.returns(group_by=False, in_sim_order=True, nb_parallel=True)
+            pf_grouped.returns(nb_parallel=True),
+            pf_grouped.returns(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.returns(chunked=True),
+            pf_grouped.returns(chunked=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.returns(group_by=False, in_sim_order=True, nb_parallel=True),
+            pf_shared.returns(group_by=False, in_sim_order=True, nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.returns(group_by=False, in_sim_order=True, chunked=True),
+            pf_shared.returns(group_by=False, in_sim_order=True, chunked=False)
         )
 
     def test_asset_returns(self):
@@ -7282,12 +7419,20 @@ class TestPortfolio:
                 cash_flow=pf_grouped.cash_flow(), asset_value=pf_grouped.asset_value(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.asset_returns(nb_parallel=False),
-            pf.asset_returns(nb_parallel=True)
+            pf.asset_returns(nb_parallel=True),
+            pf.asset_returns(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            pf_grouped.asset_returns(nb_parallel=False),
-            pf_grouped.asset_returns(nb_parallel=True)
+            pf.asset_returns(chunked=True),
+            pf.asset_returns(chunked=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_returns(nb_parallel=True),
+            pf_grouped.asset_returns(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.asset_returns(chunked=True),
+            pf_grouped.asset_returns(chunked=False)
         )
         size = pd.Series([0., 0.5, -0.5, -0.5, 0.5, 1., -2., 2.])
         pf2 = vbt.Portfolio.from_orders(1, size, fees=0.)
@@ -7380,8 +7525,20 @@ class TestPortfolio:
                 init_cash=pf_grouped.init_cash, wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.market_value(nb_parallel=False),
             pf.market_value(nb_parallel=True),
+            pf.market_value(nb_parallel=False),
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_value(chunked=True),
+            pf.market_value(chunked=False),
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.market_value(nb_parallel=True),
+            pf_grouped.market_value(nb_parallel=False),
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.market_value(chunked=True),
+            pf_grouped.market_value(chunked=False),
         )
 
     def test_market_returns(self):
@@ -7442,8 +7599,12 @@ class TestPortfolio:
                 init_cash=pf_grouped.init_cash, market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf.market_returns(nb_parallel=False),
             pf.market_returns(nb_parallel=True),
+            pf.market_returns(nb_parallel=False),
+        )
+        pd.testing.assert_frame_equal(
+            pf.market_returns(chunked=True),
+            pf.market_returns(chunked=False),
         )
 
     def test_total_market_return(self):
@@ -7490,8 +7651,12 @@ class TestPortfolio:
                 market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.total_market_return(nb_parallel=False),
             pf.total_market_return(nb_parallel=True),
+            pf.total_market_return(nb_parallel=False),
+        )
+        pd.testing.assert_series_equal(
+            pf.total_market_return(chunked=True),
+            pf.total_market_return(chunked=False),
         )
 
     def test_return_methods(self):
@@ -7561,8 +7726,12 @@ class TestPortfolio:
         with pytest.raises(Exception):
             _ = pf_shared.information_ratio(pf_shared.market_returns(group_by=False) * 2)
         pd.testing.assert_frame_equal(
-            pf_shared.cumulative_returns(nb_parallel=False),
-            pf_shared.cumulative_returns(nb_parallel=True)
+            pf_shared.cumulative_returns(nb_parallel=True),
+            pf_shared.cumulative_returns(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cumulative_returns(chunked=True),
+            pf_shared.cumulative_returns(chunked=False)
         )
 
     def test_qs_methods(self):
@@ -7570,10 +7739,6 @@ class TestPortfolio:
             pd.testing.assert_series_equal(
                 pf_shared.qs.sharpe().rename('sharpe_ratio'),
                 pf_shared.sharpe_ratio()
-            )
-            pd.testing.assert_series_equal(
-                pf_shared.qs.sharpe(nb_parallel=False),
-                pf_shared.qs.sharpe(nb_parallel=True)
             )
 
     def test_stats(self):

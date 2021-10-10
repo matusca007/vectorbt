@@ -160,13 +160,18 @@ AnnArgs = Dict[str, Kwargs]
 AnnArgQuery = Union[int, str]
 
 # Execution
+FuncArgs = Tuple[Callable, Args, Kwargs]
+FuncsArgs = Iterable[FuncArgs]
 EngineLike = Union[str, type, 'ExecutionEngine', Callable]
 
 # Chunking
-SizeLike = Union[int, 'Sizer', Callable]
-ChunkMetaLike = Union[Iterable['ChunkMeta'], 'ChunkMetaGenerator', Callable]
+SizeFunc = Callable[[AnnArgs], int]
+SizeLike = Union[int, 'Sizer', SizeFunc]
+ChunkMetaFunc = Callable[[AnnArgs], Iterable['ChunkMeta']]
+ChunkMetaLike = Union[Iterable['ChunkMeta'], 'ChunkMetaGenerator', ChunkMetaFunc]
 TakeSpec = Union[None, 'ChunkTaker']
-ArgTakeSpec = Dict[AnnArgQuery, TakeSpec]
+ArgTakeSpecFunc = Callable[[AnnArgs, 'ChunkMeta'], Tuple[Args, Kwargs]]
+ArgTakeSpec = Union[Sequence[TakeSpec], Mapping[AnnArgQuery, TakeSpec], ArgTakeSpecFunc]
 MappingTakeSpec = Mapping[Hashable, TakeSpec]
 SequenceTakeSpec = Sequence[TakeSpec]
 ContainerTakeSpec = Union[MappingTakeSpec, SequenceTakeSpec]

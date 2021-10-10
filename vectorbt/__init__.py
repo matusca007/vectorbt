@@ -624,6 +624,7 @@ from vectorbt._version import __version__ as _version
 __version__ = _version
 
 # Most important modules and objects
+from vectorbt import _typing as tp
 from vectorbt.generic import nb, plotting
 from vectorbt._settings import settings
 from vectorbt.nb_registry import register_jit, register_generated_jit

@@ -352,8 +352,8 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
         order (Order): See `vectorbt.portfolio.enums.Order`.
 
     Error is thrown if an input has value that is not expected.
-    Order is ignored if its execution has no effect on current balance.
-    Order is rejected if an input goes over a limit/restriction.
+    Order is ignored if its execution has no effect on the current balance.
+    Order is rejected if an input goes over a limit or against a restriction.
     """
     # numerical stability
     cash = state.cash
@@ -383,7 +383,7 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
         free_cash=free_cash
     )
 
-    # Ignore order
+    # Ignore order if size or price is nan
     if np.isnan(order.size):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeNaN)
     if np.isnan(order.price):
@@ -1135,13 +1135,15 @@ def init_records_nb(target_shape: tp.Shape,
                     max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
     """Initialize order and log records."""
     if max_orders is None:
-        max_orders = target_shape[0] * target_shape[1]
-    order_records = np.empty(max_orders, dtype=order_dt)
+        order_records = np.empty(target_shape[0] * target_shape[1], dtype=order_dt)
+    else:
+        order_records = np.empty(max_orders * target_shape[1], dtype=order_dt)
     if max_logs is None:
-        max_logs = target_shape[0] * target_shape[1]
-    if max_logs == 0:
-        max_logs = 1
-    log_records = np.empty(max_logs, dtype=log_dt)
+        log_records = np.empty(target_shape[0] * target_shape[1], dtype=log_dt)
+    elif max_logs == 0:
+        log_records = np.empty(1, dtype=log_dt)
+    else:
+        log_records = np.empty(max_logs * target_shape[1], dtype=log_dt)
     return order_records, log_records
 
 
@@ -2516,8 +2518,8 @@ def simulate_nb(target_shape: tp.Shape,
         ffill_val_price (bool): See `vectorbt.portfolio.enums.SimulationContext.ffill_val_price`.
         update_value (bool): See `vectorbt.portfolio.enums.SimulationContext.update_value`.
         fill_pos_record (bool): See `vectorbt.portfolio.enums.SimulationContext.fill_pos_record`.
-        max_orders (int): Size of the order records array.
-        max_logs (int): Size of the log records array.
+        max_orders (int): The max number of order records expected to be filled at each column.
+        max_logs (int): The max number of log records expected to be filled at each column.
         flex_2d (bool): See `vectorbt.portfolio.enums.SimulationContext.flex_2d`.
 
     !!! note
@@ -5985,7 +5987,7 @@ def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def fbfill_close(close: tp.Array2d) -> tp.Array2d:
+def fbfill_close_nb(close: tp.Array2d) -> tp.Array2d:
     """Forward and backward fill NaN values in close."""
     out = np.empty_like(close)
     for col in prange(close.shape[1]):
@@ -6194,17 +6196,17 @@ def cash_flow_nb(target_shape: tp.Shape,
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def sum_grouped_nb(a: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
+def sum_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Squeeze each group of columns into a single column using sum operation."""
-    check_group_lens_nb(group_lens, a.shape[1])
-    out = np.empty((a.shape[0], len(group_lens)), dtype=np.float_)
+    check_group_lens_nb(group_lens, arr.shape[1])
+    out = np.empty((arr.shape[0], len(group_lens)), dtype=np.float_)
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
 
     for group in prange(len(group_lens)):
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
-        out[:, group] = np.sum(a[:, from_col:to_col], axis=1)
+        out[:, group] = np.sum(arr[:, from_col:to_col], axis=1)
     return out
 
 

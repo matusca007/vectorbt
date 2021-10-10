@@ -10,9 +10,8 @@ from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
-from vectorbt.utils.chunking import resolve_chunked
-from vectorbt.base import chunking as base_chunking
-from vectorbt.generic import chunking
+from vectorbt.utils import chunking as ch
+from vectorbt.base import chunking as base_ch
 
 WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 
@@ -70,10 +69,18 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
                     raise ValueError("This method doesn't support parallelization")
                 if not _disable_chunked:
                     if _is_reducing:
-                        chunked_config = merge_dicts(chunking.arr_ax1_config, base_chunking.concat_config)
+                        chunked_kwargs = dict(
+                            size=ch.ArraySizer(0, 1),
+                            arg_take_spec={0: ch.ArraySlicer(1)},
+                            merge_func=base_ch.concat
+                        )
                     else:
-                        chunked_config = merge_dicts(chunking.arr_ax1_config, base_chunking.column_stack_config)
-                    _func = resolve_chunked(_func, chunked, **chunked_config)
+                        chunked_kwargs = dict(
+                            size=ch.ArraySizer(0, 1),
+                            arg_take_spec={0: ch.ArraySlicer(1)},
+                            merge_func=base_ch.column_stack
+                        )
+                    _func = ch.resolve_chunked(_func, chunked, **chunked_kwargs)
                 elif chunked is not None:
                     raise ValueError("This method doesn't support chunking")
                 a = _func(*args, **kwargs)

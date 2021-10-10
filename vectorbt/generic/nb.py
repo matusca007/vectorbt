@@ -1753,7 +1753,7 @@ def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def value_counts_nb(arr: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
+def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
     """Return value counts per column/group."""
     out = np.full((n_uniques, group_lens.shape[0]), 0, dtype=np.int_)
 
@@ -1763,28 +1763,28 @@ def value_counts_nb(arr: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> 
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
         for col in range(from_col, to_col):
-            for i in range(arr.shape[0]):
-                out[arr[i, col], group] += 1
+            for i in range(codes.shape[0]):
+                out[codes[i, col], group] += 1
     return out
 
 
 @register_jit(cache=True)
-def value_counts_1d_nb(arr: tp.Array1d, n_uniques: int) -> tp.Array1d:
+def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
     """Return value counts."""
     out = np.full(n_uniques, 0, dtype=np.int_)
 
-    for i in range(arr.shape[0]):
-        out[arr[i]] += 1
+    for i in range(codes.shape[0]):
+        out[codes[i]] += 1
     return out
 
 
 @register_jit(cache=True, tags={'can_parallel'})
-def value_counts_per_row_nb(arr: tp.Array2d, n_uniques: int) -> tp.Array2d:
+def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
     """Return value counts per row."""
-    out = np.empty((n_uniques, arr.shape[0]), dtype=np.int_)
+    out = np.empty((n_uniques, codes.shape[0]), dtype=np.int_)
 
-    for i in prange(arr.shape[0]):
-        out[:, i] = value_counts_1d_nb(arr[i, :], n_uniques)
+    for i in prange(codes.shape[0]):
+        out[:, i] = value_counts_1d_nb(codes[i, :], n_uniques)
     return out
 
 

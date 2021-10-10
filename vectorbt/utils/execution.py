@@ -15,8 +15,6 @@ except ImportError:
     RemoteFunctionT = tp.Any
     ObjectRefT = tp.Any
 
-funcs_argsT = tp.Tuple[tp.Callable, tp.Args, tp.Kwargs]
-
 
 class ExecutionEngine(Configured):
     """Abstract class for executing functions."""
@@ -24,7 +22,7 @@ class ExecutionEngine(Configured):
     def __init__(self, **kwargs) -> None:
         Configured.__init__(self, **kwargs)
 
-    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
         """Run an iterable of tuples out of a function, arguments, and keyword arguments.
 
         Provide `n_calls` in case `funcs_args` is a generator and the underlying engine needs it."""
@@ -65,7 +63,7 @@ class SequenceEngine(ExecutionEngine):
         """Keyword arguments passed to tqdm."""
         return self._tqdm_kwargs
 
-    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
         if self.show_progress:
             from tqdm.auto import tqdm
 
@@ -105,7 +103,7 @@ class DaskEngine(ExecutionEngine):
         """Keyword arguments passed to `dask.compute`."""
         return self._compute_kwargs
 
-    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
         import dask
 
         results_delayed = []
@@ -195,7 +193,7 @@ class RayEngine(ExecutionEngine):
         return self._remote_kwargs
 
     @staticmethod
-    def get_ray_refs(funcs_args: tp.Iterable[funcs_argsT],
+    def get_ray_refs(funcs_args: tp.FuncsArgs,
                      reuse_refs: bool = True,
                      remote_kwargs: tp.KwargsLike = None) -> \
             tp.List[tp.Tuple[RemoteFunctionT, tp.Tuple[ObjectRefT, ...], tp.Dict[str, ObjectRefT]]]:
@@ -262,7 +260,7 @@ class RayEngine(ExecutionEngine):
             funcs_args_refs.append((func_remote, arg_refs, kwarg_refs))
         return funcs_args_refs
 
-    def execute(self, funcs_args: tp.Iterable[funcs_argsT], n_calls: tp.Optional[int] = None) -> list:
+    def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
         import ray
 
         if self.restart:
@@ -289,7 +287,7 @@ class RayEngine(ExecutionEngine):
         return results
 
 
-def execute(funcs_args: tp.Iterable[funcs_argsT],
+def execute(funcs_args: tp.FuncsArgs,
             engine: tp.EngineLike = SequenceEngine,
             n_calls: tp.Optional[int] = None,
             **kwargs) -> list:

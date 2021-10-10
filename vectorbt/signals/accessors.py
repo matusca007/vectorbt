@@ -198,19 +198,19 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.template import RepEval
+from vectorbt.utils.template import Rep, RepEval
 from vectorbt.utils.random import set_seed_nb
-from vectorbt.utils.chunking import resolve_chunked, resolve_chunked_option, ArgsTaker, ArraySlicer
+from vectorbt.utils import chunking as ch
 from vectorbt.base import reshaping
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.base import chunking as base_chunking
+from vectorbt.base import chunking as base_ch
 from vectorbt.records.mapped_array import MappedArray
-from vectorbt.records import chunking as records_chunking
+from vectorbt.records import chunking as records_ch
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic import plotting
 from vectorbt.generic.ranges import Ranges
-from vectorbt.generic import nb as generic_nb, chunking as generic_chunking
-from vectorbt.signals import nb, chunking
+from vectorbt.generic import nb as generic_nb
+from vectorbt.signals import nb
 
 __pdoc__ = {}
 
@@ -297,8 +297,12 @@ class SignalsAccessor(GenericAccessor):
 
         shape_2d = cls.resolve_shape(shape)
         func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
-        chunked_config = merge_dicts(generic_chunking.target_shape_ax1_config, base_chunking.column_stack_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ShapeSizer(0, 1),
+            arg_take_spec={0: ch.ShapeSlicer(1)},
+            merge_func=base_ch.column_stack
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         result = func(shape_2d, place_func_nb, *args)
 
         if wrapper is None:
@@ -414,8 +418,12 @@ class SignalsAccessor(GenericAccessor):
             exit_args = ()
 
         func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
-        chunked_config = merge_dicts(generic_chunking.target_shape_ax1_config, base_chunking.column_stack_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ShapeSizer(0, 1),
+            arg_take_spec={0: ch.ShapeSlicer(1)},
+            merge_func=base_ch.column_stack
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         result1, result2 = func(
             shape_2d,
             entry_wait,
@@ -462,8 +470,12 @@ class SignalsAccessor(GenericAccessor):
         checks.assert_numba_func(exit_place_func_nb)
 
         func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=base_ch.column_stack
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         exits = func(
             self.to_2d_array(),
             wait,
@@ -502,8 +514,15 @@ class SignalsAccessor(GenericAccessor):
                 broadcast_kwargs = {}
             entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
             func = nb_registry.redecorate_parallel(nb.clean_enex_nb, nb_parallel)
-            chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
-            func = resolve_chunked(func, chunked, **chunked_config)
+            chunked_kwargs = dict(
+                size=ch.ArraySizer(0, 1),
+                arg_take_spec={
+                    0: ch.ArraySlicer(1),
+                    1: ch.ArraySlicer(1)
+                },
+                merge_func=base_ch.column_stack
+            )
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             entries_out, exits_out = func(
                 reshaping.to_2d_array(entries),
                 reshaping.to_2d_array(exits),
@@ -588,10 +607,10 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
-                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=True))}),
+                    dict(arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=True))}),
                     chunked
                 )
             return cls.generate(
@@ -604,10 +623,10 @@ class SignalsAccessor(GenericAccessor):
         if prob is not None:
             prob = np.broadcast_to(prob, shape)
             flex_2d = isinstance(shape, tuple) and len(shape) > 1
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
-                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))}),
+                    dict(arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))}),
                     chunked
                 )
             return cls.generate(
@@ -710,12 +729,15 @@ class SignalsAccessor(GenericAccessor):
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
             func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, nb_parallel)
-            chunked_config = merge_dicts(
-                generic_chunking.target_shape_ax1_config,
-                dict(arg_take_spec={'n': base_chunking.FlexArraySlicer(1, flex_2d=True)}),
-                base_chunking.column_stack_config
+            chunked_kwargs = dict(
+                size=ch.ShapeSizer(0, 1),
+                arg_take_spec={
+                    0: ch.ShapeSlicer(1),
+                    1: base_ch.FlexArraySlicer(1, flex_2d=True)
+                },
+                merge_func=base_ch.column_stack
             )
-            func = resolve_chunked(func, chunked, **chunked_config)
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             entries, exits = func(shape_2d, n, entry_wait, exit_wait)
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
@@ -726,12 +748,12 @@ class SignalsAccessor(GenericAccessor):
             entry_prob = np.broadcast_to(entry_prob, shape)
             exit_prob = np.broadcast_to(exit_prob, shape)
             flex_2d = isinstance(shape, tuple) and len(shape) > 1
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
                     dict(arg_take_spec={
-                        'entry_args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)),
-                        'exit_args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))
+                        'entry_args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d)),
+                        'exit_args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))
                     }),
                     chunked
                 )
@@ -812,10 +834,10 @@ class SignalsAccessor(GenericAccessor):
         if prob is not None:
             obj, prob = reshaping.broadcast(self.obj, prob, keep_raw=[False, True], **broadcast_kwargs)
             flex_2d = obj.ndim == 2
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
-                    dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=flex_2d))}),
+                    dict(arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))}),
                     chunked
                 )
             return obj.vbt.signals.generate_exits(
@@ -831,10 +853,10 @@ class SignalsAccessor(GenericAccessor):
                 **kwargs
             )
         n = np.broadcast_to(1, (self.wrapper.shape_2d[1],))
-        chunked = resolve_chunked_option(chunked)
+        chunked = ch.resolve_chunked_option(chunked)
         if chunked is not None:
             chunked = merge_dicts(
-                dict(arg_take_spec={'args': ArgsTaker(base_chunking.FlexArraySlicer(1, flex_2d=True))}),
+                dict(arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=True))}),
                 chunked
             )
         return self.generate_exits(
@@ -924,15 +946,15 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.sr_accessor_cls
             else:
                 cls = self.df_accessor_cls
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
                     dict(arg_take_spec={
-                        'entry_args': ArgsTaker(ArraySlicer(1)),
-                        'exit_args': ArgsTaker(
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        'entry_args': ch.ArgsTaker(ch.ArraySlicer(1)),
+                        'exit_args': ch.ArgsTaker(
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
                         )
                     }),
                     chunked
@@ -960,14 +982,14 @@ class SignalsAccessor(GenericAccessor):
                 **kwargs
             )
         else:
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
                     dict(arg_take_spec={
-                        'args': ArgsTaker(
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        'args': ch.ArgsTaker(
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
                         )
                     }),
                     chunked
@@ -1220,22 +1242,22 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.sr_accessor_cls
             else:
                 cls = self.df_accessor_cls
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
                     dict(arg_take_spec={
-                        'entry_args': ArgsTaker(ArraySlicer(1)),
-                        'exit_args': ArgsTaker(
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            ArraySlicer(1),
-                            ArraySlicer(1),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        'entry_args': ch.ArgsTaker(ch.ArraySlicer(1)),
+                        'exit_args': ch.ArgsTaker(
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            ch.ArraySlicer(1),
+                            ch.ArraySlicer(1),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
                         )
                     }),
                     chunked
@@ -1276,21 +1298,21 @@ class SignalsAccessor(GenericAccessor):
         else:
             if skip_until_exit and until_next:
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
-            chunked = resolve_chunked_option(chunked)
+            chunked = ch.resolve_chunked_option(chunked)
             if chunked is not None:
                 chunked = merge_dicts(
                     dict(arg_take_spec={
-                        'args': ArgsTaker(
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            ArraySlicer(1),
-                            ArraySlicer(1),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d),
-                            base_chunking.FlexArraySlicer(1, flex_2d=flex_2d)
+                        'args': ch.ArgsTaker(
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            ch.ArraySlicer(1),
+                            ch.ArraySlicer(1),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                            base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
                         )
                     }),
                     chunked
@@ -1401,8 +1423,13 @@ class SignalsAccessor(GenericAccessor):
         if other is None:
             # One input array
             func = nb_registry.redecorate_parallel(nb.between_ranges_nb, nb_parallel)
-            chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
-            func = resolve_chunked(func, chunked, **chunked_config)
+            chunked_kwargs = dict(
+                size=ch.ArraySizer(0, 1),
+                arg_take_spec={0: ch.ArraySlicer(1)},
+                merge_func=records_ch.merge_records,
+                merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+            )
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             range_records = func(self.to_2d_array())
             wrapper = self.wrapper
             to_attach = self.obj
@@ -1410,8 +1437,16 @@ class SignalsAccessor(GenericAccessor):
             # Two input arrays
             obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
             func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, nb_parallel)
-            chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
-            func = resolve_chunked(func, chunked, **chunked_config)
+            chunked_kwargs = dict(
+                size=ch.ArraySizer(0, 1),
+                arg_take_spec={
+                    0: ch.ArraySlicer(1),
+                    1: ch.ArraySlicer(1)
+                },
+                merge_func=records_ch.merge_records,
+                merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+            )
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             range_records = func(
                 reshaping.to_2d_array(obj),
                 reshaping.to_2d_array(other),
@@ -1448,8 +1483,13 @@ class SignalsAccessor(GenericAccessor):
         1         1       0                4              5    Open
         ```"""
         func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=records_ch.merge_records,
+            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1477,8 +1517,13 @@ class SignalsAccessor(GenericAccessor):
         1         1       0                3              5  Closed
          ```"""
         func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.mask_config, records_chunking.merge_records_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=records_ch.merge_records,
+            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1526,8 +1571,12 @@ class SignalsAccessor(GenericAccessor):
         else:
             temp_arrs = ()
         func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.mask_config, base_chunking.column_stack_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=base_ch.column_stack
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         rank = func(
             obj_arr,
             reset_by,
@@ -1711,8 +1760,12 @@ class SignalsAccessor(GenericAccessor):
         else:
             arr = self.to_2d_array()
         func = nb_registry.redecorate_parallel(nb.nth_index_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.mask_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         nth_index = func(arr, n)
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
@@ -1750,17 +1803,24 @@ class SignalsAccessor(GenericAccessor):
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, nb_parallel)
-            chunked_config = merge_dicts(
-                chunking.mask_group_lens_config,
-                base_chunking.group_lens_config,
-                base_chunking.concat_config
+            chunked_kwargs = dict(
+                size=ch.ArraySizer(1, 0),
+                arg_take_spec={
+                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
+                    1: ch.ArraySlicer(0)
+                },
+                merge_func=base_ch.concat
             )
-            func = resolve_chunked(func, chunked, **chunked_config)
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             norm_avg_index = func(self.to_2d_array(), group_lens)
         else:
             func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, nb_parallel)
-            chunked_config = merge_dicts(chunking.mask_config, base_chunking.concat_config)
-            func = resolve_chunked(func, chunked, **chunked_config)
+            chunked_kwargs = dict(
+                size=ch.ArraySizer(0, 1),
+                arg_take_spec={0: ch.ArraySlicer(1)},
+                merge_func=base_ch.concat
+            )
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             norm_avg_index = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
         return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)

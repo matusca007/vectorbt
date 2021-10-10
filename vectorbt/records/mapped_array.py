@@ -417,21 +417,21 @@ import pandas as pd
 import warnings
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry, warn_parallel_enabled
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
-from vectorbt.utils.chunking import resolve_chunked, warn_chunked_enabled
+from vectorbt.utils import chunking as ch
 from vectorbt.utils.array import index_repeating_rows_nb
 from vectorbt.base.reshaping import to_1d_array, to_dict
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.base import chunking as base_chunking
+from vectorbt.base import chunking as base_ch
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
-from vectorbt.records import nb, chunking
+from vectorbt.records import nb, chunking as records_ch
 from vectorbt.records.col_mapper import ColumnMapper
 
 MappedArrayT = tp.TypeVar("MappedArrayT", bound="MappedArray")
@@ -696,12 +696,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         """Return mask of top N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.top_n_mapped_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            chunking.recarr_col_map_config,
-            chunking.col_map_config,
-            base_chunking.concat_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(1),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                1: records_ch.ColMapSlicer()
+            },
+            merge_func=base_ch.concat
         )
-        func = resolve_chunked(func, chunked, **chunked_config)
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         return func(self.values, col_map, n)
 
     def bottom_n_mask(self, n: int,
@@ -711,12 +714,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         """Return mask of bottom N elements in each column/group."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.bottom_n_mapped_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            chunking.recarr_col_map_config,
-            chunking.col_map_config,
-            base_chunking.concat_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(1),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                1: records_ch.ColMapSlicer()
+            },
+            merge_func=base_ch.concat
         )
-        func = resolve_chunked(func, chunked, **chunked_config)
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         return func(self.values, col_map, n)
 
     def top_n(self: MappedArrayT,
@@ -793,24 +799,30 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
             func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
-            chunked_config = merge_dicts(
-                chunking.col_map_config,
-                chunking.recarr_len_col_map_config,
-                base_chunking.concat_config
+            chunked_kwargs = dict(
+                size=records_ch.ColLensSizer(1),
+                arg_take_spec={
+                    0: ch.CountAdapter(mapper=records_ch.ColIdxsMapper(1)),
+                    1: records_ch.ColMapSlicer()
+                },
+                merge_func=base_ch.concat
             )
-            func = resolve_chunked(func, chunked, **chunked_config)
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
             func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
-            chunked_config = merge_dicts(
-                chunking.recarr_col_map_config,
-                chunking.col_map_config,
-                base_chunking.concat_config
+            chunked_kwargs = dict(
+                size=records_ch.ColLensSizer(1),
+                arg_take_spec={
+                    0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                    1: records_ch.ColMapSlicer()
+                },
+                merge_func=base_ch.concat
             )
-            func = resolve_chunked(func, chunked, **chunked_config)
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.replace(mapped_arr=mapped_arr, **kwargs).regroup(group_by)
@@ -857,12 +869,18 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             stacked_segment_arr = np.column_stack(segment_arr)
             segment_arr = index_repeating_rows_nb(stacked_segment_arr)
 
-        chunked_config = merge_dicts(
-            chunking.recarr_col_map_config,
-            chunking.col_map_config,
-            base_chunking.concat_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(3),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
+                1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
+                2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
+                3: records_ch.ColMapSlicer(),
+                4: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
+            },
+            merge_func=base_ch.concat
         )
-        func = resolve_chunked(nb.reduce_mapped_segments_nb, chunked, **chunked_config)
+        func = ch.resolve_chunked(nb.reduce_mapped_segments_nb, chunked, **chunked_kwargs)
         new_mapped_arr, new_col_arr, new_idx_arr, new_id_arr = \
             func(self.values, idx_arr, self.id_arr, col_map, segment_arr, reduce_func_nb, *args)
         new_mapped_arr = np.asarray(new_mapped_arr, dtype=dtype)
@@ -925,8 +943,12 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_meta_nb, nb_parallel)
-                    chunked_config = merge_dicts(chunking.col_map_config, base_chunking.concat_config)
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(0),
+                        arg_take_spec={0: records_ch.ColMapSlicer()},
+                        merge_func=base_ch.concat
+                    )
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         col_map,
                         fill_value,
@@ -937,12 +959,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_meta_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.concat_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(0),
+                        arg_take_spec={
+                            0: records_ch.ColMapSlicer(),
+                            1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(0))
+                        },
+                        merge_func=base_ch.concat
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         col_map,
                         idx_arr,
@@ -954,8 +979,12 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_array_meta_nb, nb_parallel)
-                    chunked_config = merge_dicts(chunking.col_map_config, base_chunking.column_stack_config)
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(0),
+                        arg_take_spec={0: records_ch.ColMapSlicer()},
+                        merge_func=base_ch.column_stack
+                    )
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         col_map,
                         fill_value,
@@ -966,12 +995,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_array_meta_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.column_stack_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(0),
+                        arg_take_spec={
+                            0: records_ch.ColMapSlicer(),
+                            1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(0))
+                        },
+                        merge_func=base_ch.column_stack
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         col_map,
                         idx_arr,
@@ -991,12 +1023,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.concat_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(1),
+                        arg_take_spec={
+                            0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                            1: records_ch.ColMapSlicer()
+                        },
+                        merge_func=base_ch.concat
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         cls_or_self.values,
                         col_map,
@@ -1008,12 +1043,16 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.concat_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(1),
+                        arg_take_spec={
+                            0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                            1: records_ch.ColMapSlicer(),
+                            2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1))
+                        },
+                        merge_func=base_ch.concat
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         cls_or_self.values,
                         col_map,
@@ -1026,12 +1065,15 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 if not returns_idx:
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_array_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.column_stack_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(1),
+                        arg_take_spec={
+                            0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                            1: records_ch.ColMapSlicer()
+                        },
+                        merge_func=base_ch.column_stack
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         cls_or_self.values,
                         col_map,
@@ -1043,12 +1085,16 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     checks.assert_not_none(idx_arr)
                     func = nb_registry.redecorate_parallel(
                         nb.reduce_mapped_to_idx_array_nb, nb_parallel)
-                    chunked_config = merge_dicts(
-                        chunking.col_map_config,
-                        chunking.recarr_col_map_config,
-                        base_chunking.column_stack_config
+                    chunked_kwargs = dict(
+                        size=records_ch.ColLensSizer(1),
+                        arg_take_spec={
+                            0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                            1: records_ch.ColMapSlicer(),
+                            2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1))
+                        },
+                        merge_func=base_ch.column_stack
                     )
-                    func = resolve_chunked(func, chunked, **chunked_config)
+                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
                     out = func(
                         cls_or_self.values,
                         col_map,
@@ -1357,23 +1403,22 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if idx_arr is None:
                 idx_arr = self.idx_arr
             checks.assert_not_none(idx_arr)
-            warn_chunked_enabled(nb.mapped_value_counts_per_row_nb, chunked)
-            warn_parallel_enabled(nb.mapped_value_counts_per_row_nb, nb_parallel)
             value_counts = nb.mapped_value_counts_per_row_nb(
                 mapped_codes, len(mapped_uniques), idx_arr, self.wrapper.shape[0])
         elif axis == 1:
             col_map = self.col_mapper.get_col_map(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.mapped_value_counts_per_col_nb, nb_parallel)
-            chunked_config = merge_dicts(
-                chunking.col_map_config,
-                chunking.recarr_col_map_config,
-                base_chunking.column_stack_config
+            chunked_kwargs = dict(
+                size=records_ch.ColLensSizer(2),
+                arg_take_spec={
+                    0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(2)),
+                    2: records_ch.ColMapSlicer()
+                },
+                merge_func=base_ch.column_stack
             )
-            func = resolve_chunked(func, chunked, **chunked_config)
+            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
             value_counts = func(mapped_codes, len(mapped_uniques), col_map)
         else:
-            warn_chunked_enabled(nb.mapped_value_counts_nb, chunked)
-            warn_parallel_enabled(nb.mapped_value_counts_nb, nb_parallel)
             value_counts = nb.mapped_value_counts_nb(mapped_codes, len(mapped_uniques))
         if incl_all_keys and mapping is not None:
             missing_keys = []
@@ -1476,7 +1521,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         """Unstack mapped array to a Series/DataFrame.
 
         * If `ignore_index`, will ignore the index and place values on top of each other in every column/group.
-            See `vectorbt.records.nb.stack_unstack_mapped_nb`.
+            See `vectorbt.records.nb.ignore_unstack_mapped_nb`.
         * If `repeat_index`, will repeat any index pointed from multiple values.
             Otherwise, in case of positional conflicts, will throw a warning and use the latest value.
             See `vectorbt.records.nb.repeat_unstack_mapped_nb`.

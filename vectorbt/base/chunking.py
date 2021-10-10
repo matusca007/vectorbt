@@ -7,9 +7,35 @@ import numpy as np
 from numba.typed import List
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
 from vectorbt.utils.parsing import match_ann_arg
-from vectorbt.utils.chunking import ArgGetterMixin, ChunkMeta, ChunkMapper, ArraySizer, ArraySelector, ArraySlicer
+from vectorbt.utils.chunking import (
+    ArgGetterMixin,
+    ChunkMeta,
+    ChunkMapper,
+    ArraySelector,
+    ArraySlicer
+)
+
+
+def column_stack(results: list) -> tp.MaybeTuple[list]:
+    """Stack columns from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.column_stack, zip(*results)))
+    return np.column_stack(results)
+
+
+def row_stack(results: list) -> tp.MaybeTuple[list]:
+    """Stack rows from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.row_stack, zip(*results)))
+    return np.row_stack(results)
+
+
+def concat(results: list) -> tp.MaybeTuple[list]:
+    """Concatenate elements from each array in results. Supports multiple arrays per result."""
+    if isinstance(results[0], (tuple, list, List)):
+        return tuple(map(np.concatenate, zip(*results)))
+    return np.concatenate(results)
 
 
 def get_group_lens_slice(group_lens: tp.Array1d, chunk_meta: ChunkMeta) -> slice:
@@ -36,54 +62,6 @@ class GroupLensMapper(ChunkMapper, ArgGetterMixin):
             end=group_lens_slice.stop,
             indices=None
         )
-
-
-group_lens_config = Config(
-    dict(
-        size=ArraySizer('group_lens', 0),
-        arg_take_spec={'group_lens': ArraySlicer(0)}
-    )
-)
-"""Config for slicing group lengths."""
-
-
-def column_stack(results: list) -> tp.MaybeTuple[list]:
-    """Stack columns from each array in results. Supports multiple arrays per result."""
-    if isinstance(results[0], (tuple, list, List)):
-        return tuple(map(np.column_stack, zip(*results)))
-    return np.column_stack(results)
-
-
-column_stack_config = Config(
-    dict(merge_func=column_stack)
-)
-"""Config for merging arrays through horizontal stacking (column-wise)."""
-
-
-def row_stack(results: list) -> tp.MaybeTuple[list]:
-    """Stack rows from each array in results. Supports multiple arrays per result."""
-    if isinstance(results[0], (tuple, list, List)):
-        return tuple(map(np.row_stack, zip(*results)))
-    return np.row_stack(results)
-
-
-row_stack_config = Config(
-    dict(merge_func=row_stack)
-)
-"""Config for merging arrays through vertical stacking (row-wise)."""
-
-
-def concat(results: list) -> tp.MaybeTuple[list]:
-    """Concatenate elements from each array in results. Supports multiple arrays per result."""
-    if isinstance(results[0], (tuple, list, List)):
-        return tuple(map(np.concatenate, zip(*results)))
-    return np.concatenate(results)
-
-
-concat_config = Config(
-    dict(merge_func=concat)
-)
-"""Config for merging arrays through concatenating."""
 
 
 class FlexMixin:

@@ -2598,11 +2598,12 @@ class TestTemplate:
 
     def test_deep_substitute(self):
         assert template.deep_substitute(template.Rep('hello'), {'hello': 100}) == 100
+        assert isinstance(template.deep_substitute(template.Rep('hello2'), {'hello': 100}), template.Rep)
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Rep('hello2'), {'hello': 100})
+            _ = template.deep_substitute(template.Rep('hello2'), {'hello': 100}, strict=True)
         assert template.deep_substitute(template.Sub('$hello'), {'hello': 100}) == '100'
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Sub('$hello2'), {'hello': 100})
+            _ = template.deep_substitute(template.Sub('$hello2'), {'hello': 100}, strict=True)
         assert template.deep_substitute([template.Rep('hello')], {'hello': 100}) == [100]
         assert template.deep_substitute((template.Rep('hello'),), {'hello': 100}) == (100,)
         assert template.deep_substitute({'test': template.Rep('hello')}, {'hello': 100}) == {'test': 100}
@@ -3013,6 +3014,27 @@ class TestChunking:
         args, kwargs = chunking.take_from_args(ann_args, arg_take_spec, chunking.ChunkMeta(0, 1, 3, indices=None))
         assert args == (lst, lst[0], lst, (lst, lst[1:3]))
         assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
+        arg_take_spec2 = [
+            None,
+            chunking.ChunkSelector(),
+            chunking.ArgsTaker(
+                None,
+                chunking.SequenceTaker((
+                    None,
+                    chunking.ChunkSlicer()
+                ))
+            ),
+            None,
+            chunking.ChunkSelector(),
+            chunking.KwargsTaker(
+                f=chunking.MappingTaker(dict(
+                    h=chunking.ChunkSlicer()
+                ))
+            )
+        ]
+        args, kwargs = chunking.take_from_args(ann_args, arg_take_spec2, chunking.ChunkMeta(0, 1, 3, indices=None))
+        assert args == (lst, lst[0], lst, (lst, lst[1:3]))
+        assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
 
     def test_chunk_takers(self):
         a = np.arange(6).reshape((2, 3))
@@ -3099,7 +3121,8 @@ class TestChunking:
         assert list(chunking.yield_arg_chunks(
             f, ann_args, chunk_meta, arg_take_spec=lambda ann_args, chunk_meta:
             ((2, 3, 1), dict(b=[1, 2, 3][chunk_meta.idx])))) == result
-        ann_args = parsing.annotate_args(f, template.RepEval('args["value"][1] + 1'), 3, 1, b=template.Rep('lst'))
+        ann_args = parsing.annotate_args(
+            f, template.RepEval('ann_args["args"]["value"][1] + 1'), 3, 1, b=template.Rep('lst'))
         assert list(chunking.yield_arg_chunks(
             f, ann_args, chunk_meta, arg_take_spec=arg_take_spec, template_mapping={'lst': [1, 2, 3]})) == result
 

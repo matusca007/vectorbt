@@ -88,9 +88,7 @@ class RepFunc(CustomTemplate):
 
 def has_templates(obj: tp.Any) -> tp.Any:
     """Check if the object has any templates."""
-    if isinstance(obj, CustomTemplate):
-        return True
-    if isinstance(obj, Template):
+    if isinstance(obj, (Template, CustomTemplate)):
         return True
     if isinstance(obj, dict):
         for k, v in obj.items():
@@ -105,13 +103,13 @@ def has_templates(obj: tp.Any) -> tp.Any:
 
 def deep_substitute(obj: tp.Any,
                     mapping: tp.Optional[tp.Mapping] = None,
-                    safe: bool = False,
+                    strict: bool = False,
                     make_copy: bool = True) -> tp.Any:
     """Traverses the object recursively and, if any template found, substitutes it using a mapping.
 
     Traverses tuples, lists, dicts and (frozen-)sets. Does not look for templates in keys.
 
-    If `safe` is True, won't raise an error but return the original template.
+    If `strict` is True, raises an error if processing template fails. Otherwise, returns the original template.
 
     !!! note
         If the object is deep (such as a dict or a list), creates a copy of it if any template found inside,
@@ -137,9 +135,9 @@ def deep_substitute(obj: tp.Any,
     True
     >>> vbt.deep_substitute(vbt.RepEval('key == 100'), {'key': 100})
     True
-    >>> vbt.deep_substitute(vbt.RepEval('key == 100', safe=False))
+    >>> vbt.deep_substitute(vbt.RepEval('key == 100', strict=True))
     NameError: name 'key' is not defined
-    >>> vbt.deep_substitute(vbt.RepEval('key == 100', safe=True))
+    >>> vbt.deep_substitute(vbt.RepEval('key == 100', strict=False))
     <vectorbt.utils.template.RepEval at 0x7fe3ad2ab668>
     ```"""
     if mapping is None:
@@ -153,22 +151,22 @@ def deep_substitute(obj: tp.Any,
             if make_copy:
                 obj = copy(obj)
             for k, v in obj.items():
-                set_dict_item(obj, k, deep_substitute(v, mapping=mapping, safe=safe), force=True)
+                set_dict_item(obj, k, deep_substitute(v, mapping=mapping, strict=strict), force=True)
             return obj
         if isinstance(obj, list):
             if make_copy:
                 obj = copy(obj)
             for i in range(len(obj)):
-                obj[i] = deep_substitute(obj[i], mapping=mapping, safe=safe)
+                obj[i] = deep_substitute(obj[i], mapping=mapping, strict=strict)
             return obj
         if isinstance(obj, (tuple, set, frozenset)):
             result = []
             for o in obj:
-                result.append(deep_substitute(o, mapping=mapping, safe=safe))
+                result.append(deep_substitute(o, mapping=mapping, strict=strict))
             if checks.is_namedtuple(obj):
                 return type(obj)(*result)
             return type(obj)(result)
     except Exception as e:
-        if not safe:
+        if strict:
             raise e
     return obj

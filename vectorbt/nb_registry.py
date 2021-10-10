@@ -167,12 +167,6 @@ class NumbaRegistry:
             )
 
 
-def warn_parallel_enabled(func: tp.Callable, parallel: tp.Optional[bool]) -> None:
-    """Warn if `parallel` argument is not None."""
-    if parallel is not None:
-        warnings.warn(f"{func.__name__} does not support parallelization with Numba", stacklevel=2)
-
-
 nb_registry = NumbaRegistry()
 """Registry of type `NumbaRegistry`."""
 

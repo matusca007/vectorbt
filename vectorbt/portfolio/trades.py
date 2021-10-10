@@ -490,18 +490,18 @@ from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
-from vectorbt.utils.template import RepEval
+from vectorbt.utils.template import Rep, RepEval
 from vectorbt.utils.decorators import cached_property
-from vectorbt.utils.chunking import resolve_chunked
+from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.base import chunking as base_chunking
+from vectorbt.base import chunking as base_ch
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.decorators import attach_fields, override_field_config
 from vectorbt.records.mapped_array import MappedArray
-from vectorbt.records import chunking as records_chunking
+from vectorbt.records import chunking as records_ch
 from vectorbt.portfolio.enums import TradeDirection, TradeStatus, trade_dt
-from vectorbt.portfolio import nb, chunking
+from vectorbt.portfolio import nb
 from vectorbt.portfolio.orders import Orders
 
 __pdoc__ = {}
@@ -1533,13 +1533,17 @@ class EntryTrades(Trades):
         if close is None:
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            records_chunking.recarr_col_map_config,
-            chunking.close_config,
-            records_chunking.col_map_config,
-            records_chunking.merge_records_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(2),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(2)),
+                1: ch.ArraySlicer(1),
+                2: records_ch.ColMapSlicer()
+            },
+            merge_func=records_ch.merge_records,
+            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
         )
-        func = resolve_chunked(func, chunked, **chunked_config)
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
@@ -1585,13 +1589,17 @@ class ExitTrades(Trades):
         if close is None:
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            records_chunking.recarr_col_map_config,
-            chunking.close_config,
-            records_chunking.col_map_config,
-            records_chunking.merge_records_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(2),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(2)),
+                1: ch.ArraySlicer(1),
+                2: records_ch.ColMapSlicer()
+            },
+            merge_func=records_ch.merge_records,
+            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
         )
-        func = resolve_chunked(func, chunked, **chunked_config)
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
@@ -1645,11 +1653,14 @@ class Positions(Trades):
         if close is None:
             close = trades.close
         func = nb_registry.redecorate_parallel(nb.get_positions_nb, nb_parallel)
-        chunked_config = merge_dicts(
-            records_chunking.recarr_col_map_config,
-            records_chunking.col_map_config,
-            base_chunking.concat_config
+        chunked_kwargs = dict(
+            size=records_ch.ColLensSizer(1),
+            arg_take_spec={
+                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
+                1: records_ch.ColMapSlicer()
+            },
+            merge_func=base_ch.concat
         )
-        func = resolve_chunked(func, chunked, **chunked_config)
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

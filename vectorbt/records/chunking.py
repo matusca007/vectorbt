@@ -6,35 +6,14 @@
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
-from vectorbt.utils.template import Rep
 from vectorbt.utils.chunking import (
     ArgGetterMixin,
     ChunkMeta,
     ArgSizer,
-    ArraySizer,
     ChunkSlicer,
-    ArraySlicer,
-    CountAdapter,
     ChunkMapper
 )
 from vectorbt.base.chunking import get_group_lens_slice
-
-recarr_config = Config(
-    dict(
-        size=ArraySizer(r'(.*records|.*arr)', 0),
-        arg_take_spec={r'(.*records|.*arr)': ArraySlicer(0)}
-    )
-)
-"""Config for slicing records or a mapped array."""
-
-recarr_len_config = Config(
-    dict(
-        size=ArgSizer('n_values'),
-        arg_take_spec={'n_values': CountAdapter()}
-    )
-)
-"""Config for adapting the length of records or a mapped array."""
 
 
 class ColLensSizer(ArgSizer):
@@ -115,60 +94,8 @@ class ColIdxsMapper(ChunkMapper, ArgGetterMixin):
         )
 
 
-col_map_config = Config(
-    dict(
-        size=ColLensSizer('col_map'),
-        arg_take_spec={'col_map': ColMapSlicer()}
-    )
-)
-"""Config for slicing a column map."""
-
-col_lens_config = Config(
-    dict(
-        size=ColLensSizer('(col_lens|col_map)'),
-        arg_take_spec={'(col_lens|col_map)': ColLensSlicer()}
-    )
-)
-"""Config for slicing column lengths."""
-
-
-recarr_col_map_config = Config(
-    dict(arg_take_spec={r'(.*records|.*arr)': ArraySlicer(0, mapper=ColIdxsMapper('col_map'))})
-)
-"""Config for slicing records or a mapped array based on a column map."""
-
-recarr_col_lens_config = Config(
-    dict(arg_take_spec={r'(.*records|.*arr)': ArraySlicer(0, mapper=ColLensMapper('(col_map|col_lens)'))})
-)
-"""Config for slicing records or a mapped array based on column lengths."""
-
-recarr_len_col_map_config = Config(
-    dict(arg_take_spec={'n_values': CountAdapter(mapper=ColIdxsMapper('col_map'))})
-)
-"""Config for adapting the length of records or a mapped array based on a column map."""
-
-recarr_len_col_lens_config = Config(
-    dict(arg_take_spec={'n_values': CountAdapter(mapper=ColLensMapper('(col_map|col_lens)'))})
-)
-"""Config for adapting the length of records or a mapped array based on column lengths."""
-
-index_lens_config = Config(
-    dict(arg_take_spec={'index_lens': ArraySlicer(0)})
-)
-"""Config for slicing index lengths."""
-
-
 def merge_records(results: tp.List[tp.RecordArray], chunk_meta: ChunkMeta) -> tp.RecordArray:
-    """Merge chunks of record arrays."""
+    """Merge chunks of record arrays by fixing their column field."""
     for _chunk_meta in chunk_meta:
         results[_chunk_meta.idx]['col'] += _chunk_meta.start
     return np.concatenate(results)
-
-
-merge_records_config = Config(
-    dict(
-        merge_func=merge_records,
-        merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
-    )
-)
-"""Config for merging using `merge_records`."""

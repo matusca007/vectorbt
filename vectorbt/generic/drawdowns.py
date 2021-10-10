@@ -174,17 +174,17 @@ from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
-from vectorbt.utils.template import RepEval
-from vectorbt.utils.chunking import resolve_chunked
+from vectorbt.utils.template import Rep, RepEval
+from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.base import chunking as base_chunking
-from vectorbt.generic import nb, chunking
+from vectorbt.base import chunking as base_ch
+from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
-from vectorbt.records import chunking as records_chunking
+from vectorbt.records import chunking as records_ch
 
 __pdoc__ = {}
 
@@ -288,8 +288,13 @@ class Drawdowns(Ranges):
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
         func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, nb_parallel)
-        chunked_config = merge_dicts(chunking.arr_ax1_config, records_chunking.merge_records_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 1),
+            arg_take_spec={0: ch.ArraySlicer(1)},
+            merge_func=records_ch.merge_records,
+            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
@@ -309,8 +314,15 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_drawdown_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 0),
+            arg_take_spec={
+                0: ch.ArraySlicer(0),
+                1: ch.ArraySlicer(0)
+            },
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         drawdown = func(
             self.get_field_arr('peak_val'),
             self.get_field_arr('valley_val')
@@ -370,8 +382,15 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_return_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 0),
+            arg_take_spec={
+                0: ch.ArraySlicer(0),
+                1: ch.ArraySlicer(0)
+            },
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         recovery_return = func(
             self.get_field_arr('valley_val'),
             self.get_field_arr('end_val')
@@ -431,8 +450,15 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_decline_duration_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 0),
+            arg_take_spec={
+                0: ch.ArraySlicer(0),
+                1: ch.ArraySlicer(0)
+            },
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         decline_duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx')
@@ -454,8 +480,15 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 0),
+            arg_take_spec={
+                0: ch.ArraySlicer(0),
+                1: ch.ArraySlicer(0)
+            },
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         recovery_duration = func(
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
@@ -475,8 +508,16 @@ class Drawdowns(Ranges):
 
         Takes into account both recovered and active drawdowns."""
         func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_ratio_nb, nb_parallel)
-        chunked_config = merge_dicts(records_chunking.recarr_config, base_chunking.concat_config)
-        func = resolve_chunked(func, chunked, **chunked_config)
+        chunked_kwargs = dict(
+            size=ch.ArraySizer(0, 0),
+            arg_take_spec={
+                0: ch.ArraySlicer(0),
+                1: ch.ArraySlicer(0),
+                2: ch.ArraySlicer(0)
+            },
+            merge_func=base_ch.concat
+        )
+        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
         recovery_duration_ratio = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx'),

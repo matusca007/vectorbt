@@ -279,7 +279,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
             template_mapping_merged = deep_substitute(template_mapping_merged, mapping=merged_settings)
             mapping = merge_dicts(template_mapping_merged, merged_settings)
             # safe because we will use deep_substitute again once layout params are known
-            merged_settings = deep_substitute(merged_settings, mapping=mapping, safe=True)
+            merged_settings = deep_substitute(merged_settings, mapping=mapping)
 
             # Filter by tag
             if tags is not None:
