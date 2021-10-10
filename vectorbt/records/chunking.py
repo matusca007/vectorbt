@@ -4,6 +4,7 @@
 """Extensions to `vectorbt.utils.chunking`."""
 
 import numpy as np
+import uuid
 
 from vectorbt import _typing as tp
 from vectorbt.utils.chunking import (
@@ -55,11 +56,16 @@ class ColLensMapper(ChunkMapper, ArgGetterMixin):
             col_lens = col_lens[1]
         col_lens_slice = get_group_lens_slice(col_lens, chunk_meta)
         return ChunkMeta(
+            uuid=str(uuid.uuid4()),
             idx=chunk_meta.idx,
             start=col_lens_slice.start,
             end=col_lens_slice.stop,
             indices=None
         )
+
+
+col_lens_mapper = ColLensMapper(r'(col_lens|col_map)')
+"""Default instance of `ColLensMapper`."""
 
 
 class ColMapSlicer(ChunkSlicer):
@@ -87,6 +93,7 @@ class ColIdxsMapper(ChunkMapper, ArgGetterMixin):
         col_idxs, col_lens = col_map
         col_lens_slice = get_group_lens_slice(col_lens, chunk_meta)
         return ChunkMeta(
+            uuid=str(uuid.uuid4()),
             idx=chunk_meta.idx,
             start=None,
             end=None,
@@ -94,8 +101,12 @@ class ColIdxsMapper(ChunkMapper, ArgGetterMixin):
         )
 
 
+col_idxs_mapper = ColIdxsMapper('col_map')
+"""Default instance of `ColIdxsMapper`."""
+
+
 def merge_records(results: tp.List[tp.RecordArray], chunk_meta: ChunkMeta) -> tp.RecordArray:
-    """Merge chunks of record arrays by fixing their column field."""
+    """Merge chunks of record arrays."""
     for _chunk_meta in chunk_meta:
         results[_chunk_meta.idx]['col'] += _chunk_meta.start
     return np.concatenate(results)

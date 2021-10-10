@@ -1663,6 +1663,20 @@ class TestFromOrders:
         price_wide2.iloc[:, 1] *= 0.9
         price_wide2.iloc[:, 2] *= 1.1
         pf = from_orders_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, chunked=True)
+        pf2 = from_orders_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, chunked=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
+        pf = from_orders_both(
             close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
             group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=True)
         pf2 = from_orders_both(
@@ -3383,6 +3397,20 @@ class TestFromSignals:
         price_wide2 = price_wide.copy()
         price_wide2.iloc[:, 1] *= 0.9
         price_wide2.iloc[:, 2] *= 1.1
+        pf = from_signals_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, chunked=True)
+        pf2 = from_signals_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, chunked=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
         pf = from_signals_both(
             close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
             group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, chunked=True)
@@ -5519,21 +5547,66 @@ class TestFromOrderFunc:
         price_wide2 = price_wide.copy()
         price_wide2.iloc[:, 1] *= 0.9
         price_wide2.iloc[:, 2] *= 1.1
-        chunked = dict(arg_take_spec=dict(order_args=vbt.ArgsTaker(vbt.FlexArraySlicer(1))))
+        if test_flexible:
+            chunked = dict(
+                arg_take_spec=dict(
+                    flex_order_args=vbt.ArgsTaker(vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')))
+                )
+            )
+        else:
+            chunked = dict(
+                arg_take_spec=dict(
+                    order_args=vbt.ArgsTaker(vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')))
+                )
+            )
         pf = vbt.Portfolio.from_order_func(
             price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
-            row_wise=test_row_wise, flexible=test_flexible, chunked=chunked)
+            group_by=group_by, row_wise=test_row_wise, flexible=test_flexible, chunked=chunked)
         pf2 = vbt.Portfolio.from_order_func(
             price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
-            row_wise=test_row_wise, flexible=test_flexible, chunked=False)
-        record_arrays_close(
-            pf.order_records,
-            pf2.order_records
-        )
-        record_arrays_close(
-            pf.log_records,
-            pf2.log_records
-        )
+            group_by=group_by, row_wise=test_row_wise, flexible=test_flexible, chunked=False)
+        if test_row_wise:
+            pd.testing.assert_series_equal(
+                pf.total_profit(),
+                pf2.total_profit()
+            )
+            pd.testing.assert_series_equal(
+                pf.total_profit(),
+                pf2.total_profit()
+            )
+        else:
+            record_arrays_close(
+                pf.order_records,
+                pf2.order_records
+            )
+            record_arrays_close(
+                pf.log_records,
+                pf2.log_records
+            )
+        pf = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, cash_sharing=True, row_wise=test_row_wise, flexible=test_flexible, chunked=chunked)
+        pf2 = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, cash_sharing=True, row_wise=test_row_wise, flexible=test_flexible, chunked=False)
+        if test_row_wise:
+            pd.testing.assert_series_equal(
+                pf.total_profit(),
+                pf2.total_profit()
+            )
+            pd.testing.assert_series_equal(
+                pf.total_profit(),
+                pf2.total_profit()
+            )
+        else:
+            record_arrays_close(
+                pf.order_records,
+                pf2.order_records
+            )
+            record_arrays_close(
+                pf.log_records,
+                pf2.log_records
+            )
 
 
 # ############# Portfolio ############# #

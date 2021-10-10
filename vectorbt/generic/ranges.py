@@ -117,21 +117,19 @@ import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
+from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.template import Rep
-from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.base import chunking as base_ch
 from vectorbt.generic.enums import RangeStatus, range_dt
 from vectorbt.generic import nb
 from vectorbt.records.base import Records
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
-from vectorbt.records import chunking as records_ch
 
 __pdoc__ = {}
 
@@ -264,13 +262,7 @@ class Ranges(Records):
             else:
                 gap_value = np.nan
         func = nb_registry.redecorate_parallel(nb.get_ranges_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=records_ch.merge_records,
-            merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
@@ -290,17 +282,7 @@ class Ranges(Records):
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=records_ch.ColLensSizer(3),
-            arg_take_spec={
-                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                3: records_ch.ColMapSlicer()
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -316,16 +298,7 @@ class Ranges(Records):
                      **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
         func = nb_registry.redecorate_parallel(nb.range_duration_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 0),
-            arg_take_spec={
-                0: ch.ArraySlicer(0),
-                1: ch.ArraySlicer(0),
-                2: ch.ArraySlicer(0)
-            },
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -385,18 +358,7 @@ class Ranges(Records):
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
         func = nb_registry.redecorate_parallel(nb.range_coverage_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=records_ch.ColLensSizer(3),
-            arg_take_spec={
-                0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                3: records_ch.ColMapSlicer(),
-                4: ch.ArraySlicer(0)
-            },
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),

@@ -52,6 +52,7 @@ from numba import prange
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.utils.math import (
     is_close_nb,
     is_close_or_less_nb,
@@ -59,10 +60,15 @@ from vectorbt.utils.math import (
     add_nb
 )
 from vectorbt.utils.array import insert_argsort_nb
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.template import Rep, RepFunc
 from vectorbt.base.indexing import flex_select_auto_nb
+from vectorbt.base import chunking as base_ch
 from vectorbt.generic import nb as generic_nb
+from vectorbt.records import chunking as records_ch
 from vectorbt.returns import nb as returns_nb
 from vectorbt.portfolio.enums import *
+from vectorbt.portfolio import chunking as portfolio_ch
 
 
 # ############# Order processing ############# #
@@ -1269,6 +1275,37 @@ def update_pos_record_nb(record: tp.Record,
 # ############# Simulation ############# #
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=ch.ArraySlicer(0),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        size_type=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        direction=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        fixed_fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        slippage=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        min_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        max_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        reject_prob=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        lock_cash=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        allow_partial=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        raise_reject=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        log=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        val_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit(cache=True)
 def simulate_from_orders_nb(target_shape: tp.Shape,
                             group_lens: tp.Array1d,
@@ -1814,6 +1851,51 @@ AdjustSLFuncT = tp.Callable[[AdjustSLContext, tp.VarArg()], tp.Tuple[float, bool
 AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=ch.ArraySlicer(0),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        size_type=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        fixed_fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        slippage=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        min_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        max_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        reject_prob=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        lock_cash=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        allow_partial=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        raise_reject=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        log=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        accumulate=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_long_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_short_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_dir_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_opposite_entry=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        val_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        open=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        high=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        low=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        sl_stop=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        sl_trail=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        tp_stop=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        stop_entry_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        stop_exit_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_stop_exit=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        upon_stop_update=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit
 def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  group_lens: tp.Array1d,
@@ -2385,6 +2467,23 @@ OrderFuncT = tp.Callable[[OrderContext, tp.VarArg()], Order]
 PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        segment_mask=base_ch.FlexArraySlicer(1),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit
 def simulate_nb(target_shape: tp.Shape,
                 group_lens: tp.Array1d,
@@ -3263,6 +3362,23 @@ def simulate_nb(target_shape: tp.Shape,
     )
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        segment_mask=base_ch.FlexArraySlicer(1),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit
 def simulate_row_wise_nb(target_shape: tp.Shape,
                          group_lens: tp.Array1d,
@@ -3901,6 +4017,22 @@ def no_flex_order_func_nb(c: FlexOrderContext, *args) -> tp.Tuple[int, Order]:
 FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Order]]
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        segment_mask=base_ch.FlexArraySlicer(1),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit
 def flex_simulate_nb(target_shape: tp.Shape,
                      group_lens: tp.Array1d,
@@ -4601,6 +4733,22 @@ def flex_simulate_nb(target_shape: tp.Shape,
     )
 
 
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        segment_mask=base_ch.FlexArraySlicer(1),
+        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
+    merge_func=portfolio_ch.merge_sim_outs,
+    merge_kwargs=dict(
+        chunk_meta=Rep("chunk_meta"),
+        ann_args=Rep("ann_args"),
+        mapper=base_ch.group_lens_mapper
+    )
+)
 @register_jit
 def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               group_lens: tp.Array1d,
@@ -5266,6 +5414,16 @@ def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
     return r
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(2),
+    arg_take_spec={
+        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        1: ch.ArraySlicer(1),
+        2: records_ch.ColMapSlicer()
+    },
+    merge_func=records_ch.merge_records,
+    merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill entry trade records by aggregating order records.
@@ -5499,6 +5657,16 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
     return generic_nb.repartition_nb(new_records, counts)
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(2),
+    arg_take_spec={
+        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        1: ch.ArraySlicer(1),
+        2: records_ch.ColMapSlicer()
+    },
+    merge_func=records_ch.merge_records,
+    merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def get_exit_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill exit trade records by aggregating order records.
@@ -5802,6 +5970,14 @@ def copy_trade_record_nb(new_records: tp.RecordArray, r: int, trade_record: tp.R
     new_records['parent_id'][r] = r
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(1),
+    arg_take_spec={
+        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        1: records_ch.ColMapSlicer()
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill position records by aggregating trade records.
@@ -5986,6 +6162,11 @@ def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
 # ############# Close ############# #
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def fbfill_close_nb(close: tp.Array2d) -> tp.Array2d:
     """Forward and backward fill NaN values in close."""
@@ -6032,6 +6213,15 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
     return add_nb(position_before, -position_now)
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(2),
+    arg_take_spec={
+        0: ch.ShapeSlicer(1),
+        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        2: records_ch.ColMapSlicer()
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def asset_flow_nb(target_shape: tp.Shape,
                   order_records: tp.RecordArray,
@@ -6076,6 +6266,11 @@ def asset_flow_nb(target_shape: tp.Shape,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def assets_nb(asset_flow: tp.Array2d) -> tp.Array2d:
     """Get asset series per column.
@@ -6146,6 +6341,15 @@ def get_free_cash_diff_nb(position_before: float,
     return new_debt, free_cash_diff
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(2),
+    arg_take_spec={
+        0: ch.ShapeSlicer(1),
+        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        2: records_ch.ColMapSlicer()
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cash_flow_nb(target_shape: tp.Shape,
                  order_records: tp.RecordArray,
@@ -6195,6 +6399,14 @@ def cash_flow_nb(target_shape: tp.Shape,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def sum_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Squeeze each group of columns into a single column using sum operation."""
@@ -6247,6 +6459,14 @@ def init_cash_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bo
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get cash series per column."""
@@ -6258,6 +6478,16 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0),
+        2: ch.ArraySlicer(0),
+        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cash_in_sim_order_nb(cash_flow: tp.Array2d,
                          group_lens: tp.Array1d,
@@ -6281,6 +6511,16 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(2, 0),
+    arg_take_spec={
+        0: ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(1),
+        2: ch.ArraySlicer(0),
+        3: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cash_grouped_nb(target_shape: tp.Shape,
                     cash_flow_grouped: tp.Array2d,
@@ -6314,6 +6554,16 @@ def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> t
     return sum_grouped_nb(asset_value, group_lens)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(2, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        2: ch.ArraySlicer(0),
+        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def value_in_sim_order_nb(cash: tp.Array2d,
                           asset_value: tp.Array2d,
@@ -6359,6 +6609,16 @@ def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     return cash + asset_value
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(3),
+    arg_take_spec={
+        0: ch.ShapeSlicer(1),
+        1: ch.ArraySlicer(1),
+        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        3: records_ch.ColMapSlicer()
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def total_profit_nb(target_shape: tp.Shape,
                     close: tp.Array2d,
@@ -6435,6 +6695,16 @@ def total_return_nb(total_profit: tp.Array1d, init_cash: tp.Array1d) -> tp.Array
     return total_profit / init_cash
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0),
+        2: ch.ArraySlicer(0),
+        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def returns_in_sim_order_nb(value_iso: tp.Array2d,
                             group_lens: tp.Array1d,
@@ -6472,6 +6742,14 @@ def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cas
     return returns_nb.get_return_nb(input_asset_value, output_asset_value + cash_flow)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     """Get asset return series per column/group."""
@@ -6486,6 +6764,14 @@ def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def market_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     """Get market value per column."""
@@ -6496,6 +6782,15 @@ def market_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0),
+        2: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def market_value_grouped_nb(close: tp.Array2d,
                             group_lens: tp.Array1d,
@@ -6519,6 +6814,11 @@ def market_value_grouped_nb(close: tp.Array2d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def total_market_return_nb(market_value: tp.Array2d) -> tp.Array1d:
     """Get total market return per column/group."""
@@ -6528,6 +6828,14 @@ def total_market_return_nb(market_value: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
     """Get gross exposure per column/group."""

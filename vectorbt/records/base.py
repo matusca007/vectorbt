@@ -413,17 +413,16 @@ import string
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
+from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_method, class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.attr import get_dict_attr
-from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.base import chunking as base_ch
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
-from vectorbt.records import nb, chunking as records_ch
+from vectorbt.records import nb
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.col_mapper import ColumnMapper
 
@@ -791,27 +790,13 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             func = nb_registry.redecorate_parallel(nb.map_records_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArgSizer(0),
-                arg_take_spec={
-                    0: ch.CountAdapter()
-                },
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             mapped_arr = func(len(col_mapper.col_arr), map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             func = nb_registry.redecorate_parallel(nb.map_records_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             mapped_arr = func(cls_or_self.values, map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, **kwargs)
@@ -844,30 +829,14 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
             func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=records_ch.ColLensSizer(1),
-                arg_take_spec={
-                    0: ch.CountAdapter(mapper=records_ch.ColIdxsMapper(1)),
-                    1: records_ch.ColMapSlicer()
-                },
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
             func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=records_ch.ColLensSizer(1),
-                arg_take_spec={
-                    0: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(1)),
-                    1: records_ch.ColMapSlicer()
-                },
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)

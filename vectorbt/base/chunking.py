@@ -5,6 +5,7 @@
 
 import numpy as np
 from numba.typed import List
+import uuid
 
 from vectorbt import _typing as tp
 from vectorbt.utils.parsing import match_ann_arg
@@ -49,7 +50,7 @@ def get_group_lens_slice(group_lens: tp.Array1d, chunk_meta: ChunkMeta) -> slice
 class GroupLensMapper(ChunkMapper, ArgGetterMixin):
     """Class for mapping chunk metadata using group lengths."""
 
-    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
+    def __init__(self, arg_query: tp.AnnArgQuery = 'group_lens') -> None:
         ChunkMapper.__init__(self)
         ArgGetterMixin.__init__(self, arg_query)
 
@@ -57,11 +58,16 @@ class GroupLensMapper(ChunkMapper, ArgGetterMixin):
         group_lens = self.get_arg(ann_args)
         group_lens_slice = get_group_lens_slice(group_lens, chunk_meta)
         return ChunkMeta(
+            uuid=str(uuid.uuid4()),
             idx=chunk_meta.idx,
             start=group_lens_slice.start,
             end=group_lens_slice.stop,
             indices=None
         )
+
+
+group_lens_mapper = GroupLensMapper()
+"""Default instance of `GroupLensMapper`."""
 
 
 class FlexMixin:

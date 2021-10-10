@@ -9,6 +9,7 @@ import inspect
 import multiprocessing
 from functools import wraps
 import re
+import uuid
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
@@ -23,6 +24,7 @@ __pdoc__ = {}
 # ############# Named tuples ############# #
 
 class ChunkMeta(tp.NamedTuple):
+    uuid: str
     idx: int
     start: tp.Optional[int]
     end: tp.Optional[int]
@@ -30,6 +32,9 @@ class ChunkMeta(tp.NamedTuple):
 
 
 __pdoc__['ChunkMeta'] = "A named tuple representing a chunk metadata."
+__pdoc__['ChunkMeta.uuid'] = """Unique identifier of the chunk.
+
+Used for caching."""
 __pdoc__['ChunkMeta.idx'] = "Chunk index."
 __pdoc__['ChunkMeta.start'] = "Start of the chunk range (including). Can be None."
 __pdoc__['ChunkMeta.end'] = "End of the chunk range (excluding). Can be None."
@@ -161,6 +166,7 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
 
     if size is not None and min_size is not None and size < min_size:
         yield ChunkMeta(
+            uuid=str(uuid.uuid4()),
             idx=0,
             start=0,
             end=size,
@@ -181,6 +187,7 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
                 for i in range(n_chunks):
                     si = (d + 1) * (i if i < r else r) + d * (0 if i < r else i - r)
                     yield ChunkMeta(
+                        uuid=str(uuid.uuid4()),
                         idx=i,
                         start=si,
                         end=si + (d + 1 if i < r else d),
@@ -189,6 +196,7 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
             else:
                 for i in range(n_chunks):
                     yield ChunkMeta(
+                        uuid=str(uuid.uuid4()),
                         idx=i,
                         start=None,
                         end=None,
@@ -200,6 +208,7 @@ def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
                 raise ValueError("Chunk length cannot be zero")
             for chunk_i, i in enumerate(range(0, size, chunk_len)):
                 yield ChunkMeta(
+                    uuid=str(uuid.uuid4()),
                     idx=chunk_i,
                     start=i,
                     end=min(i + chunk_len, size),
@@ -236,6 +245,7 @@ class LenChunkMeta(ArgChunkMeta):
         for i, chunk_len in enumerate(arg):
             end += chunk_len
             yield ChunkMeta(
+                uuid=str(uuid.uuid4()),
                 idx=i,
                 start=start,
                 end=end,
@@ -312,13 +322,39 @@ def get_chunk_meta_from_args(ann_args: tp.AnnArgs,
 class ChunkMapper:
     """Abstract class for mapping chunk metadata.
 
-    Implements the abstract `ChunkMapper.map` method."""
+    Implements the abstract `ChunkMapper.map` method.
+
+    Supports caching of each pair of incoming and outgoing `ChunkMeta` instances."""
+
+    def __init__(self, should_cache: bool = True) -> None:
+        self._should_cache = should_cache
+        self._chunk_meta_cache = dict()
+
+    @property
+    def should_cache(self) -> bool:
+        """Whether should cache."""
+        return self._should_cache
+
+    @property
+    def chunk_meta_cache(self) -> tp.Dict[str, ChunkMeta]:
+        """Cache for outgoing `ChunkMeta` instances keyed by UUID of the incoming ones."""
+        return self._chunk_meta_cache
 
     def map(self, chunk_meta: ChunkMeta, **kwargs) -> ChunkMeta:
         """Abstract method for mapping chunk metadata.
 
         Takes the chunk metadata of type `ChunkMeta` and returns a new chunk metadata of the same type."""
         raise NotImplementedError
+
+    def map_and_cache(self, chunk_meta: ChunkMeta, **kwargs) -> ChunkMeta:
+        """Run `ChunkMapper.map` and cache the new chunk metadata if not already cached."""
+        if not self.should_cache:
+            return self.map(chunk_meta, **kwargs)
+        if chunk_meta.uuid not in self.chunk_meta_cache:
+            new_chunk_meta = self.map(chunk_meta, **kwargs)
+            self.chunk_meta_cache[chunk_meta.uuid] = new_chunk_meta
+            return new_chunk_meta
+        return self.chunk_meta_cache[chunk_meta.uuid]
 
 
 # ############# Chunk taking ############# #
@@ -338,7 +374,7 @@ class ChunkTaker:
     def map_and_take(self, obj: tp.Any, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
         """Map chunk metadata using `ChunkTaker.mapper` (if not None) and take the chunk using `ChunkTaker.take`."""
         if self.mapper is not None:
-            chunk_meta = self.mapper.map(chunk_meta, **kwargs)
+            chunk_meta = self.mapper.map_and_cache(chunk_meta, **kwargs)
         return self.take(obj, chunk_meta, **kwargs)
 
     def take(self, obj: tp.Any, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
@@ -739,8 +775,8 @@ def chunked(*args,
     >>> from vectorbt.utils.chunking import yield_chunk_meta
 
     >>> list(yield_chunk_meta(n_chunks=2))
-    [ChunkMeta(idx=0, start=None, end=None, indices=None),
-     ChunkMeta(idx=1, start=None, end=None, indices=None)]
+    [ChunkMeta(uuid='84d64eed-fbac-41e7-ad61-c917e809b3b8', idx=0, start=None, end=None, indices=None),
+     ChunkMeta(uuid='577817c4-fdee-4ceb-ab38-dcd663d9ab11', idx=1, start=None, end=None, indices=None)]
     ```
 
     Additionally, it may contain the start and end index of the space we want to split.
@@ -748,8 +784,8 @@ def chunked(*args,
 
     ```python-repl
     >>> list(yield_chunk_meta(n_chunks=2, size=10))
-    [ChunkMeta(idx=0, start=0, end=5, indices=None),
-     ChunkMeta(idx=1, start=5, end=10, indices=None)]
+    [ChunkMeta(uuid='c1593842-dc31-474c-a089-e47200baa2be', idx=0, start=0, end=5, indices=None),
+     ChunkMeta(uuid='6d0265e7-1204-497f-bc2c-c7b7800ec57d', idx=1, start=5, end=10, indices=None)]
     ```
 
     If we know the size of the space in advance, we can pass it as an integer constant.
@@ -981,6 +1017,14 @@ def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
     elif isinstance(option, str):
         return dict(engine=option)
     raise TypeError(f"Type {type(option)} is not supported for chunking")
+
+
+def specialize_chunked_option(option: tp.ChunkedOption = None, **kwargs):
+    """Resolve `option` and merge it with `kwargs` if it's not None."""
+    chunked_kwargs = resolve_chunked_option(option)
+    if chunked_kwargs is not None:
+        return merge_dicts(kwargs, chunked_kwargs)
+    return chunked_kwargs
 
 
 def resolve_chunked(func: tp.Callable, option: tp.ChunkedOption = None, **kwargs) -> tp.Callable:

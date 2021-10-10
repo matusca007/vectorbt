@@ -218,17 +218,16 @@ from sklearn.preprocessing import (
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
+from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils import chunking as ch
 from vectorbt.base import indexes, reshaping
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.base.grouping import Grouper
-from vectorbt.base import chunking as base_ch
 from vectorbt.generic import plotting, nb
 from vectorbt.generic.ranges import Ranges
 from vectorbt.generic.drawdowns import Drawdowns
@@ -413,12 +412,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.rolling_std_nb`."""
         func = nb_registry.redecorate_parallel(nb.rolling_std_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), window, minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -430,12 +424,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.expanding_std_nb`."""
         func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -448,12 +437,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_mean_nb`."""
         func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -467,12 +451,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_std_nb`."""
         func = nb_registry.redecorate_parallel(nb.ewm_std_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -523,21 +502,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             func = nb_registry.redecorate_parallel(nb.map_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ShapeSizer(0, 1),
-                arg_take_spec={0: ch.ShapeSlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
             func = nb_registry.redecorate_parallel(nb.map_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={0: ch.ArraySlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -595,36 +564,16 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             checks.assert_not_none(wrapper)
             if axis == 0:
                 func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ShapeSizer(0, 0),
-                    arg_take_spec={0: ch.ShapeSlicer(0)},
-                    merge_func=base_ch.row_stack
-                )
             else:
                 func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ShapeSizer(0, 1),
-                    arg_take_spec={0: ch.ShapeSlicer(1)},
-                    merge_func=base_ch.column_stack
-                )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
             if axis == 0:
                 func = nb_registry.redecorate_parallel(nb.row_apply_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ArraySizer(0, 0),
-                    arg_take_spec={0: ch.ArraySlicer(0)},
-                    merge_func=base_ch.row_stack
-                )
             else:
                 func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ArraySizer(0, 1),
-                    arg_take_spec={0: ch.ArraySlicer(1)},
-                    merge_func=base_ch.column_stack
-                )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -682,21 +631,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ShapeSizer(0, 1),
-                arg_take_spec={0: ch.ShapeSlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d, window, minp, apply_func_nb, *args)
         else:
             func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={0: ch.ArraySlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), window, minp, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -777,24 +716,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArgSizer(0),
-                arg_take_spec={0: ch.CountAdapter()},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={0: ch.ArraySlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -852,24 +781,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArgSizer(0),
-                arg_take_spec={0: ch.CountAdapter()},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={0: ch.ArraySlicer(1)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -941,21 +860,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         if isinstance(cls_or_self, type):
             checks.assert_not_none(wrapper)
             func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArgSizer(0),
-                arg_take_spec={0: ch.CountAdapter()},
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
         else:
             func = nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={0: ch.ArraySlicer(1)},
-                merge_func=base_ch.concat
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, apply_args, reduce_func_nb, reduce_args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -1092,36 +1001,16 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if returns_array:
                     func = nb_registry.redecorate_parallel(nb.reduce_grouped_to_array_meta_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArraySizer(0, 0),
-                        arg_take_spec={0: ch.ArraySlicer(0)},
-                        merge_func=base_ch.column_stack
-                    )
                 else:
                     func = nb_registry.redecorate_parallel(nb.reduce_grouped_meta_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArraySizer(0, 0),
-                        arg_take_spec={0: ch.ArraySlicer(0)},
-                        merge_func=base_ch.concat
-                    )
-                func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                func = ch_registry.resolve_chunked(func, chunked)
                 out = func(group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
                     func = nb_registry.redecorate_parallel(nb.reduce_to_array_meta_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArgSizer(0),
-                        arg_take_spec={0: ch.CountAdapter()},
-                        merge_func=base_ch.column_stack
-                    )
                 else:
                     func = nb_registry.redecorate_parallel(nb.reduce_meta_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArgSizer(0),
-                        arg_take_spec={0: ch.CountAdapter()},
-                        merge_func=base_ch.concat
-                    )
-                func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                func = ch_registry.resolve_chunked(func, chunked)
                 out = func(wrapper.shape_2d[1], reduce_func_nb, *args)
         else:
             if cls_or_self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -1131,25 +1020,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     in_c_order = order.upper() == 'C'
                     if returns_array:
                         func = nb_registry.redecorate_parallel(nb.reduce_flat_grouped_to_array_nb, nb_parallel)
-                        chunked_kwargs = dict(
-                            size=ch.ArraySizer(1, 0),
-                            arg_take_spec={
-                                0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                                1: ch.ArraySlicer(0)
-                            },
-                            merge_func=base_ch.column_stack
-                        )
                     else:
                         func = nb_registry.redecorate_parallel(nb.reduce_flat_grouped_nb, nb_parallel)
-                        chunked_kwargs = dict(
-                            size=ch.ArraySizer(1, 0),
-                            arg_take_spec={
-                                0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                                1: ch.ArraySlicer(0)
-                            },
-                            merge_func=base_ch.concat
-                        )
-                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                    func = ch_registry.resolve_chunked(func, chunked)
                     out = func(cls_or_self.to_2d_array(), group_lens, in_c_order, reduce_func_nb, *args)
                     if returns_idx:
                         if in_c_order:
@@ -1159,42 +1032,16 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 else:
                     if returns_array:
                         func = nb_registry.redecorate_parallel(nb.reduce_grouped_to_array_nb, nb_parallel)
-                        chunked_kwargs = dict(
-                            size=ch.ArraySizer(1, 0),
-                            arg_take_spec={
-                                0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                                1: ch.ArraySlicer(0)
-                            },
-                            merge_func=base_ch.column_stack
-                        )
                     else:
                         func = nb_registry.redecorate_parallel(nb.reduce_grouped_nb, nb_parallel)
-                        chunked_kwargs = dict(
-                            size=ch.ArraySizer(1, 0),
-                            arg_take_spec={
-                                0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                                1: ch.ArraySlicer(0)
-                            },
-                            merge_func=base_ch.concat
-                        )
-                    func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                    func = ch_registry.resolve_chunked(func, chunked)
                     out = func(cls_or_self.to_2d_array(), group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
                     func = nb_registry.redecorate_parallel(nb.reduce_to_array_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArraySizer(0, 1),
-                        arg_take_spec={0: ch.ArraySlicer(1)},
-                        merge_func=base_ch.column_stack
-                    )
                 else:
                     func = nb_registry.redecorate_parallel(nb.reduce_nb, nb_parallel)
-                    chunked_kwargs = dict(
-                        size=ch.ArraySizer(0, 1),
-                        arg_take_spec={0: ch.ArraySlicer(1)},
-                        merge_func=base_ch.concat
-                    )
-                func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                func = ch_registry.resolve_chunked(func, chunked)
                 out = func(cls_or_self.to_2d_array(), reduce_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -1262,12 +1109,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={1: ch.ArraySlicer(0)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[0], group_lens, squeeze_func_nb, *args)
         else:
             if wrapper is None:
@@ -1276,15 +1118,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                    1: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_lens, squeeze_func_nb, *args)
 
         return wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
@@ -1382,12 +1216,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nanmin, axis=0)
         else:
             func = partial(nanmin, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmin_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def max(self,
@@ -1421,12 +1250,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nanmax, axis=0)
         else:
             func = partial(nanmax, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmax_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def mean(self,
@@ -1460,12 +1284,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nanmean, axis=0)
         else:
             func = partial(nanmean, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmean_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def median(self,
@@ -1499,12 +1318,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nanmedian, axis=0)
         else:
             func = partial(nanmedian, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmedian_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def std(self,
@@ -1540,12 +1354,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nanstd, axis=0)
         else:
             func = partial(nanstd, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanstd_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr, ddof=ddof), group_by=False, **wrap_kwargs)
 
     def sum(self,
@@ -1579,12 +1388,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = partial(np.nansum, axis=0)
         else:
             func = partial(nansum, axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nansum_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def count(self,
@@ -1615,12 +1419,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = nb_registry.redecorate_parallel(nb.nancnt_nb, nb_parallel)
         else:
             func = lambda a: np.sum(~np.isnan(a), axis=0)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nancnt_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def idxmin(self,
@@ -1649,12 +1448,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             out[~nan_mask] = index[nanargmin(arr[:, ~nan_mask], axis=0)]
             return out
 
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmin_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -1684,12 +1478,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             out[~nan_mask] = index[nanargmax(arr[:, ~nan_mask], axis=0)]
             return out
 
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.nanmax_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -1919,25 +1708,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         codes, uniques = pd.factorize(self.obj.values.flatten(), sort=False, na_sentinel=None)
         if axis == 0:
             func = nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 0),
-                arg_take_spec={0: ch.ArraySlicer(0)},
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques))
         elif axis == 1:
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.value_counts_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(2, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(2)),
-                    2: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques), group_lens)
         else:
             value_counts = nb.value_counts_1d_nb(codes, len(uniques))
@@ -2341,12 +2117,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Drawdown series."""
         func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array())
         return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
 

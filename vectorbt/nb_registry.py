@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Global Numba registry."""
+"""Global registry for Numba-compiled functions."""
 
 import warnings
 from numba import jit, generated_jit
@@ -79,6 +79,8 @@ class NumbaRegistry:
                    tags: tp.Optional[set] = None,
                    union_tags: bool = True) -> tp.Callable:
         """Redecorate the setup's Numba-compiled function.
+
+        Merges setup's options with `options`. Extends tags as well if `union_tags` is True.
 
         `setup_id_or_func` can be an identifier or a function.
         If its a function, will build the identifier using its module and name."""

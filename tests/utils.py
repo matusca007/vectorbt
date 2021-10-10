@@ -18,3 +18,17 @@ def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
 def record_arrays_close(x, y):
     for field in x.dtype.names:
         np.testing.assert_allclose(x[field], y[field], rtol=1e-06)
+
+
+def chunk_meta_equal(x, y):
+    if isinstance(x, list):
+        for i in range(len(x)):
+            assert x[i].idx == y[i].idx
+            assert x[i].start == y[i].start
+            assert x[i].end == y[i].end
+            assert x[i].indices == y[i].indices
+    else:
+        assert x.idx == y.idx
+        assert x.start == y.start
+        assert x.end == y.end
+        assert x.indices == y.indices

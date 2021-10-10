@@ -30,7 +30,10 @@ from numba import prange
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.utils.math import add_nb
+from vectorbt.utils import chunking as ch
+from vectorbt.base import chunking as base_ch
 from vectorbt.generic import nb as generic_nb
 
 
@@ -59,6 +62,14 @@ def returns_1d_nb(arr: tp.Array1d, init_value: float) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def returns_nb(arr: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
     """2-dim version of `returns_1d_nb`."""
@@ -82,6 +93,11 @@ def cum_returns_1d_nb(rets: tp.Array1d, start_value: float) -> tp.Array1d:
     return out * start_value
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cum_returns_nb(rets: tp.Array2d, start_value: float) -> tp.Array2d:
     """2-dim version of `cum_returns_1d_nb`."""
@@ -105,6 +121,11 @@ def cum_returns_final_1d_nb(rets: tp.Array1d, start_value: float = 0.) -> float:
     return out * start_value
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cum_returns_final_nb(rets: tp.Array2d, start_value: float = 0.) -> tp.Array1d:
     """2-dim version of `cum_returns_final_1d_nb`."""
@@ -132,6 +153,11 @@ def annualized_return_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
     return out ** (ann_factor / cnt) - 1
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def annualized_return_nb(rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `annualized_return_1d_nb`."""
@@ -150,6 +176,11 @@ def annualized_volatility_1d_nb(rets: tp.Array1d,
     return generic_nb.nanstd_1d_nb(rets, ddof) * ann_factor ** (1.0 / levy_alpha)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def annualized_volatility_nb(rets: tp.Array2d,
                              ann_factor: float,
@@ -159,23 +190,6 @@ def annualized_volatility_nb(rets: tp.Array2d,
     out = np.empty(rets.shape[1], dtype=np.float_)
     for col in prange(rets.shape[1]):
         out[col] = annualized_volatility_1d_nb(rets[:, col], ann_factor, levy_alpha, ddof)
-    return out
-
-
-@register_jit(cache=True)
-def drawdown_1d_nb(rets: tp.Array1d) -> tp.Array1d:
-    """Drawdown of cumulative returns."""
-    cum_returns = cum_returns_1d_nb(rets, start_value=100.)
-    max_returns = generic_nb.expanding_max_1d_nb(cum_returns, minp=1)
-    return cum_returns / max_returns - 1
-
-
-@register_jit(cache=True, tags={'can_parallel'})
-def drawdown_nb(rets: tp.Array2d) -> tp.Array2d:
-    """2-dim version of `drawdown_1d_nb`."""
-    out = np.empty_like(rets, dtype=np.float_)
-    for col in prange(rets.shape[1]):
-        out[:, col] = drawdown_1d_nb(rets[:, col])
     return out
 
 
@@ -201,6 +215,11 @@ def max_drawdown_1d_nb(rets: tp.Array1d) -> float:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def max_drawdown_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `max_drawdown_1d_nb`."""
@@ -222,6 +241,11 @@ def calmar_ratio_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
     return annualized_return / np.abs(max_drawdown)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def calmar_ratio_nb(rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `calmar_ratio_1d_nb`."""
@@ -257,6 +281,11 @@ def omega_ratio_1d_nb(adj_rets: tp.Array1d) -> float:
     return numer / denom
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def omega_ratio_nb(adj_rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `omega_ratio_1d_nb`."""
@@ -278,6 +307,11 @@ def sharpe_ratio_1d_nb(adj_rets: tp.Array1d,
     return mean / std * np.sqrt(ann_factor)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def sharpe_ratio_nb(adj_rets: tp.Array2d,
                     ann_factor: float,
@@ -305,6 +339,11 @@ def downside_risk_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     return np.sqrt(adj_ret_sqrd_mean) * np.sqrt(ann_factor)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def downside_risk_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `downside_risk_1d_nb`."""
@@ -324,6 +363,11 @@ def sortino_ratio_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     return avg_annualized_return / downside_risk
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def sortino_ratio_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `sortino_ratio_1d_nb`."""
@@ -343,6 +387,11 @@ def information_ratio_1d_nb(adj_rets: tp.Array1d, ddof: int = 1) -> float:
     return mean / std
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def information_ratio_nb(adj_rets: tp.Array2d, ddof: int = 1) -> tp.Array1d:
     """2-dim version of `information_ratio_1d_nb`."""
@@ -360,6 +409,14 @@ def beta_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 1) -> f
     return cov / var
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def beta_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ddof: int = 1) -> tp.Array1d:
     """2-dim version of `beta_1d_nb`."""
@@ -385,10 +442,16 @@ def alpha_1d_nb(adj_rets: tp.Array1d,
     return (np.nanmean(adj_rets) - beta * np.nanmean(adj_benchmark_rets) + 1) ** ann_factor - 1
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
-def alpha_nb(adj_rets: tp.Array2d,
-             adj_benchmark_rets: tp.Array2d,
-             ann_factor: float) -> tp.Array1d:
+def alpha_nb(adj_rets: tp.Array2d, adj_benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `alpha_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
     for col in prange(adj_rets.shape[1]):
@@ -423,6 +486,11 @@ def tail_ratio_noarr_1d_nb(rets: tp.Array1d) -> float:
     return perc_95 / perc_5
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def tail_ratio_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `tail_ratio_1d_nb`."""
@@ -444,6 +512,11 @@ def value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     return generic_nb.nanpercentile_noarr_1d_nb(rets, 100 * cutoff)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `value_at_risk_1d_nb`."""
@@ -466,6 +539,11 @@ def cond_value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> fl
     return generic_nb.nanpartition_mean_noarr_1d_nb(rets, cutoff * 100)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def cond_value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `cond_value_at_risk_1d_nb`."""
@@ -485,6 +563,14 @@ def capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: floa
     return annualized_return1 / annualized_return2
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `capture_1d_nb`."""
@@ -526,6 +612,14 @@ def up_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: f
     return annualized_return / annualized_benchmark_return
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def up_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `up_capture_1d_nb`."""
@@ -567,6 +661,14 @@ def down_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor:
     return annualized_return / annualized_benchmark_return
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={
+        0: ch.ArraySlicer(1),
+        1: ch.ArraySlicer(1)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def down_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `down_capture_1d_nb`."""

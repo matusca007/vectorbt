@@ -38,7 +38,12 @@ from numba.core.types import Omitted
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.ch_registry import register_chunkable
+from vectorbt.utils.template import Rep
+from vectorbt.utils import chunking as ch
+from vectorbt.base import chunking as base_ch
 from vectorbt.generic.enums import RangeStatus, DrawdownStatus, range_dt, drawdown_dt
+from vectorbt.records import chunking as records_ch
 
 
 @register_jit(cache=True)
@@ -51,6 +56,11 @@ def shuffle_1d_nb(arr: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
     return np.random.permutation(arr)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True)
 def shuffle_nb(arr: tp.Array2d, seed: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `shuffle_1d_nb`."""
@@ -167,6 +177,11 @@ def fillna_1d_nb(arr: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     return set_by_mask_1d_nb(arr, np.isnan(arr), value)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True)
 def fillna_nb(arr: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
     """2-dim version of `fillna_1d_nb`."""
@@ -205,6 +220,11 @@ def bshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
     return _bshift_1d_nb
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_generated_jit(cache=True)
 def bshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `bshift_1d_nb`."""
@@ -261,6 +281,11 @@ def fshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
     return _fshift_1d_nb
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_generated_jit(cache=True)
 def fshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `fshift_1d_nb`."""
@@ -299,6 +324,11 @@ def diff_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def diff_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `diff_1d_nb`."""
@@ -319,6 +349,11 @@ def pct_change_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def pct_change_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `pct_change_1d_nb`."""
@@ -346,6 +381,11 @@ def bfill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def bfill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `bfill_1d_nb`."""
@@ -370,6 +410,11 @@ def ffill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `ffill_1d_nb`."""
@@ -379,6 +424,11 @@ def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_generated_jit(cache=True, tags={'can_parallel'})
 def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanprod` along axis 0."""
@@ -401,6 +451,11 @@ def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
     return _nanprod_nb
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_generated_jit(cache=True, tags={'can_parallel'})
 def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumsum` along axis 0."""
@@ -423,6 +478,11 @@ def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
     return _nancumsum_nb
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_generated_jit(cache=True, tags={'can_parallel'})
 def nancumprod_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumprod` along axis 0."""
@@ -455,6 +515,11 @@ def nancnt_1d_nb(arr: tp.Array1d) -> int:
     return cnt
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
     """2-dim version of `nancnt_1d_nb`."""
@@ -464,6 +529,11 @@ def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_generated_jit(cache=True, tags={'can_parallel'})
 def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nansum` along axis 0."""
@@ -486,6 +556,11 @@ def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
     return _nansum_nb
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmin` along axis 0."""
@@ -495,6 +570,11 @@ def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmax` along axis 0."""
@@ -504,6 +584,11 @@ def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmean` along axis 0."""
@@ -513,6 +598,11 @@ def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nanmedian_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmedian` along axis 0."""
@@ -678,6 +768,11 @@ def nanstd_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     return np.sqrt(nanvar_1d_nb(arr, ddof=ddof))
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def nanstd_nb(arr: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     """2-dim version of `nanstd_1d_nb`."""
@@ -716,6 +811,11 @@ def rolling_min_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def rolling_min_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_min_1d_nb`."""
@@ -751,6 +851,11 @@ def rolling_max_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def rolling_max_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_max_1d_nb`."""
@@ -794,6 +899,11 @@ def rolling_mean_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = No
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def rolling_mean_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_mean_1d_nb`."""
@@ -845,6 +955,11 @@ def rolling_std_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def rolling_std_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `rolling_std_1d_nb`."""
@@ -899,6 +1014,11 @@ def ewm_mean_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fal
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def ewm_mean_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array2d:
     """2-dim version of `ewm_mean_1d_nb`."""
@@ -989,6 +1109,11 @@ def ewm_std_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fals
     return np.sqrt(out)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def ewm_std_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `ewm_std_1d_nb`."""
@@ -1021,6 +1146,11 @@ def expanding_min_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def expanding_min_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_min_1d_nb`."""
@@ -1050,6 +1180,11 @@ def expanding_max_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def expanding_max_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_max_1d_nb`."""
@@ -1067,6 +1202,11 @@ def expanding_mean_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     return rolling_mean_1d_nb(arr, arr.shape[0], minp=minp)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def expanding_mean_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_mean_1d_nb`."""
@@ -1084,6 +1224,11 @@ def expanding_std_1d_nb(arr: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Arr
     return rolling_std_1d_nb(arr, arr.shape[0], minp=minp, ddof=ddof)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def expanding_std_nb(arr: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `expanding_std_1d_nb`."""
@@ -1109,6 +1254,11 @@ def map_1d_nb(arr: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def map_nb(arr: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
     """2-dim version of `map_1d_nb`."""
@@ -1134,6 +1284,11 @@ def map_1d_meta_nb(n: int, col: int, map_func_nb: tp.MapMetaFunc, *args) -> tp.A
     return out
 
 
+@register_chunkable(
+    size=ch.ShapeSizer(0, 1),
+    arg_take_spec={0: ch.ShapeSlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> tp.Array2d:
     """2-dim version of `map_1d_meta_nb`."""
@@ -1145,6 +1300,11 @@ def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> t
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """Apply function on each column of an object.
@@ -1159,6 +1319,11 @@ def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     return out
 
 
+@register_chunkable(
+    size=ch.ShapeSizer(0, 1),
+    arg_take_spec={0: ch.ShapeSlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array2d:
     """Meta version of `apply_nb` that prepends the column index to the arguments of `apply_func_nb`."""
@@ -1170,6 +1335,11 @@ def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={0: ch.ArraySlicer(0)},
+    merge_func=base_ch.row_stack
+)
 @register_jit(tags={'can_parallel'})
 def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """`apply_nb` but applied on rows rather than columns."""
@@ -1181,6 +1351,11 @@ def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Arra
     return out
 
 
+@register_chunkable(
+    size=ch.ShapeSizer(0, 0),
+    arg_take_spec={0: ch.ShapeSlicer(0)},
+    merge_func=base_ch.row_stack
+)
 @register_jit(tags={'can_parallel'})
 def row_apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array2d:
     """Meta version of `row_apply_nb` that prepends the row index to the arguments of `apply_func_nb`."""
@@ -1221,6 +1396,11 @@ def rolling_apply_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int],
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def rolling_apply_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int],
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
@@ -1252,6 +1432,11 @@ def rolling_apply_1d_meta_nb(n: int, col: int, window: int, minp: tp.Optional[in
     return out
 
 
+@register_chunkable(
+    size=ch.ShapeSizer(0, 1),
+    arg_take_spec={0: ch.ShapeSlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def rolling_apply_meta_nb(target_shape: tp.Shape, window: int, minp: tp.Optional[int],
                           apply_func_nb: tp.RollApplyMetaFunc, *args) -> tp.Array2d:
@@ -1283,6 +1468,11 @@ def groupby_apply_1d_nb(arr: tp.Array1d, group_map: tp.GroupMap,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def groupby_apply_nb(arr: tp.Array2d, group_map: tp.GroupMap,
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
@@ -1317,6 +1507,11 @@ def groupby_apply_1d_meta_nb(col: int, group_map: tp.GroupMap,
     return out
 
 
+@register_chunkable(
+    size=ch.ArgSizer(0),
+    arg_take_spec={0: ch.CountAdapter()},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def groupby_apply_meta_nb(n_cols: int, group_map: tp.GroupMap,
                           apply_func_nb: tp.GroupByApplyMetaFunc, *args) -> tp.Array2d:
@@ -1343,6 +1538,11 @@ def apply_and_reduce_1d_nb(arr: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_a
     return reduce_func_nb(temp, *reduce_args)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def apply_and_reduce_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
                         reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Array1d:
@@ -1369,6 +1569,11 @@ def apply_and_reduce_1d_meta_nb(col: int, apply_func_nb: tp.ApplyMetaFunc, apply
     return reduce_func_nb(col, temp, *reduce_args)
 
 
+@register_chunkable(
+    size=ch.ArgSizer(0),
+    arg_take_spec={0: ch.CountAdapter()},
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply_args: tuple,
                              reduce_func_nb: tp.ReduceMetaFunc, reduce_args: tuple) -> tp.Array1d:
@@ -1381,6 +1586,11 @@ def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce each column into a single value using `reduce_func_nb`.
@@ -1394,6 +1604,11 @@ def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array
     return out
 
 
+@register_chunkable(
+    size=ch.ArgSizer(0),
+    arg_take_spec={0: ch.CountAdapter()},
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_nb`.
@@ -1407,6 +1622,11 @@ def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_nb` but `reduce_func_nb` must return an array."""
@@ -1418,6 +1638,11 @@ def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *a
     return out
 
 
+@register_chunkable(
+    size=ch.ArgSizer(0),
+    arg_take_spec={0: ch.CountAdapter()},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Same as `reduce_meta_nb` but `reduce_func_nb` must return an array."""
@@ -1429,6 +1654,14 @@ def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFun
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                       reduce_func_nb: tp.ReduceGroupedFunc, *args) -> tp.Array1d:
@@ -1447,6 +1680,11 @@ def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={0: ch.ArraySlicer(0)},
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGroupedMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_grouped_nb`.
@@ -1465,6 +1703,11 @@ def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGrou
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
     """Flatten the array in F order."""
@@ -1474,6 +1717,14 @@ def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(tags={'can_parallel'})
 def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                            reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array1d:
@@ -1496,6 +1747,14 @@ def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: 
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                                reduce_func_nb: tp.ReduceGroupedToArrayFunc, *args) -> tp.Array2d:
@@ -1512,6 +1771,11 @@ def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={0: ch.ArraySlicer(0)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
                                     reduce_func_nb: tp.ReduceGroupedToArrayMetaFunc, *args) -> tp.Array2d:
@@ -1528,6 +1792,14 @@ def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                                     reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
@@ -1550,6 +1822,14 @@ def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                        squeeze_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
@@ -1571,6 +1851,11 @@ def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(1, 0),
+    arg_take_spec={1: ch.ArraySlicer(0)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(tags={'can_parallel'})
 def squeeze_grouped_meta_nb(n_rows: int, group_lens: tp.Array1d,
                             squeeze_func_nb: tp.GroupSqueezeMetaFunc, *args) -> tp.Array2d:
@@ -1752,6 +2037,14 @@ def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array
 # ############# Value counts ############# #
 
 
+@register_chunkable(
+    size=ch.ArraySizer(2, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        2: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
     """Return value counts per column/group."""
@@ -1778,6 +2071,11 @@ def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={0: ch.ArraySlicer(0)},
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
     """Return value counts per row."""
@@ -1805,6 +2103,12 @@ def repartition_nb(arr: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
 # ############# Ranges ############# #
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=records_ch.merge_records,
+    merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     """Fill range records between gaps.
@@ -1887,6 +2191,15 @@ def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     return repartition_nb(new_records, counts)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0),
+        2: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def range_duration_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
@@ -1901,6 +2214,17 @@ def range_duration_nb(start_idx_arr: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(3),
+    arg_take_spec={
+        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        3: records_ch.ColMapSlicer(),
+        4: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def range_coverage_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
@@ -1944,6 +2268,16 @@ def range_coverage_nb(start_idx_arr: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=records_ch.ColLensSizer(3),
+    arg_take_spec={
+        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        3: records_ch.ColMapSlicer()
+    },
+    merge_func=base_ch.column_stack
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
@@ -1972,19 +2306,37 @@ def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
 
 # ############# Drawdowns ############# #
 
-@register_jit(cache=True, tags={'can_parallel'})
-def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
+@register_jit(cache=True)
+def drawdown_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Return drawdown."""
     out = np.empty_like(arr, dtype=np.float_)
+    max_val = np.nan
+    for i in range(arr.shape[0]):
+        if np.isnan(max_val) or arr[i] > max_val:
+            max_val = arr[i]
+        out[i] = arr[i] / max_val - 1
+    return out
+
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=base_ch.column_stack
+)
+@register_jit(cache=True, tags={'can_parallel'})
+def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
+    """2-dim version of `drawdown_1d_nb`."""
+    out = np.empty_like(arr, dtype=np.float_)
     for col in prange(arr.shape[1]):
-        max_val = np.nan
-        for i in range(arr.shape[0]):
-            if np.isnan(max_val) or arr[i, col] > max_val:
-                max_val = arr[i, col]
-            out[i, col] = arr[i, col] / max_val - 1
+        out[:, col] = drawdown_1d_nb(arr[:, col])
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 1),
+    arg_take_spec={0: ch.ArraySlicer(1)},
+    merge_func=records_ch.merge_records,
+    merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     """Fill drawdown records by analyzing a time series.
@@ -2090,6 +2442,14 @@ def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     return repartition_nb(new_records, counts)
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the drawdown of each drawdown record."""
@@ -2099,6 +2459,14 @@ def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.A
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the duration of the peak-to-valley phase of each drawdown record."""
@@ -2108,6 +2476,14 @@ def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d,
                             end_idx_arr: tp.Array1d) -> tp.Array1d:
@@ -2118,6 +2494,15 @@ def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0),
+        2: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
                                   valley_idx_arr: tp.Array1d,
@@ -2129,6 +2514,14 @@ def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
     return out
 
 
+@register_chunkable(
+    size=ch.ArraySizer(0, 0),
+    arg_take_spec={
+        0: ch.ArraySlicer(0),
+        1: ch.ArraySlicer(0)
+    },
+    merge_func=base_ch.concat
+)
 @register_jit(cache=True, tags={'can_parallel'})
 def dd_recovery_return_nb(valley_val_arr: tp.Array1d, end_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the recovery return of each drawdown record."""

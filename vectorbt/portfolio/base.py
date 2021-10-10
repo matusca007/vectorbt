@@ -1418,6 +1418,7 @@ import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
+from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_property, cached_method, class_or_instancemethod
 from vectorbt.utils.enum import map_enum_fields
@@ -2009,25 +2010,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_logs = 0
 
         # Perform the simulation
-        group_lens_mapper = base_ch.GroupLensMapper('group_lens')
-        flex_array_slicer = base_ch.FlexArraySlicer(1, flex_2d=flex_2d, mapper=group_lens_mapper)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer('group_lens', 0),
-            arg_take_spec=dict(
-                target_shape=ch.ShapeSlicer(1, mapper=group_lens_mapper),
-                group_lens=ch.ArraySlicer(0),
-                init_cash=ch.ArraySlicer(0),
-                call_seq=ch.ArraySlicer(1, mapper=group_lens_mapper),
-                **{k: flex_array_slicer for k in broadcasted_args}
-            ),
-            merge_func=portfolio_ch.merge_sim_outs,
-            merge_kwargs=dict(
-                chunk_meta=Rep("chunk_meta"),
-                ann_args=Rep("ann_args"),
-                mapper=group_lens_mapper
-            )
-        )
-        func = ch.resolve_chunked(nb.simulate_from_orders_nb, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.simulate_from_orders_nb, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -2991,25 +2974,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         checks.assert_numba_func(adjust_tp_func_nb)
 
         # Perform the simulation
-        group_lens_mapper = base_ch.GroupLensMapper('group_lens')
-        flex_array_slicer = base_ch.FlexArraySlicer(1, flex_2d=flex_2d, mapper=group_lens_mapper)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer('group_lens', 0),
-            arg_take_spec=dict(
-                target_shape=ch.ShapeSlicer(1, mapper=group_lens_mapper),
-                group_lens=ch.ArraySlicer(0),
-                init_cash=ch.ArraySlicer(0),
-                call_seq=ch.ArraySlicer(1, mapper=group_lens_mapper),
-                **{k: flex_array_slicer for k in broadcasted_args}
-            ),
-            merge_func=portfolio_ch.merge_sim_outs,
-            merge_kwargs=dict(
-                chunk_meta=Rep("chunk_meta"),
-                ann_args=Rep("ann_args"),
-                mapper=group_lens_mapper
-            )
-        )
-        func = ch.resolve_chunked(nb.simulate_from_signal_func_nb, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(nb.simulate_from_signal_func_nb, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -3863,32 +3828,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             checks.assert_numba_func(post_order_func_nb)
 
         # Perform the simulation
-        group_lens_mapper = base_ch.GroupLensMapper('group_lens')
-        flex_array_slicer = base_ch.FlexArraySlicer(1, flex_2d=flex_2d, mapper=group_lens_mapper)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer('group_lens', 0),
-            arg_take_spec=dict(
-                target_shape=ch.ShapeSlicer(1, mapper=group_lens_mapper),
-                group_lens=ch.ArraySlicer(0),
-                init_cash=ch.ArraySlicer(0),
-                call_seq=ch.ArraySlicer(1, mapper=group_lens_mapper),
-                segment_mask=flex_array_slicer,
-                close=flex_array_slicer
-            ),
-            merge_func=portfolio_ch.merge_sim_outs,
-            merge_kwargs=dict(
-                chunk_meta=Rep("chunk_meta"),
-                ann_args=Rep("ann_args"),
-                mapper=group_lens_mapper
-            )
-        )
         if row_wise:
             if flexible:
-                simulate_func = nb.flex_simulate_row_wise_nb
-                if not use_numba and hasattr(simulate_func, 'py_func'):
-                    simulate_func = simulate_func.py_func
-                func = ch.resolve_chunked(simulate_func, chunked, **chunked_kwargs)
-                sim_out = simulate_func(
+                func = nb.flex_simulate_row_wise_nb
+                if not use_numba and hasattr(func, 'py_func'):
+                    func = func.py_func
+                func = ch_registry.resolve_chunked(func, chunked)
+                sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3921,11 +3867,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_2d=flex_2d
                 )
             else:
-                simulate_func = nb.simulate_row_wise_nb
-                if not use_numba and hasattr(simulate_func, 'py_func'):
-                    simulate_func = simulate_func.py_func
-                func = ch.resolve_chunked(simulate_func, chunked, **chunked_kwargs)
-                sim_out = simulate_func(
+                func = nb.simulate_row_wise_nb
+                if not use_numba and hasattr(func, 'py_func'):
+                    func = func.py_func
+                func = ch_registry.resolve_chunked(func, chunked)
+                sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3960,11 +3906,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 )
         else:
             if flexible:
-                simulate_func = nb.flex_simulate_nb
-                if not use_numba and hasattr(simulate_func, 'py_func'):
-                    simulate_func = simulate_func.py_func
-                func = ch.resolve_chunked(simulate_func, chunked, **chunked_kwargs)
-                sim_out = simulate_func(
+                func = nb.flex_simulate_nb
+                if not use_numba and hasattr(func, 'py_func'):
+                    func = func.py_func
+                func = ch_registry.resolve_chunked(func, chunked)
+                sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -3997,11 +3943,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_2d=flex_2d
                 )
             else:
-                simulate_func = nb.simulate_nb
-                if not use_numba and hasattr(simulate_func, 'py_func'):
-                    simulate_func = simulate_func.py_func
-                func = ch.resolve_chunked(simulate_func, chunked, **chunked_kwargs)
-                sim_out = simulate_func(
+                func = nb.simulate_nb
+                if not use_numba and hasattr(func, 'py_func'):
+                    func = func.py_func
+                func = ch_registry.resolve_chunked(func, chunked)
+                sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
                     init_cash=init_cash,
@@ -4096,12 +4042,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Forward and backward fill NaN values in `Portfolio.close`."""
         func = nb_registry.redecorate_parallel(nb.fbfill_close_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         filled_close = func(to_2d_array(self.close))
         return self.wrapper.wrap(filled_close, group_by=False, **merge_dicts({}, wrap_kwargs))
 
@@ -4235,16 +4176,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         direction = map_enum_fields(direction, Direction)
         func = nb_registry.redecorate_parallel(nb.asset_flow_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=records_ch.ColLensSizer(2),
-            arg_take_spec={
-                0: ch.ShapeSlicer(1),
-                1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(2)),
-                2: records_ch.ColMapSlicer()
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         asset_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4274,12 +4206,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         direction = map_enum_fields(direction, Direction)
         func = nb_registry.redecorate_parallel(nb.assets_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         assets = func(to_2d_array(asset_flow))
         if direction == Direction.LongOnly:
             assets = np.where(assets > 0, assets, 0.)
@@ -4362,16 +4289,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = orders.wrapper
 
         func = nb_registry.redecorate_parallel(nb.cash_flow_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=records_ch.ColLensSizer(2),
-            arg_take_spec={
-                0: ch.ShapeSlicer(1),
-                1: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(2)),
-                2: records_ch.ColMapSlicer()
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         cash_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4381,15 +4299,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                    1: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             cash_flow = func(cash_flow, group_lens)
         return wrapper.wrap(cash_flow, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4481,17 +4391,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.cash_grouped_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(2, 0),
-                arg_take_spec={
-                    0: ch.ShapeSlicer(1, mapper=base_ch.GroupLensMapper(2)),
-                    1: ch.ArraySlicer(1),
-                    2: ch.ArraySlicer(0),
-                    3: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             cash = func(
                 wrapper.shape_2d,
                 to_2d_array(cash_flow),
@@ -4509,32 +4409,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         init_cash = cls_or_self.init_cash
                 group_lens = wrapper.grouper.get_group_lens()
                 func = nb_registry.redecorate_parallel(nb.cash_in_sim_order_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ArraySizer(1, 0),
-                    arg_take_spec={
-                        0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                        1: ch.ArraySlicer(0),
-                        2: ch.ArraySlicer(0),
-                        3: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1))
-                    },
-                    merge_func=base_ch.column_stack
-                )
-                func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                func = ch_registry.resolve_chunked(func, chunked)
                 cash = func(to_2d_array(cash_flow), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
             else:
                 if not isinstance(cls_or_self, type):
                     if init_cash is None:
                         init_cash = cls_or_self.get_init_cash(group_by=False, nb_parallel=nb_parallel)
                 func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
-                chunked_kwargs = dict(
-                    size=ch.ArraySizer(0, 1),
-                    arg_take_spec={
-                        0: ch.ArraySlicer(1),
-                        1: ch.ArraySlicer(0)
-                    },
-                    merge_func=base_ch.column_stack
-                )
-                func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+                func = ch_registry.resolve_chunked(func, chunked)
                 cash = func(to_2d_array(cash_flow), to_1d_array(init_cash))
         return wrapper.wrap(cash, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4574,15 +4456,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                    1: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             asset_value = func(asset_value, group_lens)
         return wrapper.wrap(asset_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4610,15 +4484,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = ArrayWrapper.from_obj(asset_value)
 
         func = nb_registry.redecorate_parallel(nb.gross_exposure_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={
-                0: ch.ArraySlicer(1),
-                1: ch.ArraySlicer(1)
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
         return wrapper.wrap(gross_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4689,17 +4555,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                                  "(flexible simulations are not supported)")
             group_lens = wrapper.grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.value_in_sim_order_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(2, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(2)),
-                    1: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(2)),
-                    2: ch.ArraySlicer(0),
-                    3: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(2))
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             value = func(to_2d_array(cash), to_2d_array(asset_value), group_lens, to_2d_array(call_seq))
         else:
             value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
@@ -4737,17 +4593,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 wrapper = orders.wrapper
 
         func = nb_registry.redecorate_parallel(nb.total_profit_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=records_ch.ColLensSizer(3),
-            arg_take_spec={
-                0: ch.ShapeSlicer(1),
-                1: ch.ArraySlicer(1),
-                2: ch.ArraySlicer(0, mapper=records_ch.ColIdxsMapper(3)),
-                3: records_ch.ColMapSlicer()
-            },
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         total_profit = func(
             wrapper.shape_2d,
             to_2d_array(close),
@@ -4838,32 +4684,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash = cls_or_self.init_cash
             group_lens = wrapper.grouper.get_group_lens()
             func = nb_registry.redecorate_parallel(nb.returns_in_sim_order_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                    1: ch.ArraySlicer(0),
-                    2: ch.ArraySlicer(0),
-                    3: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1))
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             returns = func(to_2d_array(value), group_lens, to_1d_array(init_cash), to_2d_array(call_seq))
         else:
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
                     init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1),
-                    1: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             returns = func(to_2d_array(value), to_1d_array(init_cash))
         return wrapper.wrap(returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4893,15 +4721,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = ArrayWrapper.from_obj(cash_flow)
 
         func = nb_registry.redecorate_parallel(nb.asset_returns_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={
-                0: ch.ArraySlicer(1),
-                1: ch.ArraySlicer(1)
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         asset_returns = func(to_2d_array(cash_flow), to_2d_array(asset_value))
         return wrapper.wrap(asset_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4940,31 +4760,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash = cls_or_self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             func = nb_registry.redecorate_parallel(nb.market_value_grouped_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(1, 0),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1, mapper=base_ch.GroupLensMapper(1)),
-                    1: ch.ArraySlicer(0),
-                    2: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             market_value = func(to_2d_array(close), group_lens, to_1d_array(init_cash))
         else:
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
                     init_cash = cls_or_self.get_init_cash(group_by=False, nb_parallel=nb_parallel)
             func = nb_registry.redecorate_parallel(nb.market_value_nb, nb_parallel)
-            chunked_kwargs = dict(
-                size=ch.ArraySizer(0, 1),
-                arg_take_spec={
-                    0: ch.ArraySlicer(1),
-                    1: ch.ArraySlicer(0)
-                },
-                merge_func=base_ch.column_stack
-            )
-            func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+            func = ch_registry.resolve_chunked(func, chunked)
             market_value = func(to_2d_array(close), to_1d_array(init_cash))
         return wrapper.wrap(market_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -4989,15 +4792,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = ArrayWrapper.from_obj(market_value)
 
         func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={
-                0: ch.ArraySlicer(1),
-                1: ch.ArraySlicer(0)
-            },
-            merge_func=base_ch.column_stack
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         market_returns = func(to_2d_array(market_value), to_1d_array(init_cash))
         return wrapper.wrap(market_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
 
@@ -5021,12 +4816,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = ArrayWrapper.from_obj(market_value)
 
         func = nb_registry.redecorate_parallel(nb.total_market_return_nb, nb_parallel)
-        chunked_kwargs = dict(
-            size=ch.ArraySizer(0, 1),
-            arg_take_spec={0: ch.ArraySlicer(1)},
-            merge_func=base_ch.concat
-        )
-        func = ch.resolve_chunked(func, chunked, **chunked_kwargs)
+        func = ch_registry.resolve_chunked(func, chunked)
         total_market_return = func(to_2d_array(market_value))
         wrap_kwargs = merge_dicts(dict(name_or_index='total_market_return'), wrap_kwargs)
         return wrapper.wrap_reduced(total_market_return, group_by=group_by, **wrap_kwargs)
