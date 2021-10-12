@@ -498,7 +498,8 @@ class TestMappedArray:
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, nb_parallel=False).values
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         np.testing.assert_array_equal(
             mapped_array.__class__.apply(
                 cumsum_apply_meta_nb, mapped_array.values,
@@ -646,7 +647,8 @@ class TestMappedArray:
             mapped_array.__class__.reduce(
                 mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
                 mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper, chunked=chunked),
@@ -698,7 +700,8 @@ class TestMappedArray:
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         pd.testing.assert_series_equal(
             mapped_array.__class__.reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
@@ -801,7 +804,8 @@ class TestMappedArray:
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
@@ -902,7 +906,8 @@ class TestMappedArray:
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         pd.testing.assert_frame_equal(
             mapped_array.__class__.reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
@@ -1663,7 +1668,7 @@ class TestRecords:
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, nb_parallel=False).values
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0),)))
         np.testing.assert_array_equal(
             records.__class__.map(
                 map_func_meta_nb, records.values,
@@ -1735,7 +1740,8 @@ class TestRecords:
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, nb_parallel=False).values
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')))))
+        chunked = dict(arg_take_spec=dict(
+            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')),)))
         np.testing.assert_array_equal(
             records.__class__.apply(
                 cumsum_apply_meta_nb, records.values,
@@ -2991,7 +2997,7 @@ class TestOrders:
         np.testing.assert_array_equal(
             records_readable['Order Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+                0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6
             ])
         )
         np.testing.assert_array_equal(
@@ -3054,8 +3060,8 @@ class TestOrders:
         record_arrays_close(
             orders['a'].buy.values,
             np.array([
-                (0, 0, 0, 1., 1., 0.01, 0), (1, 0, 1, 0.1, 2., 0.002, 0),
-                (4, 0, 5, 1., 6., 0.06, 0), (6, 0, 7, 2., 8., 0.16, 0)
+                (0, 0, 0, 1.0, 1.0, 0.01, 0), (1, 0, 1, 0.1, 2.0, 0.002, 0),
+                (4, 0, 5, 1.0, 6.0, 0.06, 0), (6, 0, 7, 2.0, 8.0, 0.16, 0)
             ], dtype=order_dt)
         )
         record_arrays_close(
@@ -3065,12 +3071,12 @@ class TestOrders:
         record_arrays_close(
             orders.buy.values,
             np.array([
-                (0, 0, 0, 1., 1., 0.01, 0), (1, 0, 1, 0.1, 2., 0.002, 0),
-                (4, 0, 5, 1., 6., 0.06, 0), (6, 0, 7, 2., 8., 0.16, 0),
-                (9, 1, 2, 1., 3., 0.03, 0), (10, 1, 3, 0.1, 4., 0.004, 0),
-                (12, 1, 6, 1., 7., 0.07, 0), (14, 2, 0, 1., 1., 0.01, 0),
-                (15, 2, 1, 0.1, 2., 0.002, 0), (18, 2, 5, 1., 6., 0.06, 0),
-                (20, 2, 7, 2., 8., 0.16, 0)
+                (0, 0, 0, 1.0, 1.0, 0.01, 0), (1, 0, 1, 0.1, 2.0, 0.002, 0),
+                (4, 0, 5, 1.0, 6.0, 0.06, 0), (6, 0, 7, 2.0, 8.0, 0.16, 0),
+                (2, 1, 2, 1.0, 3.0, 0.03, 0), (3, 1, 3, 0.1, 4.0, 0.004, 0),
+                (5, 1, 6, 1.0, 7.0, 0.07, 0), (0, 2, 0, 1.0, 1.0, 0.01, 0),
+                (1, 2, 1, 0.1, 2.0, 0.002, 0), (4, 2, 5, 1.0, 6.0, 0.06, 0),
+                (6, 2, 7, 2.0, 8.0, 0.16, 0)
             ], dtype=order_dt)
         )
 
@@ -3080,8 +3086,8 @@ class TestOrders:
         record_arrays_close(
             orders['a'].sell.values,
             np.array([
-                (2, 0, 2, 1., 3., 0.03, 1), (3, 0, 3, 0.1, 4., 0.004, 1),
-                (5, 0, 6, 1., 7., 0.07, 1)
+                (2, 0, 2, 1.0, 3.0, 0.03, 1), (3, 0, 3, 0.1, 4.0, 0.004, 1),
+                (5, 0, 6, 1.0, 7.0, 0.07, 1)
             ], dtype=order_dt)
         )
         record_arrays_close(
@@ -3091,11 +3097,11 @@ class TestOrders:
         record_arrays_close(
             orders.sell.values,
             np.array([
-                (2, 0, 2, 1., 3., 0.03, 1), (3, 0, 3, 0.1, 4., 0.004, 1),
-                (5, 0, 6, 1., 7., 0.07, 1), (7, 1, 0, 1., 1., 0.01, 1),
-                (8, 1, 1, 0.1, 2., 0.002, 1), (11, 1, 5, 1., 6., 0.06, 1),
-                (13, 1, 7, 2., 8., 0.16, 1), (16, 2, 2, 1., 3., 0.03, 1),
-                (17, 2, 3, 0.1, 4., 0.004, 1), (19, 2, 6, 2., 7., 0.14, 1)
+                (2, 0, 2, 1.0, 3.0, 0.03, 1), (3, 0, 3, 0.1, 4.0, 0.004, 1),
+                (5, 0, 6, 1.0, 7.0, 0.07, 1), (0, 1, 0, 1.0, 1.0, 0.01, 1),
+                (1, 1, 1, 0.1, 2.0, 0.002, 1), (4, 1, 5, 1.0, 6.0, 0.06, 1),
+                (6, 1, 7, 2.0, 8.0, 0.16, 1), (2, 2, 2, 1.0, 3.0, 0.03, 1),
+                (3, 2, 3, 0.1, 4.0, 0.004, 1), (5, 2, 6, 2.0, 7.0, 0.14, 1)
             ], dtype=order_dt)
         )
 
@@ -3848,8 +3854,7 @@ class TestLogs:
         np.testing.assert_array_equal(
             records_readable['Log Id'].values,
             np.array([
-                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-                28, 29, 30, 31
+                0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7
             ])
         )
         np.testing.assert_array_equal(
@@ -4129,8 +4134,8 @@ class TestLogs:
         np.testing.assert_array_equal(
             records_readable['Order Id'].values,
             np.array([
-                0, 1, 2, 3, -1, 4, 5, 6, 7, 8, 9, 10, -1, 11, 12, 13, 14, 15, 16, 17, -1, 18, 19, 20, -1, -1, -1, -1,
-                -1, -1, -1, -1
+                0, 1, 2, 3, -1, 4, 5, 6, 0, 1, 2, 3, -1, 4, 5, 6, 0, 1, 2, 3, -1, 4, 5, 6, -1, -1, -1,
+                -1, -1, -1, -1, -1
             ])
         )
 

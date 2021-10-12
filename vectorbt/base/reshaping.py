@@ -32,18 +32,27 @@ def shape_to_2d(shape: tp.ShapeLike) -> tp.Shape:
     return shape
 
 
-def to_any_array(arg: tp.ArrayLike, raw: bool = False) -> tp.AnyArray:
+def index_to_series(arg: tp.Index) -> tp.Series:
+    """Convert Index to Series."""
+    return arg.to_series().reset_index(drop=True)
+
+
+def to_any_array(arg: tp.ArrayLike, raw: bool = False, convert_index: bool = True) -> tp.AnyArray:
     """Convert any array-like object to an array.
 
     Pandas objects are kept as-is."""
     if not raw and checks.is_any_array(arg):
+        if convert_index and checks.is_index(arg):
+            return index_to_series(arg)
         return arg
     return np.asarray(arg)
 
 
-def to_pd_array(arg: tp.ArrayLike) -> tp.SeriesFrame:
+def to_pd_array(arg: tp.ArrayLike, convert_index: bool = True) -> tp.PandasArray:
     """Convert any array-like object to a pandas object."""
     if checks.is_pandas(arg):
+        if convert_index and checks.is_index(arg):
+            return index_to_series(arg)
         return arg
     arg = np.asarray(arg)
     if arg.ndim == 1:
@@ -329,6 +338,36 @@ def wrap_broadcasted(old_arg: tp.AnyArray,
     return new_arg
 
 
+def align_pd_arrays(args: tp.Sequence[tp.PandasArray],
+                    align_index: bool = True,
+                    align_columns: bool = True) -> tp.List[tp.PandasArray]:
+    """Align pandas arrays against common index and/or column levels using `vectorbt.base.indexes.align_indexes`."""
+    args = list(args)
+    if align_index:
+        index_to_align = []
+        for i in range(len(args)):
+            if checks.is_pandas(args[i]) and len(args[i].index) > 1:
+                index_to_align.append(i)
+        if len(index_to_align) > 1:
+            indexes_ = [args[i].index for i in index_to_align]
+            if len(set(map(len, indexes_))) > 1:
+                index_indices = indexes.align_indexes(indexes_)
+                for i in index_to_align:
+                    args[i] = args[i].iloc[index_indices[index_to_align.index(i)]]
+    if align_columns:
+        cols_to_align = []
+        for i in range(len(args)):
+            if checks.is_frame(args[i]) and len(args[i].columns) > 1:
+                cols_to_align.append(i)
+        if len(cols_to_align) > 1:
+            indexes_ = [args[i].columns for i in cols_to_align]
+            if len(set(map(len, indexes_))) > 1:
+                col_indices = indexes.align_indexes(indexes_)
+                for i in cols_to_align:
+                    args[i] = args[i].iloc[:, col_indices[cols_to_align.index(i)]]
+    return args
+
+
 BCRT = tp.Union[
     tp.MaybeTuple[tp.AnyArray],
     tp.Tuple[tp.MaybeTuple[tp.AnyArray], tp.Shape, tp.Optional[tp.Index], tp.Optional[tp.Index]]
@@ -547,29 +586,8 @@ def broadcast(*args: tp.ArrayLike,
         else:
             is_pd = to_pd
 
-    # Align pandas objects
-    if align_index:
-        index_to_align = []
-        for i in range(len(arr_args)):
-            if checks.is_pandas(arr_args[i]) and len(arr_args[i].index) > 1:
-                index_to_align.append(i)
-        if len(index_to_align) > 1:
-            indexes_ = [arr_args[i].index for i in index_to_align]
-            if len(set(map(len, indexes_))) > 1:
-                index_indices = indexes.align_indexes(indexes_)
-                for i in index_to_align:
-                    arr_args[i] = arr_args[i].iloc[index_indices[index_to_align.index(i)]]
-    if align_columns:
-        cols_to_align = []
-        for i in range(len(arr_args)):
-            if checks.is_frame(arr_args[i]) and len(arr_args[i].columns) > 1:
-                cols_to_align.append(i)
-        if len(cols_to_align) > 1:
-            indexes_ = [arr_args[i].columns for i in cols_to_align]
-            if len(set(map(len, indexes_))) > 1:
-                col_indices = indexes.align_indexes(indexes_)
-                for i in cols_to_align:
-                    arr_args[i] = arr_args[i].iloc[:, col_indices[cols_to_align.index(i)]]
+    # Align pandas arrays
+    arr_args = align_pd_arrays(arr_args, align_index=align_index, align_columns=align_columns)
 
     # Convert all pd.Series objects to pd.DataFrame if we work on 2-dim data
     arr_args_2d = [arg.to_frame() if is_2d and checks.is_series(arg) else arg for arg in arr_args]

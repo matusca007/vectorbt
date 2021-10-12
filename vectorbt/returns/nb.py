@@ -63,11 +63,11 @@ def returns_1d_nb(arr: tp.Array1d, init_value: float) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('arr', 1),
+    arg_take_spec=dict(
+        arr=ch.ArraySlicer(1),
+        init_value=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -94,8 +94,11 @@ def cum_returns_1d_nb(rets: tp.Array1d, start_value: float) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        start_value=None
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -122,8 +125,11 @@ def cum_returns_final_1d_nb(rets: tp.Array1d, start_value: float = 0.) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        start_value=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -154,8 +160,11 @@ def annualized_return_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -177,8 +186,13 @@ def annualized_volatility_1d_nb(rets: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        ann_factor=None,
+        levy_alpha=None,
+        ddof=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -216,8 +230,10 @@ def max_drawdown_1d_nb(rets: tp.Array1d) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -242,8 +258,11 @@ def calmar_ratio_1d_nb(rets: tp.Array1d, ann_factor: float) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -282,8 +301,10 @@ def omega_ratio_1d_nb(adj_rets: tp.Array1d) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -308,8 +329,12 @@ def sharpe_ratio_1d_nb(adj_rets: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1),
+        ann_factor=None,
+        ddof=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -340,8 +365,11 @@ def downside_risk_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -364,8 +392,11 @@ def sortino_ratio_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -388,8 +419,11 @@ def information_ratio_1d_nb(adj_rets: tp.Array1d, ddof: int = 1) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1),
+        ddof=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -410,11 +444,12 @@ def beta_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 1) -> f
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        benchmark_rets=ch.ArraySlicer(1),
+        ddof=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -443,11 +478,12 @@ def alpha_1d_nb(adj_rets: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('adj_rets', 1),
+    arg_take_spec=dict(
+        adj_rets=ch.ArraySlicer(1),
+        adj_benchmark_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -487,8 +523,10 @@ def tail_ratio_noarr_1d_nb(rets: tp.Array1d) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -513,8 +551,11 @@ def value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        cutoff=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -540,8 +581,11 @@ def cond_value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> fl
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        cutoff=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -564,11 +608,12 @@ def capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: floa
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        benchmark_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -613,11 +658,12 @@ def up_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor: f
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        benchmark_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -662,11 +708,12 @@ def down_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ann_factor:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('rets', 1),
+    arg_take_spec=dict(
+        rets=ch.ArraySlicer(1),
+        benchmark_rets=ch.ArraySlicer(1),
+        ann_factor=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})

@@ -297,7 +297,8 @@ array([10., 11., 12., 13., 14., 15.])
 
 !!! note
     Changing index (time axis) is not supported. The object should be treated as a Series
-    rather than a DataFrame; for example, use `some_field.iloc[0]` instead of `some_field.iloc[:, 0]`.
+    rather than a DataFrame; for example, use `some_field.iloc[0]` instead of `some_field.iloc[:, 0]`
+    to get the first column.
 
     Indexing behavior depends solely upon `vectorbt.base.wrapping.ArrayWrapper`.
     For example, if `group_select` is enabled indexing will be performed on groups,
@@ -425,6 +426,7 @@ from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
 from vectorbt.utils.array import index_repeating_rows_nb
+from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_dict
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic import nb as generic_nb
@@ -1019,6 +1021,10 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             **kwargs) -> tp.MaybeSeries:
         """Return n-th element of each column/group."""
         wrap_kwargs = merge_dicts(dict(name_or_index='nth'), wrap_kwargs)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.reduce(
             generic_nb.nth_reduce_nb, n,
             returns_array=False,
@@ -1040,6 +1046,10 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                   **kwargs) -> tp.MaybeSeries:
         """Return index of n-th element of each column/group."""
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index'), wrap_kwargs)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.reduce(
             generic_nb.nth_index_reduce_nb, n,
             returns_array=False,
@@ -1141,6 +1151,10 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             **kwargs) -> tp.MaybeSeries:
         """Return std by column/group."""
         wrap_kwargs = merge_dicts(dict(name_or_index='std'), wrap_kwargs)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.reduce(
             generic_nb.std_reduce_nb, ddof,
             returns_array=False,
@@ -1235,10 +1249,12 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         perc_formatted = pd.io.formats.format.format_percentiles(percentiles)
         index = pd.Index(['count', 'mean', 'std', 'min', *perc_formatted, 'max'])
         wrap_kwargs = merge_dicts(dict(name_or_index=index), wrap_kwargs)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None))
+        )
         out = self.reduce(
-            generic_nb.describe_reduce_nb,
-            percentiles,
-            ddof,
+            generic_nb.describe_reduce_nb, percentiles, ddof,
             returns_array=True,
             returns_idx=False,
             group_by=group_by,

@@ -93,18 +93,12 @@ class FlexArraySelector(ArraySelector, FlexMixin):
 
     The result is intended to be used together with `vectorbt.base.indexing.flex_select_auto_nb`."""
 
-    def __init__(self,
-                 axis: int,
-                 mapper: tp.Optional[ChunkMapper] = None,
-                 retain_dim: bool = False,
-                 flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d') -> None:
-        ArraySelector.__init__(self, axis, mapper=mapper, retain_dim=retain_dim)
+    def __init__(self, axis: int, flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d', **kwargs) -> None:
+        ArraySelector.__init__(self, axis, **kwargs)
         FlexMixin.__init__(self, flex_2d=flex_2d)
 
-    def take(self, obj: tp.Optional[tp.ArrayLike], chunk_meta: ChunkMeta,
-             ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.Optional[tp.ArrayLike]:
-        if obj is None:
-            return None
+    def take(self, obj: tp.ArrayLike, chunk_meta: ChunkMeta,
+             ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.ArrayLike:
         flex_2d = self.get_flex_2d(ann_args)
         obj = np.asarray(obj)
         if obj.ndim == 0:
@@ -114,25 +108,25 @@ class FlexArraySelector(ArraySelector, FlexMixin):
                 return obj
             if self.axis == 1:
                 if flex_2d:
-                    if self.retain_dim:
+                    if self.keep_dims:
                         return obj[chunk_meta.idx:chunk_meta.idx + 1]
                     return obj[chunk_meta.idx]
                 return obj
             if flex_2d:
                 return obj
-            if self.retain_dim:
+            if self.keep_dims:
                 return obj[chunk_meta.idx:chunk_meta.idx + 1]
             return obj[chunk_meta.idx]
         if obj.ndim == 2:
             if self.axis == 1:
                 if obj.shape[1] == 1:
                     return obj
-                if self.retain_dim:
+                if self.keep_dims:
                     return obj[: chunk_meta.idx:chunk_meta.idx + 1]
                 return obj[: chunk_meta.idx]
             if obj.shape[0] == 1:
                 return obj
-            if self.retain_dim:
+            if self.keep_dims:
                 return obj[chunk_meta.idx:chunk_meta.idx + 1, :]
             return obj[chunk_meta.idx, :]
         raise ValueError(f"FlexArraySelector supports max 2 dimensions, not {obj.ndim}")
@@ -143,17 +137,12 @@ class FlexArraySlicer(ArraySlicer, FlexMixin):
 
     The result is intended to be used together with `vectorbt.base.indexing.flex_select_auto_nb`."""
 
-    def __init__(self,
-                 axis: int,
-                 mapper: tp.Optional[ChunkMapper] = None,
-                 flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d') -> None:
-        ArraySlicer.__init__(self, axis, mapper=mapper)
+    def __init__(self, axis: int, flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d', **kwargs) -> None:
+        ArraySlicer.__init__(self, axis, **kwargs)
         FlexMixin.__init__(self, flex_2d=flex_2d)
 
-    def take(self, obj: tp.Optional[tp.ArrayLike], chunk_meta: ChunkMeta,
-             ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.Optional[tp.ArrayLike]:
-        if obj is None:
-            return None
+    def take(self, obj: tp.ArrayLike, chunk_meta: ChunkMeta,
+             ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.ArrayLike:
         flex_2d = self.get_flex_2d(ann_args)
         obj = np.asarray(obj)
         if obj.ndim == 0:

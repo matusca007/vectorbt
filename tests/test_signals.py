@@ -150,8 +150,9 @@ class TestAccessors:
             pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=True),
             pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, nb_parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(None)))
         pd.testing.assert_frame_equal(
-            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=True),
+            pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=chunked),
             pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=False)
         )
 

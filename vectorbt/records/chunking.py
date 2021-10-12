@@ -32,10 +32,7 @@ class ColLensSizer(ArgSizer):
 class ColLensSlicer(ChunkSlicer):
     """Class for slicing multiple elements from column lengths based on the chunk range."""
 
-    def take(self, obj: tp.Optional[tp.Union[tp.ColLens, tp.ColMap]],
-             chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.ColMap]:
-        if obj is None:
-            return None
+    def take(self, obj: tp.Union[tp.ColLens, tp.ColMap], chunk_meta: ChunkMeta, **kwargs) -> tp.ColMap:
         if isinstance(obj, tuple):
             return obj[1][chunk_meta.start:chunk_meta.end]
         return obj[chunk_meta.start:chunk_meta.end]
@@ -71,9 +68,7 @@ col_lens_mapper = ColLensMapper(r'(col_lens|col_map)')
 class ColMapSlicer(ChunkSlicer):
     """Class for slicing multiple elements from a column map based on the chunk range."""
 
-    def take(self, obj: tp.Optional[tp.ColMap], chunk_meta: ChunkMeta, **kwargs) -> tp.Optional[tp.ColMap]:
-        if obj is None:
-            return None
+    def take(self, obj: tp.ColMap, chunk_meta: ChunkMeta, **kwargs) -> tp.ColMap:
         col_idxs, col_lens = obj
         col_lens = col_lens[chunk_meta.start:chunk_meta.end]
         return np.arange(np.sum(col_lens)), col_lens

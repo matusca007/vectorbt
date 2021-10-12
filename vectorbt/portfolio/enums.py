@@ -583,8 +583,6 @@ class ProcessOrderState(tp.NamedTuple):
     free_cash: float
     val_price: float
     value: float
-    oidx: int
-    lidx: int
 
 
 __pdoc__['ProcessOrderState'] = "State before or after order processing."
@@ -594,8 +592,6 @@ __pdoc__['ProcessOrderState.debt'] = "Debt from shorting in the current column."
 __pdoc__['ProcessOrderState.free_cash'] = "Free cash in the current column or group with cash sharing."
 __pdoc__['ProcessOrderState.val_price'] = "Valuation price in the current column."
 __pdoc__['ProcessOrderState.value'] = "Value in the current column or group with cash sharing."
-__pdoc__['ProcessOrderState.oidx'] = "Index of order record."
-__pdoc__['ProcessOrderState.lidx'] = "Index of log record."
 
 
 class ExecuteOrderState(tp.NamedTuple):
@@ -613,13 +609,13 @@ __pdoc__['ExecuteOrderState.free_cash'] = "See `ProcessOrderState.free_cash`."
 
 
 class SimulationOutput(tp.NamedTuple):
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
 
 
 __pdoc__['SimulationOutput'] = "A named tuple representing the output of a simulation."
-__pdoc__['SimulationOutput.order_records'] = "Order records."
-__pdoc__['SimulationOutput.log_records'] = "Log records."
+__pdoc__['SimulationOutput.order_records'] = "Order records (flattened)."
+__pdoc__['SimulationOutput.log_records'] = "Log records (flattened)."
 
 
 class SimulationContext(tp.NamedTuple):
@@ -636,8 +632,8 @@ class SimulationContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -781,16 +777,18 @@ whether there is any argument that has been broadcast to 2 dimensions.
 
 Has only effect when using flexible indexing, for example, with `vectorbt.base.indexing.flex_select_auto_nb`.
 """
-__pdoc__['SimulationContext.order_records'] = """Order records.
+__pdoc__['SimulationContext.order_records'] = """Order records per column.
 
-It's a 1-dimensional array with records of type `order_dt`.
+It's a 2-dimensional array with records of type `order_dt`.
 
 The array is initialized with empty records first (they contain random data), and then 
-gradually filled with order data. The number of initialized records depends upon `max_orders`, 
-but usually it's `target_shape[0] * target_shape[1]`, meaning there is maximal one order record per element.
+gradually filled with order data. The number of empty records depends upon `max_orders`, 
+but usually it matches the number of rows, meaning there is maximal one order record per element.
 `max_orders` can be chosen lower if not every `order_func_nb` leads to a filled order, to save memory.
+It can also be chosen higher if more than one order per element is expected.
 
 You can use `SimulationContext.last_oidx` to get the index of the latest filled order of each column.
+To get all order records filled up to this point in a column, do `order_records[:last_oidx[col] + 1, col]`.
 
 ## Example
 
@@ -806,7 +804,7 @@ After filling, it becomes like this:
 np.array([(0, 0, 1, 50., 1., 0., 1)]
 ```
 """
-__pdoc__['SimulationContext.log_records'] = """Log records.
+__pdoc__['SimulationContext.log_records'] = """Log records per column.
 
 Similar to `SimulationContext.order_records` but of type `log_dt` and index `SimulationContext.last_lidx`."""
 __pdoc__['SimulationContext.last_cash'] = """Latest cash per column or group with cash sharing.
@@ -905,9 +903,9 @@ Points to `SimulationContext.order_records` and has shape `(target_shape[1],)`.
 
 ## Example
 
-`last_oidx` of `np.array([1, 100, -1])` means the latest filled order is `order_records[1]` for the
-first column, `order_records[100]` for the second column, and no orders have been filled yet
-for the third column.
+`last_oidx` of `np.array([1, 100, -1])` means the latest filled order is `order_records[1, 0]` for the
+first column, `order_records[100, 1]` for the second column, and no orders have been filled yet
+for the third column (`order_records[0, 2]` is empty).
 """
 __pdoc__['SimulationContext.last_lidx'] = """Index of the latest log record of each column.
 
@@ -991,8 +989,8 @@ class GroupContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1069,8 +1067,8 @@ class RowContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1116,8 +1114,8 @@ class SegmentContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1183,8 +1181,8 @@ class OrderContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1261,8 +1259,8 @@ class PostOrderContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1357,8 +1355,8 @@ class FlexOrderContext(tp.NamedTuple):
     update_value: bool
     fill_pos_record: bool
     flex_2d: bool
-    order_records: tp.RecordArray
-    log_records: tp.RecordArray
+    order_records: tp.RecordArray2d
+    log_records: tp.RecordArray2d
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d

@@ -586,12 +586,13 @@ class SignalsAccessor(GenericAccessor):
             n = np.broadcast_to(n, (shape_2d[1],))
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=True))}
+                arg_take_spec=dict(args=ch.ArgsTaker(
+                    base_ch.FlexArraySlicer(1, flex_2d=True)
+                ))
             )
             return cls.generate(
                 shape,
-                nb.rand_place_nb,
-                n,
+                nb.rand_place_nb, n,
                 chunked=chunked,
                 **kwargs
             )
@@ -600,14 +601,15 @@ class SignalsAccessor(GenericAccessor):
             flex_2d = isinstance(shape, tuple) and len(shape) > 1
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))}
+                arg_take_spec=dict(args=ch.ArgsTaker(
+                    base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                    None,
+                    None
+                ))
             )
             return cls.generate(
                 shape,
-                nb.rand_by_prob_place_nb,
-                prob,
-                pick_first,
-                flex_2d,
+                nb.rand_by_prob_place_nb, prob, pick_first, flex_2d,
                 chunked=chunked,
                 **kwargs
             )
@@ -715,10 +717,18 @@ class SignalsAccessor(GenericAccessor):
             flex_2d = isinstance(shape, tuple) and len(shape) > 1
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={
-                    'entry_args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d)),
-                    'exit_args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))
-                }
+                arg_take_spec=dict(
+                    entry_args=ch.ArgsTaker(
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None
+                    ),
+                    exit_args=ch.ArgsTaker(
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None
+                    )
+                )
             )
             return cls.generate_both(
                 shape,
@@ -799,13 +809,14 @@ class SignalsAccessor(GenericAccessor):
             flex_2d = obj.ndim == 2
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=flex_2d))}
+                arg_take_spec=dict(args=ch.ArgsTaker(
+                    base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                    None,
+                    None
+                ))
             )
             return obj.vbt.signals.generate_exits(
-                nb.rand_by_prob_place_nb,
-                prob,
-                True,
-                flex_2d,
+                nb.rand_by_prob_place_nb, prob, True, flex_2d,
                 wait=wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
@@ -816,11 +827,12 @@ class SignalsAccessor(GenericAccessor):
         n = np.broadcast_to(1, (self.wrapper.shape_2d[1],))
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec={'args': ch.ArgsTaker(base_ch.FlexArraySlicer(1, flex_2d=True))}
+            arg_take_spec=dict(args=ch.ArgsTaker(
+                base_ch.FlexArraySlicer(1, flex_2d=True)
+            ))
         )
         return self.generate_exits(
-            nb.rand_place_nb,
-            n,
+            nb.rand_place_nb, n,
             wait=wait,
             until_next=until_next,
             skip_until_exit=skip_until_exit,
@@ -907,14 +919,19 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.df_accessor_cls
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={
-                    'entry_args': ch.ArgsTaker(ch.ArraySlicer(1)),
-                    'exit_args': ch.ArgsTaker(
+                arg_take_spec=dict(
+                    entry_args=ch.ArgsTaker(
+                        ch.ArraySlicer(1)
+                    ),
+                    exit_args=ch.ArgsTaker(
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None,
+                        None
                     )
-                }
+                )
             )
             return cls.generate_both(
                 entries.shape,
@@ -941,13 +958,16 @@ class SignalsAccessor(GenericAccessor):
         else:
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={
-                    'args': ch.ArgsTaker(
+                arg_take_spec=dict(
+                    args=ch.ArgsTaker(
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None,
+                        None
                     )
-                }
+                )
             )
             if skip_until_exit and until_next:
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
@@ -1199,9 +1219,11 @@ class SignalsAccessor(GenericAccessor):
                 cls = self.df_accessor_cls
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={
-                    'entry_args': ch.ArgsTaker(ch.ArraySlicer(1)),
-                    'exit_args': ch.ArgsTaker(
+                arg_take_spec=dict(
+                    entry_args=ch.ArgsTaker(
+                        ch.ArraySlicer(1)
+                    ),
+                    exit_args=ch.ArgsTaker(
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
@@ -1211,9 +1233,13 @@ class SignalsAccessor(GenericAccessor):
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None,
+                        None,
+                        None
                     )
-                }
+                )
             )
             new_entries, exits = cls.generate_both(
                 entries.shape,
@@ -1253,8 +1279,8 @@ class SignalsAccessor(GenericAccessor):
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
             chunked = ch.specialize_chunked_option(
                 chunked,
-                arg_take_spec={
-                    'args': ch.ArgsTaker(
+                arg_take_spec=dict(
+                    args=ch.ArgsTaker(
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
@@ -1264,9 +1290,13 @@ class SignalsAccessor(GenericAccessor):
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
                         base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d)
+                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        None,
+                        None,
+                        None,
+                        None
                     )
-                }
+                )
             )
             exits = entries.vbt.signals.generate_exits(
                 nb.ohlc_stop_place_nb,
@@ -1514,7 +1544,8 @@ class SignalsAccessor(GenericAccessor):
             )
         return rank_wrapped
 
-    def pos_rank(self, allow_gaps: bool = False, **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
+    def pos_rank(self, chunked: tp.ChunkedOption = None, allow_gaps: bool = False,
+                 **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """Get signal position ranks.
 
         Uses `SignalsAccessor.rank` with `vectorbt.signals.nb.sig_pos_rank_nb`.
@@ -1558,14 +1589,19 @@ class SignalsAccessor(GenericAccessor):
         ```
         """
         prepare_func = lambda obj, reset_by: (np.full(obj.shape[1], -1, dtype=np.int_),)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0), None))
+        )
         return self.rank(
-            nb.sig_pos_rank_nb,
-            allow_gaps,
+            nb.sig_pos_rank_nb, allow_gaps,
             prepare_func=prepare_func,
+            chunked=chunked,
             **kwargs
         )
 
-    def partition_pos_rank(self, **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
+    def partition_pos_rank(self, chunked: tp.ChunkedOption = None,
+                           **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """Get partition position ranks.
 
         Uses `SignalsAccessor.rank` with `vectorbt.signals.nb.part_pos_rank_nb`.
@@ -1601,9 +1637,14 @@ class SignalsAccessor(GenericAccessor):
         ```
         """
         prepare_func = lambda obj, reset_by: (np.full(obj.shape[1], -1, dtype=np.int_),)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0)))
+        )
         return self.rank(
             nb.part_pos_rank_nb,
             prepare_func=prepare_func,
+            chunked=chunked,
             **kwargs
         )
 

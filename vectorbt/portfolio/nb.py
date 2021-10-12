@@ -517,11 +517,11 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
 
 
 @register_jit(cache=True)
-def fill_log_record_nb(record: tp.Record,
-                       record_id: int,
-                       i: int,
-                       col: int,
+def fill_log_record_nb(records: tp.RecordArray2d,
+                       r: int,
                        group: int,
+                       col: int,
+                       i: int,
                        cash: float,
                        position: float,
                        debt: float,
@@ -539,60 +539,60 @@ def fill_log_record_nb(record: tp.Record,
                        order_id: int) -> None:
     """Fill a log record."""
 
-    record['id'] = record_id
-    record['group'] = group
-    record['col'] = col
-    record['idx'] = i
-    record['cash'] = cash
-    record['position'] = position
-    record['debt'] = debt
-    record['free_cash'] = free_cash
-    record['val_price'] = val_price
-    record['value'] = value
-    record['req_size'] = order.size
-    record['req_price'] = order.price
-    record['req_size_type'] = order.size_type
-    record['req_direction'] = order.direction
-    record['req_fees'] = order.fees
-    record['req_fixed_fees'] = order.fixed_fees
-    record['req_slippage'] = order.slippage
-    record['req_min_size'] = order.min_size
-    record['req_max_size'] = order.max_size
-    record['req_reject_prob'] = order.reject_prob
-    record['req_lock_cash'] = order.lock_cash
-    record['req_allow_partial'] = order.allow_partial
-    record['req_raise_reject'] = order.raise_reject
-    record['req_log'] = order.log
-    record['new_cash'] = new_cash
-    record['new_position'] = new_position
-    record['new_debt'] = new_debt
-    record['new_free_cash'] = new_free_cash
-    record['new_val_price'] = new_val_price
-    record['new_value'] = new_value
-    record['res_size'] = order_result.size
-    record['res_price'] = order_result.price
-    record['res_fees'] = order_result.fees
-    record['res_side'] = order_result.side
-    record['res_status'] = order_result.status
-    record['res_status_info'] = order_result.status_info
-    record['order_id'] = order_id
+    records['id'][r, col] = r
+    records['group'][r, col] = group
+    records['col'][r, col] = col
+    records['idx'][r, col] = i
+    records['cash'][r, col] = cash
+    records['position'][r, col] = position
+    records['debt'][r, col] = debt
+    records['free_cash'][r, col] = free_cash
+    records['val_price'][r, col] = val_price
+    records['value'][r, col] = value
+    records['req_size'][r, col] = order.size
+    records['req_price'][r, col] = order.price
+    records['req_size_type'][r, col] = order.size_type
+    records['req_direction'][r, col] = order.direction
+    records['req_fees'][r, col] = order.fees
+    records['req_fixed_fees'][r, col] = order.fixed_fees
+    records['req_slippage'][r, col] = order.slippage
+    records['req_min_size'][r, col] = order.min_size
+    records['req_max_size'][r, col] = order.max_size
+    records['req_reject_prob'][r, col] = order.reject_prob
+    records['req_lock_cash'][r, col] = order.lock_cash
+    records['req_allow_partial'][r, col] = order.allow_partial
+    records['req_raise_reject'][r, col] = order.raise_reject
+    records['req_log'][r, col] = order.log
+    records['new_cash'][r, col] = new_cash
+    records['new_position'][r, col] = new_position
+    records['new_debt'][r, col] = new_debt
+    records['new_free_cash'][r, col] = new_free_cash
+    records['new_val_price'][r, col] = new_val_price
+    records['new_value'][r, col] = new_value
+    records['res_size'][r, col] = order_result.size
+    records['res_price'][r, col] = order_result.price
+    records['res_fees'][r, col] = order_result.fees
+    records['res_side'][r, col] = order_result.side
+    records['res_status'][r, col] = order_result.status
+    records['res_status_info'][r, col] = order_result.status_info
+    records['order_id'][r, col] = order_id
 
 
 @register_jit(cache=True)
-def fill_order_record_nb(record: tp.Record,
-                         record_id: int,
-                         i: int,
+def fill_order_record_nb(records: tp.RecordArray2d,
+                         r: int,
                          col: int,
+                         i: int,
                          order_result: OrderResult) -> None:
     """Fill an order record."""
 
-    record['id'] = record_id
-    record['col'] = col
-    record['idx'] = i
-    record['size'] = order_result.size
-    record['price'] = order_result.price
-    record['fees'] = order_result.fees
-    record['side'] = order_result.side
+    records['id'][r, col] = r
+    records['col'][r, col] = col
+    records['idx'][r, col] = i
+    records['size'][r, col] = order_result.size
+    records['price'][r, col] = order_result.price
+    records['fees'][r, col] = order_result.fees
+    records['side'][r, col] = order_result.side
 
 
 @register_jit(cache=True)
@@ -655,14 +655,16 @@ def update_value_nb(cash_before: float,
 
 
 @register_jit(cache=True)
-def process_order_nb(i: int,
+def process_order_nb(group: int,
                      col: int,
-                     group: int,
+                     i: int,
                      state: ProcessOrderState,
                      update_value: bool,
                      order: Order,
-                     order_records: tp.RecordArray,
-                     log_records: tp.RecordArray) -> tp.Tuple[OrderResult, ProcessOrderState]:
+                     order_records: tp.RecordArray2d,
+                     last_oidx: tp.Array1d,
+                     log_records: tp.RecordArray2d,
+                     last_lidx: tp.Array1d) -> tp.Tuple[OrderResult, ProcessOrderState]:
     """Process an order by executing it, saving relevant information to the logs, and returning a new state."""
 
     # Execute the order
@@ -689,31 +691,29 @@ def process_order_nb(i: int,
         new_val_price = state.val_price
         new_value = state.value
 
-    new_oidx = state.oidx
     if is_filled:
         # Fill order record
-        if state.oidx > len(order_records) - 1:
+        if last_oidx[col] >= order_records.shape[0] - 1:
             raise IndexError("order_records index out of range. Set a higher max_orders.")
         fill_order_record_nb(
-            order_records[state.oidx],
-            state.oidx,
-            i,
+            order_records,
+            last_oidx[col] + 1,
             col,
+            i,
             order_result
         )
-        new_oidx += 1
+        last_oidx[col] += 1
 
-    new_lidx = state.lidx
     if order.log:
         # Fill log record
-        if state.lidx > len(log_records) - 1:
+        if last_lidx[col] >= log_records.shape[0] - 1:
             raise IndexError("log_records index out of range. Set a higher max_logs.")
         fill_log_record_nb(
-            log_records[state.lidx],
-            state.lidx,
-            i,
-            col,
+            log_records,
+            last_lidx[col] + 1,
             group,
+            col,
+            i,
             state.cash,
             state.position,
             state.debt,
@@ -728,9 +728,9 @@ def process_order_nb(i: int,
             new_val_price,
             new_value,
             order_result,
-            state.oidx if is_filled else -1
+            last_oidx[col] if is_filled else -1
         )
-        new_lidx += 1
+        last_lidx[col] += 1
 
     # Create new state
     new_state = ProcessOrderState(
@@ -739,9 +739,7 @@ def process_order_nb(i: int,
         debt=exec_state.debt,
         free_cash=exec_state.free_cash,
         val_price=new_val_price,
-        value=new_value,
-        oidx=new_oidx,
-        lidx=new_lidx
+        value=new_value
     )
 
     return order_result, new_state
@@ -1138,18 +1136,18 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
 @register_jit(cache=True)
 def init_records_nb(target_shape: tp.Shape,
                     max_orders: tp.Optional[int] = None,
-                    max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray, tp.RecordArray]:
+                    max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray2d, tp.RecordArray2d]:
     """Initialize order and log records."""
     if max_orders is None:
-        order_records = np.empty(target_shape[0] * target_shape[1], dtype=order_dt)
+        order_records = np.empty((target_shape[0], target_shape[1]), dtype=order_dt)
     else:
-        order_records = np.empty(max_orders * target_shape[1], dtype=order_dt)
+        order_records = np.empty((max_orders, target_shape[1]), dtype=order_dt)
     if max_logs is None:
-        log_records = np.empty(target_shape[0] * target_shape[1], dtype=log_dt)
+        log_records = np.empty((target_shape[0], target_shape[1]), dtype=log_dt)
     elif max_logs == 0:
-        log_records = np.empty(1, dtype=log_dt)
+        log_records = np.empty((1, target_shape[1]), dtype=log_dt)
     else:
-        log_records = np.empty(max_logs * target_shape[1], dtype=log_dt)
+        log_records = np.empty((max_logs, target_shape[1]), dtype=log_dt)
     return order_records, log_records
 
 
@@ -1282,29 +1280,30 @@ def update_pos_record_nb(record: tp.Record,
         group_lens=ch.ArraySlicer(0),
         init_cash=ch.ArraySlicer(0),
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        size_type=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        direction=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        fixed_fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        slippage=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        min_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        max_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        reject_prob=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        lock_cash=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        allow_partial=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        raise_reject=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        log=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        val_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        size=portfolio_ch.flex_array_gl_slicer,
+        price=portfolio_ch.flex_array_gl_slicer,
+        size_type=portfolio_ch.flex_array_gl_slicer,
+        direction=portfolio_ch.flex_array_gl_slicer,
+        fees=portfolio_ch.flex_array_gl_slicer,
+        fixed_fees=portfolio_ch.flex_array_gl_slicer,
+        slippage=portfolio_ch.flex_array_gl_slicer,
+        min_size=portfolio_ch.flex_array_gl_slicer,
+        max_size=portfolio_ch.flex_array_gl_slicer,
+        reject_prob=portfolio_ch.flex_array_gl_slicer,
+        lock_cash=portfolio_ch.flex_array_gl_slicer,
+        allow_partial=portfolio_ch.flex_array_gl_slicer,
+        raise_reject=portfolio_ch.flex_array_gl_slicer,
+        log=portfolio_ch.flex_array_gl_slicer,
+        val_price=portfolio_ch.flex_array_gl_slicer,
+        close=portfolio_ch.flex_array_gl_slicer,
+        auto_call_seq=None,
+        ffill_val_price=None,
+        update_value=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit(cache=True)
 def simulate_from_orders_nb(target_shape: tp.Shape,
@@ -1383,8 +1382,8 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
     last_val_price = np.full(target_shape[1], np.nan, dtype=np.float_)
     order_price = np.full(target_shape[1], np.nan, dtype=np.float_)
     temp_order_value = np.empty(target_shape[1], dtype=np.float_)
-    oidx = 0
-    lidx = 0
+    last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
+    last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
 
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
@@ -1494,18 +1493,18 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     debt=debt_now,
                     free_cash=free_cash_now,
                     val_price=val_price_now,
-                    value=value_now,
-                    oidx=oidx,
-                    lidx=lidx
+                    value=value_now
                 )
 
                 order_result, new_state = process_order_nb(
-                    i, col, group,
+                    group, col, i,
                     state,
                     update_value,
                     order,
                     order_records,
-                    log_records
+                    last_oidx,
+                    log_records,
+                    last_lidx
                 )
 
                 # Update state
@@ -1515,8 +1514,6 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 free_cash_now = new_state.free_cash
                 val_price_now = new_state.val_price
                 value_now = new_state.value
-                oidx = new_state.oidx
-                lidx = new_state.lidx
 
                 # Now becomes last
                 last_position[col] = position_now
@@ -1525,8 +1522,8 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     last_val_price[col] = val_price_now
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -1858,43 +1855,51 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
         group_lens=ch.ArraySlicer(0),
         init_cash=ch.ArraySlicer(0),
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        size_type=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        fixed_fees=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        slippage=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        min_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        max_size=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        reject_prob=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        lock_cash=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        allow_partial=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        raise_reject=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        log=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        accumulate=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_long_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_short_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_dir_conflict=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_opposite_entry=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        val_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        open=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        high=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        low=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        sl_stop=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        sl_trail=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        tp_stop=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        stop_entry_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        stop_exit_price=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_stop_exit=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        upon_stop_update=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        signal_func_nb=None,
+        signal_args=ch.ArgsTaker(),
+        size=portfolio_ch.flex_array_gl_slicer,
+        price=portfolio_ch.flex_array_gl_slicer,
+        size_type=portfolio_ch.flex_array_gl_slicer,
+        fees=portfolio_ch.flex_array_gl_slicer,
+        fixed_fees=portfolio_ch.flex_array_gl_slicer,
+        slippage=portfolio_ch.flex_array_gl_slicer,
+        min_size=portfolio_ch.flex_array_gl_slicer,
+        max_size=portfolio_ch.flex_array_gl_slicer,
+        reject_prob=portfolio_ch.flex_array_gl_slicer,
+        lock_cash=portfolio_ch.flex_array_gl_slicer,
+        allow_partial=portfolio_ch.flex_array_gl_slicer,
+        raise_reject=portfolio_ch.flex_array_gl_slicer,
+        log=portfolio_ch.flex_array_gl_slicer,
+        accumulate=portfolio_ch.flex_array_gl_slicer,
+        upon_long_conflict=portfolio_ch.flex_array_gl_slicer,
+        upon_short_conflict=portfolio_ch.flex_array_gl_slicer,
+        upon_dir_conflict=portfolio_ch.flex_array_gl_slicer,
+        upon_opposite_entry=portfolio_ch.flex_array_gl_slicer,
+        val_price=portfolio_ch.flex_array_gl_slicer,
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
+        close=portfolio_ch.flex_array_gl_slicer,
+        sl_stop=portfolio_ch.flex_array_gl_slicer,
+        sl_trail=portfolio_ch.flex_array_gl_slicer,
+        tp_stop=portfolio_ch.flex_array_gl_slicer,
+        stop_entry_price=portfolio_ch.flex_array_gl_slicer,
+        stop_exit_price=portfolio_ch.flex_array_gl_slicer,
+        upon_stop_exit=portfolio_ch.flex_array_gl_slicer,
+        upon_stop_update=portfolio_ch.flex_array_gl_slicer,
+        adjust_sl_func_nb=None,
+        adjust_sl_args=ch.ArgsTaker(),
+        adjust_tp_func_nb=None,
+        adjust_tp_args=ch.ArgsTaker(),
+        use_stops=None,
+        auto_call_seq=None,
+        ffill_val_price=None,
+        update_value=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit
 def simulate_from_signal_func_nb(target_shape: tp.Shape,
@@ -2028,8 +2033,8 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
     slippage_arr = np.empty(target_shape[1], dtype=np.float_)
     direction_arr = np.empty(target_shape[1], dtype=np.int_)
     temp_order_value = np.empty(target_shape[1], dtype=np.float_)
-    oidx = 0
-    lidx = 0
+    last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
+    last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
 
     from_col = 0
     for group in range(len(group_lens)):
@@ -2321,18 +2326,18 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                         debt=debt_now,
                         free_cash=free_cash_now,
                         val_price=val_price_now,
-                        value=value_now,
-                        oidx=oidx,
-                        lidx=lidx
+                        value=value_now
                     )
 
                     order_result, new_state = process_order_nb(
-                        i, col, group,
+                        group, col, i,
                         state,
                         update_value,
                         order,
                         order_records,
-                        log_records
+                        last_oidx,
+                        log_records,
+                        last_lidx
                     )
 
                     # Update state
@@ -2342,8 +2347,6 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                     free_cash_now = new_state.free_cash
                     val_price_now = new_state.val_price
                     value_now = new_state.value
-                    oidx = new_state.oidx
-                    lidx = new_state.lidx
 
                     if use_stops:
                         # Update stop price
@@ -2402,8 +2405,8 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
         from_col = to_col
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -2473,16 +2476,36 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
         target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        cash_sharing=None,
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         segment_mask=base_ch.FlexArraySlicer(1),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        call_pre_segment=None,
+        call_post_segment=None,
+        pre_sim_func_nb=None,
+        pre_sim_args=ch.ArgsTaker(),
+        post_sim_func_nb=None,
+        post_sim_args=ch.ArgsTaker(),
+        pre_group_func_nb=None,
+        pre_group_args=ch.ArgsTaker(),
+        post_group_func_nb=None,
+        post_group_args=ch.ArgsTaker(),
+        pre_segment_func_nb=None,
+        pre_segment_args=ch.ArgsTaker(),
+        post_segment_func_nb=None,
+        post_segment_args=ch.ArgsTaker(),
+        order_func_nb=None,
+        order_args=ch.ArgsTaker(),
+        post_order_func_nb=None,
+        post_order_args=ch.ArgsTaker(),
+        close=portfolio_ch.flex_array_gl_slicer,
+        ffill_val_price=None,
+        update_value=None,
+        fill_pos_record=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit
 def simulate_nb(target_shape: tp.Shape,
@@ -2871,8 +2894,6 @@ def simulate_nb(target_shape: tp.Shape,
     last_pos_record['id'][:] = -1
     last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
-    oidx = 0
-    lidx = 0
 
     # Call function before the simulation
     pre_sim_ctx = SimulationContext(
@@ -3100,18 +3121,18 @@ def simulate_nb(target_shape: tp.Shape,
                         debt=debt_now,
                         free_cash=free_cash_now,
                         val_price=val_price_now,
-                        value=value_now,
-                        oidx=oidx,
-                        lidx=lidx
+                        value=value_now
                     )
 
                     order_result, new_state = process_order_nb(
-                        i, col, group,
+                        group, col, i,
                         state,
                         update_value,
                         order,
                         order_records,
-                        log_records
+                        last_oidx,
+                        log_records,
+                        last_lidx
                     )
 
                     # Update state
@@ -3125,8 +3146,6 @@ def simulate_nb(target_shape: tp.Shape,
                         return_now = returns_nb.get_return_nb(second_last_value[group], value_now)
                     else:
                         return_now = returns_nb.get_return_nb(second_last_value[col], value_now)
-                    oidx = new_state.oidx
-                    lidx = new_state.lidx
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -3143,10 +3162,6 @@ def simulate_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
-                    if state.oidx != new_state.oidx:
-                        last_oidx[col] = state.oidx
-                    if state.lidx != new_state.lidx:
-                        last_lidx[col] = state.lidx
 
                     # Update position record
                     if fill_pos_record:
@@ -3357,8 +3372,8 @@ def simulate_nb(target_shape: tp.Shape,
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -3368,16 +3383,36 @@ def simulate_nb(target_shape: tp.Shape,
         target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        cash_sharing=None,
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         segment_mask=base_ch.FlexArraySlicer(1),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        call_pre_segment=None,
+        call_post_segment=None,
+        pre_sim_func_nb=None,
+        pre_sim_args=ch.ArgsTaker(),
+        post_sim_func_nb=None,
+        post_sim_args=ch.ArgsTaker(),
+        pre_row_func_nb=None,
+        pre_row_args=ch.ArgsTaker(),
+        post_row_func_nb=None,
+        post_row_args=ch.ArgsTaker(),
+        pre_segment_func_nb=None,
+        pre_segment_args=ch.ArgsTaker(),
+        post_segment_func_nb=None,
+        post_segment_args=ch.ArgsTaker(),
+        order_func_nb=None,
+        order_args=ch.ArgsTaker(),
+        post_order_func_nb=None,
+        post_order_args=ch.ArgsTaker(),
+        close=portfolio_ch.flex_array_gl_slicer,
+        ffill_val_price=None,
+        update_value=None,
+        fill_pos_record=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit
 def simulate_row_wise_nb(target_shape: tp.Shape,
@@ -3523,8 +3558,6 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     last_pos_record['id'][:] = -1
     last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
-    oidx = 0
-    lidx = 0
 
     # Call function before the simulation
     pre_sim_ctx = SimulationContext(
@@ -3749,18 +3782,18 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         debt=debt_now,
                         free_cash=free_cash_now,
                         val_price=val_price_now,
-                        value=value_now,
-                        oidx=oidx,
-                        lidx=lidx
+                        value=value_now
                     )
 
                     order_result, new_state = process_order_nb(
-                        i, col, group,
+                        group, col, i,
                         state,
                         update_value,
                         order,
                         order_records,
-                        log_records
+                        last_oidx,
+                        log_records,
+                        last_lidx,
                     )
 
                     # Update state
@@ -3774,8 +3807,6 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         return_now = returns_nb.get_return_nb(second_last_value[group], value_now)
                     else:
                         return_now = returns_nb.get_return_nb(second_last_value[col], value_now)
-                    oidx = new_state.oidx
-                    lidx = new_state.lidx
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -3792,10 +3823,6 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
-                    if state.oidx != new_state.oidx:
-                        last_oidx[col] = state.oidx
-                    if state.lidx != new_state.lidx:
-                        last_lidx[col] = state.lidx
 
                     # Update position record
                     if fill_pos_record:
@@ -4003,8 +4030,8 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -4023,15 +4050,35 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
         target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        cash_sharing=None,
         segment_mask=base_ch.FlexArraySlicer(1),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        call_pre_segment=None,
+        call_post_segment=None,
+        pre_sim_func_nb=None,
+        pre_sim_args=ch.ArgsTaker(),
+        post_sim_func_nb=None,
+        post_sim_args=ch.ArgsTaker(),
+        pre_group_func_nb=None,
+        pre_group_args=ch.ArgsTaker(),
+        post_group_func_nb=None,
+        post_group_args=ch.ArgsTaker(),
+        pre_segment_func_nb=None,
+        pre_segment_args=ch.ArgsTaker(),
+        post_segment_func_nb=None,
+        post_segment_args=ch.ArgsTaker(),
+        flex_order_func_nb=None,
+        flex_order_args=ch.ArgsTaker(),
+        post_order_func_nb=None,
+        post_order_args=ch.ArgsTaker(),
+        close=portfolio_ch.flex_array_gl_slicer,
+        ffill_val_price=None,
+        update_value=None,
+        fill_pos_record=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit
 def flex_simulate_nb(target_shape: tp.Shape,
@@ -4249,8 +4296,6 @@ def flex_simulate_nb(target_shape: tp.Shape,
     last_pos_record['id'][:] = -1
     last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
-    oidx = 0
-    lidx = 0
 
     # Call function before the simulation
     pre_sim_ctx = SimulationContext(
@@ -4471,18 +4516,18 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         debt=debt_now,
                         free_cash=free_cash_now,
                         val_price=val_price_now,
-                        value=value_now,
-                        oidx=oidx,
-                        lidx=lidx
+                        value=value_now
                     )
 
                     order_result, new_state = process_order_nb(
-                        i, col, group,
+                        group, col, i,
                         state,
                         update_value,
                         order,
                         order_records,
-                        log_records
+                        last_oidx,
+                        log_records,
+                        last_lidx
                     )
 
                     # Update state
@@ -4496,8 +4541,6 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         return_now = returns_nb.get_return_nb(second_last_value[group], value_now)
                     else:
                         return_now = returns_nb.get_return_nb(second_last_value[col], value_now)
-                    oidx = new_state.oidx
-                    lidx = new_state.lidx
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -4514,10 +4557,6 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
-                    if state.oidx != new_state.oidx:
-                        last_oidx[col] = state.oidx
-                    if state.lidx != new_state.lidx:
-                        last_lidx[col] = state.lidx
 
                     # Update position record
                     if fill_pos_record:
@@ -4728,8 +4767,8 @@ def flex_simulate_nb(target_shape: tp.Shape,
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -4739,15 +4778,35 @@ def flex_simulate_nb(target_shape: tp.Shape,
         target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
+        cash_sharing=None,
         segment_mask=base_ch.FlexArraySlicer(1),
-        close=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        call_pre_segment=None,
+        call_post_segment=None,
+        pre_sim_func_nb=None,
+        pre_sim_args=ch.ArgsTaker(),
+        post_sim_func_nb=None,
+        post_sim_args=ch.ArgsTaker(),
+        pre_row_func_nb=None,
+        pre_row_args=ch.ArgsTaker(),
+        post_row_func_nb=None,
+        post_row_args=ch.ArgsTaker(),
+        pre_segment_func_nb=None,
+        pre_segment_args=ch.ArgsTaker(),
+        post_segment_func_nb=None,
+        post_segment_args=ch.ArgsTaker(),
+        flex_order_func_nb=None,
+        flex_order_args=ch.ArgsTaker(),
+        post_order_func_nb=None,
+        post_order_args=ch.ArgsTaker(),
+        close=portfolio_ch.flex_array_gl_slicer,
+        ffill_val_price=None,
+        update_value=None,
+        fill_pos_record=None,
+        max_orders=None,
+        max_logs=None,
+        flex_2d=None
     ),
-    merge_func=portfolio_ch.merge_sim_outs,
-    merge_kwargs=dict(
-        chunk_meta=Rep("chunk_meta"),
-        ann_args=Rep("ann_args"),
-        mapper=base_ch.group_lens_mapper
-    )
+    **portfolio_ch.merge_sim_outs_config
 )
 @register_jit
 def flex_simulate_row_wise_nb(target_shape: tp.Shape,
@@ -4801,8 +4860,6 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     last_pos_record['id'][:] = -1
     last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
-    oidx = 0
-    lidx = 0
 
     # Call function before the simulation
     pre_sim_ctx = SimulationContext(
@@ -5021,18 +5078,18 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         debt=debt_now,
                         free_cash=free_cash_now,
                         val_price=val_price_now,
-                        value=value_now,
-                        oidx=oidx,
-                        lidx=lidx
+                        value=value_now
                     )
 
                     order_result, new_state = process_order_nb(
-                        i, col, group,
+                        group, col, i,
                         state,
                         update_value,
                         order,
                         order_records,
-                        log_records
+                        last_oidx,
+                        log_records,
+                        last_lidx
                     )
 
                     # Update state
@@ -5046,8 +5103,6 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         return_now = returns_nb.get_return_nb(second_last_value[group], value_now)
                     else:
                         return_now = returns_nb.get_return_nb(second_last_value[col], value_now)
-                    oidx = new_state.oidx
-                    lidx = new_state.lidx
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -5064,10 +5119,6 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
-                    if state.oidx != new_state.oidx:
-                        last_oidx[col] = state.oidx
-                    if state.lidx != new_state.lidx:
-                        last_lidx[col] = state.lidx
 
                     # Update position record
                     if fill_pos_record:
@@ -5275,8 +5326,8 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
     return SimulationOutput(
-        order_records=order_records[:oidx],
-        log_records=log_records[:lidx]
+        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
+        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
     )
 
 
@@ -5415,12 +5466,12 @@ def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(2),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: ch.ArraySlicer(1),
-        2: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        close=ch.ArraySlicer(1),
+        col_map=records_ch.ColMapSlicer()
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -5658,12 +5709,12 @@ def get_entry_trades_nb(order_records: tp.RecordArray, close: tp.Array2d, col_ma
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(2),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: ch.ArraySlicer(1),
-        2: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        close=ch.ArraySlicer(1),
+        col_map=records_ch.ColMapSlicer()
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -5971,11 +6022,11 @@ def copy_trade_record_nb(new_records: tp.RecordArray, r: int, trade_record: tp.R
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        trade_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6163,8 +6214,10 @@ def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('close', 1),
+    arg_take_spec=dict(
+        close=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6214,12 +6267,13 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(2),
-    arg_take_spec={
-        0: ch.ShapeSlicer(1),
-        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        2: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        direction=None
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6267,8 +6321,10 @@ def asset_flow_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('asset_flow', 1),
+    arg_take_spec=dict(
+        asset_flow=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6342,12 +6398,13 @@ def get_free_cash_diff_nb(position_before: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(2),
-    arg_take_spec={
-        0: ch.ShapeSlicer(1),
-        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        2: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        free=None
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6400,11 +6457,11 @@ def cash_flow_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(1, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6460,11 +6517,11 @@ def init_cash_nb(init_cash: tp.Array1d, group_lens: tp.Array1d, cash_sharing: bo
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('cash_flow', 1),
+    arg_take_spec=dict(
+        cash_flow=ch.ArraySlicer(1),
+        init_cash=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6479,13 +6536,13 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(1, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(0),
-        2: ch.ArraySlicer(0),
-        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        cash_flow=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash_grouped=ch.ArraySlicer(0),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6512,13 +6569,13 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(2, 0),
-    arg_take_spec={
-        0: ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(1),
-        2: ch.ArraySlicer(0),
-        3: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        cash_flow_grouped=ch.ArraySlicer(1),
+        group_lens=ch.ArraySlicer(0),
+        init_cash_grouped=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6555,13 +6612,13 @@ def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> t
 
 
 @register_chunkable(
-    size=ch.ArraySizer(2, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        2: ch.ArraySlicer(0),
-        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        cash=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        asset_value=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6610,13 +6667,13 @@ def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(3),
-    arg_take_spec={
-        0: ch.ShapeSlicer(1),
-        1: ch.ArraySlicer(1),
-        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        3: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        close=ch.ArraySlicer(1),
+        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6696,13 +6753,13 @@ def total_return_nb(total_profit: tp.Array1d, init_cash: tp.Array1d) -> tp.Array
 
 
 @register_chunkable(
-    size=ch.ArraySizer(1, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(0),
-        2: ch.ArraySlicer(0),
-        3: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        value_iso=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash_grouped=ch.ArraySlicer(0),
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6743,11 +6800,11 @@ def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cas
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('cash_flow', 1),
+    arg_take_spec=dict(
+        cash_flow=ch.ArraySlicer(1),
+        asset_value=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6765,11 +6822,11 @@ def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('close', 1),
+    arg_take_spec=dict(
+        close=ch.ArraySlicer(1),
+        init_cash=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6783,12 +6840,12 @@ def market_value_nb(close: tp.Array2d, init_cash: tp.Array1d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(1, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(0),
-        2: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        close=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0),
+        init_cash_grouped=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6815,8 +6872,10 @@ def market_value_grouped_nb(close: tp.Array2d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('market_value', 1),
+    arg_take_spec=dict(
+        market_value=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -6829,11 +6888,11 @@ def total_market_return_nb(market_value: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('asset_value', 1),
+    arg_take_spec=dict(
+        asset_value=ch.ArraySlicer(1),
+        cash=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})

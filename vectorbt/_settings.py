@@ -196,6 +196,7 @@ chunking = dict(
     min_size=None,
     chunk_len=None,
     skip_one_chunk=True,
+    silence_warnings=False,
     template_mapping=Config(  # flex
         dict()
     )

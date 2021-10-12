@@ -319,8 +319,7 @@ class Ranges(Records):
                      **kwargs) -> tp.MaybeSeries:
         """Average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
-        duration = self.get_duration(nb_parallel=nb_parallel, chunked=chunked)
-        return duration.mean(
+        return self.duration.mean(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,
@@ -336,8 +335,7 @@ class Ranges(Records):
                      **kwargs) -> tp.MaybeSeries:
         """Maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
-        duration = self.get_duration(nb_parallel=nb_parallel, chunked=chunked)
-        return duration.max(
+        return self.duration.max(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,

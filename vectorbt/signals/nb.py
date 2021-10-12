@@ -44,8 +44,12 @@ from vectorbt.signals.enums import StopType
 
 
 @register_chunkable(
-    size=ch.ShapeSizer(0, 1),
-    arg_take_spec={0: ch.ShapeSlicer(1)},
+    size=ch.ShapeSizer('target_shape', 1),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        place_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -74,8 +78,18 @@ def generate_nb(target_shape: tp.Shape, place_func_nb: tp.PlaceFunc, *args) -> t
 
 
 @register_chunkable(
-    size=ch.ShapeSizer(0, 1),
-    arg_take_spec={0: ch.ShapeSlicer(1)},
+    size=ch.ShapeSizer('target_shape', 1),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        entry_wait=None,
+        exit_wait=None,
+        max_one_entry=None,
+        max_one_exit=None,
+        entry_place_func_nb=None,
+        entry_args=ch.ArgsTaker(),
+        exit_place_func_nb=None,
+        exit_args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -170,8 +184,15 @@ def generate_enex_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('entries', 1),
+    arg_take_spec=dict(
+        entries=ch.ArraySlicer(1),
+        wait=None,
+        until_next=None,
+        skip_until_exit=None,
+        exit_place_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -261,11 +282,12 @@ def clean_enex_1d_nb(entries: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('entries', 1),
+    arg_take_spec=dict(
+        entries=ch.ArraySlicer(1),
+        exits=ch.ArraySlicer(1),
+        entry_first=None
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -317,11 +339,13 @@ def rand_by_prob_place_nb(out: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ShapeSizer(0, 1),
-    arg_take_spec={
-        0: ch.ShapeSlicer(1),
-        1: base_ch.FlexArraySlicer(1, flex_2d=True)
-    },
+    size=ch.ShapeSizer('target_shape', 1),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1),
+        n=base_ch.FlexArraySlicer(1, flex_2d=True),
+        entry_wait=None,
+        exit_wait=None
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -669,8 +693,10 @@ def ohlc_stop_place_nb(out: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1)
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -699,11 +725,12 @@ def between_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={
-        0: ch.ArraySlicer(1),
-        1: ch.ArraySlicer(1)
-    },
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1),
+        other_mask=ch.ArraySlicer(1),
+        from_other=None
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -754,8 +781,10 @@ def between_two_ranges_nb(mask: tp.Array2d, other_mask: tp.Array2d, from_other: 
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1)
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -798,8 +827,10 @@ def partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1)
+    ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
@@ -834,8 +865,14 @@ def between_partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
 # ############# Ranking ############# #
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1),
+        reset_by_mask=None,
+        after_false=None,
+        rank_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -927,8 +964,11 @@ def nth_index_1d_nb(mask: tp.Array1d, n: int) -> int:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1),
+        n=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -948,8 +988,10 @@ def norm_avg_index_1d_nb(mask: tp.Array1d) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 1),
-    arg_take_spec={0: ch.ArraySlicer(1)},
+    size=ch.ArraySizer('mask', 1),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -962,11 +1004,11 @@ def norm_avg_index_nb(mask: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer(1, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        1: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        mask=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(0)
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})

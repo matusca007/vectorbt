@@ -544,7 +544,7 @@ class TestAccessors:
             pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, nb_parallel=True),
             pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), None)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, chunked=chunked),
             pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, chunked=False)
@@ -571,8 +571,9 @@ class TestAccessors:
             df.vbt.apply_along_axis(pow_nb, 2, axis=0, nb_parallel=True),
             df.vbt.apply_along_axis(pow_nb, 2, axis=0, nb_parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(None)))
         pd.testing.assert_frame_equal(
-            df.vbt.apply_along_axis(pow_nb, 2, axis=0, chunked=True),
+            df.vbt.apply_along_axis(pow_nb, 2, axis=0, chunked=chunked),
             df.vbt.apply_along_axis(pow_nb, 2, axis=0, chunked=False)
         )
         pd.testing.assert_frame_equal(
@@ -584,7 +585,7 @@ class TestAccessors:
             df.vbt.apply_along_axis(pow_nb, 2, axis=1, nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.apply_along_axis(pow_nb, 2, axis=1, chunked=True),
+            df.vbt.apply_along_axis(pow_nb, 2, axis=1, chunked=chunked),
             df.vbt.apply_along_axis(pow_nb, 2, axis=1, chunked=False)
         )
         pd.testing.assert_frame_equal(
@@ -598,7 +599,7 @@ class TestAccessors:
             pd.DataFrame.vbt.apply_along_axis(
                 row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0, wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0), None)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.apply_along_axis(
                 row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0, wrapper=df.vbt.wrapper, chunked=chunked),
@@ -616,7 +617,7 @@ class TestAccessors:
             pd.DataFrame.vbt.apply_along_axis(
                 pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), None)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.apply_along_axis(
                 pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, chunked=chunked),
@@ -669,7 +670,7 @@ class TestAccessors:
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
                 minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.rolling_apply(
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
@@ -724,7 +725,7 @@ class TestAccessors:
                 mean_meta_nb, df.vbt.to_2d_array(),
                 minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.expanding_apply(
                 mean_meta_nb, df.vbt.to_2d_array(),
@@ -776,7 +777,7 @@ class TestAccessors:
                 np.asarray([1, 1, 2, 2, 3]), mean_meta_nb, df.vbt.to_2d_array(),
                 wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.groupby_apply(
                 np.asarray([1, 1, 2, 2, 3]), mean_meta_nb, df.vbt.to_2d_array(),
@@ -828,7 +829,7 @@ class TestAccessors:
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
                 wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.resample_apply(
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
@@ -865,8 +866,9 @@ class TestAccessors:
             df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), nb_parallel=True),
             df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), nb_parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(apply_args=vbt.ArgsTaker(None,), reduce_args=vbt.ArgsTaker(None,)))
         pd.testing.assert_series_equal(
-            df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), chunked=True),
+            df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), chunked=chunked),
             df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), chunked=False)
         )
         pd.testing.assert_series_equal(
@@ -883,7 +885,8 @@ class TestAccessors:
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
                 wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(apply_args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        chunked = dict(arg_take_spec=dict(
+            apply_args=vbt.ArgsTaker(vbt.ArraySlicer(1), None), reduce_args=vbt.ArgsTaker(None,)))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.apply_and_reduce(
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
@@ -929,7 +932,7 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, nb_parallel=False),
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, chunked=count_chunked),
@@ -961,7 +964,7 @@ class TestAccessors:
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
                 wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
@@ -1013,7 +1016,7 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=count_chunked),
@@ -1042,7 +1045,7 @@ class TestAccessors:
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, nb_parallel=False),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1107,7 +1110,7 @@ class TestAccessors:
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1144,7 +1147,7 @@ class TestAccessors:
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1225,7 +1228,7 @@ class TestAccessors:
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
                 returns_array=True, wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1))))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1262,7 +1265,7 @@ class TestAccessors:
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
                 wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
@@ -1312,7 +1315,7 @@ class TestAccessors:
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,
                 wrapper=df.vbt.wrapper, nb_parallel=False)
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(1)))))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(1)),)))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.squeeze_grouped(
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,

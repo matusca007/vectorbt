@@ -39,12 +39,12 @@ def is_frame(arg: tp.Any) -> bool:
 
 
 def is_pandas(arg: tp.Any) -> bool:
-    """Check whether the argument is `pd.Series` or `pd.DataFrame`."""
-    return is_series(arg) or is_frame(arg)
+    """Check whether the argument is `pd.Series`, `pd.Index`, or `pd.DataFrame`."""
+    return is_series(arg) or is_index(arg) or is_frame(arg)
 
 
 def is_any_array(arg: tp.Any) -> bool:
-    """Check whether the argument is any of `np.ndarray`, `pd.Series` or `pd.DataFrame`."""
+    """Check whether the argument is a NumPy array or a Pandas object."""
     return is_pandas(arg) or isinstance(arg, np.ndarray)
 
 
@@ -237,7 +237,7 @@ def is_deep_equal(arg1: tp.Any, arg2: tp.Any, check_exact: bool = False, **kwarg
     return True
 
 
-def is_subclass_of(arg: tp.Any, types: tp.MaybeTuple[tp.Union[tp.Type, str]]) -> bool:
+def is_subclass_of(arg: tp.Any, types: tp.TypeLike) -> bool:
     """Check whether the argument is a subclass of `types`.
 
     `types` can be one or multiple types or strings."""
@@ -254,7 +254,7 @@ def is_subclass_of(arg: tp.Any, types: tp.MaybeTuple[tp.Union[tp.Type, str]]) ->
     return False
 
 
-def is_instance_of(arg: tp.Any, types: tp.MaybeTuple[tp.Union[tp.Type, str]]) -> bool:
+def is_instance_of(arg: tp.Any, types: tp.TypeLike) -> bool:
     """Check whether the argument is an instance of `types`.
 
     `types` can be one or multiple types or strings."""
@@ -301,7 +301,7 @@ def assert_not_none(arg: tp.Any) -> None:
         raise AssertionError(f"Argument cannot be None")
 
 
-def assert_instance_of(arg: tp.Any, types: tp.MaybeTuple[tp.Type]) -> None:
+def assert_instance_of(arg: tp.Any, types: tp.TypeLike) -> None:
     """Raise exception if the argument is none of types `types`."""
     if not is_instance_of(arg, types):
         if isinstance(types, tuple):
@@ -310,7 +310,7 @@ def assert_instance_of(arg: tp.Any, types: tp.MaybeTuple[tp.Type]) -> None:
             raise AssertionError(f"Type must be {types}, not {type(arg)}")
 
 
-def assert_subclass_of(arg: tp.Type, classes: tp.MaybeTuple[tp.Type]) -> None:
+def assert_subclass_of(arg: tp.Type, classes: tp.TypeLike) -> None:
     """Raise exception if the argument is not a subclass of classes `classes`."""
     if not is_subclass_of(arg, classes):
         if isinstance(classes, tuple):

@@ -205,11 +205,12 @@ def is_col_id_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        n=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -230,11 +231,12 @@ def top_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Ar
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        n=None
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(cache=True, tags={'can_parallel'})
@@ -257,10 +259,12 @@ def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp
 # ############# Mapping ############# #
 
 @register_chunkable(
-    size=ch.ArraySizer(0, 0),
-    arg_take_spec={
-        0: ch.ArraySlicer(0)
-    },
+    size=ch.ArraySizer('records', 0),
+    arg_take_spec=dict(
+        records=ch.ArraySlicer(0),
+        map_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -276,10 +280,12 @@ def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *arg
 
 
 @register_chunkable(
-    size=ch.ArgSizer(0),
-    arg_take_spec={
-        0: ch.CountAdapter()
-    },
+    size=ch.ArgSizer('n_values'),
+    arg_take_spec=dict(
+        n_values=ch.CountAdapter(),
+        map_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -295,16 +301,17 @@ def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *ar
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        apply_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
-def apply_nb(arr: tp.Array1d, col_map: tp.ColMap,
-             apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
+def apply_nb(arr: tp.Array1d, col_map: tp.ColMap, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Apply function on mapped array or records per column.
 
     Returns the same shape as `mapped_or_records`.
@@ -325,16 +332,17 @@ def apply_nb(arr: tp.Array1d, col_map: tp.ColMap,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.CountAdapter(mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        n_values=ch.CountAdapter(mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        apply_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
-def apply_meta_nb(n_values: int, col_map: tp.ColMap,
-                  apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array1d:
+def apply_meta_nb(n_values: int, col_map: tp.ColMap, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `apply_nb`.
 
     `apply_func_nb` must accept the indices, the column index, and `*args`. Must return an array."""
@@ -355,14 +363,16 @@ def apply_meta_nb(n_values: int, col_map: tp.ColMap,
 # ############# Reducing ############# #
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(3),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        3: records_ch.ColMapSlicer(),
-        4: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        id_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        segment_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit
@@ -434,11 +444,14 @@ def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -466,8 +479,13 @@ def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: flo
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(0),
-    arg_take_spec={0: records_ch.ColMapSlicer()},
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        col_map=records_ch.ColMapSlicer(),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -492,12 +510,15 @@ def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer(),
-        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper)
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -525,11 +546,14 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(0),
-    arg_take_spec={
-        0: records_ch.ColMapSlicer(),
-        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper)
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        col_map=records_ch.ColMapSlicer(),
+        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.concat
 )
 @register_jit(tags={'can_parallel'})
@@ -554,11 +578,14 @@ def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_v
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -594,8 +621,13 @@ def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_v
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(0),
-    arg_take_spec={0: records_ch.ColMapSlicer()},
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        col_map=records_ch.ColMapSlicer(),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -631,12 +663,15 @@ def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(1),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        1: records_ch.ColMapSlicer(),
-        2: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper)
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        col_map=records_ch.ColMapSlicer(),
+        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -675,11 +710,14 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(0),
-    arg_take_spec={
-        0: records_ch.ColMapSlicer(),
-        1: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper)
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        col_map=records_ch.ColMapSlicer(),
+        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        fill_value=None,
+        reduce_func_nb=None,
+        args=ch.ArgsTaker()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(tags={'can_parallel'})
@@ -718,11 +756,12 @@ def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, 
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer(2),
-    arg_take_spec={
-        0: ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        2: records_ch.ColMapSlicer()
-    },
+    size=records_ch.ColLensSizer('col_map'),
+    arg_take_spec=dict(
+        codes=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        n_uniques=None,
+        col_map=records_ch.ColMapSlicer()
+    ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})

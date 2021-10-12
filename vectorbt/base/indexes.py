@@ -120,6 +120,12 @@ def stack_indexes(indexes: tp.Sequence[tp.IndexLike], drop_duplicates: tp.Option
             for j in range(index.nlevels):
                 levels.append(index.get_level_values(j))
 
+    max_len = max(map(len, levels))
+    for i in range(len(levels)):
+        if len(levels[i]) < max_len:
+            if len(levels[i]) != 1:
+                raise ValueError(f"Index at level {i} could not be broadcast to shape ({max_len},) ")
+            levels[i] = repeat_index(levels[i], max_len, ignore_default=False)
     new_index = pd.MultiIndex.from_arrays(levels)
     if drop_duplicates:
         new_index = drop_duplicate_levels(new_index, keep=keep)

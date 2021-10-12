@@ -346,15 +346,22 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_total(self,
                       window: tp.Optional[int] = None,
                       minp: tp.Optional[int] = None,
+                      chunked: tp.ChunkedOption = None,
                       **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.total`."""
         if window is None:
             window = self.defaults['window']
         if minp is None:
             minp = self.defaults['minp']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.rolling_apply(
             window,
-            nb.cum_returns_final_1d_nb, 0., minp=minp,
+            nb.cum_returns_final_1d_nb, 0.,
+            minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -372,16 +379,22 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_annualized(self,
                            window: tp.Optional[int] = None,
                            minp: tp.Optional[int] = None,
+                           chunked: tp.ChunkedOption = None,
                            **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.annualized`."""
         if window is None:
             window = self.defaults['window']
         if minp is None:
             minp = self.defaults['minp']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.rolling_apply(
             window,
             nb.annualized_return_1d_nb, self.ann_factor,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -407,6 +420,7 @@ class ReturnsAccessor(GenericAccessor):
                                       minp: tp.Optional[int] = None,
                                       levy_alpha: tp.Optional[float] = None,
                                       ddof: tp.Optional[int] = None,
+                                      chunked: tp.ChunkedOption = None,
                                       **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.annualized_volatility`."""
         if window is None:
@@ -417,10 +431,15 @@ class ReturnsAccessor(GenericAccessor):
             levy_alpha = self.defaults['levy_alpha']
         if ddof is None:
             ddof = self.defaults['ddof']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None, None))
+        )
         return self.rolling_apply(
             window,
             nb.annualized_volatility_1d_nb, self.ann_factor, levy_alpha, ddof,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -438,16 +457,22 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_calmar_ratio(self,
                              window: tp.Optional[int] = None,
                              minp: tp.Optional[int] = None,
+                             chunked: tp.ChunkedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.calmar_ratio`."""
         if window is None:
             window = self.defaults['window']
         if minp is None:
             minp = self.defaults['minp']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.rolling_apply(
             window,
             nb.calmar_ratio_1d_nb, self.ann_factor,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -514,6 +539,7 @@ class ReturnsAccessor(GenericAccessor):
                              minp: tp.Optional[int] = None,
                              risk_free: tp.Optional[float] = None,
                              ddof: tp.Optional[int] = None,
+                             chunked: tp.ChunkedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.sharpe_ratio`."""
         if window is None:
@@ -524,10 +550,15 @@ class ReturnsAccessor(GenericAccessor):
             risk_free = self.defaults['risk_free']
         if ddof is None:
             ddof = self.defaults['ddof']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None))
+        )
         return (self - risk_free).vbt.rolling_apply(
             window,
             nb.sharpe_ratio_1d_nb, self.ann_factor, ddof,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -587,6 +618,7 @@ class ReturnsAccessor(GenericAccessor):
                               window: tp.Optional[int] = None,
                               minp: tp.Optional[int] = None,
                               required_return: tp.Optional[float] = None,
+                              chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.downside_risk`."""
         if window is None:
@@ -595,10 +627,15 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         if required_return is None:
             required_return = self.defaults['required_return']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return (self - required_return).vbt.rolling_apply(
             window,
             nb.downside_risk_1d_nb, self.ann_factor,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -620,6 +657,7 @@ class ReturnsAccessor(GenericAccessor):
                               window: tp.Optional[int] = None,
                               minp: tp.Optional[int] = None,
                               required_return: tp.Optional[float] = None,
+                              chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.sortino_ratio`."""
         if window is None:
@@ -628,10 +666,15 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         if required_return is None:
             required_return = self.defaults['required_return']
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return (self - required_return).vbt.rolling_apply(
             window,
             nb.sortino_ratio_1d_nb, self.ann_factor,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -659,6 +702,7 @@ class ReturnsAccessor(GenericAccessor):
                                   window: tp.Optional[int] = None,
                                   minp: tp.Optional[int] = None,
                                   ddof: tp.Optional[int] = None,
+                                  chunked: tp.ChunkedOption = None,
                                   **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.information_ratio`."""
         if window is None:
@@ -671,10 +715,15 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return (self - benchmark_rets).vbt.rolling_apply(
             window,
             nb.information_ratio_1d_nb, ddof,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -717,7 +766,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked, 
-            arg_take_spec={'args': ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1))}
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
             window,
@@ -768,7 +817,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked, 
-            arg_take_spec={'args': ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1))}
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
             window,
@@ -861,6 +910,7 @@ class ReturnsAccessor(GenericAccessor):
                               minp: tp.Optional[int] = None,
                               cutoff: tp.Optional[float] = None,
                               noarr_mode: bool = True,
+                              chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.value_at_risk`."""
         if window is None:
@@ -873,10 +923,15 @@ class ReturnsAccessor(GenericAccessor):
             func = nb.value_at_risk_noarr_1d_nb
         else:
             func = nb.value_at_risk_1d_nb
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.rolling_apply(
             window,
             func, cutoff,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -899,6 +954,7 @@ class ReturnsAccessor(GenericAccessor):
                                    minp: tp.Optional[int] = None,
                                    cutoff: tp.Optional[float] = None,
                                    noarr_mode: bool = True,
+                                   chunked: tp.ChunkedOption = None,
                                    **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.cond_value_at_risk`."""
         if window is None:
@@ -911,10 +967,15 @@ class ReturnsAccessor(GenericAccessor):
             func = nb.cond_value_at_risk_noarr_1d_nb
         else:
             func = nb.cond_value_at_risk_1d_nb
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+        )
         return self.rolling_apply(
             window,
             func, cutoff,
             minp=minp,
+            chunked=chunked,
             **kwargs
         )
 
@@ -951,7 +1012,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked, 
-            arg_take_spec={'args': ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1))}
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
             window,
@@ -996,7 +1057,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked, 
-            arg_take_spec={'args': ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1))}
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
             window,
@@ -1041,7 +1102,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked, 
-            arg_take_spec={'args': ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1))}
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
             window,

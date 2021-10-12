@@ -328,8 +328,7 @@ class Drawdowns(Ranges):
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_drawdown'), wrap_kwargs)
-        drawdown = self.get_drawdown(nb_parallel=nb_parallel, chunked=chunked)
-        return drawdown.mean(
+        return self.drawdown.mean(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,
@@ -347,8 +346,7 @@ class Drawdowns(Ranges):
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
-        drawdown = self.get_drawdown(nb_parallel=nb_parallel, chunked=chunked)
-        return drawdown.min(
+        return self.drawdown.min(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,
@@ -388,8 +386,7 @@ class Drawdowns(Ranges):
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_recovery_return'), wrap_kwargs)
-        recovery_return = self.get_recovery_return(nb_parallel=nb_parallel, chunked=chunked)
-        return recovery_return.mean(
+        return self.recovery_return.mean(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,
@@ -407,8 +404,7 @@ class Drawdowns(Ranges):
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_recovery_return'), wrap_kwargs)
-        recovery_return = self.get_recovery_return(nb_parallel=nb_parallel, chunked=chunked)
-        return recovery_return.max(
+        return self.recovery_return.max(
             group_by=group_by,
             nb_parallel=nb_parallel,
             chunked=chunked,

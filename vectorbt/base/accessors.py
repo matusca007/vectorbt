@@ -80,7 +80,8 @@ from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 
 
-@attach_binary_magic_methods(lambda self, other, np_func: self.combine(other, allow_multiple=False, combine_func=np_func))
+@attach_binary_magic_methods(
+    lambda self, other, np_func: self.combine(other, allow_multiple=False, combine_func=np_func))
 @attach_unary_magic_methods(lambda self, np_func: self.apply(apply_func=np_func))
 class BaseAccessor(Wrapping):
     """Accessor on top of Series and DataFrames.
@@ -201,12 +202,14 @@ class BaseAccessor(Wrapping):
 
     # ############# Index and columns ############# #
 
-    def apply_on_index(self, apply_func: tp.Callable, *args, axis: int = 1,
+    def apply_on_index(self, apply_func: tp.Callable, *args, axis: tp.Optional[int] = None,
                        inplace: bool = False, **kwargs) -> tp.Optional[tp.SeriesFrame]:
         """Apply function `apply_func` on index of the pandas object.
 
-        Set `axis` to 1 for columns and 0 for index.
+        Set `axis` to 1 for columns, 0 for index, and None to determine automatically.
         If `inplace` is True, modifies the pandas object. Otherwise, returns a copy."""
+        if axis is None:
+            axis = 0 if self.is_series() else 1
         checks.assert_in(axis, (0, 1))
 
         if axis == 1:
@@ -228,8 +231,19 @@ class BaseAccessor(Wrapping):
                 obj.index = obj_index
             return obj
 
-    def stack_index(self, index: tp.Index, on_top: bool = True, axis: int = 1,
-                    inplace: bool = False, **kwargs) -> tp.Optional[tp.SeriesFrame]:
+    def sort_index(self, axis: tp.Optional[int] = None, inplace: bool = False,
+                   ascending: bool = True) -> tp.Optional[tp.SeriesFrame]:
+        """Sort index values.
+
+        See `BaseAccessor.apply_on_index` for other keyword arguments."""
+
+        def apply_func(obj_index: tp.Index) -> tp.Index:
+            return obj_index.sort_values(ascending=ascending)
+
+        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+
+    def stack_index(self, index: tp.Index, axis: tp.Optional[int] = None, inplace: bool = False,
+                    on_top: bool = True, **kwargs) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.stack_indexes`.
 
         Set `on_top` to False to stack at bottom.
@@ -243,7 +257,7 @@ class BaseAccessor(Wrapping):
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
-    def drop_levels(self, levels: tp.MaybeLevelSequence, axis: int = 1,
+    def drop_levels(self, levels: tp.MaybeLevelSequence, axis: tp.Optional[int] = None,
                     inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_levels`.
 
@@ -254,7 +268,7 @@ class BaseAccessor(Wrapping):
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
-    def rename_levels(self, name_dict: tp.Dict[str, tp.Any], axis: int = 1,
+    def rename_levels(self, name_dict: tp.Dict[str, tp.Any], axis: tp.Optional[int] = None,
                       inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.rename_levels`.
 
@@ -265,7 +279,7 @@ class BaseAccessor(Wrapping):
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
-    def select_levels(self, level_names: tp.MaybeLevelSequence, axis: int = 1,
+    def select_levels(self, level_names: tp.MaybeLevelSequence, axis: tp.Optional[int] = None,
                       inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.select_levels`.
 
@@ -276,7 +290,8 @@ class BaseAccessor(Wrapping):
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
-    def drop_redundant_levels(self, axis: int = 1, inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
+    def drop_redundant_levels(self, axis: tp.Optional[int] = None,
+                              inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_redundant_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -286,7 +301,7 @@ class BaseAccessor(Wrapping):
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
-    def drop_duplicate_levels(self, keep: tp.Optional[str] = None, axis: int = 1,
+    def drop_duplicate_levels(self, keep: tp.Optional[str] = None, axis: tp.Optional[int] = None,
                               inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_duplicate_levels`.
 
@@ -300,15 +315,11 @@ class BaseAccessor(Wrapping):
     # ############# Reshaping ############# #
 
     def to_1d_array(self) -> tp.Array1d:
-        """Convert to 1-dim NumPy array
-
-        See `vectorbt.base.reshaping.to_1d`."""
+        """See `vectorbt.base.reshaping.to_1d` with `raw` set to True."""
         return reshaping.to_1d_array(self.obj)
 
     def to_2d_array(self) -> tp.Array2d:
-        """Convert to 2-dim NumPy array.
-
-        See `vectorbt.base.reshaping.to_2d`."""
+        """See `vectorbt.base.reshaping.to_2d` with `raw` set to True."""
         return reshaping.to_2d_array(self.obj)
 
     def tile(self, n: int, keys: tp.Optional[tp.IndexLike] = None, axis: int = 1,

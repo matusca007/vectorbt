@@ -224,6 +224,7 @@ from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.decorators import class_or_instancemethod
+from vectorbt.utils import chunking as ch
 from vectorbt.base import indexes, reshaping
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -1448,6 +1449,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             out[~nan_mask] = index[nanargmin(arr[:, ~nan_mask], axis=0)]
             return out
 
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(index=None)
+        )
         func = ch_registry.resolve_chunked(nb.nanmin_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -1478,6 +1483,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             out[~nan_mask] = index[nanargmax(arr[:, ~nan_mask], axis=0)]
             return out
 
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(index=None)
+        )
         func = ch_registry.resolve_chunked(nb.nanmax_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -1519,6 +1528,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         perc_formatted = pd.io.formats.format.format_percentiles(percentiles)
         index = pd.Index(['count', 'mean', 'std', 'min', *perc_formatted, 'max'])
         wrap_kwargs = merge_dicts(dict(name_or_index=index), wrap_kwargs)
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None))
+        )
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
                 nb.describe_reduce_nb, percentiles, ddof,

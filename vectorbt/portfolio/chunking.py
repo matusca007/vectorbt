@@ -6,9 +6,15 @@
 import numpy as np
 
 from vectorbt import _typing as tp
+from vectorbt.utils.config import Config
+from vectorbt.utils.template import Rep
 from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
-from vectorbt.base.chunking import GroupLensMapper, group_lens_mapper
+from vectorbt.base.chunking import GroupLensMapper, FlexArraySlicer, group_lens_mapper
 from vectorbt.portfolio.enums import SimulationOutput
+
+
+flex_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper)
+"""Flexible slicer along the column axis based on group lengths."""
 
 
 def get_init_cash_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
@@ -24,21 +30,25 @@ def merge_sim_outs(results: tp.List[SimulationOutput],
                    ann_args: tp.AnnArgs,
                    mapper: GroupLensMapper) -> SimulationOutput:
     """Merge chunks of `vectorbt.portfolio.enums.SimulationOutput` instances."""
-    order_id_start = 0
-    log_id_start = 0
     for _chunk_meta in chunk_meta:
         _mapped_chunk_meta = mapper.map(_chunk_meta, ann_args)
-        results[_chunk_meta.idx].order_records['id'] += order_id_start
-        results[_chunk_meta.idx].log_records['id'] += log_id_start
-        results[_chunk_meta.idx].log_records['order_id'] += order_id_start
         results[_chunk_meta.idx].order_records['col'] += _mapped_chunk_meta.start
         results[_chunk_meta.idx].log_records['col'] += _mapped_chunk_meta.start
         results[_chunk_meta.idx].log_records['group'] += _chunk_meta.start
-        if len(results[_chunk_meta.idx].order_records) > 0:
-            order_id_start = results[_chunk_meta.idx].order_records['id'][-1] + 1
-        if len(results[_chunk_meta.idx].log_records) > 0:
-            log_id_start = results[_chunk_meta.idx].log_records['id'][-1] + 1
     return SimulationOutput(
         order_records=np.concatenate([r.order_records for r in results]),
         log_records=np.concatenate([r.log_records for r in results]),
     )
+
+
+merge_sim_outs_config = Config(
+    dict(
+        merge_func=merge_sim_outs,
+        merge_kwargs=dict(
+            chunk_meta=Rep("chunk_meta"),
+            ann_args=Rep("ann_args"),
+            mapper=group_lens_mapper
+        )
+    )
+)
+"""Config for merging using `merge_sim_outs`."""

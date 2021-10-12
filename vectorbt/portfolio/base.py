@@ -33,7 +33,7 @@ Run for the examples below:
 
 ## Workflow
 
-`Portfolio` class does quite a few things to simulate your strategy.
+`Portfolio` class does quite a few things to simulate our strategy.
 
 **Preparation** phase (in the particular class method):
 
@@ -96,10 +96,10 @@ Here's an example:
 1         1      a          1   1.0    2.0  0.02  Sell
 2         2      a          2   1.0    3.0  0.03   Buy
 3         3      a          3   1.0    4.0  0.04  Sell
-4         4      b          0   1.0    4.0  0.04  Sell
-5         5      b          1   1.0    3.0  0.03   Buy
-6         6      b          2   1.0    2.0  0.02  Sell
-7         7      b          3   1.0    1.0  0.01   Buy
+4         0      b          0   1.0    4.0  0.04  Sell
+5         1      b          1   1.0    3.0  0.03   Buy
+6         2      b          2   1.0    2.0  0.02  Sell
+7         3      b          3   1.0    1.0  0.01   Buy
 ```
 
 This method is particularly useful in situations where you don't need any further logic
@@ -128,10 +128,10 @@ Let's replicate the example above using signals:
 1         1      a          1   1.0    2.0  0.02  Sell
 2         2      a          2   1.0    3.0  0.03   Buy
 3         3      a          3   1.0    4.0  0.04  Sell
-4         4      b          0   1.0    4.0  0.04  Sell
-5         5      b          1   1.0    3.0  0.03   Buy
-6         6      b          2   1.0    2.0  0.02  Sell
-7         7      b          3   1.0    1.0  0.01   Buy
+4         0      b          0   1.0    4.0  0.04  Sell
+5         1      b          1   1.0    3.0  0.03   Buy
+6         2      b          2   1.0    2.0  0.02  Sell
+7         3      b          3   1.0    1.0  0.01   Buy
 ```
 
 In a nutshell: this method automates some procedures that otherwise would be only possible by using
@@ -173,10 +173,10 @@ Let's replicate our example using an order function:
 1         1      a          1   1.0    2.0  0.02  Sell
 2         2      a          2   1.0    3.0  0.03   Buy
 3         3      a          3   1.0    4.0  0.04  Sell
-4         4      b          0   1.0    4.0  0.04  Sell
-5         5      b          1   1.0    3.0  0.03   Buy
-6         6      b          2   1.0    2.0  0.02  Sell
-7         7      b          3   1.0    1.0  0.01   Buy
+4         0      b          0   1.0    4.0  0.04  Sell
+5         1      b          1   1.0    3.0  0.03   Buy
+6         2      b          2   1.0    2.0  0.02  Sell
+7         3      b          3   1.0    1.0  0.01   Buy
 ```
 
 There is an even more flexible version available - `vectorbt.portfolio.nb.flex_simulate_nb` (activated by
@@ -403,7 +403,8 @@ Combined portfolio is indexed by group:
 
 !!! note
     Changing index (time axis) is not supported. The object should be treated as a Series
-    rather than a DataFrame; for example, use `pf.iloc[0]` instead of `pf.iloc[:, 0]`.
+    rather than a DataFrame; for example, use `pf.iloc[0]` instead of `pf.iloc[:, 0]`
+    to get the first column.
 
     Indexing behavior depends solely upon `vectorbt.base.wrapping.ArrayWrapper`.
     For example, if `group_select` is enabled indexing will be performed on groups,
@@ -512,13 +513,46 @@ To reset caching:
 
 ## Performance and memory
 
-If you're running out of memory when working with large arrays, make sure to disable caching
-and then store most important time series manually. For example, if you're interested in Sharpe
-ratio or other metrics based on returns, run and save `Portfolio.returns` in a variable and then use the
+### Caching attributes manually
+
+If you're running out of memory when working with large arrays, make sure to store most important
+time series manually. For example, if you're interested in Sharpe ratio or other metrics based on returns,
+run and save `Portfolio.returns` to a variable, delete the portfolio object, and then use the
 `vectorbt.returns.accessors.ReturnsAccessor` to analyze them. Do not use methods akin to
 `Portfolio.sharpe_ratio` because they will re-calculate returns each time.
 
-Alternatively, you can track portfolio value and returns using `Portfolio.from_order_func` and its callbacks
+Many methods such as `Portfolio.returns` are both instance and class methods. Running the instance method
+will trigger a waterfall of computations, such as getting cash flow, asset flow, etc. Some of these
+attributes are calculated more than once. For example, `Portfolio.net_exposure` must compute
+`Portfolio.gross_exposure` for long and short positions. Each call of `Portfolio.gross_exposure`
+must recalculate the cash series from scratch if caching is disabled. To avoid this, use class methods:
+
+```python-repl
+>>> free_cash = pf.cash(free=True)  # reuse wherever possible
+>>> long_exposure = vbt.Portfolio.gross_exposure(
+...     asset_value=pf.asset_value(direction='longonly'),
+...     free_cash=free_cash,
+...     wrapper=pf.wrapper
+... )
+>>> short_exposure = vbt.Portfolio.gross_exposure(
+...     asset_value=pf.asset_value(direction='shortonly'),
+...     free_cash=free_cash,
+...     wrapper=pf.wrapper
+... )
+>>> del free_cash  # release memory
+>>> net_exposure = vbt.Portfolio.net_exposure(
+...     long_exposure=long_exposure,
+...     short_exposure=short_exposure,
+...     wrapper=pf.wrapper
+... )
+>>> del long_exposure  # release memory
+>>> del short_exposure  # release memory
+```
+
+### Pre-calculating attributes
+
+Instead of computing memory and CPU-expensive attributes such as `Portfolio.returns` retroactively,
+we can pre-calculate them during the simulation using `Portfolio.from_order_func` and its callbacks
 (preferably in `post_segment_func_nb`):
 
 ```python-repl
@@ -562,7 +596,7 @@ Name: sharpe_ratio, dtype: float64
 ... )
 
 >>> returns = pf.wrapper.wrap(returns_out)
->>> del pf
+>>> del pf  # release memory
 >>> returns.vbt.returns(freq='d').sharpe_ratio()
 symbol
 BTC-USD   -2.261443
@@ -576,6 +610,124 @@ Name: sharpe_ratio, dtype: float64
 
 The only drawback of this approach is that you cannot use `init_cash='auto'` or `init_cash='autoalign'`
 because then, during the simulation, the portfolio value is `np.inf` and the returns are `np.nan`.
+
+### Chunking simulation
+
+As most Numba-compiled functions in vectorbt, simulation procedure can also be chunked and run in parallel.
+For this, use the `chunked` argument (see `vectorbt.utils.chunking.resolve_chunked_option`).
+For example, let's simulate 1 million orders 1) without chunking, 2) sequentially, and 2) concurrently using Dask:
+
+```python-repl
+>>> size = np.full((1000, 1000), 1.)
+>>> size[1::2] = -1
+>>> %timeit vbt.Portfolio.from_orders(1, size)
+90.1 ms ± 8.15 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+>>> %timeit vbt.Portfolio.from_orders(1, size, chunked=True)
+110 ms ± 10 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+>>> %timeit vbt.Portfolio.from_orders(1, size, chunked='dask')
+43.6 ms ± 2.39 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+```
+
+Since the chunking procedure is applied on the Numba-compiled function itself (see the source
+of the particular function), the fastest execution engine is always a multi-threaded one.
+Executing chunks sequentially does not result in a speedup and is pretty useless in this scenario
+because there is always an overhead of splitting and distributing the arguments and merging the results.
+
+Chunking happens (semi-)automatically by splitting each argument into chunks of columns.
+It does not break groups, thus chunking is safe on any portfolio regardless of its grouping.
+
+!!! warning
+    Additional arguments such as `signal_args` in `Portfolio.from_signals` are not split
+    automatically and require providing a specification, otherwise they are passed as-is.
+    See examples under `vectorbt.utils.chunking.chunked`.
+
+### Chunking everything
+
+Simulation in chunks improves performance but doesn't help with memory: every array needs to be loaded
+into memory in order to be split. A better idea is to keep one chunk in memory at a time. For example, we
+can build a chunkable pipeline that loads a chunk of data, performs the simulation on that chunk,
+calculates all relevant metrics, and merges the results across all chunks.
+
+Let's create a pipeline that tests various window combinations of a moving average crossover and
+concatenates their total returns:
+
+```python-repl
+>>> @vbt.chunked(
+...     size=vbt.LenSizer('fast_windows'),
+...     arg_take_spec=dict(
+...         price=None,
+...         fast_windows=vbt.ChunkSlicer(),
+...         slow_windows=vbt.ChunkSlicer()
+...     ),
+...     merge_func=lambda x: pd.concat(x).vbt.sort_index()
+... )
+... def pipeline(price, fast_windows, slow_windows):
+...     fast_ma = vbt.MA.run(price, fast_windows, short_name='fast')
+...     slow_ma = vbt.MA.run(price, slow_windows, short_name='slow')
+...     entries = fast_ma.ma_above(slow_ma, crossover=True)
+...     exits = fast_ma.ma_below(slow_ma, crossover=True)
+...     pf = vbt.Portfolio.from_signals(price, entries, exits)
+...     return pf.total_return()
+
+>>> price = vbt.YFData.download(['BTC-USD', 'ETH-USD']).get('Close')
+>>> pipeline(price, [10, 10, 10], [20, 30, 50])
+fast_window  slow_window  symbol
+10           20           BTC-USD      157.110025
+                          ETH-USD     9055.098330
+             30           BTC-USD      144.497768
+                          ETH-USD    17246.108668
+             50           BTC-USD      177.678783
+                          ETH-USD     2495.033902
+Name: total_return, dtype: float64
+```
+
+Let's find out how the function splits data into 2 chunks (this won't trigger the computation):
+
+```python-repl
+>>> chunk_meta, funcs_args = pipeline(
+...     price, [10, 10, 10], [20, 30, 50],
+...     _n_chunks=2, _return_raw_chunks=True
+... )
+>>> chunk_meta
+[ChunkMeta(uuid='b6502166-d6fa-4928-bf5b-e604d2d85eb3', idx=0, start=0, end=2, indices=None),
+ ChunkMeta(uuid='4e558af3-e353-4e53-82eb-c5a4205f68f6', idx=1, start=2, end=3, indices=None)]
+
+>>> list(funcs_args)
+[(<function __main__.pipeline(price, fast_windows, slow_windows)>,
+  (symbol                          BTC-USD      ETH-USD
+   Date
+   2014-09-17 00:00:00+00:00    457.334015          NaN
+   2014-09-18 00:00:00+00:00    424.440002          NaN
+   2014-09-19 00:00:00+00:00    394.795990          NaN
+   ...                                 ...          ...
+   2021-10-10 00:00:00+00:00  54771.578125  3425.852783
+   2021-10-11 00:00:00+00:00  57484.789062  3545.354004
+   2021-10-12 00:00:00+00:00  56446.273438  3484.420166
+
+   [2579 rows x 2 columns],                                         << price (unchanged)
+   [10, 10],                                                        << fast_windows (1st chunk)
+   [20, 30]),                                                       << slow_windows (1st chunk)
+  {}),
+ (<function __main__.pipeline(price, fast_windows, slow_windows)>,
+  (symbol                          BTC-USD      ETH-USD
+   Date
+   2014-09-17 00:00:00+00:00    457.334015          NaN
+   2014-09-18 00:00:00+00:00    424.440002          NaN
+   2014-09-19 00:00:00+00:00    394.795990          NaN
+   ...                                 ...          ...
+   2021-10-10 00:00:00+00:00  54771.578125  3425.852783
+   2021-10-11 00:00:00+00:00  57484.789062  3545.354004
+   2021-10-12 00:00:00+00:00  56446.273438  3484.420166
+
+   [2579 rows x 2 columns],                                         << price (unchanged)
+   [10],                                                            << fast_windows (2nd chunk)
+   [50]),                                                           << slow_windows (2nd chunk)
+  {})]
+```
+
+We see that the function correctly chunked `fast_windows` and `slow_windows` and left the data as it is.
 
 ## Saving and loading
 
@@ -1787,7 +1939,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
             group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
-            chunked (any): See `vectorbt.utils.chunking.resolve_chunked`.
+            chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
             attach_call_seq (bool): Whether to pass `call_seq` to the constructor.
@@ -2271,8 +2423,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by (any): See `Portfolio.from_orders`.
             broadcast_named_args (dict): Dictionary with named arguments to broadcast.
 
-                You can then pass argument names to the functions and this method will substitute
-                them by their corresponding broadcasted objects.
+                You can then pass argument names wrapped with `vectorbt.utils.template.Rep`
+                and this method will substitute them by their corresponding broadcasted objects.
             broadcast_kwargs (dict): See `Portfolio.from_orders`.
             template_mapping (mapping): Mapping to replace templates in arguments.
             chunked (any): See `Portfolio.from_orders`.
@@ -2946,7 +3098,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             update_value=update_value,
             max_orders=max_orders,
             max_logs=max_logs,
-            flex_2d=close.ndim == 2,
+            flex_2d=flex_2d,
             wrapper=wrapper
         ), **template_mapping}
         adjust_sl_args = deep_substitute(adjust_sl_args, template_mapping)
@@ -2961,11 +3113,32 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     broadcasted_args.pop('short_entries'),
                     broadcasted_args.pop('short_exits')
                 )
+                chunked = ch.specialize_chunked_option(
+                    chunked,
+                    arg_take_spec=dict(
+                        signal_args=ch.ArgsTaker(
+                            portfolio_ch.flex_array_gl_slicer,
+                            portfolio_ch.flex_array_gl_slicer,
+                            portfolio_ch.flex_array_gl_slicer,
+                            portfolio_ch.flex_array_gl_slicer
+                        )
+                    )
+                )
             else:
                 signal_args = (
                     broadcasted_args.pop('entries'),
                     broadcasted_args.pop('exits'),
                     broadcasted_args.pop('direction')
+                )
+                chunked = ch.specialize_chunked_option(
+                    chunked,
+                    arg_take_spec=dict(
+                        signal_args=ch.ArgsTaker(
+                            portfolio_ch.flex_array_gl_slicer,
+                            portfolio_ch.flex_array_gl_slicer,
+                            portfolio_ch.flex_array_gl_slicer
+                        )
+                    )
                 )
         for k in broadcast_named_args:
             broadcasted_args.pop(k)
@@ -3329,7 +3502,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             broadcast_named_args (dict): See `Portfolio.from_signals`.
             broadcast_kwargs (dict): See `Portfolio.from_orders`.
             template_mapping (mapping): See `Portfolio.from_signals`.
-            chunked (any): See `vectorbt.utils.chunking.resolve_chunked`.
+            chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
             attach_call_seq (bool): See `Portfolio.from_orders`.
@@ -3642,19 +3815,19 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     flexible=True, max_orders=close.shape[0] * 2)
 
         >>> pf.orders.records_readable
-            Order Id  Timestamp Column  Size  Price  Fees  Side
-        0          0          0      a   1.0    1.0   0.0   Buy
-        1          1          0      a   1.0    2.0   0.0  Sell
-        2          2          1      a   1.0    2.0   0.0   Buy
-        3          3          1      a   1.0    3.0   0.0  Sell
-        4          4          2      a   1.0    3.0   0.0   Buy
-        5          5          2      a   1.0    4.0   0.0  Sell
-        6          6          0      b   1.0    4.0   0.0   Buy
-        7          7          0      b   1.0    3.0   0.0  Sell
-        8          8          1      b   1.0    5.0   0.0   Buy
-        9          9          1      b   1.0    4.0   0.0  Sell
-        10        10          2      b   1.0    6.0   0.0   Buy
-        11        11          2      b   1.0    5.0   0.0  Sell
+            Order Id Column  Timestamp  Size  Price  Fees  Side
+        0          0      a          0   1.0    1.0   0.0   Buy
+        1          1      a          0   1.0    2.0   0.0  Sell
+        2          2      a          1   1.0    2.0   0.0   Buy
+        3          3      a          1   1.0    3.0   0.0  Sell
+        4          4      a          2   1.0    3.0   0.0   Buy
+        5          5      a          2   1.0    4.0   0.0  Sell
+        6          0      b          0   1.0    4.0   0.0   Buy
+        7          1      b          0   1.0    3.0   0.0  Sell
+        8          2      b          1   1.0    5.0   0.0   Buy
+        9          3      b          1   1.0    4.0   0.0  Sell
+        10         4      b          2   1.0    6.0   0.0   Buy
+        11         5      b          2   1.0    5.0   0.0  Sell
         ```
 
         !!! warning

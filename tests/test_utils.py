@@ -2838,24 +2838,29 @@ class TestChunking:
             pass
 
         ann_args = parsing.annotate_args(f, 10)
-        assert chunking.ArgSizer('a').get_size(ann_args) == 10
+        assert chunking.ArgSizer('a').apply(ann_args) == 10
 
         ann_args = parsing.annotate_args(f, [1, 2, 3])
-        assert chunking.LenSizer('a').get_size(ann_args) == 3
+        assert chunking.LenSizer('a').apply(ann_args) == 3
+
+        ann_args = parsing.annotate_args(f, 3)
+        assert chunking.LenSizer('a', single_type=int).apply(ann_args) == 1
+        with pytest.raises(Exception):
+            _ = chunking.LenSizer('a').apply(ann_args)
 
         ann_args = parsing.annotate_args(f, (2, 3))
         with pytest.raises(Exception):
-            _ = chunking.ShapeSizer('a', -1).get_size(ann_args)
-        assert chunking.ShapeSizer('a', 0).get_size(ann_args) == 2
-        assert chunking.ShapeSizer('a', 1).get_size(ann_args) == 3
-        assert chunking.ShapeSizer('a', 2).get_size(ann_args) == 0
+            _ = chunking.ShapeSizer('a', -1).apply(ann_args)
+        assert chunking.ShapeSizer('a', 0).apply(ann_args) == 2
+        assert chunking.ShapeSizer('a', 1).apply(ann_args) == 3
+        assert chunking.ShapeSizer('a', 2).apply(ann_args) == 0
 
         ann_args = parsing.annotate_args(f, np.empty((2, 3)))
         with pytest.raises(Exception):
-            _ = chunking.ArraySizer('a', -1).get_size(ann_args)
-        assert chunking.ArraySizer('a', 0).get_size(ann_args) == 2
-        assert chunking.ArraySizer('a', 1).get_size(ann_args) == 3
-        assert chunking.ArraySizer('a', 2).get_size(ann_args) == 0
+            _ = chunking.ArraySizer('a', -1).apply(ann_args)
+        assert chunking.ArraySizer('a', 0).apply(ann_args) == 2
+        assert chunking.ArraySizer('a', 1).apply(ann_args) == 3
+        assert chunking.ArraySizer('a', 2).apply(ann_args) == 0
 
     def test_yield_chunk_meta(self):
         with pytest.raises(Exception):
@@ -3000,7 +3005,7 @@ class TestChunking:
             f, lst, lst, lst, (lst, lst), c=lst, d=lst, e=lst, f=dict(g=lst, h=lst))
         arg_take_spec = dict(
             b=chunking.ChunkSelector(),
-            args=chunking.ArgsTaker(
+            args=(
                 None,
                 chunking.SequenceTaker((
                     None,
@@ -3008,7 +3013,7 @@ class TestChunking:
                 ))
             ),
             d=chunking.ChunkSelector(),
-            kwargs=chunking.KwargsTaker(
+            kwargs=dict(
                 f=chunking.MappingTaker(dict(
                     h=chunking.ChunkSlicer()
                 ))
@@ -3018,92 +3023,111 @@ class TestChunking:
             ann_args, arg_take_spec, chunking.ChunkMeta(uuid='', idx=0, start=1, end=3, indices=None))
         assert args == (lst, lst[0], lst, (lst, lst[1:3]))
         assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
-        arg_take_spec2 = [
-            None,
-            chunking.ChunkSelector(),
-            chunking.ArgsTaker(
-                None,
-                chunking.SequenceTaker((
-                    None,
-                    chunking.ChunkSlicer()
-                ))
-            ),
-            None,
-            chunking.ChunkSelector(),
-            chunking.KwargsTaker(
-                f=chunking.MappingTaker(dict(
-                    h=chunking.ChunkSlicer()
-                ))
-            )
-        ]
-        args, kwargs = chunking.take_from_args(
-            ann_args, arg_take_spec2, chunking.ChunkMeta(uuid='', idx=0, start=1, end=3, indices=None))
-        assert args == (lst, lst[0], lst, (lst, lst[1:3]))
-        assert kwargs == dict(c=lst, d=lst[0], e=lst, f=dict(g=lst, h=lst[1:3]))
 
     def test_chunk_takers(self):
         a = np.arange(6).reshape((2, 3))
         sr = pd.Series(a[:, 0])
         df = pd.DataFrame(a)
 
-        assert chunking.ChunkSelector().take([1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == 1
-        assert chunking.ChunkSelector(retain_dim=True).take([1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == [1]
-        assert chunking.ChunkSlicer().take([1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == [1]
+        assert chunking.ChunkSelector().apply(
+            [1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == 1
+        assert chunking.ChunkSelector(keep_dims=True).apply(
+            [1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == [1]
+        assert chunking.ChunkSelector().apply(
+            None, chunking.ChunkMeta('', 0, 0, 1, None)) is None
+        with pytest.raises(Exception):
+            _ = chunking.ChunkSelector(ignore_none=False).apply(
+                None, chunking.ChunkMeta('', 0, 0, 1, None))
+        assert chunking.ChunkSelector(single_type=int).apply(
+            10, chunking.ChunkMeta('', 0, 0, 1, None)) == 10
+        with pytest.raises(Exception):
+            chunking.ChunkSelector().apply(
+                10, chunking.ChunkMeta('', 0, 0, 1, None))
+        assert chunking.ChunkSlicer().apply(
+            [1, 2, 3], chunking.ChunkMeta('', 0, 0, 1, None)) == [1]
         np.testing.assert_array_equal(
-            chunking.ChunkSlicer().take(np.array([1, 2, 3]), chunking.ChunkMeta('', 0, None, None, np.array([0, 0]))),
+            chunking.ChunkSlicer().apply(
+                np.array([1, 2, 3]), chunking.ChunkMeta('', 0, None, None, np.array([0, 0]))),
             np.array([1, 1])
         )
         with pytest.raises(Exception):
-            _ = chunking.ChunkSlicer().take(np.array([1, 2, 3]), chunking.ChunkMeta('', 0, None, None, np.array([3])))
+            _ = chunking.ChunkSlicer().apply(
+                np.array([1, 2, 3]), chunking.ChunkMeta('', 0, None, None, np.array([3])))
 
-        assert chunking.CountAdapter().take(10, chunking.ChunkMeta('', 0, 0, 1, None)) == 1
-        assert chunking.CountAdapter().take(10, chunking.ChunkMeta('', 0, 8, 12, None)) == 2
-        assert chunking.CountAdapter().take(10, chunking.ChunkMeta('', 0, 12, 13, None)) == 0
+        assert chunking.CountAdapter().apply(
+            10, chunking.ChunkMeta('', 0, 0, 1, None)) == 1
+        assert chunking.CountAdapter().apply(
+            10, chunking.ChunkMeta('', 0, 8, 12, None)) == 2
+        assert chunking.CountAdapter().apply(
+            10, chunking.ChunkMeta('', 0, 12, 13, None)) == 0
 
-        assert chunking.ShapeSelector(0).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (2, 3)
-        assert chunking.ShapeSelector(1).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 3)
-        assert chunking.ShapeSelector(2).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2)
+        assert chunking.ShapeSelector(0).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (2, 3)
+        assert chunking.ShapeSelector(1).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 3)
+        assert chunking.ShapeSelector(2).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSelector(4).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
-        assert chunking.ShapeSelector(0, retain_dim=True).take(
+            _ = chunking.ShapeSelector(4).apply(
+                (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
+        assert chunking.ShapeSelector(0, keep_dims=True).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 3)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSelector(0).take((1, 2, 3), chunking.ChunkMeta('', 1, 0, 1, None))
-        assert chunking.ShapeSelector(0).take((1,), chunking.ChunkMeta('', 0, 0, 1, None)) == ()
-        assert chunking.ShapeSlicer(0).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 3)
-        assert chunking.ShapeSlicer(1).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 1, 3)
-        assert chunking.ShapeSlicer(2).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 1)
+            _ = chunking.ShapeSelector(0).apply(
+                (1, 2, 3), chunking.ChunkMeta('', 1, 0, 1, None))
+        assert chunking.ShapeSelector(0).apply(
+            (1,), chunking.ChunkMeta('', 0, 0, 1, None)) == ()
+        assert chunking.ShapeSlicer(0).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 3)
+        assert chunking.ShapeSlicer(1).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 1, 3)
+        assert chunking.ShapeSlicer(2).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 1)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSlicer(4).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
-        assert chunking.ShapeSlicer(0).take((1, 2, 3), chunking.ChunkMeta('', 0, 0, 2, None)) == (1, 2, 3)
-        assert chunking.ShapeSlicer(0).take((1, 2, 3), chunking.ChunkMeta('', 0, 1, 2, None)) == (2, 3)
-        assert chunking.ShapeSlicer(0).take(
+            _ = chunking.ShapeSlicer(4).apply(
+                (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
+        assert chunking.ShapeSlicer(0).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 0, 2, None)) == (1, 2, 3)
+        assert chunking.ShapeSlicer(0).apply(
+            (1, 2, 3), chunking.ChunkMeta('', 0, 1, 2, None)) == (2, 3)
+        assert chunking.ShapeSlicer(0).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, None, None, np.array([0, 0]))) == (2, 2, 3)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSlicer(0).take((1, 2, 3), chunking.ChunkMeta('', 0, None, None, np.array([1])))
+            _ = chunking.ShapeSlicer(0).apply(
+                (1, 2, 3), chunking.ChunkMeta('', 0, None, None, np.array([1])))
 
-        np.testing.assert_array_equal(chunking.ArraySelector(0).take(a, chunking.ChunkMeta('', 0, 0, 1, None)), a[0])
+        np.testing.assert_array_equal(chunking.ArraySelector(0).apply(
+            a, chunking.ChunkMeta('', 0, 0, 1, None)), a[0])
         np.testing.assert_array_equal(
-            chunking.ArraySelector(0, retain_dim=True).take(a, chunking.ChunkMeta('', 0, 0, 1, None)), a[[0]])
-        np.testing.assert_array_equal(chunking.ArraySelector(1).take(a, chunking.ChunkMeta('', 0, 0, 1, None)), a[:, 0])
+            chunking.ArraySelector(0, keep_dims=True).apply(
+                a, chunking.ChunkMeta('', 0, 0, 1, None)), a[[0]])
+        np.testing.assert_array_equal(chunking.ArraySelector(1).apply(
+            a, chunking.ChunkMeta('', 0, 0, 1, None)), a[:, 0])
         with pytest.raises(Exception):
-            _ = chunking.ArraySelector(2).take(a, chunking.ChunkMeta('', 0, 0, 1, None))
-        assert chunking.ArraySelector(0).take(sr, chunking.ChunkMeta('', 0, 0, 1, None)) == sr.iloc[0]
-        pd.testing.assert_series_equal(chunking.ArraySelector(1).take(
+            _ = chunking.ArraySelector(2).apply(
+                a, chunking.ChunkMeta('', 0, 0, 1, None))
+        assert chunking.ArraySelector(0).apply(
+            sr, chunking.ChunkMeta('', 0, 0, 1, None)) == sr.iloc[0]
+        pd.testing.assert_series_equal(chunking.ArraySelector(1).apply(
             df, chunking.ChunkMeta('', 0, 0, 1, None)), df.iloc[:, 0])
-        np.testing.assert_array_equal(chunking.ArraySlicer(0).take(a, chunking.ChunkMeta('', 0, 0, 1, None)), a[[0]])
-        np.testing.assert_array_equal(chunking.ArraySlicer(1).take(a, chunking.ChunkMeta('', 0, 0, 1, None)), a[:, [0]])
+        np.testing.assert_array_equal(chunking.ArraySlicer(0).apply(
+            a, chunking.ChunkMeta('', 0, 0, 1, None)), a[[0]])
+        np.testing.assert_array_equal(chunking.ArraySlicer(1).apply(
+            a, chunking.ChunkMeta('', 0, 0, 1, None)), a[:, [0]])
         np.testing.assert_array_equal(
-            chunking.ArraySlicer(0).take(a, chunking.ChunkMeta('', 0, None, None, np.array([0]))),
+            chunking.ArraySlicer(0).apply(
+                a, chunking.ChunkMeta('', 0, None, None, np.array([0]))),
             a[[0]]
         )
         with pytest.raises(Exception):
-            _ = chunking.ArraySlicer(0).take(a, chunking.ChunkMeta('', 0, None, None, np.array([2])))
+            _ = chunking.ArraySlicer(0).apply(
+                a, chunking.ChunkMeta('', 0, None, None, np.array([2])))
         with pytest.raises(Exception):
-            _ = chunking.ArraySlicer(2).take(a, chunking.ChunkMeta('', 0, 0, 1, None))
-        pd.testing.assert_series_equal(chunking.ArraySlicer(0).take(
+            _ = chunking.ArraySlicer(2).apply(
+                a, chunking.ChunkMeta('', 0, 0, 1, None))
+        pd.testing.assert_series_equal(chunking.ArraySlicer(0).apply(
             sr, chunking.ChunkMeta('', 0, 0, 1, None)), sr.iloc[[0]])
-        pd.testing.assert_frame_equal(chunking.ArraySlicer(1).take(
+        pd.testing.assert_frame_equal(chunking.ArraySlicer(1).apply(
             df, chunking.ChunkMeta('', 0, 0, 1, None)), df.iloc[:, [0]])
 
     def test_yield_arg_chunks(self):
@@ -3203,7 +3227,7 @@ class TestChunking:
         np.testing.assert_array_equal(results[0], np.arange(5))
         np.testing.assert_array_equal(results[1], np.arange(5, 10))
 
-        def arg_take_spec(ann_args, chunk_meta):
+        def arg_take_spec(ann_args, chunk_meta, **kwargs):
             a = ann_args['a']['value']
             lens = ann_args['lens']['value']
             lens_chunk = lens[chunk_meta.start:chunk_meta.end]

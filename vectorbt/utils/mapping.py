@@ -44,7 +44,7 @@ def apply_mapping(obj: tp.Any,
                   reverse: bool = False,
                   ignore_case: bool = True,
                   ignore_underscores: bool = True,
-                  ignore_type: tp.MaybeTuple[tp.DTypeLike] = None,
+                  ignore_type: tp.Optional[tp.MaybeTuple[tp.DTypeLike]] = None,
                   ignore_missing: bool = False,
                   na_sentinel: tp.Any = None) -> tp.Any:
     """Apply mapping on object using a mapping-like object.
