@@ -6,10 +6,14 @@ hash = lambda s: int(hashlib.sha512(s.encode('utf-8')).hexdigest()[:16], 16)
 
 
 def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
-    if np.isnan(a) == np.isnan(b):
-        return True
-    if np.isinf(a) == np.isinf(b):
-        return True
+    if np.isnan(a) or np.isnan(b):
+        if np.isnan(a) and np.isnan(b):
+            return True
+        return False
+    if np.isinf(a) or np.isinf(b):
+        if np.isinf(a) and np.isinf(b):
+            return True
+        return False
     if a == b:
         return True
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)

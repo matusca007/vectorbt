@@ -3005,7 +3005,7 @@ class TestChunking:
             f, lst, lst, lst, (lst, lst), c=lst, d=lst, e=lst, f=dict(g=lst, h=lst))
         arg_take_spec = dict(
             b=chunking.ChunkSelector(),
-            args=(
+            args=chunking.ArgsTaker(
                 None,
                 chunking.SequenceTaker((
                     None,
@@ -3013,7 +3013,7 @@ class TestChunking:
                 ))
             ),
             d=chunking.ChunkSelector(),
-            kwargs=dict(
+            kwargs=chunking.KwargsTaker(
                 f=chunking.MappingTaker(dict(
                     h=chunking.ChunkSlicer()
                 ))

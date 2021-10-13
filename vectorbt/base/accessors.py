@@ -73,7 +73,7 @@ from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instan
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
-from vectorbt.base import combining, indexes, reshaping
+from vectorbt.base import combining, reshaping, indexes
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 
@@ -200,7 +200,7 @@ class BaseAccessor(Wrapping):
             return cls.empty(other.shape, fill_value=fill_value, index=other.index, name=other.name, **kwargs)
         return cls.empty(other.shape, fill_value=fill_value, index=other.index, columns=other.columns, **kwargs)
 
-    # ############# Index and columns ############# #
+    # ############# Indexes ############# #
 
     def apply_on_index(self, apply_func: tp.Callable, *args, axis: tp.Optional[int] = None,
                        inplace: bool = False, **kwargs) -> tp.Optional[tp.SeriesFrame]:
@@ -210,6 +210,8 @@ class BaseAccessor(Wrapping):
         If `inplace` is True, modifies the pandas object. Otherwise, returns a copy."""
         if axis is None:
             axis = 0 if self.is_series() else 1
+        if self.is_series() and axis == 1:
+            raise TypeError("Axis 1 is not supported in Series")
         checks.assert_in(axis, (0, 1))
 
         if axis == 1:
@@ -230,17 +232,6 @@ class BaseAccessor(Wrapping):
             else:
                 obj.index = obj_index
             return obj
-
-    def sort_index(self, axis: tp.Optional[int] = None, inplace: bool = False,
-                   ascending: bool = True) -> tp.Optional[tp.SeriesFrame]:
-        """Sort index values.
-
-        See `BaseAccessor.apply_on_index` for other keyword arguments."""
-
-        def apply_func(obj_index: tp.Index) -> tp.Index:
-            return obj_index.sort_values(ascending=ascending)
-
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
 
     def stack_index(self, index: tp.Index, axis: tp.Optional[int] = None, inplace: bool = False,
                     on_top: bool = True, **kwargs) -> tp.Optional[tp.SeriesFrame]:
@@ -311,6 +302,23 @@ class BaseAccessor(Wrapping):
             return indexes.drop_duplicate_levels(obj_index, keep=keep)
 
         return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+
+    def sort_index(self, axis: tp.Optional[int] = None, **kwargs) -> tp.SeriesFrame:
+        """Sort index/column by their values."""
+        if axis is None:
+            axis = 0 if self.is_series() else 1
+        if self.is_series() and axis == 1:
+            raise TypeError("Axis 1 is not supported in Series")
+        checks.assert_in(axis, (0, 1))
+
+        if axis == 1:
+            obj_index = self.wrapper.columns
+        else:
+            obj_index = self.wrapper.index
+        _, indexer = obj_index.sort_values(return_indexer=True, **kwargs)
+        if axis == 1:
+            return self.obj.iloc[:, indexer]
+        return self.obj.iloc[indexer]
 
     # ############# Reshaping ############# #
 

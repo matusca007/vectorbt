@@ -459,6 +459,29 @@ class ArrayWrapper(Configured, PandasIndexer):
                 return freq_to_timedelta(self.index.inferred_freq)
         return freq
 
+    @property
+    def period(self) -> int:
+        """Get the period of the index, without taking into account its datetime-like properties."""
+        return len(self.index)
+
+    @property
+    def dt_period(self) -> float:
+        """Get the period of the index, taking into account its datetime-like properties."""
+        from vectorbt._settings import settings
+        wrapping_cfg = settings['wrapping']
+
+        if isinstance(self.index, pd.DatetimeIndex):
+            if self.freq is not None:
+                return (self.index[-1] - self.index[0]) / self.freq + 1
+            if not wrapping_cfg['silence_warnings']:
+                warnings.warn("Couldn't parse the frequency of index. Pass it as `freq` or "
+                              "define it globally under `settings.wrapping`.", stacklevel=2)
+        if isinstance(self.index[0], int) and isinstance(self.index[-1], int):
+            return self.index[-1] - self.index[0] + 1
+        if not wrapping_cfg['silence_warnings']:
+            warnings.warn("Index is neither datetime-like nor integer", stacklevel=2)
+        return self.period
+
     def to_timedelta(self, a: tp.MaybeArray[float], to_pd: bool = False,
                      silence_warnings: tp.Optional[bool] = None) -> tp.Union[pd.Timedelta, np.timedelta64, tp.Array]:
         """Convert array to duration using `ArrayWrapper.freq`."""

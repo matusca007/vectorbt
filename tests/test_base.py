@@ -680,6 +680,17 @@ class TestArrayWrapper:
             datetime(2020, 1, 3)
         ])).freq == day_dt
 
+    def test_period(self):
+        test_sr = pd.Series([1, 2], index=[datetime(2020, 1, 1), datetime(2021, 1, 1)])
+        assert test_sr.vbt.wrapper.period == 2
+
+    def test_dt_period(self):
+        assert sr2_wrapper.dt_period == 3
+        assert sr2_wrapper.replace(freq='1D').dt_period == 3
+        test_sr = pd.Series([1, 2], index=[datetime(2020, 1, 1), datetime(2021, 1, 1)])
+        assert test_sr.vbt.wrapper.dt_period == 2
+        assert test_sr.vbt(freq='1D').wrapper.dt_period == 367
+
     def test_to_timedelta(self):
         sr = pd.Series([1, 2, np.nan], index=['x', 'y', 'z'], name='name')
         pd.testing.assert_series_equal(
@@ -2842,6 +2853,20 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             df5.vbt.stack_index(df5.columns.get_level_values(0)).vbt.drop_duplicate_levels(),
             df5
+        )
+
+    def test_sort_index(self):
+        pd.testing.assert_series_equal(
+            pd.Series([3, 2, 1], index=['c', 'b', 'a'], name='test').vbt.sort_index(),
+            pd.Series([1, 2, 3], index=['a', 'b', 'c'], name='test')
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame([[3, 2, 1]], columns=['c', 'b', 'a']).vbt.sort_index(),
+            pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        )
+        pd.testing.assert_frame_equal(
+            pd.DataFrame([3, 2, 1], index=['c', 'b', 'a']).vbt.sort_index(axis=0),
+            pd.DataFrame([1, 2, 3], index=['a', 'b', 'c'])
         )
 
     def test_to_array(self):

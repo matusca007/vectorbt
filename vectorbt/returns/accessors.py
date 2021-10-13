@@ -372,7 +372,7 @@ class ReturnsAccessor(GenericAccessor):
         """See `vectorbt.returns.nb.annualized_return_nb`."""
         func = nb_registry.redecorate_parallel(nb.annualized_return_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), self.ann_factor)
+        out = func(self.to_2d_array(), self.ann_factor, period=self.wrapper.dt_period)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_return'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -388,11 +388,11 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None))
         )
         return self.rolling_apply(
             window,
-            nb.annualized_return_1d_nb, self.ann_factor,
+            nb.annualized_return_1d_nb, self.ann_factor, None,
             minp=minp,
             chunked=chunked,
             **kwargs
@@ -450,7 +450,7 @@ class ReturnsAccessor(GenericAccessor):
         """See `vectorbt.returns.nb.calmar_ratio_nb`."""
         func = nb_registry.redecorate_parallel(nb.calmar_ratio_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), self.ann_factor)
+        out = func(self.to_2d_array(), self.ann_factor, period=self.wrapper.dt_period)
         wrap_kwargs = merge_dicts(dict(name_or_index='calmar_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -466,11 +466,11 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, None))
         )
         return self.rolling_apply(
             window,
-            nb.calmar_ratio_1d_nb, self.ann_factor,
+            nb.calmar_ratio_1d_nb, self.ann_factor, None,
             minp=minp,
             chunked=chunked,
             **kwargs
@@ -765,7 +765,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
-            chunked, 
+            chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
@@ -816,7 +816,7 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
-            chunked, 
+            chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
         return self.__class__.rolling_apply(
@@ -991,7 +991,12 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.capture_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
+        out = func(
+            self.to_2d_array(),
+            to_2d_array(benchmark_rets),
+            self.ann_factor,
+            period=self.wrapper.dt_period
+        )
         wrap_kwargs = merge_dicts(dict(name_or_index='capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -1011,13 +1016,13 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
-            chunked, 
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
         return self.__class__.rolling_apply(
             window,
             nb.capture_rollmeta_nb,
-            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor,
+            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
             chunked=chunked,
@@ -1036,7 +1041,12 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.up_capture_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
+        out = func(
+            self.to_2d_array(),
+            to_2d_array(benchmark_rets),
+            self.ann_factor,
+            period=self.wrapper.dt_period
+        )
         wrap_kwargs = merge_dicts(dict(name_or_index='up_capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -1056,13 +1066,13 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
-            chunked, 
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
         return self.__class__.rolling_apply(
             window,
             nb.up_capture_rollmeta_nb,
-            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor,
+            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
             chunked=chunked,
@@ -1081,7 +1091,12 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         func = nb_registry.redecorate_parallel(nb.down_capture_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), to_2d_array(benchmark_rets), self.ann_factor)
+        out = func(
+            self.to_2d_array(),
+            to_2d_array(benchmark_rets),
+            self.ann_factor,
+            period=self.wrapper.dt_period
+        )
         wrap_kwargs = merge_dicts(dict(name_or_index='down_capture'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
@@ -1101,13 +1116,13 @@ class ReturnsAccessor(GenericAccessor):
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
-            chunked, 
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
+            chunked,
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
         return self.__class__.rolling_apply(
             window,
             nb.down_capture_rollmeta_nb,
-            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor,
+            to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
             chunked=chunked,
@@ -1121,7 +1136,7 @@ class ReturnsAccessor(GenericAccessor):
         """Relative decline from a peak."""
         return self.cumulative(
             start_value=1,
-            nb_parallel=nb_parallel, 
+            nb_parallel=nb_parallel,
             chunked=chunked
         ).vbt.drawdown(
             nb_parallel=nb_parallel,

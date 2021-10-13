@@ -3,6 +3,7 @@
 
 """Utilities for working with parameters."""
 
+import numpy as np
 from numba.typed import List
 import itertools
 from collections.abc import Callable
@@ -90,3 +91,17 @@ def broadcast_params(param_list: tp.Sequence[tp.Sequence], to_n: tp.Optional[int
 def create_param_product(param_list: tp.Sequence[tp.Sequence]) -> tp.List[tp.List]:
     """Make Cartesian product out of all params in `param_list`."""
     return list(map(list, zip(*list(itertools.product(*param_list)))))
+
+
+def params_to_list(params: tp.Params, is_tuple: bool, is_array_like: bool) -> list:
+    """Cast parameters to a list."""
+    check_against = [list, List]
+    if not is_tuple:
+        check_against.append(tuple)
+    if not is_array_like:
+        check_against.append(np.ndarray)
+    if isinstance(params, tuple(check_against)):
+        new_params = list(params)
+    else:
+        new_params = [params]
+    return new_params

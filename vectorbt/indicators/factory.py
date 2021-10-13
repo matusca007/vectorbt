@@ -1177,7 +1177,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import classproperty, cached_property
 from vectorbt.utils.config import merge_dicts, resolve_dict, Config, Default
 from vectorbt.utils.random import set_seed
-from vectorbt.utils.params import to_typed_list, broadcast_params, create_param_product
+from vectorbt.utils.params import to_typed_list, broadcast_params, create_param_product, params_to_list
 from vectorbt.utils.enum import map_enum_fields
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.docs import to_doc
@@ -1192,20 +1192,6 @@ try:
     from ta.utils import IndicatorMixin as IndicatorMixinT
 except ImportError:
     IndicatorMixinT = tp.Any
-
-
-def params_to_list(params: tp.Params, is_tuple: bool, is_array_like: bool) -> list:
-    """Cast parameters to a list."""
-    check_against = [list, List]
-    if not is_tuple:
-        check_against.append(tuple)
-    if not is_array_like:
-        check_against.append(np.ndarray)
-    if isinstance(params, tuple(check_against)):
-        new_params = list(params)
-    else:
-        new_params = [params]
-    return new_params
 
 
 def prepare_params(param_list: tp.Sequence[tp.Params],
