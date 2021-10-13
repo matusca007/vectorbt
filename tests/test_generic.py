@@ -532,8 +532,9 @@ class TestAccessors:
             df.vbt.map(mult_nb, 2, nb_parallel=True),
             df.vbt.map(mult_nb, 2, nb_parallel=False)
         )
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(None)))
         pd.testing.assert_frame_equal(
-            df.vbt.map(mult_nb, 2, chunked=True),
+            df.vbt.map(mult_nb, 2, chunked=chunked),
             df.vbt.map(mult_nb, 2, chunked=False)
         )
         pd.testing.assert_frame_equal(

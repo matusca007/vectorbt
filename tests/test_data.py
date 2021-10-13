@@ -987,8 +987,8 @@ class TestData:
         pd.testing.assert_series_equal(
             data.stats(),
             pd.Series([
-                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC', freq='D'),
-                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC', freq='D'),
+                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC'),
+                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC'),
                 pd.Timedelta('5 days 00:00:00'),
                 2, 2.3333333333333335, 2.3333333333333335
             ],
@@ -999,8 +999,8 @@ class TestData:
         pd.testing.assert_series_equal(
             data.stats(column='feat0'),
             pd.Series([
-                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC', freq='D'),
-                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC', freq='D'),
+                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC'),
+                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC'),
                 pd.Timedelta('5 days 00:00:00'),
                 2, 5, 1
             ],
@@ -1011,8 +1011,8 @@ class TestData:
         pd.testing.assert_series_equal(
             data.stats(group_by=True),
             pd.Series([
-                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC', freq='D'),
-                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC', freq='D'),
+                pd.Timestamp('2020-01-01 00:00:00+0000', tz='UTC'),
+                pd.Timestamp('2020-01-05 00:00:00+0000', tz='UTC'),
                 pd.Timedelta('5 days 00:00:00'),
                 2, 7, 7
             ],

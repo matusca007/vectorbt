@@ -673,11 +673,6 @@ class TestArrayWrapper:
             datetime(2020, 1, 1),
             datetime(2020, 1, 2),
             datetime(2020, 1, 3)
-        ], freq='1D')).freq == day_dt
-        assert sr2_wrapper.replace(index=pd.Index([
-            datetime(2020, 1, 1),
-            datetime(2020, 1, 2),
-            datetime(2020, 1, 3)
         ])).freq == day_dt
 
     def test_period(self):
@@ -2991,6 +2986,48 @@ class TestAccessors:
     def test_broadcast_to(self):
         pd.testing.assert_frame_equal(sr2.vbt.broadcast_to(df2), df2)
         pd.testing.assert_frame_equal(sr2.vbt.broadcast_to(df2.vbt), df2)
+
+    def test_broadcast_combs(self):
+        new_index = pd.MultiIndex.from_tuples([
+            ('x6', 'x7', 'x8'),
+            ('y6', 'y7', 'y8'),
+            ('z6', 'z7', 'z8')
+        ], names=['i6', 'i7', 'i8'])
+        new_columns = pd.MultiIndex.from_tuples([
+            ('a6', 'a7', 'a8'),
+            ('a6', 'b7', 'b8'),
+            ('a6', 'c7', 'c8'),
+            ('b6', 'a7', 'a8'),
+            ('b6', 'b7', 'b8'),
+            ('b6', 'c7', 'c8'),
+            ('c6', 'a7', 'a8'),
+            ('c6', 'b7', 'b8'),
+            ('c6', 'c7', 'c8')
+        ], names=['c6', 'c7', 'c8'])
+        pd.testing.assert_frame_equal(
+            df4.vbt.broadcast_combs(df5)[0],
+            pd.DataFrame(
+                [
+                    [1, 1, 1, 2, 2, 2, 3, 3, 3],
+                    [4, 4, 4, 5, 5, 5, 6, 6, 6],
+                    [7, 7, 7, 8, 8, 8, 9, 9, 9]
+                ],
+                index=new_index,
+                columns=new_columns
+            )
+        )
+        pd.testing.assert_frame_equal(
+            df4.vbt.broadcast_combs(df5)[1],
+            pd.DataFrame(
+                [
+                    [1, 2, 3, 1, 2, 3, 1, 2, 3],
+                    [4, 5, 6, 4, 5, 6, 4, 5, 6],
+                    [7, 8, 9, 7, 8, 9, 7, 8, 9]
+                ],
+                index=new_index,
+                columns=new_columns
+            )
+        )
 
     def test_apply(self):
         pd.testing.assert_series_equal(sr2.vbt.apply(apply_func=lambda x: x ** 2), sr2 ** 2)

@@ -10,10 +10,11 @@ from numpy.lib.stride_tricks import _broadcast_shape
 import pandas as pd
 from collections.abc import Sequence
 import functools
+import itertools
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.config import resolve_dict
+from vectorbt.utils.config import resolve_dict, merge_dicts
 from vectorbt.base import indexes, wrapping
 
 
@@ -338,10 +339,11 @@ def wrap_broadcasted(old_arg: tp.AnyArray,
     return new_arg
 
 
-def align_pd_arrays(args: tp.Sequence[tp.PandasArray],
+def align_pd_arrays(args: tp.Sequence[tp.ArrayLike],
                     align_index: bool = True,
-                    align_columns: bool = True) -> tp.List[tp.PandasArray]:
-    """Align pandas arrays against common index and/or column levels using `vectorbt.base.indexes.align_indexes`."""
+                    align_columns: bool = True) -> tp.List[tp.ArrayLike]:
+    """Align Pandas arrays against common index and/or column levels using 
+    `vectorbt.base.indexes.align_indexes`."""
     args = list(args)
     if align_index:
         index_to_align = []
@@ -753,6 +755,76 @@ def broadcast_to_axis_of(arg1: tp.ArrayLike, arg2: tp.ArrayLike, axis: int,
     arg1 = np.broadcast_to(arg1, (arg2.shape[axis],))
     arg1 = np.require(arg1, **require_kwargs)
     return arg1
+
+
+def broadcast_combs(*args: tp.ArrayLike,
+                    axis: int = 1,
+                    comb_func: tp.Callable = itertools.product,
+                    broadcast_kwargs: tp.KwargsLike = None) -> BCRT:
+    """Align an axis of each array using a combinatoric function and broadcast their indexes.
+
+    ## Example
+
+    ```python-repl
+    >>> import numpy as np
+    >>> from vectorbt.base.reshaping import broadcast_combs
+
+    >>> df = pd.DataFrame([[1, 2, 3], [3, 4, 5]], columns=pd.Index(['a', 'b', 'c'], name='df_param'))
+    >>> df2 = pd.DataFrame([[6, 7], [8, 9]], columns=pd.Index(['d', 'e'], name='df2_param'))
+    >>> sr = pd.Series([10, 11], name='f')
+
+    >>> new_df, new_df2, new_sr = broadcast_combs(df, df2, sr)
+
+    >>> new_df
+    df_param   a     b     c
+    df2_param  d  e  d  e  d  e
+    0          1  1  2  2  3  3
+    1          3  3  4  4  5  5
+
+    >>> new_df2
+    df_param   a     b     c
+    df2_param  d  e  d  e  d  e
+    0          6  7  6  7  6  7
+    1          8  9  8  9  8  9
+
+    >>> new_sr
+    df_param    a       b       c
+    df2_param   d   e   d   e   d   e
+    0          10  10  10  10  10  10
+    1          11  11  11  11  11  11
+    ```"""
+    if len(args) < 2:
+        raise ValueError("At least two arguments are required")
+    if broadcast_kwargs is None:
+        broadcast_kwargs = {}
+
+    args = list(args)
+    for i in range(len(args)):
+        arg = to_any_array(args[i])
+        if axis == 1:
+            arg = to_2d(arg)
+        args[i] = arg
+    indices = []
+    for arg in args:
+        indices.append(np.arange(len(indexes.get_index(to_pd_array(arg), axis))))
+    new_indices = list(map(list, zip(*list(comb_func(*indices)))))
+    results = []
+    for i, arg in enumerate(args):
+        if axis == 1:
+            if checks.is_pandas(arg):
+                results.append(arg.iloc[:, new_indices[i]])
+            else:
+                results.append(arg[:, new_indices[i]])
+        else:
+            if checks.is_pandas(arg):
+                results.append(arg.iloc[new_indices[i]])
+            else:
+                results.append(arg[new_indices[i]])
+    if axis == 1:
+        broadcast_kwargs = merge_dicts(dict(columns_from='stack'), broadcast_kwargs)
+    else:
+        broadcast_kwargs = merge_dicts(dict(index_from='stack'), broadcast_kwargs)
+    return broadcast(*results, **broadcast_kwargs)
 
 
 def get_multiindex_series(arg: tp.SeriesFrame) -> tp.Series:

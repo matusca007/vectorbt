@@ -418,6 +418,14 @@ class BaseAccessor(Wrapping):
             other = other.obj
         return reshaping.broadcast_to(self.obj, other, **kwargs)
 
+    @class_or_instancemethod
+    def broadcast_combs(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+        """See `vectorbt.base.reshaping.broadcast_combs`."""
+        others = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, others))
+        if isinstance(cls_or_self, type):
+            return reshaping.broadcast_combs(*others, **kwargs)
+        return reshaping.broadcast_combs(cls_or_self.obj, *others, **kwargs)
+
     def make_symmetric(self) -> tp.Frame:  # pragma: no cover
         """See `vectorbt.base.reshaping.make_symmetric`."""
         return reshaping.make_symmetric(self.obj)
