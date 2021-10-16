@@ -490,7 +490,7 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
-from vectorbt.utils.array import min_rel_rescale, max_rel_rescale
+from vectorbt.utils.array_ import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.template import Rep, RepEval
 from vectorbt.utils.decorators import cached_property
 from vectorbt.base.reshaping import to_2d_array

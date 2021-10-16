@@ -23,7 +23,7 @@ from telegram.error import Unauthorized, ChatMigrated
 from vectorbt import _typing as tp
 from vectorbt.utils.config import merge_dicts, Configured
 from vectorbt.utils.parsing import get_func_kwargs
-from vectorbt.utils.requests import text_to_giphy_url
+from vectorbt.utils.requests_ import text_to_giphy_url
 
 logger = logging.getLogger(__name__)
 

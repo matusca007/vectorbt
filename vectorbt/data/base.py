@@ -264,7 +264,7 @@ import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.datetime import is_tz_aware, to_timezone
+from vectorbt.utils.datetime_ import is_tz_aware, to_timezone
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin

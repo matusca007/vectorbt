@@ -29,7 +29,7 @@ from numba import prange
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
 from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils.array import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
+from vectorbt.utils.array_ import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.template import Rep
 from vectorbt.base.indexing import flex_select_auto_nb

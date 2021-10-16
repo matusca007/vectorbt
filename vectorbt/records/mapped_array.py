@@ -425,7 +425,7 @@ from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.config import merge_dicts, Config, Configured
-from vectorbt.utils.array import index_repeating_rows_nb
+from vectorbt.utils.array_ import index_repeating_rows_nb
 from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_dict
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping

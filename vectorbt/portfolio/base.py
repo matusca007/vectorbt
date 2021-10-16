@@ -1573,10 +1573,10 @@ from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import cached_property, cached_method, class_or_instancemethod
-from vectorbt.utils.enum import map_enum_fields
+from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.template import Rep, RepEval, RepFunc, deep_substitute
-from vectorbt.utils.random import set_seed
+from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.colors import adjust_opacity
 from vectorbt.utils.figure import get_domain
 from vectorbt.utils import chunking as ch

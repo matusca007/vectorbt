@@ -200,7 +200,7 @@ from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.template import RepEval
-from vectorbt.utils.random import set_seed_nb
+from vectorbt.utils.random_ import set_seed_nb
 from vectorbt.utils import chunking as ch
 from vectorbt.base import reshaping
 from vectorbt.base.wrapping import ArrayWrapper

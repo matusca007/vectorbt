@@ -53,13 +53,13 @@ from numba import prange
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
 from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils.math import (
+from vectorbt.utils.math_ import (
     is_close_nb,
     is_close_or_less_nb,
     is_less_nb,
     add_nb
 )
-from vectorbt.utils.array import insert_argsort_nb
+from vectorbt.utils.array_ import insert_argsort_nb
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.template import Rep, RepFunc
 from vectorbt.base.indexing import flex_select_auto_nb

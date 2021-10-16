@@ -15,9 +15,9 @@ from vectorbt.utils.decorators import (
     cached_method
 )
 from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplots
-from vectorbt.utils.random import set_seed
-from vectorbt.utils.image import save_animation
-from vectorbt.utils.schedule import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
+from vectorbt.utils.random_ import set_seed
+from vectorbt.utils.image_ import save_animation
+from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
 from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
 from vectorbt.utils.chunking import (
     ChunkMeta,

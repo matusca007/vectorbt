@@ -119,7 +119,7 @@ import plotly.graph_objects as go
 
 from vectorbt.ca_registry import ca_registry, CAQuery, CADirective
 from vectorbt.utils.config import Config
-from vectorbt.utils.datetime import get_local_tz, get_utc_tz
+from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
 from vectorbt.utils.template import Sub, RepEval, deep_substitute
 
 __pdoc__ = {}
