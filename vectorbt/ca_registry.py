@@ -34,8 +34,8 @@ class CASetup(Hashable, SafeToStr):
     def cacheable(self) -> cacheableT:
         """Cacheable callable.
 
-        Must be either instance of `vectorbt.utils.caching.cacheable_property`
-        or `vectorbt.utils.caching.cacheable_method`."""
+        Must be either instance of `vectorbt.utils.decorators.cacheable_property`
+        or `vectorbt.utils.decorators.cacheable_method`."""
         return self._cacheable
 
     @property

@@ -816,7 +816,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         !!! warning
             Each segment or combination of segments in `segment_arr` is assumed to be coherent and non-repeating.
             That is, `np.array([0, 1, 0])` for a single column annotates three different segments, not two.
-            See `vectorbt.utils.array.index_repeating_rows_nb`.
+            See `vectorbt.utils.array_.index_repeating_rows_nb`.
 
         !!! hint
             Use `MappedArray.sort` to bring the mapped array to the desired order, if required.

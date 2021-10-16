@@ -203,5 +203,5 @@ class AttrResolver:
         return out
 
     def deep_getattr(self, *args, **kwargs) -> tp.Any:
-        """See `vectorbt.utils.attr.deep_getattr`."""
+        """See `deep_getattr`."""
         return deep_getattr(self, *args, **kwargs)

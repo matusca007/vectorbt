@@ -253,8 +253,6 @@ caching = dict(
 
 __pdoc__['caching'] = Sub("""Sub-config with settings applied to caching decorators across `vectorbt.utils.decorators`.
 
-See `vectorbt.utils.decorators.should_cache`.
-
 ```json
 ${config_doc}
 ```""")
@@ -304,7 +302,7 @@ datetime = dict(
 )
 """_"""
 
-__pdoc__['datetime'] = Sub("""Sub-config with settings applied across `vectorbt.utils.datetime`.
+__pdoc__['datetime'] = Sub("""Sub-config with settings applied across `vectorbt.utils.datetime_`.
 
 ```json
 ${config_doc}

@@ -125,7 +125,7 @@ class DataUpdater(Configured):
     def schedule_manager(self) -> ScheduleManager:
         """Schedule manager instance.
 
-        See `vectorbt.utils.schedule.ScheduleManager`."""
+        See `vectorbt.utils.schedule_.ScheduleManager`."""
         return self._schedule_manager
 
     def update(self, **kwargs) -> None:
@@ -133,7 +133,7 @@ class DataUpdater(Configured):
 
         Override to do pre- and postprocessing.
 
-        To stop this method from running again, raise `vectorbt.utils.schedule.CancelledError`."""
+        To stop this method from running again, raise `vectorbt.utils.schedule_.CancelledError`."""
         self._data = self.data.update(**kwargs)
         self.update_config(data=self.data)
         new_index = self.data.wrapper.index
@@ -143,10 +143,10 @@ class DataUpdater(Configured):
                      in_background: bool = False, start_kwargs: dict = None, **kwargs) -> None:
         """Schedule `DataUpdater.update`.
 
-        For `*args`, `to` and `tags`, see `vectorbt.utils.schedule.ScheduleManager.every`.
+        For `*args`, `to` and `tags`, see `vectorbt.utils.schedule_.ScheduleManager.every`.
 
         If `in_background` is set to True, starts in the background as an `asyncio` task.
-        The task can be stopped with `vectorbt.utils.schedule.ScheduleManager.stop`.
+        The task can be stopped with `vectorbt.utils.schedule_.ScheduleManager.stop`.
 
         `**kwargs` are passed to `DataUpdater.update`."""
         if start_kwargs is None:
