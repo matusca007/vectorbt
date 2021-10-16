@@ -54,8 +54,7 @@ def setup_module():
     vbt.settings.broadcasting['index_from'] = 'stack'
     vbt.settings.broadcasting['columns_from'] = 'stack'
     vbt.settings.caching.enabled = False
-    vbt.settings.caching.whitelist = []
-    vbt.settings.caching.blacklist = []
+    vbt.settings.caching.directives = []
 
 
 def teardown_module():

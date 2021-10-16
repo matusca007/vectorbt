@@ -11,9 +11,10 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import set_dict_item, merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.docs import SafeToStr, prepare_for_doc
+from vectorbt.utils.hashing import Hashable
 
 
-class CustomTemplate(SafeToStr):
+class CustomTemplate(Hashable, SafeToStr):
     """Base class for substituting templates."""
 
     def __init__(self, template: tp.Any, mapping: tp.Optional[tp.Mapping] = None) -> None:
@@ -36,6 +37,13 @@ class CustomTemplate(SafeToStr):
         """Abstract method to substitute the template `CustomTemplate.template` using
         the mapping from merging `CustomTemplate.mapping` and `mapping`."""
         raise NotImplementedError
+
+    @property
+    def hash_key(self) -> tuple:
+        return (
+            self.template,
+            tuple(self.mapping.items()) if self.mapping is not None else None
+        )
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(" \

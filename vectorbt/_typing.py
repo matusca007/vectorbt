@@ -160,7 +160,8 @@ MappingLike = Union[str, Mapping, Enum, IndexLike]
 
 # Parsing
 AnnArgs = Dict[str, Kwargs]
-AnnArgQuery = Union[int, str]
+FlatAnnArgs = List[Kwargs]
+AnnArgQuery = Union[int, str, 'Regex']
 
 # Execution
 FuncArgs = Tuple[Callable, Args, Kwargs]

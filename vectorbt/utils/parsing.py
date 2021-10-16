@@ -9,6 +9,39 @@ import sys
 import re
 
 from vectorbt import _typing as tp
+from vectorbt.utils.docs import SafeToStr
+from vectorbt.utils.hashing import Hashable
+
+
+class Regex(Hashable, SafeToStr):
+    """Class for matching a regular expression."""
+
+    def __init__(self, pattern: str, flags: int = 0) -> None:
+        self._pattern = pattern
+        self._flags = flags
+
+    @property
+    def pattern(self) -> str:
+        """Pattern."""
+        return self._pattern
+
+    @property
+    def flags(self) -> int:
+        """Flags."""
+        return self._flags
+
+    def matches(self, string: str) -> bool:
+        """Return whether the string matches the regular expression pattern."""
+        return re.match(self.pattern, string, self.flags) is not None
+
+    @property
+    def hash_key(self) -> tuple:
+        raise (self.pattern, self.flags)
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(" \
+               f"pattern=\"{self.pattern}\", " \
+               f"flags={self.flags})"
 
 
 def get_func_kwargs(func: tp.Callable) -> dict:
@@ -37,8 +70,9 @@ def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[in
     ]
 
 
-def annotate_args(func: tp.Callable, *args, **kwargs) -> tp.AnnArgs:
+def annotate_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs) -> tp.AnnArgs:
     """Annotate arguments and keyword arguments using the function's signature."""
+    kwargs = dict(kwargs)
     signature = inspect.signature(func)
     signature.bind(*args, **kwargs)
     ann_args = dict()
@@ -65,6 +99,33 @@ def annotate_args(func: tp.Callable, *args, **kwargs) -> tp.AnnArgs:
     return ann_args
 
 
+def flatten_ann_args(ann_args: tp.AnnArgs) -> tp.FlatAnnArgs:
+    """Flatten annotated arguments."""
+    flat_ann_args = []
+    for arg_name, ann_arg in ann_args.items():
+        if ann_arg['kind'] == inspect.Parameter.VAR_POSITIONAL:
+            for v in ann_arg['value']:
+                flat_ann_args.append(dict(
+                    name=arg_name,
+                    kind=ann_arg['kind'],
+                    value=v
+                ))
+        elif ann_arg['kind'] == inspect.Parameter.VAR_KEYWORD:
+            for var_arg_name, var_value in ann_arg['value'].items():
+                flat_ann_args.append(dict(
+                    name=var_arg_name,
+                    kind=ann_arg['kind'],
+                    value=var_value
+                ))
+        else:
+            flat_ann_args.append(dict(
+                name=arg_name,
+                kind=ann_arg['kind'],
+                value=ann_arg['value']
+            ))
+    return flat_ann_args
+
+
 def match_ann_arg(ann_args: tp.AnnArgs, query: tp.AnnArgQuery) -> tp.Any:
     """Match an argument from annotated arguments.
 
@@ -74,26 +135,54 @@ def match_ann_arg(ann_args: tp.AnnArgs, query: tp.AnnArgQuery) -> tp.Any:
     If multiple arguments were matched, returns the first one.
 
     The position can stretch over any variable argument."""
-    flat_args = []
-    args_by_name = {}
-    for arg_name, ann_arg in ann_args.items():
-        if ann_arg['kind'] == inspect.Parameter.VAR_POSITIONAL:
-            flat_args.extend(ann_arg['value'])
-        elif ann_arg['kind'] == inspect.Parameter.VAR_KEYWORD:
-            for var_arg_name, var_value in ann_arg['value'].items():
-                flat_args.append(var_value)
-                args_by_name[var_arg_name] = var_value
-        else:
-            flat_args.append(ann_arg['value'])
-            args_by_name[arg_name] = ann_arg['value']
+    flat_ann_args = flatten_ann_args(ann_args)
     if isinstance(query, int):
-        return flat_args[query]
+        return flat_ann_args[query]['value']
     if isinstance(query, str):
-        for arg_name, arg in args_by_name.items():
-            if re.match(query, arg_name):
-                return arg
+        for arg in flat_ann_args:
+            if query == arg['name']:
+                return arg['value']
+        raise KeyError(f"Query '{query}' could not be matched with any argument")
+    if isinstance(query, Regex):
+        for arg in flat_ann_args:
+            if query.matches(arg['name']):
+                return arg['value']
         raise KeyError(f"Query '{query}' could not be matched with any argument")
     raise TypeError(f"Query of type {type(query)} is not supported")
+
+
+def ignore_flat_ann_args(flat_ann_args: tp.FlatAnnArgs, ignore_args: tp.Sequence[tp.AnnArgQuery]) -> tp.FlatAnnArgs:
+    """Ignore flattened annotated arguments."""
+    new_flat_ann_args = []
+    for i, arg in enumerate(flat_ann_args):
+        arg_matched = False
+        for ignore_arg in ignore_args:
+            if isinstance(ignore_arg, int) and ignore_arg == i:
+                arg_matched = True
+                break
+            if isinstance(ignore_arg, str) and ignore_arg == arg['name']:
+                arg_matched = True
+                break
+            if isinstance(ignore_arg, Regex) and ignore_arg.matches(arg['name']):
+                arg_matched = True
+                break
+        if not arg_matched:
+            new_flat_ann_args.append(arg)
+    return new_flat_ann_args
+
+
+def hash_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs,
+              ignore_args: tp.Optional[tp.Sequence[tp.AnnArgQuery]] = None) -> int:
+    """Get hash of arguments.
+
+    Use `ignore_args` to provide a sequence of queries for arguments that should be ignored."""
+    if ignore_args is None:
+        ignore_args = []
+    ann_args = annotate_args(func, args, kwargs)
+    flat_ann_args = flatten_ann_args(ann_args)
+    if len(ignore_args) > 0:
+        flat_ann_args = ignore_flat_ann_args(flat_ann_args, ignore_args)
+    return hash(tuple(map(lambda x: (x['name'], x['value']), flat_ann_args)))
 
 
 def get_ex_var_names(expression: str) -> tp.List[str]:

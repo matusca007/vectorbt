@@ -1000,7 +1000,7 @@ def chunked(*args,
             if prepend_chunk_meta:
                 args = (Rep('chunk_meta'), *args)
 
-            ann_args = annotate_args(func, *args, **kwargs)
+            ann_args = annotate_args(func, args, kwargs)
             chunk_meta = list(get_chunk_meta_from_args(
                 ann_args,
                 n_chunks=n_chunks,

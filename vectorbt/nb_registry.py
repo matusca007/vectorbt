@@ -12,8 +12,6 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.template import RepEval
 
-__pdoc__ = {}
-
 
 class NumbaRegistry:
     """Class that registers Numba-compiled functions."""
@@ -170,7 +168,7 @@ class NumbaRegistry:
 
 
 nb_registry = NumbaRegistry()
-"""Registry of type `NumbaRegistry`."""
+"""Default registry of type `NumbaRegistry`."""
 
 
 def decorate_py_func(py_func: tp.Optional[tp.Callable] = None,

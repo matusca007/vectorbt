@@ -1,10 +1,10 @@
-import vectorbt as vbt
 import numpy as np
 import pandas as pd
 from numba import njit
 from datetime import datetime
 import pytest
 
+import vectorbt as vbt
 from vectorbt.generic.enums import range_dt, drawdown_dt
 from vectorbt.portfolio.enums import order_dt, trade_dt, log_dt
 
@@ -57,8 +57,7 @@ records_nosort_grouped = vbt.records.Records(wrapper_grouped, records_nosort_arr
 
 def setup_module():
     vbt.settings.caching.enabled = False
-    vbt.settings.caching.whitelist = []
-    vbt.settings.caching.blacklist = []
+    vbt.settings.caching.directives = []
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.chunking['n_chunks'] = 2
 

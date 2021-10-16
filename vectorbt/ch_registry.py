@@ -9,8 +9,6 @@ from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.chunking import chunked, resolve_chunked
 
-__pdoc__ = {}
-
 
 class ChunkableRegistry:
     """Class that registers chunkable functions."""
@@ -114,7 +112,7 @@ class ChunkableRegistry:
 
 
 ch_registry = ChunkableRegistry()
-"""Registry of type `ChunkableRegistry`."""
+"""Default registry of type `ChunkableRegistry`."""
 
 
 def register_chunkable(func: tp.Optional[tp.Callable] = None,

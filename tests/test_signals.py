@@ -1,10 +1,10 @@
-import vectorbt as vbt
 import numpy as np
 import pandas as pd
 from numba import njit
 from datetime import datetime
 import pytest
 
+import vectorbt as vbt
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.enums import range_dt
 
@@ -45,8 +45,7 @@ group_by = pd.Index(['g1', 'g1', 'g2'])
 def setup_module():
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
-    vbt.settings.caching.whitelist = []
-    vbt.settings.caching.blacklist = []
+    vbt.settings.caching.directives = []
 
 
 def teardown_module():

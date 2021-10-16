@@ -58,8 +58,7 @@ def setup_module():
         ray.init(local_mode=True, num_cpus=1)
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.caching.enabled = False
-    vbt.settings.caching.whitelist = []
-    vbt.settings.caching.blacklist = []
+    vbt.settings.caching.directives = []
 
 
 def teardown_module():
@@ -987,29 +986,25 @@ class TestDecorators:
     def test_custom_property(self):
         class G:
             @decorators.custom_property(some='key')
-            def cache_me(self): return np.random.uniform()
+            def cache_me(self):
+                return np.random.uniform()
 
-        assert 'some' in G.cache_me.flags
-        assert G.cache_me.flags['some'] == 'key'
+        assert 'some' in G.cache_me.options
+        assert G.cache_me.options['some'] == 'key'
 
-    def test_custom_method(self):
-        class G:
-            @decorators.custom_method(some='key')
-            def cache_me(self): return np.random.uniform()
+    def test_custom_function(self):
+        @decorators.custom_function(some='key')
+        def cache_me():
+            return np.random.uniform()
 
-        assert 'some' in G.cache_me.flags
-        assert G.cache_me.flags['some'] == 'key'
+        assert 'some' in cache_me.options
+        assert cache_me.options['some'] == 'key'
 
     @pytest.mark.parametrize(
-        "test_property,test_blacklist",
-        [
-            (True, True),
-            (True, False),
-            (False, True),
-            (False, False)
-        ]
+        "test_property",
+        [True, False]
     )
-    def test_caching(self, test_property, test_blacklist):
+    def test_caching(self, test_property):
         vbt.settings.caching.enabled = True
 
         np.random.seed(seed)
@@ -1033,7 +1028,7 @@ class TestDecorators:
                 @decorators.cached_property(a=0, b=0)
                 def cache_me(self): return np.random.uniform()
 
-            assert G.cache_me.flags == dict(a=0, b=0)
+            assert G.cache_me.options == dict(a=0, b=0)
 
             g = G()
             g2 = G()
@@ -1058,9 +1053,9 @@ class TestDecorators:
                 @decorators.cached_method(a=0, b=0)
                 def cache_me(self): return np.random.uniform()
 
-            assert G.cache_me.flags == dict(a=0, b=0)
+            assert G.cache_me.options == dict(a=0, b=0)
             g = G()
-            assert g.cache_me.flags == dict(a=0, b=0)
+            assert g.cache_me.options == dict(a=0, b=0)
             g2 = G()
 
             class G3(G):
@@ -1084,411 +1079,6 @@ class TestDecorators:
         assert call(g.cache_me) != cached_number
         assert call(g2.cache_me) == cached_number2
         assert call(g3.cache_me) == cached_number3
-
-        # ranks
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = True
-        vbt.settings.caching['blacklist'].append(decorators.CacheCondition(instance=g))
-        vbt.settings.caching['blacklist'].append(decorators.CacheCondition(cls=G))
-        vbt.settings.caching['whitelist'].append(decorators.CacheCondition(cls=G))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert call(g.cache_me) != cached_number
-        assert call(g2.cache_me) == cached_number2
-        assert call(g3.cache_me) == cached_number3
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = True
-        vbt.settings.caching['blacklist'].append(decorators.CacheCondition(cls=G))
-        vbt.settings.caching['whitelist'].append(decorators.CacheCondition(cls=G))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert call(g.cache_me) == cached_number
-        assert call(g2.cache_me) == cached_number2
-        assert call(g3.cache_me) == cached_number3
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = True
-        vbt.settings.caching['blacklist'].append(decorators.CacheCondition(cls=G, rank=0))
-        vbt.settings.caching['whitelist'].append(decorators.CacheCondition(cls=G))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert call(g.cache_me) != cached_number
-        assert call(g2.cache_me) != cached_number2
-        assert call(g3.cache_me) == cached_number3
-        vbt.settings.caching.reset()
-
-        # test list
-
-        if test_blacklist:
-            lst = 'blacklist'
-        else:
-            lst = 'whitelist'
-
-        def compare(a, b):
-            if test_blacklist:
-                return a != b
-            return a == b
-
-        def not_compare(a, b):
-            if test_blacklist:
-                return a == b
-            return a != b
-
-        # condition health
-        G.cache_me.clear_cache(g)
-        vbt.settings.caching[lst].append(decorators.CacheCondition(func=True))
-        with pytest.raises(Exception):
-            _ = call(g.cache_me)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        vbt.settings.caching[lst].append(decorators.CacheCondition(cls=True))
-        with pytest.raises(Exception):
-            _ = call(g.cache_me)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=True))
-        with pytest.raises(Exception):
-            _ = call(g.cache_me)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        vbt.settings.caching[lst].append(decorators.CacheCondition(flags=True))
-        with pytest.raises(Exception):
-            _ = call(g.cache_me)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        vbt.settings.caching[lst].append(decorators.CacheCondition(rank='test'))
-        with pytest.raises(Exception):
-            _ = call(g.cache_me)
-        vbt.settings.caching.reset()
-
-        # instance + func
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g, func=G.cache_me))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        if not test_property:
-            G.cache_me.clear_cache(g)
-            G.cache_me.clear_cache(g2)
-            G3.cache_me.clear_cache(g3)
-            vbt.settings.caching['enabled'] = test_blacklist
-            vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g, func=g.cache_me))
-            cached_number = call(g.cache_me)
-            cached_number2 = call(g2.cache_me)
-            cached_number3 = call(g3.cache_me)
-            assert compare(call(g.cache_me), cached_number)
-            assert not_compare(call(g2.cache_me), cached_number2)
-            assert not_compare(call(g3.cache_me), cached_number3)
-            vbt.settings.caching.reset()
-
-        # instance + func_name
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g, func='cache_me'))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # instance + flags
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g, flags=dict(a=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g, flags=dict(c=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # instance
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(instance=g))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # class + func_name
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(cls=G, func='cache_me'))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # class + flags
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(cls=G, flags=dict(a=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # class
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(cls=G))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(cls="G"))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # base class + func_name
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=G, func='cache_me'))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # base class + flags
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=G, flags=dict(a=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=G, flags=dict(c=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # base class
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=G))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls="G"))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(base_cls=G3))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # func_name and flags
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(func='cache_me', flags=dict(a=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(func='cache_me', flags=dict(c=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # func_name
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(func='cache_me'))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # flags
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(flags=dict(a=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(flags=dict(c=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = test_blacklist
-        vbt.settings.caching[lst].append(decorators.CacheCondition(flags=dict(d=0)))
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert not_compare(call(g.cache_me), cached_number)
-        assert not_compare(call(g2.cache_me), cached_number2)
-        assert not_compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
-
-        # disabled globally
-        G.cache_me.clear_cache(g)
-        G.cache_me.clear_cache(g2)
-        G3.cache_me.clear_cache(g3)
-        vbt.settings.caching['enabled'] = not test_blacklist
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert compare(call(g.cache_me), cached_number)
-        assert compare(call(g2.cache_me), cached_number2)
-        assert compare(call(g3.cache_me), cached_number3)
-        vbt.settings.caching.reset()
 
 
 # ############# attr.py ############# #
@@ -2637,8 +2227,8 @@ class TestParsing:
             pass
 
         with pytest.raises(Exception):
-            parsing.annotate_args(f)
-        assert parsing.annotate_args(f, 1) == dict(
+            parsing.annotate_args(f, (), {})
+        assert parsing.annotate_args(f, (1,), {}) == dict(
             a={
                 'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 'value': 1
@@ -2656,7 +2246,7 @@ class TestParsing:
                 'value': {}
             }
         )
-        assert parsing.annotate_args(f, 1, 2, 3) == dict(
+        assert parsing.annotate_args(f, (1, 2, 3), {}) == dict(
             a={
                 'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 'value': 1
@@ -2678,7 +2268,7 @@ class TestParsing:
         def f2(a, b=2, **kwargs):
             pass
 
-        assert parsing.annotate_args(f2, 1, 2, c=3) == dict(
+        assert parsing.annotate_args(f2, (1, 2), dict(c=3)) == dict(
             a={
                 'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
                 'value': 1
@@ -2698,22 +2288,41 @@ class TestParsing:
             pass
 
         with pytest.raises(Exception):
-            parsing.annotate_args(f)
+            parsing.annotate_args(f, (), {})
 
-        ann_args = parsing.annotate_args(f, 0, 1, c=3)
+        ann_args = parsing.annotate_args(f, (0, 1), dict(c=3))
 
         assert parsing.match_ann_arg(ann_args, 0) == 0
         assert parsing.match_ann_arg(ann_args, 'a') == 0
         assert parsing.match_ann_arg(ann_args, 1) == 1
         assert parsing.match_ann_arg(ann_args, 2) == 2
         assert parsing.match_ann_arg(ann_args, 'b') == 2
-        assert parsing.match_ann_arg(ann_args, '(a|b)') == 0
+        assert parsing.match_ann_arg(ann_args, parsing.Regex('(a|b)')) == 0
         assert parsing.match_ann_arg(ann_args, 3) == 3
         assert parsing.match_ann_arg(ann_args, 'c') == 3
         with pytest.raises(Exception):
             _ = parsing.match_ann_arg(ann_args, 4)
         with pytest.raises(Exception):
             _ = parsing.match_ann_arg(ann_args, 'd')
+
+    def test_ignore_flat_ann_args(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        ann_args = parsing.annotate_args(f, (0, 1), dict(c=3))
+
+        flat_ann_args = parsing.flatten_ann_args(ann_args)
+        assert parsing.ignore_flat_ann_args(flat_ann_args, [0]) == flat_ann_args[1:]
+        assert parsing.ignore_flat_ann_args(flat_ann_args, ['a']) == flat_ann_args[1:]
+        assert parsing.ignore_flat_ann_args(flat_ann_args, [parsing.Regex('a')]) == flat_ann_args[2:]
+
+    def test_hash_args(self):
+        def f(a, *args, b=2, **kwargs):
+            pass
+
+        with pytest.raises(Exception):
+            _ = parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])))
+        _ = parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])), ignore_args=['c'])
 
     def test_get_context_vars(self):
         a = 1
@@ -2819,7 +2428,7 @@ class TestChunking:
         def f(a, *args, b=None, **kwargs):
             pass
 
-        ann_args = parsing.annotate_args(f, 0, 1, c=2)
+        ann_args = parsing.annotate_args(f, (0, 1), dict(c=2))
 
         assert chunking.ArgGetterMixin(0).get_arg(ann_args) == 0
         assert chunking.ArgGetterMixin('a').get_arg(ann_args) == 0
@@ -2837,25 +2446,25 @@ class TestChunking:
         def f(a):
             pass
 
-        ann_args = parsing.annotate_args(f, 10)
+        ann_args = parsing.annotate_args(f, (10,), {})
         assert chunking.ArgSizer('a').apply(ann_args) == 10
 
-        ann_args = parsing.annotate_args(f, [1, 2, 3])
+        ann_args = parsing.annotate_args(f, ([1, 2, 3],), {})
         assert chunking.LenSizer('a').apply(ann_args) == 3
 
-        ann_args = parsing.annotate_args(f, 3)
+        ann_args = parsing.annotate_args(f, (3,), {})
         assert chunking.LenSizer('a', single_type=int).apply(ann_args) == 1
         with pytest.raises(Exception):
             _ = chunking.LenSizer('a').apply(ann_args)
 
-        ann_args = parsing.annotate_args(f, (2, 3))
+        ann_args = parsing.annotate_args(f, ((2, 3),), {})
         with pytest.raises(Exception):
             _ = chunking.ShapeSizer('a', -1).apply(ann_args)
         assert chunking.ShapeSizer('a', 0).apply(ann_args) == 2
         assert chunking.ShapeSizer('a', 1).apply(ann_args) == 3
         assert chunking.ShapeSizer('a', 2).apply(ann_args) == 0
 
-        ann_args = parsing.annotate_args(f, np.empty((2, 3)))
+        ann_args = parsing.annotate_args(f, (np.empty((2, 3)),), {})
         with pytest.raises(Exception):
             _ = chunking.ArraySizer('a', -1).apply(ann_args)
         assert chunking.ArraySizer('a', 0).apply(ann_args) == 2
@@ -2937,10 +2546,10 @@ class TestChunking:
             chunking.ChunkMeta(uuid='', idx=1, start=1, end=3, indices=None),
             chunking.ChunkMeta(uuid='', idx=2, start=3, end=6, indices=None)
         ]
-        ann_args = parsing.annotate_args(f, chunk_meta)
+        ann_args = parsing.annotate_args(f, (chunk_meta,), {})
         chunk_meta_equal(list(chunking.ArgChunkMeta('a').get_chunk_meta(ann_args)), chunk_meta)
 
-        ann_args = parsing.annotate_args(f, [1, 2, 3])
+        ann_args = parsing.annotate_args(f, ([1, 2, 3],), {})
         chunk_meta_equal(list(chunking.LenChunkMeta('a').get_chunk_meta(ann_args)), chunk_meta)
 
     def test_get_chunk_meta_from_args(self):
@@ -2953,7 +2562,7 @@ class TestChunking:
             chunking.ChunkMeta(uuid='', idx=2, start=2, end=3, indices=None)
         ]
 
-        ann_args = parsing.annotate_args(f, 2, 3, 1, b=[1, 2, 3])
+        ann_args = parsing.annotate_args(f, (2, 3, 1), dict(b=[1, 2, 3]))
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, size=3, n_chunks=3)), chunk_meta)
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
@@ -3002,7 +2611,7 @@ class TestChunking:
         lst = [0, 1, 2]
 
         ann_args = parsing.annotate_args(
-            f, lst, lst, lst, (lst, lst), c=lst, d=lst, e=lst, f=dict(g=lst, h=lst))
+            f, (lst, lst, lst, (lst, lst)), dict(c=lst, d=lst, e=lst, f=dict(g=lst, h=lst)))
         arg_take_spec = dict(
             b=chunking.ChunkSelector(),
             args=chunking.ArgsTaker(
@@ -3134,7 +2743,7 @@ class TestChunking:
         def f(a, *args, b=None, **kwargs):
             pass
 
-        ann_args = parsing.annotate_args(f, 2, 3, 1, b=[1, 2, 3])
+        ann_args = parsing.annotate_args(f, (2, 3, 1), dict(b=[1, 2, 3]))
         chunk_meta = [
             chunking.ChunkMeta(uuid='', idx=0, start=0, end=1, indices=None),
             chunking.ChunkMeta(uuid='', idx=1, start=1, end=2, indices=None),
@@ -3151,7 +2760,7 @@ class TestChunking:
             f, ann_args, chunk_meta, arg_take_spec=lambda ann_args, chunk_meta:
             ((2, 3, 1), dict(b=[1, 2, 3][chunk_meta.idx])))) == result
         ann_args = parsing.annotate_args(
-            f, template.RepEval('ann_args["args"]["value"][1] + 1'), 3, 1, b=template.Rep('lst'))
+            f, (template.RepEval('ann_args["args"]["value"][1] + 1'), 3, 1), dict(b=template.Rep('lst')))
         assert list(chunking.yield_arg_chunks(
             f, ann_args, chunk_meta, arg_take_spec=arg_take_spec, template_mapping={'lst': [1, 2, 3]})) == result
 

@@ -628,6 +628,8 @@ from vectorbt import _typing as tp
 from vectorbt.generic import nb, plotting
 from vectorbt._settings import settings
 from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.ch_registry import register_chunkable
+from vectorbt.ca_registry import CASetup, CAQuery, CADirective
 from vectorbt.root_accessors import pd_acc, sr_acc, df_acc
 
 # Most important classes

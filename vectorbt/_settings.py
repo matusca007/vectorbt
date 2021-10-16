@@ -117,9 +117,9 @@ import pkgutil
 import plotly.io as pio
 import plotly.graph_objects as go
 
+from vectorbt.ca_registry import ca_registry, CAQuery, CADirective
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime import get_local_tz, get_utc_tz
-from vectorbt.utils.decorators import CacheCondition
 from vectorbt.utils.template import Sub, RepEval, deep_substitute
 
 __pdoc__ = {}
@@ -243,12 +243,11 @@ _settings['configured'] = configured
 
 caching = dict(
     enabled=True,
-    whitelist=[
-        CacheCondition(base_cls='ArrayWrapper'),
-        CacheCondition(base_cls='Grouper'),
-        CacheCondition(base_cls='ColumnMapper')
-    ],
-    blacklist=[]
+    directives=[
+        CADirective(CAQuery(base_cls='ArrayWrapper'), override_disabled=True),
+        CADirective(CAQuery(base_cls='Grouper'), override_disabled=True),
+        CADirective(CAQuery(base_cls='ColumnMapper'), override_disabled=True)
+    ]
 )
 """_"""
 

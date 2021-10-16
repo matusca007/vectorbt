@@ -43,8 +43,7 @@ def setup_module():
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.portfolio['attach_call_seq'] = True
     vbt.settings.caching.enabled = False
-    vbt.settings.caching.whitelist = []
-    vbt.settings.caching.blacklist = []
+    vbt.settings.caching.directives = []
 
 
 def teardown_module():
