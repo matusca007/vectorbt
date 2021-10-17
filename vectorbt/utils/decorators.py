@@ -161,12 +161,12 @@ class custom_property(property):
 
     @property
     def func(self) -> tp.Callable:
-        """Function."""
+        """Wrapped function."""
         return self._func
 
     @property
     def name(self) -> str:
-        """Function name."""
+        """Wrapped function name."""
         return self._name
 
     @property
@@ -215,18 +215,16 @@ class cacheable_property(custom_property):
         """Arguments to ignore when hashing."""
         return self._ignore_args
 
-    def __get__(self, instance: object, owner: tp.Optional[tp.Type] = None) -> tp.Any:
-        from vectorbt.ca_registry import ca_registry, CASetup
+    def get_setup(self, instance: tp.Optional[object] = None) -> 'CASetup':
+        """Get the setup for this callable."""
+        from vectorbt.ca_registry import CASetup
 
+        return CASetup.get(self, instance=instance)
+
+    def __get__(self, instance: object, owner: tp.Optional[tp.Type] = None) -> tp.Any:
         if instance is None:
             return self
-        setup = CASetup(self, instance=instance)
-        return ca_registry.run_setup(setup)
-
-    def clear_cache(self, instance: tp.Optional[object] = None) -> None:
-        from vectorbt.ca_registry import ca_registry, CAQuery
-
-        ca_registry.clear_cache(directive_or_query=CAQuery(cacheable=self, instance=instance))
+        return self.get_setup(instance=instance).run()
 
 
 class cached_property(cacheable_property):
@@ -239,7 +237,6 @@ class cached_property(cacheable_property):
 # ############# Custom functions ############# #
 
 class custom_functionT(tp.Protocol):
-    is_cacheable: bool
     func: tp.Callable
     name: str
     options: tp.Kwargs
@@ -281,7 +278,6 @@ def custom_function(*args, **options) -> tp.Union[tp.Callable, custom_functionT]
         def wrapper(*args, **kwargs) -> tp.Any:
             return func(*args, **kwargs)
 
-        wrapper.is_cacheable = False
         wrapper.func = func
         wrapper.name = func.__name__
         wrapper.options = options
@@ -298,11 +294,14 @@ def custom_function(*args, **options) -> tp.Union[tp.Callable, custom_functionT]
 class cacheable_functionT(custom_functionT):
     cache: bool
     ignore_args: tp.Sequence[str]
-    clear_cache: tp.Callable[[tp.Optional[object]], None]
+    max_size: tp.Optional[int]
+    is_method: bool
+    get_setup: tp.Callable[[tp.Optional[object]], 'CASetup']
 
 
 def cacheable(*args, cache: bool = False, ignore_args: tp.Optional[tp.Sequence[str]] = None,
-              is_method: bool = False, **options) -> tp.Union[tp.Callable, cacheable_functionT]:
+              max_size: tp.Optional[int] = None, is_method: bool = False,
+              **options) -> tp.Union[tp.Callable, cacheable_functionT]:
     """Cacheable function decorator.
 
     See notes on `cacheable_property`.
@@ -316,36 +315,28 @@ def cacheable(*args, cache: bool = False, ignore_args: tp.Optional[tp.Sequence[s
     def decorator(func: tp.Callable) -> cacheable_functionT:
         @wraps(func)
         def wrapper(*args, **kwargs) -> tp.Any:
-            from vectorbt.ca_registry import ca_registry, CASetup
-
-            if is_method:
+            if wrapper.is_method:
                 instance = args[0]
                 args = args[1:]
             else:
                 instance = None
+            return wrapper.get_setup(wrapper, instance=instance).run(*args, **kwargs)
 
-            setup = CASetup(wrapper, instance=instance, args=args, kwargs=kwargs)
-            return ca_registry.run_setup(setup)
-
-        wrapper.is_cacheable = True
         wrapper.func = func
         wrapper.name = func.__name__
         wrapper.options = options
         wrapper.cache = cache
         wrapper.ignore_args = ignore_args
+        wrapper.max_size = max_size
+        wrapper.is_method = is_method
 
-        if is_method:
-            def clear_cache(instance: tp.Optional[object] = None) -> None:
-                from vectorbt.ca_registry import ca_registry, CAQuery
+        def get_setup(instance: tp.Optional[object] = None) -> 'CASetup':
+            """Get the setup for this callable."""
+            from vectorbt.ca_registry import CASetup
 
-                ca_registry.clear_cache(directive_or_query=CAQuery(cacheable=wrapper, instance=instance))
-        else:
-            def clear_cache() -> None:
-                from vectorbt.ca_registry import ca_registry, CAQuery
+            return CASetup.get(wrapper, instance=instance)
 
-                ca_registry.clear_cache(directive_or_query=CAQuery(cacheable=wrapper))
-
-        wrapper.clear_cache = clear_cache
+        wrapper.get_setup = get_setup
 
         return wrapper
 

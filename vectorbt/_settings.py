@@ -243,11 +243,11 @@ _settings['configured'] = configured
 
 caching = dict(
     enabled=True,
-    directives=[
+    directives={
         CADirective(CAQuery(base_cls='ArrayWrapper'), override_disabled=True),
         CADirective(CAQuery(base_cls='Grouper'), override_disabled=True),
         CADirective(CAQuery(base_cls='ColumnMapper'), override_disabled=True)
-    ]
+    }
 )
 """_"""
 

@@ -237,20 +237,29 @@ def is_deep_equal(arg1: tp.Any, arg2: tp.Any, check_exact: bool = False, **kwarg
     return True
 
 
-def is_subclass_of(arg: tp.Any, types: tp.TypeLike) -> bool:
-    """Check whether the argument is a subclass of `types`.
+def is_class(arg: type, types: tp.TypeLike) -> bool:
+    """Check whether the argument is `cls`.
 
-    `types` can be one or multiple types or strings."""
-    if isinstance(types, type):
-        return issubclass(arg, types)
+    `types` can be one or multiple types, strings, or patterns of type `vectorbt.utils.parsing.Regex`."""
+    from vectorbt.utils.parsing import Regex
+
     if isinstance(types, str):
-        for base_t in getmro(arg):
-            if str(base_t) == types or base_t.__name__ == types:
-                return True
+        return str(arg) == types or arg.__name__ == types
+    if isinstance(types, Regex):
+        return types.matches(str(arg)) or types.matches(arg.__name__)
     if isinstance(types, tuple):
         for t in types:
-            if is_subclass_of(arg, t):
+            if is_class(arg, t):
                 return True
+        return False
+    return issubclass(arg, types) and arg is types
+
+
+def is_subclass_of(arg: type, types: tp.TypeLike) -> bool:
+    """Check whether the argument is a subclass of `types` using `is_class` on all its base classes."""
+    for base_t in getmro(arg):
+        if is_class(base_t, types):
+            return True
     return False
 
 

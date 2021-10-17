@@ -1408,6 +1408,11 @@ class TestChecks:
         assert checks.is_subclass_of(D, 'D')
         assert checks.is_subclass_of(D, 'object')
 
+        assert not checks.is_subclass_of(D, vbt.Regex('_A'))
+        assert checks.is_subclass_of(D, vbt.Regex('[A-D]'))
+        assert not checks.is_subclass_of(D, vbt.Regex('[E-F]'))
+        assert checks.is_subclass_of(D, vbt.Regex('object'))
+
     def test_assert_in(self):
         checks.assert_in(0, (0, 1))
         with pytest.raises(Exception):

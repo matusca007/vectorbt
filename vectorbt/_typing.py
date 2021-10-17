@@ -50,7 +50,7 @@ class SupportsArray(Protocol):
 
 DTypeLike = Any
 PandasDTypeLike = Any
-TypeLike = MaybeTuple[Union[Type, str]]
+TypeLike = MaybeTuple[Union[Type, str, 'Regex']]
 Shape = Tuple[int, ...]
 ShapeLike = Union[int, Shape]
 Array = np.ndarray  # ready to be used for n-dim data

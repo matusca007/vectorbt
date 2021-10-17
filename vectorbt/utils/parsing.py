@@ -36,7 +36,10 @@ class Regex(Hashable, SafeToStr):
 
     @property
     def hash_key(self) -> tuple:
-        raise (self.pattern, self.flags)
+        return (
+            self.pattern,
+            self.flags
+        )
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(" \
@@ -176,6 +179,8 @@ def hash_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs,
     """Get hash of arguments.
 
     Use `ignore_args` to provide a sequence of queries for arguments that should be ignored."""
+    if len(args) == 0 and len(kwargs) == 0:
+        return hash(())
     if ignore_args is None:
         ignore_args = []
     ann_args = annotate_args(func, args, kwargs)
