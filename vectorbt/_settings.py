@@ -117,7 +117,6 @@ import pkgutil
 import plotly.io as pio
 import plotly.graph_objects as go
 
-from vectorbt.ca_registry import ca_registry, CAQuery, CADirective
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
 from vectorbt.utils.template import Sub, RepEval, deep_substitute
@@ -127,6 +126,25 @@ __pdoc__ = {}
 # ############# Settings sub-configs ############# #
 
 _settings = {}
+
+caching = dict(
+    enabled=True,
+    override_whitelist=False
+)
+"""_"""
+
+__pdoc__['caching'] = Sub("""Sub-config with settings applied across `vectorbt.ca_registry` 
+and to cacheable decorators in `vectorbt.utils.decorators`.
+
+!!! note
+    The directives are applied only once on startup. 
+    Changing them afterwards will have no effect.
+
+```json
+${config_doc}
+```""")
+
+_settings['caching'] = caching
 
 numba = dict(
     parallel=None,
@@ -148,7 +166,11 @@ numba = dict(
 )
 """_"""
 
-__pdoc__['numba'] = Sub("""Sub-config with settings applied to `vectorbt.nb_registry` and Numba generally.
+__pdoc__['numba'] = Sub("""Sub-config with settings applied across `vectorbt.nb_registry` and Numba generally.
+
+!!! note
+    Options (with `_options` suffix) are applied only once on startup. 
+    Changing them afterwards will have no effect.
 
 ```json
 ${config_doc}
@@ -181,7 +203,7 @@ execution = dict(
 )
 """_"""
 
-__pdoc__['execution'] = Sub("""Sub-config with settings applied to `vectorbt.utils.execution`.
+__pdoc__['execution'] = Sub("""Sub-config with settings applied across `vectorbt.utils.execution`.
 
 ```json
 ${config_doc}
@@ -203,7 +225,8 @@ chunking = dict(
 )
 """_"""
 
-__pdoc__['chunking'] = Sub("""Sub-config with settings applied to `vectorbt.utils.chunking`.
+__pdoc__['chunking'] = Sub("""Sub-config with settings applied across `vectorbt.ch_registry` 
+and `vectorbt.utils.chunking`.
 
 ```json
 ${config_doc}
@@ -240,24 +263,6 @@ ${config_doc}
 ```""")
 
 _settings['configured'] = configured
-
-caching = dict(
-    enabled=True,
-    directives={
-        CADirective(CAQuery(base_cls='ArrayWrapper'), override_disabled=True),
-        CADirective(CAQuery(base_cls='Grouper'), override_disabled=True),
-        CADirective(CAQuery(base_cls='ColumnMapper'), override_disabled=True)
-    }
-)
-"""_"""
-
-__pdoc__['caching'] = Sub("""Sub-config with settings applied to caching decorators across `vectorbt.utils.decorators`.
-
-```json
-${config_doc}
-```""")
-
-_settings['caching'] = caching
 
 broadcasting = dict(
     align_index=False,
@@ -1021,8 +1026,16 @@ settings = SettingsConfig(
 Combines all sub-configs defined in this module."""
 
 settings.reset_theme()
-settings.make_checkpoint()
+
+if 'VBT_SETTINGS_PATH' in os.environ:
+    settings.load_update(os.environ['VBT_SETTINGS_PATH'], clear=True)
+
+if 'VBT_SETTINGS_OVERRIDE_PATH' in os.environ:
+    settings.load_update(os.environ['VBT_SETTINGS_OVERRIDE_PATH'], clear=False)
+
 settings.register_templates()
+settings.make_checkpoint()
+
 settings.substitute_sub_config_docs(
     __pdoc__,
     to_doc_kwargs=dict(
@@ -1036,9 +1049,3 @@ settings.substitute_sub_config_docs(
         )
     )
 )
-
-if 'VBT_SETTINGS_PATH' in os.environ:
-    settings.load_update(os.environ['VBT_SETTINGS_PATH'], clear=True)
-
-if 'VBT_SETTINGS_OVERRIDE_PATH' in os.environ:
-    settings.load_update(os.environ['VBT_SETTINGS_OVERRIDE_PATH'], clear=False)

@@ -19,6 +19,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.array_ import is_sorted
 from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.config import Configured
+from vectorbt.utils.caching import Cacheable
 from vectorbt.base import indexes
 
 GroupByT = tp.Union[None, bool, tp.Index]
@@ -100,7 +101,7 @@ def get_group_lens_nb(groups: tp.Array1d) -> tp.Array1d:
 GrouperT = tp.TypeVar("GrouperT", bound="Grouper")
 
 
-class Grouper(Configured):
+class Grouper(Cacheable, Configured):
     """Class that exposes methods to group index.
 
     `group_by` can be:
@@ -161,6 +162,7 @@ class Grouper(Configured):
             allow_modify=allow_modify,
             **kwargs
         )
+        Cacheable.__init__(self)
 
     @classmethod
     def from_pd_group_by(cls: tp.Type[GrouperT],

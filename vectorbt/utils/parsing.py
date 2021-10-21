@@ -174,20 +174,26 @@ def ignore_flat_ann_args(flat_ann_args: tp.FlatAnnArgs, ignore_args: tp.Sequence
     return new_flat_ann_args
 
 
+class UnhashableArgsError(Exception):
+    """Unhashable arguments error."""
+    pass
+
+
 def hash_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs,
               ignore_args: tp.Optional[tp.Sequence[tp.AnnArgQuery]] = None) -> int:
     """Get hash of arguments.
 
     Use `ignore_args` to provide a sequence of queries for arguments that should be ignored."""
-    if len(args) == 0 and len(kwargs) == 0:
-        return hash(())
     if ignore_args is None:
         ignore_args = []
     ann_args = annotate_args(func, args, kwargs)
     flat_ann_args = flatten_ann_args(ann_args)
     if len(ignore_args) > 0:
         flat_ann_args = ignore_flat_ann_args(flat_ann_args, ignore_args)
-    return hash(tuple(map(lambda x: (x['name'], x['value']), flat_ann_args)))
+    try:
+        return hash(tuple(map(lambda x: (x['name'], x['value']), flat_ann_args)))
+    except TypeError:
+        raise UnhashableArgsError
 
 
 def get_ex_var_names(expression: str) -> tp.List[str]:

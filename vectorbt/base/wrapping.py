@@ -96,6 +96,7 @@ from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils.array_ import get_ranges_arr
 from vectorbt.utils.attr_ import AttrResolver, AttrResolverT
+from vectorbt.utils.caching import Cacheable
 from vectorbt.base import indexes, reshaping
 from vectorbt.base.indexing import IndexingError, PandasIndexer
 from vectorbt.base.grouping import Grouper
@@ -731,7 +732,7 @@ class ArrayWrapper(Configured, PandasIndexer):
 WrappingT = tp.TypeVar("WrappingT", bound="Wrapping")
 
 
-class Wrapping(Configured, PandasIndexer, AttrResolver):
+class Wrapping(Cacheable, Configured, PandasIndexer, AttrResolver):
     """Class that uses `ArrayWrapper` globally."""
 
     _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'wrapper'}
@@ -743,6 +744,7 @@ class Wrapping(Configured, PandasIndexer, AttrResolver):
         Configured.__init__(self, wrapper=wrapper, **kwargs)
         PandasIndexer.__init__(self)
         AttrResolver.__init__(self)
+        Cacheable.__init__(self)
 
     def indexing_func(self: WrappingT, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> WrappingT:
         """Perform indexing on `Wrapping`."""

@@ -14,6 +14,7 @@ from vectorbt.utils.decorators import (
     cacheable_method,
     cached_method
 )
+from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplots
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.image_ import save_animation
@@ -59,6 +60,7 @@ __all__ = [
     'cached',
     'cacheable_method',
     'cached_method',
+    'Cacheable',
     'Figure',
     'FigureWidget',
     'make_figure',
