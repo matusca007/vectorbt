@@ -41,9 +41,8 @@ ret_acc = rets.vbt.returns(benchmark_rets=benchmark_rets)
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.numba['check_func_suffix'] = True
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.returns.defaults = dict(
         start_value=0.,
         window=rets.shape[0],

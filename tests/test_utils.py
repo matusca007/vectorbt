@@ -52,13 +52,13 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
+    vbt.settings.numba['check_func_suffix'] = True
     if dask_available:
         dask.config.set(scheduler='synchronous')
     if ray_available:
         ray.init(local_mode=True, num_cpus=1)
-    vbt.settings.numba['check_func_suffix'] = True
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
 
 
 def teardown_module():
@@ -874,7 +874,7 @@ class TestConfig:
             convert_dicts=True,
             as_attrs=True
         )
-        cfg.save(tmp_path / "config")
+        cfg.save(tmp_path / "config", dump_reset_dct=True)
         new_cfg = config.Config.load(tmp_path / "config")
         assert new_cfg == deepcopy(cfg)
         assert new_cfg.__dict__ == deepcopy(cfg).__dict__
@@ -914,7 +914,7 @@ class TestConfig:
             convert_dicts=False,
             as_attrs=False
         )
-        cfg1.save(tmp_path / "config")
+        cfg1.save(tmp_path / "config", dump_reset_dct=True)
         cfg2.load_update(tmp_path / "config", clear=True)
         assert cfg2 == deepcopy(cfg1)
         assert cfg2.__dict__ == cfg1.__dict__
@@ -999,86 +999,6 @@ class TestDecorators:
 
         assert 'some' in cache_me.options
         assert cache_me.options['some'] == 'key'
-
-    @pytest.mark.parametrize(
-        "test_property",
-        [True, False]
-    )
-    def test_caching(self, test_property):
-        vbt.settings.caching.enabled = True
-
-        np.random.seed(seed)
-
-        if test_property:
-            call = lambda x: x
-        else:
-            call = lambda x: x()
-
-        if test_property:
-
-            class G:
-                @decorators.cached_property
-                def cache_me(self): return np.random.uniform()
-
-            g = G()
-            cached_number = g.cache_me
-            assert g.cache_me == cached_number
-
-            class G:
-                @decorators.cached_property(a=0, b=0)
-                def cache_me(self): return np.random.uniform()
-
-            assert G.cache_me.options == dict(a=0, b=0)
-
-            g = G()
-            g2 = G()
-
-            class G3(G):
-                @decorators.cached_property(b=0, c=0)
-                def cache_me(self): return np.random.uniform()
-
-            g3 = G3()
-
-        else:
-
-            class G:
-                @decorators.cached_method
-                def cache_me(self): return np.random.uniform()
-
-            g = G()
-            cached_number = g.cache_me()
-            assert g.cache_me() == cached_number
-
-            class G:
-                @decorators.cached_method(a=0, b=0)
-                def cache_me(self): return np.random.uniform()
-
-            assert G.cache_me.options == dict(a=0, b=0)
-            g = G()
-            assert g.cache_me.options == dict(a=0, b=0)
-            g2 = G()
-
-            class G3(G):
-                @decorators.cached_method(b=0, c=0)
-                def cache_me(self): return np.random.uniform()
-
-            g3 = G3()
-
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        assert call(g.cache_me) == cached_number
-        assert call(g2.cache_me) == cached_number2
-        assert call(g3.cache_me) == cached_number3
-
-        # clear_cache method
-        cached_number = call(g.cache_me)
-        cached_number2 = call(g2.cache_me)
-        cached_number3 = call(g3.cache_me)
-        G.cache_me.clear_cache(g)
-        assert call(g.cache_me) != cached_number
-        assert call(g2.cache_me) == cached_number2
-        assert call(g3.cache_me) == cached_number3
 
 
 # ############# attr_.py ############# #
@@ -2249,6 +2169,12 @@ class TestParsing:
             kwargs={
                 'kind': inspect.Parameter.VAR_KEYWORD,
                 'value': {}
+            }
+        )
+        assert parsing.annotate_args(f, (1,), {}, only_passed=True) == dict(
+            a={
+                'kind': inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                'value': 1
             }
         )
         assert parsing.annotate_args(f, (1, 2, 3), {}) == dict(

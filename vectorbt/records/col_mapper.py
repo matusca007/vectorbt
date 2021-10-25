@@ -42,7 +42,7 @@ class ColumnMapper(Wrapping):
         """Column array."""
         return self._col_arr
 
-    @cached_method
+    @cached_method(whitelist=True)
     def get_col_arr(self, group_by: tp.GroupByLike = None) -> tp.Array1d:
         """Get group-aware column array."""
         group_arr = self.wrapper.grouper.get_groups(group_by=group_by)
@@ -52,14 +52,14 @@ class ColumnMapper(Wrapping):
             col_arr = self.col_arr
         return col_arr
 
-    @cached_property
+    @cached_property(whitelist=True)
     def col_lens(self) -> tp.ColLens:
         """Column lengths.
 
         Faster than `ColumnMapper.col_map` but only compatible with sorted columns."""
         return nb.col_lens_nb(self.col_arr, len(self.wrapper.columns))
 
-    @cached_method
+    @cached_method(whitelist=True)
     def get_col_lens(self, group_by: tp.GroupByLike = None) -> tp.ColLens:
         """Get group-aware column lengths."""
         if not self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -68,7 +68,7 @@ class ColumnMapper(Wrapping):
         columns = self.wrapper.get_columns(group_by=group_by)
         return nb.col_lens_nb(col_arr, len(columns))
 
-    @cached_property
+    @cached_property(whitelist=True)
     def col_map(self) -> tp.ColMap:
         """Column map.
 
@@ -76,7 +76,7 @@ class ColumnMapper(Wrapping):
         More suited for mapped arrays."""
         return nb.col_map_nb(self.col_arr, len(self.wrapper.columns))
 
-    @cached_method
+    @cached_method(whitelist=True)
     def get_col_map(self, group_by: tp.GroupByLike = None) -> tp.ColMap:
         """Get group-aware column map."""
         if not self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -85,7 +85,7 @@ class ColumnMapper(Wrapping):
         columns = self.wrapper.get_columns(group_by=group_by)
         return nb.col_map_nb(col_arr, len(columns))
 
-    @cached_method
+    @cached_method(whitelist=True)
     def is_sorted(self) -> bool:
         """Check whether column array is sorted."""
         return nb.is_col_sorted_nb(self.col_arr)

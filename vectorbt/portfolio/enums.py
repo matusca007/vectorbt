@@ -8,7 +8,7 @@ Defines enums and other schemas for `vectorbt.portfolio`."""
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.docs import to_doc
+from vectorbt.utils.docs import stringify
 
 __all__ = [
     'RejectedOrderError',
@@ -76,7 +76,7 @@ InitCashMode = InitCashModeT()
 __pdoc__['InitCashMode'] = f"""Initial cash mode.
 
 ```json
-{to_doc(InitCashMode)}
+{stringify(InitCashMode)}
 ```
 
 Attributes:
@@ -98,7 +98,7 @@ CallSeqType = CallSeqTypeT()
 __pdoc__['CallSeqType'] = f"""Call sequence type.
 
 ```json
-{to_doc(CallSeqType)}
+{stringify(CallSeqType)}
 ```
 
 Attributes:
@@ -122,7 +122,7 @@ AccumulationMode = AccumulationModeT()
 __pdoc__['AccumulationMode'] = f"""Accumulation mode.
 
 ```json
-{to_doc(AccumulationMode)}
+{stringify(AccumulationMode)}
 ```
 
 Accumulation allows gradually increasing and decreasing positions by a size.
@@ -156,7 +156,7 @@ ConflictMode = ConflictModeT()
 __pdoc__['ConflictMode'] = f"""Conflict mode.
 
 ```json
-{to_doc(ConflictMode)}
+{stringify(ConflictMode)}
 ```
 
 What should happen if both entry and exit signals occur simultaneously?
@@ -188,7 +188,7 @@ DirectionConflictMode = DirectionConflictModeT()
 __pdoc__['DirectionConflictMode'] = f"""Direction conflict mode.
 
 ```json
-{to_doc(DirectionConflictMode)}
+{stringify(DirectionConflictMode)}
 ```
 
 What should happen if both long and short entry signals occur simultaneously?
@@ -220,7 +220,7 @@ OppositeEntryMode = OppositeEntryModeT()
 __pdoc__['OppositeEntryMode'] = f"""Opposite entry mode.
 
 ```json
-{to_doc(OppositeEntryMode)}
+{stringify(OppositeEntryMode)}
 ```
 
 What should happen if an entry signal of opposite direction occurs before an exit signal?
@@ -247,7 +247,7 @@ StopEntryPrice = StopEntryPriceT()
 __pdoc__['StopEntryPrice'] = f"""Stop entry price.
 
 ```json
-{to_doc(StopEntryPrice)}
+{stringify(StopEntryPrice)}
 ```
 
 Which price to use as an initial stop price?
@@ -273,7 +273,7 @@ StopExitPrice = StopExitPriceT()
 __pdoc__['StopExitPrice'] = f"""Stop exit price.
 
 ```json
-{to_doc(StopExitPrice)}
+{stringify(StopExitPrice)}
 ```
 
 Which price to use when exiting a position upon a stop signal?
@@ -323,7 +323,7 @@ StopExitMode = StopExitModeT()
 __pdoc__['StopExitMode'] = f"""Stop exit mode.
 
 ```json
-{to_doc(StopExitMode)}
+{stringify(StopExitMode)}
 ```
 
 How to exit the current position upon a stop signal?
@@ -349,7 +349,7 @@ StopUpdateMode = StopUpdateModeT()
 __pdoc__['StopUpdateMode'] = f"""Stop update mode.
 
 ```json
-{to_doc(StopUpdateMode)}
+{stringify(StopUpdateMode)}
 ```
 
 What to do with the old stop upon new acquisition? 
@@ -376,7 +376,7 @@ SizeType = SizeTypeT()
 __pdoc__['SizeType'] = f"""Size type.
 
 ```json
-{to_doc(SizeType)}
+{stringify(SizeType)}
 ```
 
 Attributes:
@@ -423,7 +423,7 @@ Direction = DirectionT()
 __pdoc__['Direction'] = f"""Position direction.
 
 ```json
-{to_doc(Direction)}
+{stringify(Direction)}
 ```
 
 Attributes:
@@ -445,7 +445,7 @@ OrderStatus = OrderStatusT()
 __pdoc__['OrderStatus'] = f"""Order status.
 
 ```json
-{to_doc(OrderStatus)}
+{stringify(OrderStatus)}
 ```
 
 Attributes:
@@ -466,7 +466,7 @@ OrderSide = OrderSideT()
 __pdoc__['OrderSide'] = f"""Order side.
 
 ```json
-{to_doc(OrderSide)}
+{stringify(OrderSide)}
 ```
 """
 
@@ -494,7 +494,7 @@ OrderStatusInfo = OrderStatusInfoT()
 __pdoc__['OrderStatusInfo'] = f"""Order status information.
 
 ```json
-{to_doc(OrderStatusInfo)}
+{stringify(OrderStatusInfo)}
 ```
 """
 
@@ -519,7 +519,7 @@ status_info_desc = [
 __pdoc__['status_info_desc'] = f"""Order status description.
 
 ```json
-{to_doc(status_info_desc)}
+{stringify(status_info_desc)}
 ```
 """
 
@@ -535,7 +535,7 @@ TradeDirection = TradeDirectionT()
 __pdoc__['TradeDirection'] = f"""Event direction.
 
 ```json
-{to_doc(TradeDirection)}
+{stringify(TradeDirection)}
 ```
 """
 
@@ -551,7 +551,7 @@ TradeStatus = TradeStatusT()
 __pdoc__['TradeStatus'] = f"""Event status.
 
 ```json
-{to_doc(TradeStatus)}
+{stringify(TradeStatus)}
 ```
 """
 
@@ -568,7 +568,7 @@ TradesType = TradesTypeT()
 __pdoc__['TradesType'] = f"""Trades type.
 
 ```json
-{to_doc(TradesType)}
+{stringify(TradesType)}
 ```
 """
 
@@ -1616,7 +1616,7 @@ order_dt = np.dtype([
 __pdoc__['order_dt'] = f"""`np.dtype` of order records.
 
 ```json
-{to_doc(order_dt)}
+{stringify(order_dt)}
 ```
 """
 
@@ -1643,7 +1643,7 @@ trade_dt = np.dtype(_trade_fields, align=True)
 __pdoc__['trade_dt'] = f"""`np.dtype` of trade records.
 
 ```json
-{to_doc(trade_dt)}
+{stringify(trade_dt)}
 ```
 """
 
@@ -1693,6 +1693,6 @@ log_dt = np.dtype(_log_fields, align=True)
 __pdoc__['log_dt'] = f"""`np.dtype` of log records.
 
 ```json
-{to_doc(log_dt)}
+{stringify(log_dt)}
 ```
 """

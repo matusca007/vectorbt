@@ -1,11 +1,22 @@
 import numpy as np
+import pandas as pd
 import pytest
 import weakref
 import gc
 
 import vectorbt as vbt
-from vectorbt.ca_registry import ca_registry, CAQuery, CARunSetup
+from vectorbt.ca_registry import ca_registry, CAQuery, CARunSetup, CARunResult
 from vectorbt.utils.caching import Cacheable
+
+
+# ############# Global ############# #
+
+def setup_module():
+    vbt.settings.caching['register_lazily'] = False
+
+
+def teardown_module():
+    vbt.settings.reset()
 
 
 # ############# ca_registry.py ############# #
@@ -220,31 +231,61 @@ class TestCacheableRegistry:
         assert setup.run_func_and_cache(10, 20, c=30) == 60
         assert setup.misses == 1
         assert setup.hits == 0
+        assert setup.first_run_time == list(setup.cache.values())[0].run_time
+        assert setup.last_run_time == list(setup.cache.values())[0].run_time
+        assert setup.first_hit_time is None
+        assert setup.last_hit_time is None
         assert len(setup.cache) == 1
-        assert setup.cache[hash((('a', 10), ('b', 20), ('c', 30)))] == 60
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 30))))].result == 60
 
         assert setup.run_func_and_cache(10, 20, c=30) == 60
         assert setup.misses == 1
         assert setup.hits == 1
+        assert setup.first_run_time == list(setup.cache.values())[0].run_time
+        assert setup.last_run_time == list(setup.cache.values())[0].run_time
+        assert setup.first_hit_time == list(setup.cache.values())[0].first_hit_time
+        assert setup.last_hit_time == list(setup.cache.values())[0].last_hit_time
         assert len(setup.cache) == 1
-        assert setup.cache[hash((('a', 10), ('b', 20), ('c', 30)))] == 60
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 30))))].result == 60
+
+        assert setup.run_func_and_cache(10, 20, c=30) == 60
+        assert setup.misses == 1
+        assert setup.hits == 2
+        assert setup.first_run_time == list(setup.cache.values())[0].run_time
+        assert setup.last_run_time == list(setup.cache.values())[0].run_time
+        assert setup.first_hit_time == list(setup.cache.values())[0].first_hit_time
+        assert setup.last_hit_time == list(setup.cache.values())[0].last_hit_time
+        assert len(setup.cache) == 1
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 30))))].result == 60
 
         assert setup.run_func_and_cache(10, 20, c=40) == 70
         assert setup.misses == 2
-        assert setup.hits == 1
+        assert setup.hits == 2
+        assert setup.first_run_time == list(setup.cache.values())[0].run_time
+        assert setup.last_run_time == list(setup.cache.values())[1].run_time
+        assert setup.first_hit_time == list(setup.cache.values())[0].first_hit_time
+        assert setup.last_hit_time == list(setup.cache.values())[0].last_hit_time
         assert len(setup.cache) == 2
-        assert setup.cache[hash((('a', 10), ('b', 20), ('c', 40)))] == 70
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 40))))].result == 70
 
         assert setup.run_func_and_cache(10, 20, c=50) == 80
-        assert setup.misses == 3
-        assert setup.hits == 1
+        assert setup.misses == 2
+        assert setup.hits == 0
+        assert setup.first_run_time == list(setup.cache.values())[0].run_time
+        assert setup.last_run_time == list(setup.cache.values())[1].run_time
+        assert setup.first_hit_time == list(setup.cache.values())[0].first_hit_time
+        assert setup.last_hit_time == list(setup.cache.values())[0].last_hit_time
         assert len(setup.cache) == 2
-        assert setup.cache[hash((('a', 10), ('b', 20), ('c', 40)))] == 70
-        assert setup.cache[hash((('a', 10), ('b', 20), ('c', 50)))] == 80
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 40))))].result == 70
+        assert setup.cache[CARunResult.get_hash(hash((('a', 10), ('b', 20), ('c', 50))))].result == 80
 
         setup.clear_cache()
         assert setup.misses == 0
         assert setup.hits == 0
+        assert setup.first_run_time is None
+        assert setup.last_run_time is None
+        assert setup.first_hit_time is None
+        assert setup.last_hit_time is None
         assert len(setup.cache) == 0
 
         assert setup.run(10, 20, c=30) == 60
@@ -270,12 +311,13 @@ class TestCacheableRegistry:
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 1
 
-        vbt.settings['caching']['override_whitelist'] = True
+        vbt.settings['caching']['whitelist_enabled'] = False
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 1
 
         setup.clear_cache()
-        vbt.settings['caching'].reset()
+        vbt.settings['caching']['enabled'] = True
+        vbt.settings['caching']['whitelist_enabled'] = True
 
         np.testing.assert_array_equal(
             setup.run(10, 20, c=np.array([1, 2, 3])),
@@ -305,8 +347,10 @@ class TestCacheableRegistry:
         a = A()
 
         setup = A.f.get_ca_setup(a)
-        assert setup.unbound_setup is A.f.get_ca_setup()
-        assert setup.instance_setup is a.get_ca_setup()
+        unbound_setup = A.f.get_ca_setup()
+        instance_setup = a.get_ca_setup()
+        assert setup.unbound_setup is unbound_setup
+        assert setup.instance_setup is instance_setup
         assert setup.run() == 10
         assert len(setup.cache) == 0
 
@@ -324,8 +368,10 @@ class TestCacheableRegistry:
         b = B()
 
         setup = B.f.get_ca_setup(b)
-        assert setup.unbound_setup is B.f.get_ca_setup()
-        assert setup.instance_setup is b.get_ca_setup()
+        unbound_setup = B.f.get_ca_setup()
+        instance_setup = b.get_ca_setup()
+        assert setup.unbound_setup is unbound_setup
+        assert setup.instance_setup is instance_setup
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 0
 
@@ -334,6 +380,63 @@ class TestCacheableRegistry:
         assert len(setup.cache) == 1
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 1
+
+        class C(Cacheable):
+            @vbt.cacheable_property
+            def f(self):
+                return 10
+
+        class D(C):
+            @vbt.cacheable_property
+            def f2(self):
+                return 10
+
+        class_setup1 = C.get_ca_setup()
+        class_setup2 = D.get_ca_setup()
+        unbound_setup1 = C.f.get_ca_setup()
+        unbound_setup2 = D.f2.get_ca_setup()
+
+        d = D()
+        assert not D.f.get_ca_setup(d).whitelist
+        assert not D.f.get_ca_setup(d).use_cache
+        assert not D.f2.get_ca_setup(d).whitelist
+        assert not D.f2.get_ca_setup(d).use_cache
+
+        class_setup2.enable_caching()
+        d = D()
+        assert not D.f.get_ca_setup(d).whitelist
+        assert D.f.get_ca_setup(d).use_cache
+        assert not D.f2.get_ca_setup(d).whitelist
+        assert D.f2.get_ca_setup(d).use_cache
+
+        class_setup1.disable_caching()
+        class_setup1.enable_whitelist()
+        d = D()
+        assert D.f.get_ca_setup(d).whitelist
+        assert not D.f.get_ca_setup(d).use_cache
+        assert D.f2.get_ca_setup(d).whitelist
+        assert not D.f2.get_ca_setup(d).use_cache
+
+        unbound_setup1.enable_caching()
+        d = D()
+        assert D.f.get_ca_setup(d).whitelist
+        assert D.f.get_ca_setup(d).use_cache
+        assert D.f2.get_ca_setup(d).whitelist
+        assert not D.f2.get_ca_setup(d).use_cache
+
+        class_setup1.disable_caching()
+        d = D()
+        assert D.f.get_ca_setup(d).whitelist
+        assert not D.f.get_ca_setup(d).use_cache
+        assert D.f2.get_ca_setup(d).whitelist
+        assert not D.f2.get_ca_setup(d).use_cache
+
+        unbound_setup2.enable_caching()
+        d = D()
+        assert D.f.get_ca_setup(d).whitelist
+        assert not D.f.get_ca_setup(d).use_cache
+        assert D.f2.get_ca_setup(d).whitelist
+        assert D.f2.get_ca_setup(d).use_cache
 
     def test_ca_unbound_setup(self):
         class A(Cacheable):
@@ -570,16 +673,16 @@ class TestCacheableRegistry:
         class_setup1 = A.get_ca_setup()
         class_setup2 = B.get_ca_setup()
         class_setup3 = C.get_ca_setup()
-        assert class_setup1.lazy_superclass_setups == set()
-        assert class_setup2.lazy_superclass_setups == {
+        assert class_setup1.superclass_setups == []
+        assert class_setup2.superclass_setups == [
             class_setup1
-        }
-        assert class_setup3.lazy_superclass_setups == set()
-        assert class_setup1.lazy_subclass_setups == {
+        ]
+        assert class_setup3.superclass_setups == []
+        assert class_setup1.subclass_setups == [
             class_setup2
-        }
-        assert class_setup2.lazy_subclass_setups == set()
-        assert class_setup3.lazy_subclass_setups == set()
+        ]
+        assert class_setup2.subclass_setups == []
+        assert class_setup3.subclass_setups == []
         assert class_setup1.unbound_setups == {
             A.f.get_ca_setup()
         }
@@ -708,6 +811,8 @@ class TestCacheableRegistry:
         a = A()
         b = B()
 
+        b.get_ca_setup().enable_caching()
+
         queries = [
             A.get_ca_setup().query,
             B.get_ca_setup().query,
@@ -715,7 +820,7 @@ class TestCacheableRegistry:
             B.f2_test.get_ca_setup().query,
             f3_test.get_ca_setup().query
         ]
-        assert ca_registry.match_setups(queries) == {
+        assert ca_registry.match_setups(queries, kind=None) == {
             A.get_ca_setup(),
             B.get_ca_setup(),
             a.get_ca_setup(),
@@ -726,6 +831,10 @@ class TestCacheableRegistry:
             B.f_test.get_ca_setup(b),
             B.f2_test.get_ca_setup(b),
             f3_test.get_ca_setup()
+        }
+        assert ca_registry.match_setups(queries, kind=None, filter_func=lambda setup: setup.caching_enabled) == {
+            B.f_test.get_ca_setup(b),
+            B.f2_test.get_ca_setup(b)
         }
         assert ca_registry.match_setups(queries, kind='runnable') == {
             A.f_test.get_ca_setup(a),
@@ -756,7 +865,7 @@ class TestCacheableRegistry:
             B.get_ca_setup(),
             a.get_ca_setup()
         }
-        assert ca_registry.match_setups(queries, collapse=True) == {
+        assert ca_registry.match_setups(queries, collapse=True, kind=None) == {
             A.get_ca_setup(),
             A.f_test.get_ca_setup(),
             B.f2_test.get_ca_setup(),
@@ -785,6 +894,235 @@ class TestCacheableRegistry:
                    f3_test.get_ca_setup()
                }
 
+    def test_ca_query_delegator(self):
+        class A(Cacheable):
+            @vbt.cacheable_property
+            def f_test(self):
+                return 10
+
+        class B(A):
+            @vbt.cacheable_method
+            def f2_test(self, a, b, c=30):
+                return a + b + c
+
+        @vbt.cacheable
+        def f3_test(a, b, c=30):
+            return a + b + c
+
+        a = A()
+        b = B()
+
+        class_setup1 = A.get_ca_setup()
+        class_setup2 = B.get_ca_setup()
+
+        assert class_setup1.use_cache is None
+        assert class_setup1.whitelist is None
+        assert class_setup2.use_cache is None
+        assert class_setup2.whitelist is None
+
+        queries = [
+            A.get_ca_setup().query,
+            B.get_ca_setup().query,
+            A.f_test.get_ca_setup().query,
+            B.f2_test.get_ca_setup().query,
+            f3_test.get_ca_setup().query
+        ]
+        query_delegator = vbt.CAQueryDelegator(queries, kind='class')
+        assert query_delegator.child_setups == {
+            class_setup1
+        }
+
+        query_delegator.enable_caching()
+        query_delegator.disable_whitelist()
+        assert class_setup1.use_cache
+        assert not class_setup1.whitelist
+        assert class_setup2.use_cache
+        assert not class_setup2.whitelist
+
+        assert query_delegator.hits == 0
+        assert query_delegator.misses == 0
+        assert query_delegator.first_run_time is None
+        assert query_delegator.last_run_time is None
+        assert query_delegator.first_hit_time is None
+        assert query_delegator.last_hit_time is None
+
+        assert a.f_test == 10
+        assert query_delegator.hits == 0
+        assert query_delegator.misses == 1
+        assert query_delegator.first_run_time == A.f_test.get_ca_setup(a).first_run_time
+        assert query_delegator.last_run_time == A.f_test.get_ca_setup(a).last_run_time
+        assert query_delegator.first_hit_time is None
+        assert query_delegator.last_hit_time is None
+
+        assert a.f_test == 10
+        assert query_delegator.hits == 1
+        assert query_delegator.misses == 1
+        assert query_delegator.first_run_time == A.f_test.get_ca_setup(a).first_run_time
+        assert query_delegator.last_run_time == A.f_test.get_ca_setup(a).last_run_time
+        assert query_delegator.first_hit_time == A.f_test.get_ca_setup(a).first_hit_time
+        assert query_delegator.last_hit_time == A.f_test.get_ca_setup(a).last_hit_time
+
+        assert b.f2_test(10, 20, c=30) == 60
+        assert query_delegator.hits == 1
+        assert query_delegator.misses == 2
+        assert query_delegator.first_run_time == A.f_test.get_ca_setup(a).first_run_time
+        assert query_delegator.last_run_time == B.f2_test.get_ca_setup(b).last_run_time
+        assert query_delegator.first_hit_time == A.f_test.get_ca_setup(a).first_hit_time
+        assert query_delegator.last_hit_time == A.f_test.get_ca_setup(a).last_hit_time
+
+        assert b.f2_test(10, 20, c=30) == 60
+        assert query_delegator.hits == 2
+        assert query_delegator.misses == 2
+        assert query_delegator.first_run_time == A.f_test.get_ca_setup(a).first_run_time
+        assert query_delegator.last_run_time == B.f2_test.get_ca_setup(b).last_run_time
+        assert query_delegator.first_hit_time == A.f_test.get_ca_setup(a).first_hit_time
+        assert query_delegator.last_hit_time == B.f2_test.get_ca_setup(b).last_hit_time
+
+        assert f3_test(10, 20, c=30) == 60
+        assert query_delegator.hits == 2
+        assert query_delegator.misses == 2
+        assert query_delegator.first_run_time == A.f_test.get_ca_setup(a).first_run_time
+        assert query_delegator.last_run_time == B.f2_test.get_ca_setup(b).last_run_time
+        assert query_delegator.first_hit_time == A.f_test.get_ca_setup(a).first_hit_time
+        assert query_delegator.last_hit_time == B.f2_test.get_ca_setup(b).last_hit_time
+
+        setup_hierarchy = query_delegator.get_setup_hierarchy()
+        assert len(setup_hierarchy) == 1
+        assert len(setup_hierarchy[0]['children']) == 2
+
+        assert query_delegator.metrics == {
+            'hits': query_delegator.hits,
+            'misses': query_delegator.misses,
+            'total_size': query_delegator.total_size,
+            'total_elapsed': A.f_test.get_ca_setup(a).total_elapsed + B.f2_test.get_ca_setup(b).total_elapsed,
+            'total_saved': A.f_test.get_ca_setup(a).total_saved + B.f2_test.get_ca_setup(b).total_saved,
+            'first_run_time': query_delegator.first_run_time,
+            'last_run_time': query_delegator.last_run_time,
+            'first_hit_time': query_delegator.first_hit_time,
+            'last_hit_time': query_delegator.last_hit_time
+        }
+
+        status_overview = query_delegator.get_status_overview(readable=False)
+        pd.testing.assert_index_equal(
+            status_overview.columns,
+            pd.Index([
+                'string',
+                'use_cache',
+                'whitelist',
+                'caching_enabled',
+                'hits',
+                'misses',
+                'total_size',
+                'total_elapsed',
+                'total_saved',
+                'first_run_time',
+                'last_run_time',
+                'first_hit_time',
+                'last_hit_time',
+                'creation_time',
+                'last_update_time'
+            ])
+        )
+        np.testing.assert_array_equal(
+            status_overview['string'].values,
+            np.array([str(class_setup1)])
+        )
+        np.testing.assert_array_equal(
+            status_overview['use_cache'].values,
+            np.array([class_setup1.use_cache])
+        )
+        np.testing.assert_array_equal(
+            status_overview['whitelist'].values,
+            np.array([class_setup1.whitelist])
+        )
+        np.testing.assert_array_equal(
+            status_overview['caching_enabled'].values,
+            np.array([class_setup1.caching_enabled])
+        )
+        np.testing.assert_array_equal(
+            status_overview['hits'].values,
+            np.array([class_setup1.hits])
+        )
+        np.testing.assert_array_equal(
+            status_overview['misses'].values,
+            np.array([class_setup1.misses])
+        )
+        np.testing.assert_array_equal(
+            status_overview['total_size'].values,
+            np.array([class_setup1.total_size])
+        )
+        np.testing.assert_array_equal(
+            status_overview['total_elapsed'].values,
+            pd.to_timedelta(np.array([class_setup1.total_elapsed]))
+        )
+        np.testing.assert_array_equal(
+            status_overview['total_saved'].values,
+            pd.to_timedelta(np.array([class_setup1.total_saved]))
+        )
+        np.testing.assert_array_equal(
+            status_overview['first_run_time'].values,
+            pd.to_datetime([class_setup1.first_run_time]).values
+        )
+        np.testing.assert_array_equal(
+            status_overview['last_run_time'].values,
+            pd.to_datetime([class_setup1.last_run_time]).values
+        )
+        np.testing.assert_array_equal(
+            status_overview['first_hit_time'].values,
+            pd.to_datetime([class_setup1.first_hit_time]).values
+        )
+        np.testing.assert_array_equal(
+            status_overview['last_hit_time'].values,
+            pd.to_datetime([class_setup1.last_hit_time]).values
+        )
+        np.testing.assert_array_equal(
+            status_overview['creation_time'].values,
+            pd.to_datetime([class_setup1.creation_time]).values
+        )
+        np.testing.assert_array_equal(
+            status_overview['last_update_time'].values,
+            pd.to_datetime([class_setup1.last_update_time]).values
+        )
+
+    def test_disabled_machinery(self):
+        vbt.settings['caching']['machinery_enabled'] = False
+
+        class A(Cacheable):
+            @vbt.cacheable_property
+            def f_test(self):
+                return 10
+
+        class B(A):
+            @vbt.cacheable_method
+            def f2_test(self, a, b, c=30):
+                return a + b + c
+
+        @vbt.cacheable
+        def f3_test(a, b, c=30):
+            return a + b + c
+
+        a = A()
+        b = B()
+
+        assert a.f_test == 10
+        assert b.f_test == 10
+        assert b.f2_test(10, 20, c=30) == 60
+        assert f3_test(10, 20, c=30) == 60
+
+        assert A.get_ca_setup() is None
+        assert a.get_ca_setup() is None
+        assert B.get_ca_setup() is None
+        assert b.get_ca_setup() is None
+        assert A.f_test.get_ca_setup() is None
+        assert A.f_test.get_ca_setup(a) is None
+        assert B.f_test.get_ca_setup() is None
+        assert B.f_test.get_ca_setup(b) is None
+        assert B.f2_test.get_ca_setup() is None
+        assert B.f2_test.get_ca_setup(b) is None
+        assert f3_test.get_ca_setup() is None
+
+        vbt.settings['caching']['machinery_enabled'] = True
+
     def test_gc(self):
         class A(Cacheable):
             @vbt.cacheable_property
@@ -792,7 +1130,8 @@ class TestCacheableRegistry:
                 return 10
 
         a = A()
-        assert ca_registry.match_setups(CAQuery(cls=A)) == {
+
+        assert ca_registry.match_setups(CAQuery(cls=A), kind=None) == {
             A.get_ca_setup(),
             a.get_ca_setup(),
             A.f.get_ca_setup(a)
@@ -801,7 +1140,7 @@ class TestCacheableRegistry:
         del a
         gc.collect()
         assert a_ref() is None
-        assert ca_registry.match_setups(CAQuery(cls=A)) == {
+        assert ca_registry.match_setups(CAQuery(cls=A), kind=None) == {
             A.get_ca_setup()
         }
 
@@ -811,7 +1150,8 @@ class TestCacheableRegistry:
                 return 10
 
         b = B()
-        assert ca_registry.match_setups(CAQuery(cls=B)) == {
+
+        assert ca_registry.match_setups(CAQuery(cls=B), kind=None) == {
             B.get_ca_setup(),
             B.f.get_ca_setup(b),
             b.get_ca_setup()
@@ -820,6 +1160,6 @@ class TestCacheableRegistry:
         del b
         gc.collect()
         assert b_ref() is None
-        assert ca_registry.match_setups(CAQuery(cls=B)) == {
+        assert ca_registry.match_setups(CAQuery(cls=B), kind=None) == {
             B.get_ca_setup()
         }

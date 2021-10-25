@@ -150,6 +150,11 @@ def to_tzaware_datetime(dt_like: tp.DatetimeLike,
     return dt
 
 
+def to_naive_datetime(dt: datetime) -> datetime:
+    """Return the timezone info from a datetime."""
+    return dt.astimezone().replace(tzinfo=None)
+
+
 def datetime_to_ms(dt: datetime) -> int:
     """Convert a datetime to milliseconds."""
     epoch = datetime.fromtimestamp(0, dt.tzinfo)

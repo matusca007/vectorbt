@@ -38,7 +38,8 @@ setup(
         'requests',
         'pytz',
         'typing_extensions; python_version < "3.8"',
-        'mypy_extensions'
+        'mypy_extensions',
+        'humanize'
     ],
     extras_require={
         'full': [

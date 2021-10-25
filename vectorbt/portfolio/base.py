@@ -469,45 +469,31 @@ variables it's specified per order and can broadcast automatically.
 
 ## Caching
 
-`Portfolio` heavily relies upon caching. If a method or a property requires heavy computation,
-it's wrapped with `vectorbt.utils.decorators.cached_method` and `vectorbt.utils.decorators.cached_property`
-respectively. Caching can be disabled globally via `caching` in `vectorbt._settings.settings`.
+`Portfolio` heavily relies upon caching. If a method or a property requires heavy computation
+and takes not that much space, it's wrapped with `vectorbt.utils.decorators.cached_method` and
+`vectorbt.utils.decorators.cached_property` respectively. Some attributes are not cached
+automatically but are cacheable, meaning you must explicitly turn them on.
+
+Caching can be disabled globally via `caching` in `vectorbt._settings.settings`.
 
 !!! note
     Because of caching, class is meant to be immutable and all properties are read-only.
     To change any attribute, use the `copy` method and pass the attribute as keyword argument.
 
 Alternatively, we can precisely point at attributes and methods that should or shouldn't
-be cached. For example, we can blacklist the entire `Portfolio` class except a few most called
-methods such as `Portfolio.cash_flow` and `Portfolio.asset_flow`:
+be cached. For example, we can blacklist the entire `Portfolio` class:
 
 ```python-repl
->>> vbt.settings.caching['blacklist'].append(
-...     vbt.CacheCondition(base_cls='Portfolio')
-... )
->>> vbt.settings.caching['whitelist'].extend([
-...     vbt.CacheCondition(base_cls='Portfolio', func='cash_flow'),
-...     vbt.CacheCondition(base_cls='Portfolio', func='asset_flow')
-... ])
+>>> vbt.Portfolio.get_ca_setup().disable_caching()
 ```
 
-Define rules for one instance of `Portfolio`:
+Or a single instance of `Portfolio`:
 
 ```python-repl
->>> vbt.settings.caching['blacklist'].append(
-...     vbt.CacheCondition(instance=pf)
-... )
->>> vbt.settings.caching['whitelist'].extend([
-...     vbt.CacheCondition(instance=pf, func='cash_flow'),
-...     vbt.CacheCondition(instance=pf, func='asset_flow')
-... ])
+>>> pf.get_ca_setup().disable_caching()
 ```
 
-To reset caching:
-
-```python-repl
->>> vbt.settings.caching.reset()
-```
+See `vectorbt.ca_registry` for more details on caching.
 
 ## Performance and memory
 
@@ -1570,7 +1556,7 @@ from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
-from vectorbt.utils.decorators import cached_property, cached_method, class_or_instancemethod
+from vectorbt.utils.decorators import cacheable_property, cached_property, cached_method, class_or_instancemethod
 from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.template import Rep, RepEval, RepFunc, deep_substitute
@@ -1639,7 +1625,7 @@ returns_acc_config = Config(
 __pdoc__['returns_acc_config'] = f"""Config of returns accessor methods to be added to `Portfolio`.
 
 ```json
-{returns_acc_config.to_doc()}
+{returns_acc_config.stringify()}
 ```
 """
 
@@ -4217,7 +4203,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         filled_close = func(to_2d_array(self.close))
         return self.wrapper.wrap(filled_close, group_by=False, **merge_dicts({}, wrap_kwargs))
 
-    @cached_property
+    @cacheable_property
     def filled_close(self) -> tp.SeriesFrame:
         """`Portfolio.get_filled_close` with default arguments."""
         return self.get_filled_close()
@@ -4992,7 +4978,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='total_market_return'), wrap_kwargs)
         return wrapper.wrap_reduced(total_market_return, group_by=group_by, **wrap_kwargs)
 
-    @cached_property
+    @cacheable_property
     def returns_acc(self) -> ReturnsAccessor:
         """`Portfolio.get_returns_acc` with default arguments."""
         return self.get_returns_acc()
@@ -5027,7 +5013,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             **kwargs
         )
 
-    @cached_property
+    @cacheable_property
     def qs(self) -> QSAdapterT:
         """`Portfolio.get_qs` with default arguments."""
         return self.get_qs()

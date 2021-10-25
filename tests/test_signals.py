@@ -43,9 +43,9 @@ group_by = pd.Index(['g1', 'g1', 'g2'])
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
 
 
 def teardown_module():

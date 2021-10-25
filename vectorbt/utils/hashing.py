@@ -10,6 +10,11 @@ from vectorbt.utils.decorators import cachedproperty
 class Hashable:
     """Hashable class."""
 
+    @staticmethod
+    def get_hash(args_hash: int) -> int:
+        """Static method to get the hash of the instance based on its arguments."""
+        raise NotImplementedError
+
     @property
     def hash_key(self) -> tuple:
         """Key that can be used for hashing the instance."""

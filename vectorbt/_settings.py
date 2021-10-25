@@ -129,16 +129,22 @@ _settings = {}
 
 caching = dict(
     enabled=True,
-    override_whitelist=False
+    whitelist_enabled=True,
+    machinery_enabled=True,
+    silence_warnings=False,
+    register_lazily=True,
+    ignore_args=[
+        'nb_parallel',
+        'chunked'
+    ]
 )
 """_"""
 
-__pdoc__['caching'] = Sub("""Sub-config with settings applied across `vectorbt.ca_registry` 
-and to cacheable decorators in `vectorbt.utils.decorators`.
+__pdoc__['caching'] = Sub("""Sub-config with settings applied across `vectorbt.ca_registry`, 
+`vectorbt.utils.caching`, and cacheable decorators in `vectorbt.utils.decorators`.
 
-!!! note
-    The directives are applied only once on startup. 
-    Changing them afterwards will have no effect.
+!!! hint
+    Apply option `register_lazily` on startup to register all unbound cacheables.
 
 ```json
 ${config_doc}
@@ -1008,7 +1014,7 @@ class SettingsConfig(Config):
         """Substitute templiates in sub-config docs."""
         for k, v in __pdoc__.items():
             if k in self:
-                config_doc = self[k].to_doc(**to_doc_kwargs.get(k, {}))
+                config_doc = self[k].stringify(**to_doc_kwargs.get(k, {}))
                 __pdoc__[k] = deep_substitute(v, mapping=dict(config_doc=config_doc))
 
 

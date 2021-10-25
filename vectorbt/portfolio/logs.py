@@ -227,7 +227,7 @@ logs_field_config = Config(
 __pdoc__['logs_field_config'] = f"""Field config for `Logs`.
 
 ```json
-{logs_field_config.to_doc()}
+{logs_field_config.stringify()}
 ```
 """
 
@@ -251,7 +251,7 @@ logs_attach_field_config = Config(
 __pdoc__['logs_attach_field_config'] = f"""Config of fields to be attached to `Logs`.
 
 ```json
-{logs_attach_field_config.to_doc()}
+{logs_attach_field_config.stringify()}
 ```
 """
 

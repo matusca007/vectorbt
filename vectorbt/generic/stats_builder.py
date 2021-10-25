@@ -606,7 +606,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
         return string.Template(
             inspect.cleandoc(get_dict_attr(source_cls, 'metrics').__doc__)
         ).substitute(
-            {'metrics': cls.metrics.to_doc(), 'cls_name': cls.__name__}
+            {'metrics': cls.metrics.stringify(), 'cls_name': cls.__name__}
         )
 
     @classmethod

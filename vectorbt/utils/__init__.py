@@ -41,6 +41,8 @@ from vectorbt.utils.chunking import (
     KwargsTaker,
     chunked
 )
+from vectorbt.utils.profiling import Timer, MemTracer
+from vectorbt.utils.docs import stringify
 
 __all__ = [
     'atomic_dict',
@@ -92,7 +94,10 @@ __all__ = [
     'MappingTaker',
     'ArgsTaker',
     'KwargsTaker',
-    'chunked'
+    'chunked',
+    'Timer',
+    'MemTracer',
+    'stringify'
 ]
 
 __pdoc__ = {k: False for k in __all__}

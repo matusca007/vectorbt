@@ -50,11 +50,11 @@ df5 = pd.DataFrame([[1, 2, 3], [4, 5, 6], [7, 8, 9]], index=multi_i, columns=mul
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.broadcasting['index_from'] = 'stack'
     vbt.settings.broadcasting['columns_from'] = 'stack'
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
 
 
 def teardown_module():

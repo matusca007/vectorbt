@@ -171,11 +171,15 @@ class cacheable_property(custom_property):
         upon object attributes that can be changed, it won't notice the change."""
 
     def __init__(self, func: tp.Callable, use_cache: bool = False, whitelist: bool = False, **options) -> None:
+        from vectorbt._settings import settings
+        caching_cfg = settings['caching']
+
         super().__init__(func, **options)
 
         self._init_use_cache = use_cache
         self._init_whitelist = whitelist
-        self.get_ca_setup()
+        if not caching_cfg['register_lazily']:
+            self.get_ca_setup()
 
     @property
     def init_use_cache(self) -> bool:
@@ -187,19 +191,25 @@ class cacheable_property(custom_property):
         """Initial value for `whitelist`."""
         return self._init_whitelist
 
-    def get_ca_setup(self, instance: tp.Optional[object] = None) -> 'CARunSetup':
+    def get_ca_setup(self, instance: tp.Optional[object] = None) -> tp.Optional['CARunSetup']:
         """Get setup of type `vectorbt.ca_registry.CARunSetup` if instance is known,
-        or `vectorbt.ca_registry.CAUnboundSetup` otherwise."""
+        or `vectorbt.ca_registry.CAUnboundSetup` otherwise.
+
+        See `vectorbt.ca_registry` for details on the caching procedure."""
         from vectorbt.ca_registry import CAUnboundSetup, CARunSetup
 
+        unbound_setup = CAUnboundSetup.get(self, use_cache=self.init_use_cache, whitelist=self.init_whitelist)
         if instance is None:
-            return CAUnboundSetup.get(self, use_cache=self.init_use_cache, whitelist=self.init_whitelist)
+            return unbound_setup
         return CARunSetup.get(self, instance=instance)
 
     def __get__(self, instance: object, owner: tp.Optional[tp.Type] = None) -> tp.Any:
         if instance is None:
             return self
-        return self.get_ca_setup(instance).run()
+        run_setup = self.get_ca_setup(instance)
+        if run_setup is None:
+            return self.func(instance)
+        return run_setup.run()
 
 
 class cached_property(cacheable_property):
@@ -245,14 +255,14 @@ def custom_function(*args, **options) -> tp.Union[tp.Callable, custom_functionT]
 
 class cacheable_functionT(custom_functionT):
     is_cacheable: bool
-    get_ca_setup: tp.Callable[[], 'CARunSetup']
+    get_ca_setup: tp.Callable[[], tp.Optional['CARunSetup']]
 
 
 def cacheable(*args,
               use_cache: bool = False,
               whitelist: bool = False,
               max_size: tp.Optional[int] = None,
-              ignore_args: tp.Optional[tp.Sequence[tp.AnnArgQuery]] = None,
+              ignore_args: tp.Optional[tp.Iterable[tp.AnnArgQuery]] = None,
               **options) -> tp.Union[tp.Callable, cacheable_functionT]:
     """Cacheable function decorator.
 
@@ -263,13 +273,20 @@ def cacheable(*args,
 
     def decorator(func: tp.Callable) -> cacheable_functionT:
         from vectorbt.ca_registry import CARunSetup
+        from vectorbt._settings import settings
+        caching_cfg = settings['caching']
 
         @wraps(func)
         def wrapper(*args, **kwargs) -> tp.Any:
-            return wrapper.get_ca_setup().run(*args, **kwargs)
+            run_setup = wrapper.get_ca_setup()
+            if run_setup is None:
+                return func(*args, **kwargs)
+            return run_setup.run(*args, **kwargs)
 
-        def get_ca_setup() -> CARunSetup:
-            """Get setup of type `vectorbt.ca_registry.CARunSetup`."""
+        def get_ca_setup() -> tp.Optional[CARunSetup]:
+            """Get setup of type `vectorbt.ca_registry.CARunSetup`.
+
+            See `vectorbt.ca_registry` for details on the caching procedure."""
             return CARunSetup.get(
                 wrapper,
                 use_cache=use_cache,
@@ -284,7 +301,8 @@ def cacheable(*args,
         wrapper.is_method = False
         wrapper.is_cacheable = True
         wrapper.get_ca_setup = get_ca_setup
-        get_ca_setup()
+        if not caching_cfg['register_lazily']:
+            wrapper.get_ca_setup()
 
         return wrapper
 
@@ -333,14 +351,14 @@ def custom_method(*args, **options) -> tp.Union[tp.Callable, custom_methodT]:
 
 
 class cacheable_methodT(custom_methodT):
-    get_ca_setup: tp.Callable[[tp.Optional[object]], 'CARunSetup']
+    get_ca_setup: tp.Callable[[tp.Optional[object]], tp.Optional['CARunSetup']]
 
 
 def cacheable_method(*args,
                      use_cache: bool = False,
                      whitelist: bool = False,
                      max_size: tp.Optional[int] = None,
-                     ignore_args: tp.Optional[tp.Sequence[tp.AnnArgQuery]] = None,
+                     ignore_args: tp.Optional[tp.Iterable[tp.AnnArgQuery]] = None,
                      **options) -> tp.Union[tp.Callable, cacheable_methodT]:
     """Cacheable method decorator.
 
@@ -348,20 +366,28 @@ def cacheable_method(*args,
 
     def decorator(func: tp.Callable) -> cacheable_methodT:
         from vectorbt.ca_registry import CAUnboundSetup, CARunSetup
+        from vectorbt._settings import settings
+        caching_cfg = settings['caching']
 
         @wraps(func)
         def wrapper(instance: object, *args, **kwargs) -> tp.Any:
-            return wrapper.get_ca_setup(instance).run(*args, **kwargs)
+            run_setup = wrapper.get_ca_setup(instance)
+            if run_setup is None:
+                return func(instance, *args, **kwargs)
+            return run_setup.run(*args, **kwargs)
 
-        def get_ca_setup(instance: tp.Optional[object] = None) -> CARunSetup:
+        def get_ca_setup(instance: tp.Optional[object] = None) -> tp.Optional[CARunSetup]:
             """Get setup of type `vectorbt.ca_registry.CARunSetup` if instance is known,
-            or `vectorbt.ca_registry.CAUnboundSetup` otherwise."""
+            or `vectorbt.ca_registry.CAUnboundSetup` otherwise.
+
+            See `vectorbt.ca_registry` for details on the caching procedure."""
+            unbound_setup = CAUnboundSetup.get(
+                wrapper,
+                use_cache=use_cache,
+                whitelist=whitelist
+            )
             if instance is None:
-                return CAUnboundSetup.get(
-                    wrapper,
-                    use_cache=use_cache,
-                    whitelist=whitelist
-                )
+                return unbound_setup
             return CARunSetup.get(
                 wrapper,
                 instance=instance,
@@ -375,7 +401,8 @@ def cacheable_method(*args,
         wrapper.is_method = True
         wrapper.is_cacheable = True
         wrapper.get_ca_setup = get_ca_setup
-        get_ca_setup()
+        if not caching_cfg['register_lazily']:
+            wrapper.get_ca_setup()
 
         return wrapper
 

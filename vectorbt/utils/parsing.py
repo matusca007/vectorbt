@@ -73,7 +73,7 @@ def get_func_arg_names(func: tp.Callable, arg_kind: tp.Optional[tp.MaybeTuple[in
     ]
 
 
-def annotate_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs) -> tp.AnnArgs:
+def annotate_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs, only_passed: bool = False) -> tp.AnnArgs:
     """Annotate arguments and keyword arguments using the function's signature."""
     kwargs = dict(kwargs)
     signature = inspect.signature(func)
@@ -90,15 +90,17 @@ def annotate_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs) -> tp.Ann
                 # Either keyword-only arguments or positional arguments passed as such
                 if p.name in kwargs:
                     ann_args[p.name] = dict(kind=p.kind, value=kwargs.pop(p.name))
-                else:
+                elif not only_passed:
                     ann_args[p.name] = dict(kind=p.kind, value=p.default)
             arg_i += 1
         elif p.kind == p.VAR_POSITIONAL:
             # *args
-            ann_args[p.name] = dict(kind=p.kind, value=args[arg_i:])
+            if not only_passed or len(args[arg_i:]) > 0:
+                ann_args[p.name] = dict(kind=p.kind, value=args[arg_i:])
         else:
             # **kwargs
-            ann_args[p.name] = dict(kind=p.kind, value=kwargs)
+            if not only_passed or len(kwargs) > 0:
+                ann_args[p.name] = dict(kind=p.kind, value=kwargs)
     return ann_args
 
 
@@ -154,7 +156,7 @@ def match_ann_arg(ann_args: tp.AnnArgs, query: tp.AnnArgQuery) -> tp.Any:
     raise TypeError(f"Query of type {type(query)} is not supported")
 
 
-def ignore_flat_ann_args(flat_ann_args: tp.FlatAnnArgs, ignore_args: tp.Sequence[tp.AnnArgQuery]) -> tp.FlatAnnArgs:
+def ignore_flat_ann_args(flat_ann_args: tp.FlatAnnArgs, ignore_args: tp.Iterable[tp.AnnArgQuery]) -> tp.FlatAnnArgs:
     """Ignore flattened annotated arguments."""
     new_flat_ann_args = []
     for i, arg in enumerate(flat_ann_args):
@@ -180,13 +182,13 @@ class UnhashableArgsError(Exception):
 
 
 def hash_args(func: tp.Callable, args: tp.Args, kwargs: tp.Kwargs,
-              ignore_args: tp.Optional[tp.Sequence[tp.AnnArgQuery]] = None) -> int:
+              ignore_args: tp.Optional[tp.Iterable[tp.AnnArgQuery]] = None) -> int:
     """Get hash of arguments.
 
     Use `ignore_args` to provide a sequence of queries for arguments that should be ignored."""
     if ignore_args is None:
         ignore_args = []
-    ann_args = annotate_args(func, args, kwargs)
+    ann_args = annotate_args(func, args, kwargs, only_passed=True)
     flat_ann_args = flatten_ann_args(ann_args)
     if len(ignore_args) > 0:
         flat_ann_args = ignore_flat_ann_args(flat_ann_args, ignore_args)

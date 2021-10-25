@@ -32,9 +32,9 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
 
 
 def teardown_module():
@@ -2153,8 +2153,10 @@ class TestFactory:
             'custom_func',
             'deep_getattr',
             'dumps',
+            'get_ca_setup',
             'get_expected_keys',
             'get_writeable_attrs',
+            'getsize',
             'iloc',
             'in_out',
             'in_out_readable',
@@ -2204,8 +2206,8 @@ class TestFactory:
             'short_name',
             'stats',
             'stats_defaults',
+            'stringify',
             'subplots',
-            'to_doc',
             'ts',
             'ts_above',
             'ts_below',

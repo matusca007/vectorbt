@@ -396,8 +396,7 @@ combine price series for Bitcoin and Ethereum into one DataFrame and run the sam
 ```python-repl
 >>> # Multiple strategy instances and instruments
 >>> eth_price = vbt.YFData.download('ETH-USD', start=start, end=end).get('Close')
->>> comb_price = btc_price.vbt.concat(eth_price,
-...     keys=pd.Index(['BTC', 'ETH'], name='symbol'))
+>>> comb_price = btc_price.vbt.concat(eth_price, keys=pd.Index(['BTC', 'ETH'], name='symbol'))
 >>> comb_price.vbt.drop_levels(-1, inplace=True)
 >>> comb_price
 symbol                             BTC         ETH

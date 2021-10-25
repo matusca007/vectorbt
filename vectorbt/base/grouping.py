@@ -19,7 +19,6 @@ from vectorbt.utils import checks
 from vectorbt.utils.array_ import is_sorted
 from vectorbt.utils.decorators import cached_method
 from vectorbt.utils.config import Configured
-from vectorbt.utils.caching import Cacheable
 from vectorbt.base import indexes
 
 GroupByT = tp.Union[None, bool, tp.Index]
@@ -101,7 +100,7 @@ def get_group_lens_nb(groups: tp.Array1d) -> tp.Array1d:
 GrouperT = tp.TypeVar("GrouperT", bound="Grouper")
 
 
-class Grouper(Cacheable, Configured):
+class Grouper(Configured):
     """Class that exposes methods to group index.
 
     `group_by` can be:
@@ -162,7 +161,6 @@ class Grouper(Cacheable, Configured):
             allow_modify=allow_modify,
             **kwargs
         )
-        Cacheable.__init__(self)
 
     @classmethod
     def from_pd_group_by(cls: tp.Type[GrouperT],
@@ -219,16 +217,16 @@ class Grouper(Cacheable, Configured):
         return group_by is not None
 
     def is_grouping_enabled(self, group_by: tp.GroupByLike = None) -> bool:
-        """Check whether column grouping has been enabled."""
+        """Check whether grouping has been enabled."""
         return self.group_by is None and self.is_grouped(group_by=group_by)
 
     def is_grouping_disabled(self, group_by: tp.GroupByLike = None) -> bool:
-        """Check whether column grouping has been disabled."""
+        """Check whether grouping has been disabled."""
         return self.group_by is not None and not self.is_grouped(group_by=group_by)
 
-    @cached_method
+    @cached_method(whitelist=True)
     def is_grouping_modified(self, group_by: tp.GroupByLike = None) -> bool:
-        """Check whether column grouping has been modified.
+        """Check whether grouping has been modified.
 
         Doesn't care if grouping labels have been changed."""
         if group_by is None or (group_by is False and self.group_by is None):
@@ -243,9 +241,9 @@ class Grouper(Cacheable, Configured):
             return False
         return True
 
-    @cached_method
+    @cached_method(whitelist=True)
     def is_grouping_changed(self, group_by: tp.GroupByLike = None) -> bool:
-        """Check whether column grouping has changed in any way."""
+        """Check whether grouping has changed in any way."""
         if group_by is None or (group_by is False and self.group_by is None):
             return False
         if isinstance(group_by, pd.Index) and isinstance(self.group_by, pd.Index):
@@ -290,7 +288,7 @@ class Grouper(Cacheable, Configured):
         self.check_group_by(group_by=group_by, **kwargs)
         return group_by_to_index(self.index, group_by)
 
-    @cached_method
+    @cached_method(whitelist=True)
     def get_groups_and_index(self, group_by: tp.GroupByLike = None, **kwargs) -> tp.Tuple[tp.Array1d, tp.Index]:
         """See `get_groups_and_index`."""
         group_by = self.resolve_group_by(group_by=group_by, **kwargs)
@@ -304,14 +302,14 @@ class Grouper(Cacheable, Configured):
         """Return grouped index."""
         return self.get_groups_and_index(**kwargs)[1]
 
-    @cached_method
+    @cached_method(whitelist=True)
     def is_sorted(self, group_by: tp.GroupByLike = None, **kwargs) -> bool:
         """Return whether groups are coherent and sorted."""
         group_by = self.resolve_group_by(group_by=group_by, **kwargs)
         groups = self.get_groups(group_by=group_by)
         return is_sorted(groups)
 
-    @cached_method
+    @cached_method(whitelist=True)
     def get_group_lens(self, group_by: tp.GroupByLike = None, **kwargs) -> tp.Array1d:
         """See get_group_lens_nb."""
         if not self.is_sorted(group_by=group_by):

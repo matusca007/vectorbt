@@ -223,7 +223,7 @@ dd_field_config = Config(
 __pdoc__['dd_field_config'] = f"""Field config for `Drawdowns`.
 
 ```json
-{dd_field_config.to_doc()}
+{dd_field_config.stringify()}
 ```
 """
 
@@ -241,7 +241,7 @@ dd_attach_field_config = Config(
 __pdoc__['dd_attach_field_config'] = f"""Config of fields to be attached to `Drawdowns`.
 
 ```json
-{dd_attach_field_config.to_doc()}
+{dd_attach_field_config.stringify()}
 ```
 """
 

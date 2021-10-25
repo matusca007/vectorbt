@@ -56,8 +56,8 @@ records_nosort_grouped = vbt.records.Records(wrapper_grouped, records_nosort_arr
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.chunking['n_chunks'] = 2
 

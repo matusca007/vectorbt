@@ -51,7 +51,7 @@ binary_magic_config = Config(
 __pdoc__['binary_magic_config'] = f"""Config of binary magic methods to be added to a class.
 
 ```json
-{binary_magic_config.to_doc()}
+{binary_magic_config.stringify()}
 ```
 """
 
@@ -109,7 +109,7 @@ unary_magic_config = Config(
 __pdoc__['unary_magic_config'] = f"""Config of unary magic methods to be added to a class.
 
 ```json
-{unary_magic_config.to_doc()}
+{unary_magic_config.stringify()}
 ```
 """
 

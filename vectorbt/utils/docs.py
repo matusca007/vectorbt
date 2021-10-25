@@ -15,14 +15,14 @@ class Documented:
     !!! note
         Won't get converted into a string in `prepare_for_doc`."""
 
-    def to_doc(self, **kwargs) -> str:
-        """Convert to a doc."""
+    def stringify(self, **kwargs) -> str:
+        """Stringify using JSON."""
         raise NotImplementedError
 
     def __str__(self) -> str:
         """Return string of self."""
         try:
-            return self.to_doc()
+            return self.stringify()
         except NotImplementedError:
             return repr(self)
 
@@ -65,7 +65,7 @@ def prepare_for_doc(obj: tp.Any, replace: tp.DictLike = None, path: str = None) 
     return obj
 
 
-def to_doc(obj: tp.Any, replace: tp.DictLike = None, path: str = None, **kwargs) -> str:
-    """Convert object to a JSON string."""
+def stringify(obj: tp.Any, replace: tp.DictLike = None, path: str = None, **kwargs) -> str:
+    """Stringify using JSON."""
     kwargs = {**dict(indent=4, default=str), **kwargs}
     return json.dumps(prepare_for_doc(obj, replace, path), **kwargs)

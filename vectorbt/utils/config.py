@@ -8,11 +8,13 @@ from collections import namedtuple
 import dill
 import inspect
 import pickle
+import humanize
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.docs import Documented, to_doc
+from vectorbt.utils.docs import Documented, stringify
 from vectorbt.utils.decorators import class_or_instancemethod
+from vectorbt.utils.caching import Cacheable
 
 
 class Default:
@@ -226,6 +228,15 @@ class Pickleable:
         with open(fname, "rb") as f:
             dumps = f.read()
         return cls.loads(dumps, **kwargs)
+
+    def __sizeof__(self) -> int:
+        return len(self.dumps())
+
+    def getsize(self, readable: bool = True, **kwargs) -> tp.Union[str, int]:
+        """Get size of this object."""
+        if readable:
+            return humanize.naturalsize(self.__sizeof__(), **kwargs)
+        return self.__sizeof__()
 
 
 PickleableDictT = tp.TypeVar("PickleableDictT", bound="PickleableDict")
@@ -634,12 +645,16 @@ class Config(PickleableDict, Documented):
         reset_dct = copy_dict(dict(self), **reset_dct_copy_kwargs)
         self.__dict__['_reset_dct_'] = reset_dct
 
-    def dumps(self, **kwargs) -> bytes:
+    def dumps(self, dump_reset_dct: bool = False, **kwargs) -> bytes:
         """Pickle to bytes."""
+        if dump_reset_dct:
+            reset_dct = PickleableDict(self.reset_dct_).dumps(**kwargs)
+        else:
+            reset_dct = None
         return dill.dumps(dict(
             dct=PickleableDict(self).dumps(**kwargs),
             copy_kwargs=self.copy_kwargs_,
-            reset_dct=PickleableDict(self.reset_dct_).dumps(**kwargs),
+            reset_dct=reset_dct,
             reset_dct_copy_kwargs=self.reset_dct_copy_kwargs_,
             frozen_keys=self.frozen_keys_,
             readonly=self.readonly_,
@@ -652,10 +667,14 @@ class Config(PickleableDict, Documented):
     def loads(cls: tp.Type[ConfigT], dumps: bytes, **kwargs) -> ConfigT:
         """Unpickle from bytes."""
         obj = dill.loads(dumps, **kwargs)
+        if obj['reset_dct'] is not None:
+            reset_dct = PickleableDict.loads(obj['reset_dct'], **kwargs)
+        else:
+            reset_dct = None
         return cls(
             dct=PickleableDict.loads(obj['dct'], **kwargs),
             copy_kwargs=obj['copy_kwargs'],
-            reset_dct=PickleableDict.loads(obj['reset_dct'], **kwargs),
+            reset_dct=reset_dct,
             reset_dct_copy_kwargs=obj['reset_dct_copy_kwargs'],
             frozen_keys=obj['frozen_keys'],
             readonly=obj['readonly'],
@@ -682,11 +701,11 @@ class Config(PickleableDict, Documented):
     def __eq__(self, other: tp.Any) -> bool:
         return checks.is_deep_equal(dict(self), dict(other))
 
-    def to_doc(self, with_params: bool = False, **kwargs) -> str:
-        """Convert to a doc."""
-        doc = self.__class__.__name__ + "(" + to_doc(dict(self), **kwargs) + ")"
+    def stringify(self, with_params: bool = False, **kwargs) -> str:
+        """Stringify using JSON."""
+        doc = self.__class__.__name__ + "(" + stringify(dict(self), **kwargs) + ")"
         if with_params:
-            doc += " with params " + to_doc(dict(
+            doc += " with params " + stringify(dict(
                 copy_kwargs=self.copy_kwargs_,
                 reset_dct=self.reset_dct_,
                 reset_dct_copy_kwargs=self.reset_dct_copy_kwargs_,
@@ -707,7 +726,7 @@ class AtomicConfig(Config, atomic_dict):
 ConfiguredT = tp.TypeVar("ConfiguredT", bound="Configured")
 
 
-class Configured(Pickleable, Documented):
+class Configured(Cacheable, Pickleable, Documented):
     """Class with an initialization config.
 
     All subclasses of `Configured` are initialized using `Config`, which makes it easier to pickle.
@@ -739,6 +758,8 @@ class Configured(Pickleable, Documented):
                     raise TypeError(f"{self.__class__.__name__}.__init__() got an unexpected keyword argument '{k}'")
 
         self._config = Config(config, **configured_cfg['config'])
+
+        Cacheable.__init__(self)
 
     @property
     def config(self) -> Config:
@@ -843,6 +864,6 @@ class Configured(Pickleable, Documented):
         """Force-update the config."""
         self.config.update(*args, **kwargs, force=True)
 
-    def to_doc(self, **kwargs) -> str:
-        """Convert to a doc."""
-        return self.__class__.__name__ + "(**" + self.config.to_doc(**kwargs) + ")"
+    def stringify(self, **kwargs) -> str:
+        """Stringify using JSON."""
+        return self.__class__.__name__ + "(**" + self.config.stringify(**kwargs) + ")"

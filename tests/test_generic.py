@@ -29,8 +29,8 @@ group_by = np.array(['g1', 'g1', 'g2'])
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.chunking['n_chunks'] = 2
 

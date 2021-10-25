@@ -310,7 +310,7 @@ nb_config = Config(
 __pdoc__['nb_config'] = f"""Config of Numba methods to be added to `GenericAccessor`.
 
 ```json
-{nb_config.to_doc()}
+{nb_config.stringify()}
 ```
 """
 
@@ -357,7 +357,7 @@ transform_config = Config(
 __pdoc__['transform_config'] = f"""Config of transform methods to be added to `GenericAccessor`.
 
 ```json
-{transform_config.to_doc()}
+{transform_config.stringify()}
 ```
 """
 

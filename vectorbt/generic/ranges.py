@@ -165,7 +165,7 @@ ranges_field_config = Config(
 __pdoc__['ranges_field_config'] = f"""Field config for `Ranges`.
 
 ```json
-{ranges_field_config.to_doc()}
+{ranges_field_config.stringify()}
 ```
 """
 
@@ -183,7 +183,7 @@ ranges_attach_field_config = Config(
 __pdoc__['ranges_attach_field_config'] = f"""Config of fields to be attached to `Ranges`.
 
 ```json
-{ranges_attach_field_config.to_doc()}
+{ranges_attach_field_config.stringify()}
 ```
 """
 

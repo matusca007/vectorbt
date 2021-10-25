@@ -1180,7 +1180,7 @@ from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.params import to_typed_list, broadcast_params, create_param_product, params_to_list
 from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.mapping import to_mapping, apply_mapping
-from vectorbt.utils.docs import to_doc
+from vectorbt.utils.docs import stringify
 from vectorbt.base import indexes, reshaping, combining
 from vectorbt.base.indexing import build_param_indexer
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -2518,7 +2518,7 @@ class IndicatorFactory:
                     ```"""
                 ).format(
                     attr_name=attr_name,
-                    dtype=to_doc(to_mapping(dtype))
+                    dtype=stringify(to_mapping(dtype))
                 )
                 setattr(Indicator, f'{attr_name}_readable', property(attr_readable))
 
@@ -2537,7 +2537,7 @@ class IndicatorFactory:
                     ```"""
                 ).format(
                     attr_name=attr_name,
-                    dtype=to_doc(to_mapping(dtype))
+                    dtype=stringify(to_mapping(dtype))
                 )
                 setattr(Indicator, f'{attr_name}_stats', attr_stats)
 

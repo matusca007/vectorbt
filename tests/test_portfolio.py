@@ -40,10 +40,10 @@ big_price_wide = big_price.vbt.tile(1000)
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.caching['enabled'] = False
+    vbt.settings.caching['whitelist_enabled'] = False
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.portfolio['attach_call_seq'] = True
-    vbt.settings.caching.enabled = False
-    vbt.settings.caching.directives = []
 
 
 def teardown_module():
