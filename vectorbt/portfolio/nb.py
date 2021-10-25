@@ -2680,6 +2680,20 @@ def simulate_nb(target_shape: tp.Shape,
     passed as arguments to the pre- and postprocessing function coming next in the call hierarchy.
     The postprocessing function can be used, for example, to write user-defined arrays such as returns.
 
+    ```plaintext
+    1. pre_sim_out = pre_sim_func_nb(SimulationContext, *pre_sim_args)
+        2. pre_group_out = pre_group_func_nb(GroupContext, *pre_sim_out, *pre_group_args)
+            3. if call_pre_segment or segment_mask: pre_segment_out = pre_segment_func_nb(SegmentContext, *pre_group_out, *pre_segment_args)
+                4. if segment_mask: order = order_func_nb(OrderContext, *pre_segment_out, *order_args)
+                5. if order: post_order_func_nb(PostOrderContext, *pre_segment_out, *post_order_args)
+                ...
+            6. if call_post_segment or segment_mask: post_segment_func_nb(SegmentContext, *pre_group_out, *post_segment_args)
+            ...
+        7. post_group_func_nb(GroupContext, *pre_sim_out, *post_group_args)
+        ...
+    8. post_sim_func_nb(SimulationContext, *post_sim_args)
+    ```
+
     Let's demonstrate a frame with one group of two columns and one group of one column, and the
     following call sequence:
 
@@ -2688,11 +2702,11 @@ def simulate_nb(target_shape: tp.Shape,
            [1, 0, 0]])
     ```
 
-    ![](/docs/img/simulate_nb.gif)
+    ![](/docs/img/simulate_nb.svg)
 
     And here is the context information available at each step:
 
-    ![](/docs/img/context_info.png)
+    ![](/docs/img/context_info.svg)
 
     ## Example
 
@@ -2870,7 +2884,7 @@ def simulate_nb(target_shape: tp.Shape,
     >>> Scatter(data=asset_value).fig.show()
     ```
 
-    ![](/docs/img/simulate_nb.svg)
+    ![](/docs/img/simulate_nb_example.svg)
 
     Note that the last order in a group with cash sharing is always disadvantaged
     as it has a bit less funds than the previous orders due to costs, which are not
@@ -3464,13 +3478,28 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
 
     ## Call hierarchy
 
+    ```plaintext
+    1. pre_sim_out = pre_sim_func_nb(SimulationContext, *pre_sim_args)
+        2. pre_row_out = pre_row_func_nb(RowContext, *pre_sim_out, *pre_row_args)
+            3. if call_pre_segment or segment_mask: pre_segment_out = pre_segment_func_nb(SegmentContext, *pre_row_out, *pre_segment_args)
+                4. if segment_mask: order = order_func_nb(OrderContext, *pre_segment_out, *order_args)
+                5. if order: post_order_func_nb(PostOrderContext, *pre_segment_out, *post_order_args)
+                ...
+            6. if call_post_segment or segment_mask: post_segment_func_nb(SegmentContext, *pre_row_out, *post_segment_args)
+            ...
+        7. post_row_func_nb(RowContext, *pre_sim_out, *post_row_args)
+        ...
+    8. post_sim_func_nb(SimulationContext, *post_sim_args)
+    ```
+
     Let's illustrate the same example as in `simulate_nb` but adapted for this function:
 
-    ![](/docs/img/simulate_row_wise_nb.gif)
+    ![](/docs/img/simulate_row_wise_nb.svg)
 
     ## Example
 
     Running the same example as in `simulate_nb` but adapted for this function:
+
     ```python-repl
     >>> @njit
     ... def pre_row_func_nb(c, order_value_out):
@@ -4125,6 +4154,27 @@ def flex_simulate_nb(target_shape: tp.Shape,
         Since one element can now accommodate multiple orders, you may run into "order_records index out of range"
         exception. In this case, you must increase `max_orders`. This cannot be done automatically and
         dynamically to avoid performance degradation.
+
+    ## Call hierarchy
+
+    ```plaintext
+    1. pre_sim_out = pre_sim_func_nb(SimulationContext, *pre_sim_args)
+        2. pre_group_out = pre_group_func_nb(GroupContext, *pre_sim_out, *pre_group_args)
+            3. if call_pre_segment or segment_mask: pre_segment_out = pre_segment_func_nb(SegmentContext, *pre_group_out, *pre_segment_args)
+                while col != -1:
+                    4. if segment_mask: col, order = flex_order_func_nb(FlexOrderContext, *pre_segment_out, *flex_order_args)
+                    5. if order: post_order_func_nb(PostOrderContext, *pre_segment_out, *post_order_args)
+                    ...
+            6. if call_post_segment or segment_mask: post_segment_func_nb(SegmentContext, *pre_group_out, *post_segment_args)
+            ...
+        7. post_group_func_nb(GroupContext, *pre_sim_out, *post_group_args)
+        ...
+    8. post_sim_func_nb(SimulationContext, *post_sim_args)
+    ```
+
+    Let's illustrate the same example as in `simulate_nb` but adapted for this function:
+
+    ![](/docs/img/flex_simulate_nb.svg)
 
     ## Example
 
@@ -4840,7 +4890,28 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               max_logs: tp.Optional[int] = 0,
                               flex_2d: bool = True) -> SimulationOutput:
     """Same as `flex_simulate_nb`, but iterates using row-major order, with the rows
-    changing fastest, and the columns/groups changing slowest."""
+    changing fastest, and the columns/groups changing slowest.
+
+    ## Call hierarchy
+
+    ```plaintext
+    1. pre_sim_out = pre_sim_func_nb(SimulationContext, *pre_sim_args)
+        2. pre_row_out = pre_row_func_nb(RowContext, *pre_sim_out, *pre_row_args)
+            3. if call_pre_segment or segment_mask: pre_segment_out = pre_segment_func_nb(SegmentContext, *pre_row_out, *pre_segment_args)
+                while col != -1:
+                    4. if segment_mask: col, order = flex_order_func_nb(FlexOrderContext, *pre_segment_out, *flex_order_args)
+                    5. if order: post_order_func_nb(PostOrderContext, *pre_segment_out, *post_order_args)
+                    ...
+            6. if call_post_segment or segment_mask: post_segment_func_nb(SegmentContext, *pre_row_out, *post_segment_args)
+            ...
+        7. post_row_func_nb(RowContext, *pre_sim_out, *post_row_args)
+        ...
+    8. post_sim_func_nb(SimulationContext, *post_sim_args)
+    ```
+
+    Let's illustrate the same example as in `simulate_nb` but adapted for this function:
+
+    ![](/docs/img/flex_simulate_row_wise_nb.svg)"""
 
     check_group_lens_nb(group_lens, target_shape[1])
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
