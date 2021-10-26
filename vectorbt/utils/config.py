@@ -5,16 +5,17 @@
 
 from copy import copy, deepcopy
 from collections import namedtuple
-import dill
 import inspect
-import pickle
 import humanize
+import warnings
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.docs import Documented, stringify
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.caching import Cacheable
+
+_dill_missing_msg = "Consider installing dill: https://github.com/uqfoundation/dill"
 
 
 class Default:
@@ -209,11 +210,25 @@ class Pickleable:
 
     def dumps(self, **kwargs) -> bytes:
         """Pickle to bytes."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
         return pickle.dumps(self, protocol=pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def loads(cls: tp.Type[PickleableT], dumps: bytes, **kwargs) -> PickleableT:
         """Unpickle from bytes."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
         return pickle.loads(dumps)
 
     def save(self, fname: tp.FileName, **kwargs) -> None:
@@ -247,17 +262,29 @@ class PickleableDict(Pickleable, dict):
 
     def dumps(self, **kwargs) -> bytes:
         """Pickle to bytes."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
         dct = dict()
         for k, v in self.items():
             if isinstance(v, Pickleable):
                 dct[k] = DumpTuple(cls=v.__class__, dumps=v.dumps(**kwargs))
             else:
                 dct[k] = v
-        return dill.dumps(dct, **kwargs)
+        return pickle.dumps(dct, **kwargs)
 
     @classmethod
     def loads(cls: tp.Type[PickleableDictT], dumps: bytes, **kwargs) -> PickleableDictT:
         """Unpickle from bytes."""
+        try:
+            import dill
+        except ImportError:
+            raise ImportError("Please install dill: https://github.com/uqfoundation/dill")
+
         config = dill.loads(dumps, **kwargs)
         for k, v in config.items():
             if isinstance(v, DumpTuple):
@@ -647,11 +674,18 @@ class Config(PickleableDict, Documented):
 
     def dumps(self, dump_reset_dct: bool = False, **kwargs) -> bytes:
         """Pickle to bytes."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
         if dump_reset_dct:
             reset_dct = PickleableDict(self.reset_dct_).dumps(**kwargs)
         else:
             reset_dct = None
-        return dill.dumps(dict(
+        return pickle.dumps(dict(
             dct=PickleableDict(self).dumps(**kwargs),
             copy_kwargs=self.copy_kwargs_,
             reset_dct=reset_dct,
@@ -666,7 +700,14 @@ class Config(PickleableDict, Documented):
     @classmethod
     def loads(cls: tp.Type[ConfigT], dumps: bytes, **kwargs) -> ConfigT:
         """Unpickle from bytes."""
-        obj = dill.loads(dumps, **kwargs)
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
+        obj = pickle.loads(dumps, **kwargs)
         if obj['reset_dct'] is not None:
             reset_dct = PickleableDict.loads(obj['reset_dct'], **kwargs)
         else:
@@ -833,15 +874,29 @@ class Configured(Cacheable, Pickleable, Documented):
 
     def dumps(self, **kwargs) -> bytes:
         """Pickle to bytes."""
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
         config_dumps = self.config.dumps(**kwargs)
         attr_dct = PickleableDict({attr: getattr(self, attr) for attr in self.get_writeable_attrs()})
         attr_dct_dumps = attr_dct.dumps(**kwargs)
-        return dill.dumps((config_dumps, attr_dct_dumps), **kwargs)
+        return pickle.dumps((config_dumps, attr_dct_dumps), **kwargs)
 
     @classmethod
     def loads(cls: tp.Type[ConfiguredT], dumps: bytes, **kwargs) -> ConfiguredT:
         """Unpickle from bytes."""
-        config_dumps, attr_dct_dumps = dill.loads(dumps, **kwargs)
+        try:
+            import dill as pickle
+        except ImportError:
+            import pickle
+
+            warnings.warn(_dill_missing_msg, stacklevel=2)
+
+        config_dumps, attr_dct_dumps = pickle.loads(dumps, **kwargs)
         config = Config.loads(config_dumps, **kwargs)
         attr_dct = PickleableDict.loads(attr_dct_dumps, **kwargs)
         new_instance = cls(**config)

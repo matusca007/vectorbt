@@ -29,7 +29,6 @@ setup(
         'ipywidgets>=7.0.0',
         'numba==0.53.1; python_version == "3.7"',
         'numba>=0.53.1; python_version != "3.7"',
-        'dill',
         'tqdm',
         'dateparser',
         'imageio',
@@ -55,7 +54,8 @@ setup(
             'kaleido',
             'Bottleneck',
             'numexpr',
-            'dask'
+            'dask',
+            'dill'
         ],
         'cov': [
             'pytest',
