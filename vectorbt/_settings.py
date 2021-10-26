@@ -136,7 +136,8 @@ caching = dict(
     ignore_args=[
         'nb_parallel',
         'chunked'
-    ]
+    ],
+    use_cached_accessors=True
 )
 """_"""
 
@@ -144,7 +145,10 @@ __pdoc__['caching'] = Sub("""Sub-config with settings applied across `vectorbt.c
 `vectorbt.utils.caching`, and cacheable decorators in `vectorbt.utils.decorators`.
 
 !!! hint
-    Apply option `register_lazily` on startup to register all unbound cacheables.
+    Apply setting `register_lazily` on startup to register all unbound cacheables.
+    
+    Setting `use_cached_accessors` is applied only once on startup. 
+    Changing it afterwards will have no effect.
 
 ```json
 ${config_doc}

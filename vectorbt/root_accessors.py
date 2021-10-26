@@ -57,12 +57,7 @@ AccessorT = tp.TypeVar("AccessorT", bound=object)
 
 
 class Accessor:
-    """Custom property-like object.
-
-    !!! note
-        In contrast to other pandas accessors, this accessor is not cached!
-
-        This prevents from using old data if the object has been changed in-place."""
+    """Accessor."""
 
     def __init__(self, name: str, accessor: tp.Type[AccessorT]) -> None:
         self._name = name
@@ -80,12 +75,38 @@ class Accessor:
         return accessor_obj
 
 
+class CachedAccessor:
+    """Cached accessor.
+
+    !!! warning
+        Does not prevent from using old index data if the object's index has been changed in-place."""
+
+    def __init__(self, name: str, accessor: tp.Type[AccessorT]) -> None:
+        self._name = name
+        self._accessor = accessor
+
+    def __get__(self, obj: ParentAccessorT, cls: DirNamesMixin) -> AccessorT:
+        if obj is None:
+            return self._accessor
+        if isinstance(obj, (pd.Series, pd.DataFrame)):
+            accessor_obj = self._accessor(obj)
+        elif isinstance(obj, Configured):
+            accessor_obj = obj.replace(cls_=self._accessor)
+        else:
+            accessor_obj = self._accessor(obj.obj)
+        object.__setattr__(obj, self._name, accessor_obj)
+        return accessor_obj
+
+
 def register_accessor(name: str, cls: tp.Type[DirNamesMixin]) -> tp.Callable:
     """Register a custom accessor.
 
     `cls` must subclass `pandas.core.accessor.DirNamesMixin`."""
 
     def decorator(accessor: tp.Type[AccessorT]) -> tp.Type[AccessorT]:
+        from vectorbt._settings import settings
+        caching_cfg = settings['caching']
+
         if hasattr(cls, name):
             warnings.warn(
                 f"registration of accessor {repr(accessor)} under name "
@@ -94,7 +115,10 @@ def register_accessor(name: str, cls: tp.Type[DirNamesMixin]) -> tp.Callable:
                 UserWarning,
                 stacklevel=2,
             )
-        setattr(cls, name, Accessor(name, accessor))
+        if caching_cfg['use_cached_accessors']:
+            setattr(cls, name, CachedAccessor(name, accessor))
+        else:
+            setattr(cls, name, Accessor(name, accessor))
         cls._accessors.add(name)
         return accessor
 

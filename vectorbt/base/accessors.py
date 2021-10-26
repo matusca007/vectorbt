@@ -64,6 +64,7 @@ under the hood, which is mostly much faster than with pandas.
 
     Grouping is only supported by the methods that accept the `group_by` argument."""
 
+import warnings
 import numpy as np
 import pandas as pd
 
@@ -202,12 +203,15 @@ class BaseAccessor(Wrapping):
 
     # ############# Indexes ############# #
 
-    def apply_on_index(self, apply_func: tp.Callable, *args, axis: tp.Optional[int] = None,
-                       inplace: bool = False, **kwargs) -> tp.Optional[tp.SeriesFrame]:
+    def apply_on_index(self,
+                       apply_func: tp.Callable, *args,
+                       axis: tp.Optional[int] = None,
+                       copy_data: bool = False,
+                       **kwargs) -> tp.Optional[tp.SeriesFrame]:
         """Apply function `apply_func` on index of the pandas object.
 
         Set `axis` to 1 for columns, 0 for index, and None to determine automatically.
-        If `inplace` is True, modifies the pandas object. Otherwise, returns a copy."""
+        Set `copy_data` to True to make a deep copy of the data."""
         if axis is None:
             axis = 0 if self.is_series() else 1
         if self.is_series() and axis == 1:
@@ -219,21 +223,14 @@ class BaseAccessor(Wrapping):
         else:
             obj_index = self.wrapper.index
         obj_index = apply_func(obj_index, *args, **kwargs)
-        if inplace:
-            if axis == 1:
-                self.obj.columns = obj_index
-            else:
-                self.obj.index = obj_index
-            return None
-        else:
-            obj = self.obj.copy()
-            if axis == 1:
-                obj.columns = obj_index
-            else:
-                obj.index = obj_index
-            return obj
+        obj = self.obj.values
+        if copy_data:
+            obj = obj.copy()
+        if axis == 1:
+            return self.wrapper.wrap(obj, group_by=False, columns=obj_index)
+        return self.wrapper.wrap(obj, group_by=False, index=obj_index)
 
-    def stack_index(self, index: tp.Index, axis: tp.Optional[int] = None, inplace: bool = False,
+    def stack_index(self, index: tp.Index, axis: tp.Optional[int] = None, copy_data: bool = False,
                     on_top: bool = True, **kwargs) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.stack_indexes`.
 
@@ -246,10 +243,10 @@ class BaseAccessor(Wrapping):
                 return indexes.stack_indexes([index, obj_index], **kwargs)
             return indexes.stack_indexes([obj_index, index], **kwargs)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def drop_levels(self, levels: tp.MaybeLevelSequence, axis: tp.Optional[int] = None,
-                    inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
+                    copy_data: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -257,10 +254,10 @@ class BaseAccessor(Wrapping):
         def apply_func(obj_index: tp.Index) -> tp.Index:
             return indexes.drop_levels(obj_index, levels, strict=strict)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def rename_levels(self, name_dict: tp.Dict[str, tp.Any], axis: tp.Optional[int] = None,
-                      inplace: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
+                      copy_data: bool = False, strict: bool = True) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.rename_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -268,10 +265,10 @@ class BaseAccessor(Wrapping):
         def apply_func(obj_index: tp.Index) -> tp.Index:
             return indexes.rename_levels(obj_index, name_dict, strict=strict)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def select_levels(self, level_names: tp.MaybeLevelSequence, axis: tp.Optional[int] = None,
-                      inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
+                      copy_data: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.select_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -279,10 +276,10 @@ class BaseAccessor(Wrapping):
         def apply_func(obj_index: tp.Index) -> tp.Index:
             return indexes.select_levels(obj_index, level_names)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def drop_redundant_levels(self, axis: tp.Optional[int] = None,
-                              inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
+                              copy_data: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_redundant_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -290,10 +287,10 @@ class BaseAccessor(Wrapping):
         def apply_func(obj_index: tp.Index) -> tp.Index:
             return indexes.drop_redundant_levels(obj_index)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def drop_duplicate_levels(self, keep: tp.Optional[str] = None, axis: tp.Optional[int] = None,
-                              inplace: bool = False) -> tp.Optional[tp.SeriesFrame]:
+                              copy_data: bool = False) -> tp.Optional[tp.SeriesFrame]:
         """See `vectorbt.base.indexes.drop_duplicate_levels`.
 
         See `BaseAccessor.apply_on_index` for other keyword arguments."""
@@ -301,7 +298,7 @@ class BaseAccessor(Wrapping):
         def apply_func(obj_index: tp.Index) -> tp.Index:
             return indexes.drop_duplicate_levels(obj_index, keep=keep)
 
-        return self.apply_on_index(apply_func, axis=axis, inplace=inplace)
+        return self.apply_on_index(apply_func, axis=axis, copy_data=copy_data)
 
     def sort_index(self, axis: tp.Optional[int] = None, **kwargs) -> tp.SeriesFrame:
         """Sort index/column by their values."""

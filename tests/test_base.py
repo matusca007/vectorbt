@@ -2756,26 +2756,12 @@ class TestAccessors:
                 columns=pd.Index(['a3_yo'], dtype='object', name='c3')
             )
         )
-        df1_copy = df1.copy()
-        df1_copy.vbt.apply_on_index(lambda idx: idx + '_yo', axis=0, inplace=True)
-        pd.testing.assert_frame_equal(
-            df1_copy,
-            pd.DataFrame(
-                np.asarray([1]),
-                index=pd.Index(['x3_yo'], dtype='object', name='i3'),
-                columns=pd.Index(['a3'], dtype='object', name='c3')
-            )
-        )
-        df1_copy2 = df1.copy()
-        df1_copy2.vbt.apply_on_index(lambda idx: idx + '_yo', axis=1, inplace=True)
-        pd.testing.assert_frame_equal(
-            df1_copy2,
-            pd.DataFrame(
-                np.asarray([1]),
-                index=pd.Index(['x3'], dtype='object', name='i3'),
-                columns=pd.Index(['a3_yo'], dtype='object', name='c3')
-            )
-        )
+        df1_copy = df1.vbt.apply_on_index(lambda idx: idx + '_yo', axis=0, copy_data=True)
+        df1_copy.iloc[0, 0] = -1
+        assert df1.iloc[0, 0] == 1
+        df1_copy2 = df1.vbt.apply_on_index(lambda idx: idx + '_yo', axis=1, copy_data=True)
+        df1_copy2.iloc[0, 0] = -1
+        assert df1.iloc[0, 0] == 1
 
     def test_stack_index(self):
         pd.testing.assert_frame_equal(
