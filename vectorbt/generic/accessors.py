@@ -415,7 +415,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         func = nb_registry.redecorate_parallel(nb.rolling_std_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), window, minp=minp, ddof=ddof)
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     def expanding_std(self,
                       minp: tp.Optional[int] = 1,
@@ -427,7 +427,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), minp=minp, ddof=ddof)
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     def ewm_mean(self,
                  span: int,
@@ -440,7 +440,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust)
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     def ewm_std(self,
                 span: int,
@@ -454,7 +454,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         func = nb_registry.redecorate_parallel(nb.ewm_std_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust, ddof=ddof)
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def map(cls_or_self,
@@ -512,7 +512,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
-        return wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def apply_along_axis(cls_or_self,
@@ -579,7 +579,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
-        return wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def rolling_apply(cls_or_self,
@@ -641,7 +641,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
-        return wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def expanding_apply(cls_or_self,
@@ -800,7 +800,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             resampled_arr,
             index=pd_group_by.asfreq().index,
             group_by=False,
-            **merge_dicts({}, wrap_kwargs)
+            **resolve_dict(wrap_kwargs)
         )
         resampled_obj.loc[out_obj.index] = out_obj.values
         return resampled_obj
@@ -1122,7 +1122,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_lens, squeeze_func_nb, *args)
 
-        return wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(out, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     def flatten_grouped(self,
                         order: str = 'C',
@@ -1769,14 +1769,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 value_counts,
                 index=uniques,
                 columns=self.wrapper.index,
-                **merge_dicts({}, wrap_kwargs)
+                **resolve_dict(wrap_kwargs)
             )
         elif axis == 1:
             value_counts_pd = self.wrapper.wrap(
                 value_counts,
                 index=uniques,
                 group_by=group_by,
-                **merge_dicts({}, wrap_kwargs)
+                **resolve_dict(wrap_kwargs)
             )
         else:
             wrapper = ArrayWrapper.from_obj(value_counts)
@@ -1832,7 +1832,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             result = transformer.fit_transform(self.to_2d_array(), **kwargs)
         else:
             result = transformer.transform(self.to_2d_array(), **kwargs)
-        return self.wrapper.wrap(result, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(result, group_by=False, **resolve_dict(wrap_kwargs))
 
     def zscore(self, **kwargs) -> tp.SeriesFrame:
         """Compute z-score using `sklearn.preprocessing.StandardScaler`."""
@@ -1845,7 +1845,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Will forward and backward fill NaN values."""
         result = nb.bfill_nb(nb.ffill_nb(self.to_2d_array()))
         result = result / result[0] * base
-        return self.wrapper.wrap(result, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(result, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Splitting ############# #
 
@@ -2132,7 +2132,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         out = func(self.to_2d_array())
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @property
     def ranges(self) -> Ranges:
@@ -2183,6 +2183,80 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def to_returns(self, **kwargs) -> tp.SeriesFrame:
         """Get returns of this object."""
         return self.obj.vbt.returns.from_value(self.obj, **kwargs).obj
+
+    def expanding_std(self,
+                      minp: tp.Optional[int] = 1,
+                      ddof: int = 1,
+                      nb_parallel: tp.Optional[bool] = None,
+                      chunked: tp.ChunkedOption = None,
+                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
+        """See `vectorbt.generic.nb.expanding_std_nb`."""
+        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
+        out = func(self.to_2d_array(), minp=minp, ddof=ddof)
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
+
+    # ############# Crossover ############# #
+
+    def crossed_above(self,
+                        other: tp.SeriesFrame,
+                        wait: int = 0,
+                        broadcast_kwargs: tp.KwargsLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
+                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Generate crossover above another array.
+
+        See `vectorbt.generic.nb.crossed_above_nb`.
+
+        ## Example
+
+        ```python-repl
+        >>> df['b'].vbt.crossed_above(df['c'])
+        2020-01-01    False
+        2020-01-02    False
+        2020-01-03    False
+        2020-01-04    False
+        2020-01-05    False
+        dtype: bool
+
+        >>> df['a'].vbt.crossed_above(df['b'])
+        2020-01-01    False
+        2020-01-02    False
+        2020-01-03    False
+        2020-01-04     True
+        2020-01-05    False
+        dtype: bool
+
+        >>> df['a'].vbt.crossed_above(df['b'], wait=1)
+        2020-01-01    False
+        2020-01-02    False
+        2020-01-03    False
+        2020-01-04    False
+        2020-01-05     True
+        dtype: bool
+        ```"""
+        self_obj, other_obj = reshaping.broadcast(self.obj, other, **resolve_dict(broadcast_kwargs))
+        func = nb_registry.redecorate_parallel(nb.crossed_above_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
+        out = func(reshaping.to_2d_array(self_obj), reshaping.to_2d_array(other_obj), wait=wait)
+        return ArrayWrapper.from_obj(self_obj).wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
+
+    def crossed_below(self,
+                        other: tp.SeriesFrame,
+                        wait: int = 0,
+                        broadcast_kwargs: tp.KwargsLike = None,
+                        nb_parallel: tp.Optional[bool] = None,
+                        chunked: tp.ChunkedOption = None,
+                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Generate crossover below another array.
+
+        See `vectorbt.generic.nb.crossed_above_nb` but in reversed order."""
+        self_obj, other_obj = reshaping.broadcast(self.obj, other, **resolve_dict(broadcast_kwargs))
+        func = nb_registry.redecorate_parallel(nb.crossed_above_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
+        out = func(reshaping.to_2d_array(other_obj), reshaping.to_2d_array(self_obj), wait=wait)
+        return ArrayWrapper.from_obj(self_obj).wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Resolution ############# #
 

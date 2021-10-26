@@ -2328,6 +2328,66 @@ class TestAccessors:
         with pytest.raises(Exception):
             df.vbt.expanding_split(n=10)
 
+    def test_crossed_above(self):
+        sr1 = pd.Series([np.nan, 3, 2, 1, 2, 3, 4])
+        sr2 = pd.Series([1, 2, 3, 4, 3, 2, 1])
+        pd.testing.assert_series_equal(
+            sr1.vbt.crossed_above(sr2),
+            pd.Series([False, False, False, False, False, True, False])
+        )
+        pd.testing.assert_series_equal(
+            sr1.vbt.crossed_above(sr2, wait=1),
+            pd.Series([False, False, False, False, False, False, True])
+        )
+        sr3 = pd.Series([1, 2, 3, np.nan, 5, 1, 5])
+        sr4 = pd.Series([3, 2, 1, 1, 1, 5, 1])
+        pd.testing.assert_series_equal(
+            sr3.vbt.crossed_above(sr4),
+            pd.Series([False, False, True, False, False, False, True])
+        )
+        pd.testing.assert_series_equal(
+            sr3.vbt.crossed_above(sr4, wait=1),
+            pd.Series([False, False, False, False, False, False, False])
+        )
+        pd.testing.assert_frame_equal(
+            df.vbt.crossed_above(df.iloc[:, ::-1], nb_parallel=True),
+            df.vbt.crossed_above(df.iloc[:, ::-1], nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            df.vbt.crossed_above(df.iloc[:, ::-1], chunked=True),
+            df.vbt.crossed_above(df.iloc[:, ::-1], chunked=False)
+        )
+
+    def test_crossed_below(self):
+        sr1 = pd.Series([np.nan, 3, 2, 1, 2, 3, 4])
+        sr2 = pd.Series([1, 2, 3, 4, 3, 2, 1])
+        pd.testing.assert_series_equal(
+            sr1.vbt.crossed_below(sr2),
+            pd.Series([False, False, True, False, False, False, False])
+        )
+        pd.testing.assert_series_equal(
+            sr1.vbt.crossed_below(sr2, wait=1),
+            pd.Series([False, False, False, True, False, False, False])
+        )
+        sr3 = pd.Series([1, 2, 3, np.nan, 5, 1, 5])
+        sr4 = pd.Series([3, 2, 1, 1, 1, 5, 1])
+        pd.testing.assert_series_equal(
+            sr3.vbt.crossed_above(sr4),
+            pd.Series([False, False, True, False, False, False, True])
+        )
+        pd.testing.assert_series_equal(
+            sr3.vbt.crossed_above(sr4, wait=1),
+            pd.Series([False, False, False, False, False, False, False])
+        )
+        pd.testing.assert_frame_equal(
+            df.vbt.crossed_below(df.iloc[:, ::-1], nb_parallel=True),
+            df.vbt.crossed_below(df.iloc[:, ::-1], nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            df.vbt.crossed_below(df.iloc[:, ::-1], chunked=True),
+            df.vbt.crossed_below(df.iloc[:, ::-1], chunked=False)
+        )
+
     def test_stats(self):
         stats_index = pd.Index([
             'Start', 'End', 'Period', 'Count', 'Mean', 'Std', 'Min', 'Median', 'Max', 'Min Index', 'Max Index'

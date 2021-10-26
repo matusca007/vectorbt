@@ -424,7 +424,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
-from vectorbt.utils.config import merge_dicts, Config, Configured
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, Configured
 from vectorbt.utils.array_ import index_repeating_rows_nb
 from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_dict
@@ -1363,14 +1363,14 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 value_counts,
                 index=mapped_uniques,
                 columns=self.wrapper.index,
-                **merge_dicts({}, wrap_kwargs)
+                **resolve_dict(wrap_kwargs)
             )
         elif axis == 1:
             value_counts_pd = self.wrapper.wrap(
                 value_counts,
                 index=mapped_uniques,
                 group_by=group_by,
-                **merge_dicts({}, wrap_kwargs)
+                **resolve_dict(wrap_kwargs)
             )
         else:
             wrapper = ArrayWrapper.from_obj(value_counts)
@@ -1410,7 +1410,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         col_arr = self.col_mapper.get_col_arr(group_by=group_by)
         target_shape = self.wrapper.get_shape_2d(group_by=group_by)
         out = nb.mapped_coverage_map_nb(col_arr, idx_arr, target_shape)
-        return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     # ############# Unstacking ############# #
 
@@ -1444,13 +1444,13 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                     self.values,
                     index=np.arange(len(self.values)),
                     group_by=group_by,
-                    **merge_dicts({}, wrap_kwargs)
+                    **resolve_dict(wrap_kwargs)
                 )
             col_map = self.col_mapper.get_col_map(group_by=group_by)
             out = nb.ignore_unstack_mapped_nb(self.values, col_map, fill_value)
             return self.wrapper.wrap(
                 out, index=np.arange(out.shape[0]),
-                group_by=group_by, **merge_dicts({}, wrap_kwargs))
+                group_by=group_by, **resolve_dict(wrap_kwargs))
         if idx_arr is None:
             if self.idx_arr is None:
                 raise ValueError("Must pass idx_arr")
@@ -1477,7 +1477,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 warnings.warn("Multiple values are pointing to the same position. "
                               "Only the latest value is used.", stacklevel=2)
             out = nb.unstack_mapped_nb(self.values, col_arr, idx_arr, target_shape, fill_value)
-            return self.wrapper.wrap(out, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+            return self.wrapper.wrap(out, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     # ############# Stats ############# #
 

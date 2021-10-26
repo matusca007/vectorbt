@@ -119,10 +119,9 @@ from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.decorators import cached_property
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
-from vectorbt.utils.template import Rep
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.enums import RangeStatus, range_dt
@@ -290,7 +289,7 @@ class Ranges(Records):
             col_map,
             len(self.wrapper.index)
         )
-        return self.wrapper.wrap(mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(mask, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     def get_duration(self,
                      nb_parallel: tp.Optional[bool] = None,

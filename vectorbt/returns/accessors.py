@@ -144,7 +144,7 @@ from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils import chunking as ch
@@ -329,7 +329,7 @@ class ReturnsAccessor(GenericAccessor):
         func = nb_registry.redecorate_parallel(nb.cum_returns_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         cumulative = func(self.to_2d_array(), start_value)
-        wrap_kwargs = merge_dicts({}, wrap_kwargs)
+        wrap_kwargs = resolve_dict(wrap_kwargs)
         return self.wrapper.wrap(cumulative, group_by=False, **wrap_kwargs)
 
     def total(self,
@@ -888,7 +888,7 @@ class ReturnsAccessor(GenericAccessor):
         rolling_annualized = to_2d_array(self.rolling_annualized(
             window, minp=minp, nb_parallel=nb_parallel, chunked=chunked))
         out = rolling_tail_ratio * (1 + rolling_annualized)
-        wrap_kwargs = merge_dicts({}, wrap_kwargs)
+        wrap_kwargs = resolve_dict(wrap_kwargs)
         return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     def value_at_risk(self,

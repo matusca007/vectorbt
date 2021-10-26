@@ -197,7 +197,7 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.template import RepEval
 from vectorbt.utils.random_ import set_seed_nb
@@ -303,7 +303,7 @@ class SignalsAccessor(GenericAccessor):
         if wrapper is None:
             wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
         if wrap_kwargs is None:
-            wrap_kwargs = merge_dicts({}, wrap_kwargs)
+            wrap_kwargs = resolve_dict(wrap_kwargs)
         return wrapper.wrap(result, **wrap_kwargs)
 
     @classmethod
@@ -426,7 +426,7 @@ class SignalsAccessor(GenericAccessor):
         if wrapper is None:
             wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
         if wrap_kwargs is None:
-            wrap_kwargs = merge_dicts({}, wrap_kwargs)
+            wrap_kwargs = resolve_dict(wrap_kwargs)
         return wrapper.wrap(result1, **wrap_kwargs), wrapper.wrap(result2, **wrap_kwargs)
 
     def generate_exits(self,
@@ -469,7 +469,7 @@ class SignalsAccessor(GenericAccessor):
             exit_place_func_nb,
             *args
         )
-        return self.wrapper.wrap(exits, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(exits, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Filtering ############# #
 
@@ -709,7 +709,7 @@ class SignalsAccessor(GenericAccessor):
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
             if wrap_kwargs is None:
-                wrap_kwargs = merge_dicts({}, wrap_kwargs)
+                wrap_kwargs = resolve_dict(wrap_kwargs)
             return wrapper.wrap(entries, **wrap_kwargs), wrapper.wrap(exits, **wrap_kwargs)
         elif entry_prob is not None and exit_prob is not None:
             entry_prob = np.broadcast_to(entry_prob, shape)
@@ -1651,17 +1651,17 @@ class SignalsAccessor(GenericAccessor):
     def first(self, wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.SeriesFrame:
         """Select signals that satisfy the condition `pos_rank == 0`."""
         pos_rank = self.pos_rank(**kwargs).values
-        return self.wrapper.wrap(pos_rank == 0, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(pos_rank == 0, group_by=False, **resolve_dict(wrap_kwargs))
 
     def nth(self, n: int, wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.SeriesFrame:
         """Select signals that satisfy the condition `pos_rank == n`."""
         pos_rank = self.pos_rank(**kwargs).values
-        return self.wrapper.wrap(pos_rank == n, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(pos_rank == n, group_by=False, **resolve_dict(wrap_kwargs))
 
     def from_nth(self, n: int, wrap_kwargs: tp.KwargsLike = None, **kwargs) -> tp.SeriesFrame:
         """Select signals that satisfy the condition `pos_rank >= n`."""
         pos_rank = self.pos_rank(**kwargs).values
-        return self.wrapper.wrap(pos_rank >= n, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(pos_rank >= n, group_by=False, **resolve_dict(wrap_kwargs))
 
     def pos_rank_mapped(self, group_by: tp.GroupByLike = None, **kwargs) -> MappedArray:
         """Get a mapped array of signal position ranks.

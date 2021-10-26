@@ -650,8 +650,8 @@ concatenates their total returns:
 ... def pipeline(price, fast_windows, slow_windows):
 ...     fast_ma = vbt.MA.run(price, fast_windows, short_name='fast')
 ...     slow_ma = vbt.MA.run(price, slow_windows, short_name='slow')
-...     entries = fast_ma.ma_above(slow_ma, crossover=True)
-...     exits = fast_ma.ma_below(slow_ma, crossover=True)
+...     entries = fast_ma.ma_crossed_above(slow_ma)
+...     exits = fast_ma.ma_crossed_below(slow_ma)
 ...     pf = vbt.Portfolio.from_signals(price, entries, exits)
 ...     return pf.total_return()
 
@@ -1558,7 +1558,7 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import cacheable_property, cached_property, cached_method, class_or_instancemethod
 from vectorbt.utils.enum_ import map_enum_fields
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.template import Rep, RepEval, RepFunc, deep_substitute
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.colors import adjust_opacity
@@ -4174,7 +4174,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Sequence of calls per row and group."""
         if self._call_seq is None:
             return None
-        return self.wrapper.wrap(self._call_seq, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(self._call_seq, group_by=False, **resolve_dict(wrap_kwargs))
 
     @property
     def fillna_close(self) -> bool:
@@ -4201,7 +4201,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         func = nb_registry.redecorate_parallel(nb.fbfill_close_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         filled_close = func(to_2d_array(self.close))
-        return self.wrapper.wrap(filled_close, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(filled_close, group_by=False, **resolve_dict(wrap_kwargs))
 
     @cacheable_property
     def filled_close(self) -> tp.SeriesFrame:
@@ -4340,7 +4340,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             orders.col_mapper.col_map,
             direction
         )
-        return wrapper.wrap(asset_flow, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(asset_flow, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def assets(cls_or_self,
@@ -4369,7 +4369,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             assets = np.where(assets > 0, assets, 0.)
         if direction == Direction.ShortOnly:
             assets = np.where(assets < 0, -assets, 0.)
-        return wrapper.wrap(assets, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(assets, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def position_mask(cls_or_self,
@@ -4395,7 +4395,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             position_mask = wrapper.wrap(position_mask, group_by=False).vbt(wrapper=wrapper).squeeze_grouped(
                 generic_nb.any_reduce_nb, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-        return wrapper.wrap(position_mask, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(position_mask, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def position_coverage(cls_or_self,
@@ -4458,7 +4458,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             cash_flow = func(cash_flow, group_lens)
-        return wrapper.wrap(cash_flow, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(cash_flow, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def get_init_cash(cls_or_self,
@@ -4575,7 +4575,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 cash = func(to_2d_array(cash_flow), to_1d_array(init_cash))
-        return wrapper.wrap(cash, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(cash, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     # ############# Performance ############# #
 
@@ -4615,7 +4615,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             asset_value = func(asset_value, group_lens)
-        return wrapper.wrap(asset_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(asset_value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def gross_exposure(cls_or_self,
@@ -4643,7 +4643,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         func = nb_registry.redecorate_parallel(nb.gross_exposure_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
-        return wrapper.wrap(gross_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(gross_exposure, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def net_exposure(cls_or_self,
@@ -4668,7 +4668,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = ArrayWrapper.from_obj(long_gross_exposure)
 
         net_exposure = to_2d_array(long_exposure) - to_2d_array(short_exposure)
-        return wrapper.wrap(net_exposure, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(net_exposure, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def value(cls_or_self,
@@ -4716,7 +4716,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             value = func(to_2d_array(cash), to_2d_array(asset_value), group_lens, to_2d_array(call_seq))
         else:
             value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
-        return wrapper.wrap(value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def total_profit(cls_or_self,
@@ -4850,7 +4850,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             returns = func(to_2d_array(value), to_1d_array(init_cash))
-        return wrapper.wrap(returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def asset_returns(cls_or_self,
@@ -4880,7 +4880,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         func = nb_registry.redecorate_parallel(nb.asset_returns_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         asset_returns = func(to_2d_array(cash_flow), to_2d_array(asset_value))
-        return wrapper.wrap(asset_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(asset_returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def market_value(cls_or_self,
@@ -4926,7 +4926,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             func = nb_registry.redecorate_parallel(nb.market_value_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             market_value = func(to_2d_array(close), to_1d_array(init_cash))
-        return wrapper.wrap(market_value, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(market_value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def market_returns(cls_or_self,
@@ -4951,7 +4951,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         func = nb_registry.redecorate_parallel(returns_nb.returns_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         market_returns = func(to_2d_array(market_value), to_1d_array(init_cash))
-        return wrapper.wrap(market_returns, group_by=group_by, **merge_dicts({}, wrap_kwargs))
+        return wrapper.wrap(market_returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     benchmark_rets = market_returns
 

@@ -172,10 +172,10 @@ from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.decorators import cached_property
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.figure import make_figure, get_domain
-from vectorbt.utils.template import Rep, RepEval
+from vectorbt.utils.template import RepEval
 from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic import nb
@@ -288,7 +288,7 @@ class Drawdowns(Ranges):
         func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         records_arr = func(to_2d_array(ts_pd))
-        wrapper = ArrayWrapper.from_obj(ts_pd, **merge_dicts({}, wrapper_kwargs))
+        wrapper = ArrayWrapper.from_obj(ts_pd, **resolve_dict(wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
 
     @property

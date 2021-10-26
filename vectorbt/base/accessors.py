@@ -71,7 +71,7 @@ from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
-from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.config import merge_dicts, resolve_dict
 from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
 from vectorbt.base import combining, reshaping, indexes
 from vectorbt.base.grouping import Grouper
@@ -488,7 +488,7 @@ class BaseAccessor(Wrapping):
             else:
                 obj = self.obj
         out = apply_func(obj, *args, **kwargs)
-        return self.wrapper.wrap(out, group_by=False, **merge_dicts({}, wrap_kwargs))
+        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def concat(cls_or_self,
@@ -735,7 +735,7 @@ class BaseAccessor(Wrapping):
                 inputs = objs
         if len(inputs) == 2:
             out = combine_func(inputs[0], inputs[1], *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts({}, wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(out, **resolve_dict(wrap_kwargs))
         if concat:
             # Concat the results horizontally
             if isinstance(cls_or_self, type):
@@ -751,7 +751,7 @@ class BaseAccessor(Wrapping):
         else:
             # Combine arguments pairwise into one object
             out = combining.combine_multiple(inputs, combine_func, *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts({}, wrap_kwargs))
+            return ArrayWrapper.from_obj(objs[0]).wrap(out, **resolve_dict(wrap_kwargs))
 
     @classmethod
     def eval(cls,
