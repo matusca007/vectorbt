@@ -23,6 +23,18 @@ try:
 except ImportError:
     from typing_extensions import Protocol
 
+if TYPE_CHECKING:
+    from vectorbt.utils.parsing import Regex
+    from vectorbt.utils.execution import ExecutionEngine
+    from vectorbt.utils.chunking import Sizer, ChunkTaker, ChunkMeta, ChunkMetaGenerator
+else:
+    Regex = 'Regex'
+    ExecutionEngine = 'ExecutionEngine'
+    Sizer = 'Sizer'
+    ChunkTaker = 'ChunkTaker'
+    ChunkMeta = 'ChunkMeta'
+    ChunkMetaGenerator = 'ChunkMetaGenerator'
+
 # Generic types
 T = TypeVar("T")
 F = TypeVar("F", bound=Callable[..., Any])
@@ -50,7 +62,7 @@ class SupportsArray(Protocol):
 
 DTypeLike = Any
 PandasDTypeLike = Any
-TypeLike = MaybeTuple[Union[Type, str, 'Regex']]
+TypeLike = MaybeTuple[Union[Type, str, Regex]]
 Shape = Tuple[int, ...]
 ShapeLike = Union[int, Shape]
 Array = np.ndarray  # ready to be used for n-dim data
@@ -161,21 +173,21 @@ MappingLike = Union[str, Mapping, Enum, IndexLike]
 # Parsing
 AnnArgs = Dict[str, Kwargs]
 FlatAnnArgs = List[Kwargs]
-AnnArgQuery = Union[int, str, 'Regex']
+AnnArgQuery = Union[int, str, Regex]
 
 # Execution
 FuncArgs = Tuple[Callable, Args, Kwargs]
 FuncsArgs = Iterable[FuncArgs]
-EngineLike = Union[str, type, 'ExecutionEngine', Callable]
+EngineLike = Union[str, type, ExecutionEngine, Callable]
 
 # Chunking
 SizeFunc = Callable[[AnnArgs], int]
-SizeLike = Union[int, 'Sizer', SizeFunc]
-ChunkMetaFunc = Callable[[AnnArgs], Iterable['ChunkMeta']]
-ChunkMetaLike = Union[Iterable['ChunkMeta'], 'ChunkMetaGenerator', ChunkMetaFunc]
-TakeSpec = Union[None, 'ChunkTaker']
+SizeLike = Union[int, Sizer, SizeFunc]
+ChunkMetaFunc = Callable[[AnnArgs], Iterable[ChunkMeta]]
+ChunkMetaLike = Union[Iterable[ChunkMeta], ChunkMetaGenerator, ChunkMetaFunc]
+TakeSpec = Union[None, ChunkTaker]
 ArgTakeSpec = Mapping[AnnArgQuery, TakeSpec]
-ArgTakeSpecFunc = Callable[[AnnArgs, 'ChunkMeta'], Tuple[Args, Kwargs]]
+ArgTakeSpecFunc = Callable[[AnnArgs, ChunkMeta], Tuple[Args, Kwargs]]
 ArgTakeSpecLike = Union[Sequence[TakeSpec], ArgTakeSpec, ArgTakeSpecFunc]
 MappingTakeSpec = Mapping[Hashable, TakeSpec]
 SequenceTakeSpec = Sequence[TakeSpec]
