@@ -294,7 +294,7 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
         ```python-repl
         >>> import vectorbt as vbt
 
-        >>> vbt.YFData.download("BTC-USD").get().vbt.ohlcv.plot()
+        >>> vbt.YFData.fetch("BTC-USD").get().vbt.ohlcv.plot()
         ```
 
         ![](/docs/img/ohlcv_plot.svg)

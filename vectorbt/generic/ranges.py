@@ -21,7 +21,7 @@ are 0 and 20 (not 19!) respectively.
 
 >>> start = '2019-01-01 UTC'  # crypto is in UTC
 >>> end = '2020-01-01 UTC'
->>> price = vbt.YFData.download('BTC-USD', start=start, end=end).get('Close')
+>>> price = vbt.YFData.fetch('BTC-USD', start=start, end=end).get('Close')
 >>> fast_ma = vbt.MA.run(price, 10)
 >>> slow_ma = vbt.MA.run(price, 50)
 >>> fast_below_slow = fast_ma.ma_above(slow_ma)

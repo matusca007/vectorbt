@@ -83,7 +83,7 @@ Here is how much profit we would have made if we invested $100 into Bitcoin in 2
 ```python
 import vectorbt as vbt
 
-price = vbt.YFData.download('BTC-USD').get('Close')
+price = vbt.YFData.fetch('BTC-USD').get('Close')
 
 pf = vbt.Portfolio.from_holding(price, init_cash=100)
 pf.total_profit()
@@ -115,7 +115,7 @@ Generate 1,000 random strategies and test them on BTC and ETH:
 import numpy as np
 
 symbols = ["BTC-USD", "ETH-USD"]
-price = vbt.YFData.download(symbols, missing_index='drop').get('Close')
+price = vbt.YFData.fetch(symbols, missing_index='drop').get('Close')
 
 n = np.random.randint(10, 101, size=1000).tolist()
 pf = vbt.Portfolio.from_random_signals(price, n=n, init_cash=100, seed=42)
@@ -132,7 +132,7 @@ dual SMA crossover strategy on BTC, USD, and LTC:
 
 ```python
 symbols = ["BTC-USD", "ETH-USD", "LTC-USD"]
-price = vbt.YFData.download(symbols, missing_index='drop').get('Close')
+price = vbt.YFData.fetch(symbols, missing_index='drop').get('Close')
 
 windows = np.arange(2, 101)
 fast_ma, slow_ma = vbt.MA.run_combs(price, window=windows, r=2, short_names=['fast', 'slow'])
@@ -201,7 +201,7 @@ Let's generate a GIF that animates the %B and bandwidth of Bollinger Bands for d
 
 ```python
 symbols = ["BTC-USD", "ETH-USD", "ADA-USD"]
-price = vbt.YFData.download(symbols, period='6mo', missing_index='drop').get('Close')
+price = vbt.YFData.fetch(symbols, period='6mo', missing_index='drop').get('Close')
 bbands = vbt.BBANDS.run(price)
 
 def plot(index, bbands):

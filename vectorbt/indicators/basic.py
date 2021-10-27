@@ -31,7 +31,7 @@ Run for the examples below:
 >>> start = '2019-03-01 UTC'  # crypto is in UTC
 >>> end = '2019-09-01 UTC'
 >>> cols = ['Open', 'High', 'Low', 'Close', 'Volume']
->>> ohlcv = vbt.YFData.download("BTC-USD", start=start, end=end).get(cols)
+>>> ohlcv = vbt.YFData.fetch("BTC-USD", start=start, end=end).get(cols)
 >>> ohlcv
                                    Open          High          Low  \\
 Date

@@ -19,7 +19,7 @@ Using `Drawdowns.from_ts`, you can generate drawdown records for any time series
 
 >>> start = '2019-10-01 UTC'  # crypto is in UTC
 >>> end = '2020-01-01 UTC'
->>> price = vbt.YFData.download('BTC-USD', start=start, end=end).get('Close')
+>>> price = vbt.YFData.fetch('BTC-USD', start=start, end=end).get('Close')
 >>> price = price.rename(None)
 
 >>> drawdowns = vbt.Drawdowns.from_ts(price, wrapper_kwargs=dict(freq='d'))

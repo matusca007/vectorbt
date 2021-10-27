@@ -40,14 +40,14 @@ class SyntheticData(Data):
         raise NotImplementedError
 
     @classmethod
-    def download_symbol(cls,
-                        symbol: tp.Label,
-                        start: tp.DatetimeLike = 0,
-                        end: tp.DatetimeLike = 'now',
-                        freq: tp.Union[None, str, pd.DateOffset] = None,
-                        date_range_kwargs: tp.KwargsLike = None,
-                        **kwargs) -> tp.SeriesFrame:
-        """Download the symbol.
+    def fetch_symbol(cls,
+                     symbol: tp.Label,
+                     start: tp.DatetimeLike = 0,
+                     end: tp.DatetimeLike = 'now',
+                     freq: tp.Union[None, str, pd.DateOffset] = None,
+                     date_range_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.SeriesFrame:
+        """Fetch the symbol.
 
         Generates datetime index and passes it to `SyntheticData.generate_symbol` to fill
         the Series/DataFrame with generated data."""
@@ -66,11 +66,11 @@ class SyntheticData(Data):
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         """Update the symbol.
 
-        `**kwargs` will override keyword arguments passed to `SyntheticData.download_symbol`."""
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start'] = self.data[symbol].index[-1]
-        kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, **kwargs)
+        `**kwargs` will override keyword arguments passed to `SyntheticData.fetch_symbol`."""
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 def generate_gbm_paths(S0: float, mu: float, sigma: float, T: int, M: int, I: int,
@@ -100,7 +100,7 @@ class GBMData(SyntheticData):
     ```python-repl
     >>> import vectorbt as vbt
 
-    >>> gbm_data = vbt.GBMData.download('GBM', start='2 hours ago', end='now', freq='1min', seed=42)
+    >>> gbm_data = vbt.GBMData.fetch('GBM', start='2 hours ago', end='now', freq='1min', seed=42)
     >>> gbm_data.get()
     2021-05-02 14:14:15.182089+00:00    102.386605
     2021-05-02 14:15:15.182089+00:00    101.554203
@@ -163,15 +163,15 @@ class GBMData(SyntheticData):
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         """Update the symbol.
 
-        `**kwargs` will override keyword arguments passed to `GBMData.download_symbol`."""
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start'] = self.data[symbol].index[-1]
-        _ = download_kwargs.pop('S0', None)
+        `**kwargs` will override keyword arguments passed to `GBMData.fetch_symbol`."""
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        _ = fetch_kwargs.pop('S0', None)
         S0 = self.data[symbol].iloc[-2]
-        _ = download_kwargs.pop('T', None)
-        download_kwargs['seed'] = None
-        kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, S0=S0, **kwargs)
+        _ = fetch_kwargs.pop('T', None)
+        fetch_kwargs['seed'] = None
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, S0=S0, **kwargs)
 
 
 class YFData(Data):
@@ -191,7 +191,7 @@ class YFData(Data):
     ```python-repl
     >>> import vectorbt as vbt
 
-    >>> yf_data = vbt.YFData.download(
+    >>> yf_data = vbt.YFData.fetch(
     ...     "TSLA",
     ...     start='2021-04-12 09:30:00 -0400',
     ...     end='2021-04-12 09:35:00 -0400',
@@ -245,13 +245,13 @@ class YFData(Data):
     """
 
     @classmethod
-    def download_symbol(cls,
-                        symbol: tp.Label,
-                        period: str = 'max',
-                        start: tp.Optional[tp.DatetimeLike] = None,
-                        end: tp.Optional[tp.DatetimeLike] = None,
-                        **kwargs) -> tp.Frame:
-        """Download the symbol.
+    def fetch_symbol(cls,
+                     symbol: tp.Label,
+                     period: str = 'max',
+                     start: tp.Optional[tp.DatetimeLike] = None,
+                     end: tp.Optional[tp.DatetimeLike] = None,
+                     **kwargs) -> tp.Frame:
+        """Fetch the symbol.
 
         Args:
             symbol (str): Symbol.
@@ -279,11 +279,11 @@ class YFData(Data):
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.Frame:
         """Update the symbol.
 
-        `**kwargs` will override keyword arguments passed to `YFData.download_symbol`."""
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start'] = self.data[symbol].index[-1]
-        kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, **kwargs)
+        `**kwargs` will override keyword arguments passed to `YFData.fetch_symbol`."""
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 BinanceDataT = tp.TypeVar("BinanceDataT", bound="BinanceData")
@@ -299,7 +299,7 @@ class BinanceData(Data):
     ```python-repl
     >>> import vectorbt as vbt
 
-    >>> binance_data = vbt.BinanceData.download(
+    >>> binance_data = vbt.BinanceData.fetch(
     ...     "BTCUSDT",
     ...     start='2 hours ago UTC',
     ...     end='now UTC',
@@ -398,11 +398,11 @@ class BinanceData(Data):
     ```"""
 
     @classmethod
-    def download(cls: tp.Type[BinanceDataT],
-                 symbols: tp.Labels,
-                 client: tp.Optional["ClientT"] = None,
-                 **kwargs) -> BinanceDataT:
-        """Override `vectorbt.data.base.Data.download` to instantiate a Binance client."""
+    def fetch(cls: tp.Type[BinanceDataT],
+              symbols: tp.Labels,
+              client: tp.Optional["ClientT"] = None,
+              **kwargs) -> BinanceDataT:
+        """Override `vectorbt.data.base.Data.fetch` to instantiate a Binance client."""
         from vectorbt.opt_packages import assert_can_import
         assert_can_import('binance')
         from binance.client import Client
@@ -417,20 +417,20 @@ class BinanceData(Data):
         client_kwargs = merge_dicts(binance_cfg, client_kwargs)
         if client is None:
             client = Client(**client_kwargs)
-        return super(BinanceData, cls).download(symbols, client=client, **kwargs)
+        return super(BinanceData, cls).fetch(symbols, client=client, **kwargs)
 
     @classmethod
-    def download_symbol(cls,
-                        symbol: str,
-                        client: tp.Optional["ClientT"] = None,
-                        interval: str = '1d',
-                        start: tp.DatetimeLike = 0,
-                        end: tp.DatetimeLike = 'now UTC',
-                        delay: tp.Optional[float] = 500,
-                        limit: int = 500,
-                        show_progress: bool = True,
-                        tqdm_kwargs: tp.KwargsLike = None) -> tp.Frame:
-        """Download the symbol.
+    def fetch_symbol(cls,
+                     symbol: str,
+                     client: tp.Optional["ClientT"] = None,
+                     interval: str = '1d',
+                     start: tp.DatetimeLike = 0,
+                     end: tp.DatetimeLike = 'now UTC',
+                     delay: tp.Optional[float] = 500,
+                     limit: int = 500,
+                     show_progress: bool = True,
+                     tqdm_kwargs: tp.KwargsLike = None) -> tp.Frame:
+        """Fetch the symbol.
 
         Args:
             symbol (str): Symbol.
@@ -540,12 +540,12 @@ class BinanceData(Data):
     def update_symbol(self, symbol: str, **kwargs) -> tp.Frame:
         """Update the symbol.
 
-        `**kwargs` will override keyword arguments passed to `BinanceData.download_symbol`."""
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start'] = self.data[symbol].index[-1]
-        download_kwargs['show_progress'] = False
-        kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, **kwargs)
+        `**kwargs` will override keyword arguments passed to `BinanceData.fetch_symbol`."""
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['show_progress'] = False
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 class CCXTData(Data):
@@ -558,7 +558,7 @@ class CCXTData(Data):
     ```python-repl
     >>> import vectorbt as vbt
 
-    >>> ccxt_data = vbt.CCXTData.download(
+    >>> ccxt_data = vbt.CCXTData.fetch(
     ...     "BTC/USDT",
     ...     start='2 hours ago UTC',
     ...     end='now UTC',
@@ -597,20 +597,20 @@ class CCXTData(Data):
     ```"""
 
     @classmethod
-    def download_symbol(cls,
-                        symbol: str,
-                        exchange: tp.Union[str, "ExchangeT"] = 'binance',
-                        config: tp.Optional[dict] = None,
-                        timeframe: str = '1d',
-                        start: tp.DatetimeLike = 0,
-                        end: tp.DatetimeLike = 'now UTC',
-                        delay: tp.Optional[float] = None,
-                        limit: tp.Optional[int] = 500,
-                        retries: int = 3,
-                        show_progress: bool = True,
-                        params: tp.Optional[dict] = None,
-                        tqdm_kwargs: tp.KwargsLike = None) -> tp.Frame:
-        """Download the symbol.
+    def fetch_symbol(cls,
+                     symbol: str,
+                     exchange: tp.Union[str, "ExchangeT"] = 'binance',
+                     config: tp.Optional[dict] = None,
+                     timeframe: str = '1d',
+                     start: tp.DatetimeLike = 0,
+                     end: tp.DatetimeLike = 'now UTC',
+                     delay: tp.Optional[float] = None,
+                     limit: tp.Optional[int] = 500,
+                     retries: int = 3,
+                     show_progress: bool = True,
+                     params: tp.Optional[dict] = None,
+                     tqdm_kwargs: tp.KwargsLike = None) -> tp.Frame:
+        """Fetch the symbol.
 
         Args:
             symbol (str): Symbol.
@@ -759,9 +759,9 @@ class CCXTData(Data):
     def update_symbol(self, symbol: str, **kwargs) -> tp.Frame:
         """Update the symbol.
 
-        `**kwargs` will override keyword arguments passed to `CCXTData.download_symbol`."""
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start'] = self.data[symbol].index[-1]
-        download_kwargs['show_progress'] = False
-        kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, **kwargs)
+        `**kwargs` will override keyword arguments passed to `CCXTData.fetch_symbol`."""
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['show_progress'] = False
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)

@@ -9,7 +9,7 @@ all pandas objects have the same index and columns by aligning them.
 
 ## Downloading
 
-Data can be downloaded by overriding the `Data.download_symbol` class method. What `Data` does
+Data can be downloaded by overriding the `Data.fetch_symbol` class method. What `Data` does
 under the hood is iterating over all symbols and calling this method.
 
 Let's create a simple data class `RandomData` that generates price based on
@@ -22,14 +22,14 @@ random returns with provided mean and standard deviation:
 
 >>> class RandomData(vbt.Data):
 ...     @classmethod
-...     def download_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
-...                         start_dt='2021-01-01', end_dt='2021-01-10'):
+...     def fetch_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
+...                      start_dt='2021-01-01', end_dt='2021-01-10'):
 ...         index = pd.date_range(start_dt, end_dt)
 ...         rand_returns = np.random.normal(mean, stdev, size=len(index))
 ...         rand_price = start_value + np.cumprod(rand_returns + 1)
 ...         return pd.Series(rand_price, index=index)
 
->>> rand_data = RandomData.download(['RANDNX1', 'RANDNX2'])
+>>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'])
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  101.042956  100.920462
@@ -48,7 +48,7 @@ To provide different keyword arguments for different symbols, we can use `symbol
 
 ```python-repl
 >>> start_value = vbt.symbol_dict({'RANDNX2': 200})
->>> rand_data = RandomData.download(['RANDNX1', 'RANDNX2'], start_value=start_value)
+>>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'], start_value=start_value)
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  101.083324  200.886078
@@ -69,7 +69,7 @@ In case two symbols have different index or columns, they are automatically alig
 ```python-repl
 >>> start_dt = vbt.symbol_dict({'RANDNX2': '2021-01-03'})
 >>> end_dt = vbt.symbol_dict({'RANDNX2': '2021-01-07'})
->>> rand_data = RandomData.download(
+>>> rand_data = RandomData.fetch(
 ...     ['RANDNX1', 'RANDNX2'], start_value=start_value,
 ...     start_dt=start_dt, end_dt=end_dt)
 >>> rand_data.get()
@@ -89,9 +89,9 @@ symbol         RANDNX1     RANDNX2
 ## Updating
 
 Updating can be implemented by overriding the `Data.update_symbol` instance method, which takes
-the same arguments as `Data.download_symbol`. In contrast to the download method, the update
+the same arguments as `Data.fetch_symbol`. In contrast to the fetch method, the update
 method is an instance method and can access the data downloaded earlier. It can also access the
-keyword arguments initially passed to the download method, accessible under `Data.download_kwargs`.
+keyword arguments initially passed to the fetch method, accessible under `Data.download_kwargs`.
 Those arguments can be used as default arguments and overriden by arguments passed directly
 to the update method, using `vectorbt.utils.config.merge_dicts`.
 
@@ -104,7 +104,7 @@ Note that updating data always returns a new `Data` instance.
 
 >>> class RandomData(vbt.Data):
 ...     @classmethod
-...     def download_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
+...     def fetch_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
 ...                         start_dt='2021-01-01', end_dt='2021-01-10'):
 ...         index = pd.date_range(start_dt, end_dt)
 ...         rand_returns = np.random.normal(mean, stdev, size=len(index))
@@ -116,9 +116,9 @@ Note that updating data always returns a new `Data` instance.
 ...         download_kwargs['start_dt'] = self.data[symbol].index[-1]
 ...         download_kwargs['end_dt'] = download_kwargs['start_dt'] + timedelta(days=2)
 ...         kwargs = merge_dicts(download_kwargs, kwargs)
-...         return self.download_symbol(symbol, **kwargs)
+...         return self.fetch_symbol(symbol, **kwargs)
 
->>> rand_data = RandomData.download(['RANDNX1', 'RANDNX2'], end_dt='2021-01-05')
+>>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'], end_dt='2021-01-05')
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  100.956601  100.970865
@@ -155,12 +155,12 @@ symbol         RANDNX1     RANDNX2
 ## Merging
 
 You can merge symbols from different `Data` instances either by subclassing `Data` and
-defining custom download and update methods, or by manually merging their data dicts
+defining custom fetch and update methods, or by manually merging their data dicts
 into one data dict and passing it to the `Data.from_data` class method.
 
 ```python-repl
->>> rand_data1 = RandomData.download('RANDNX1', mean=0.2)
->>> rand_data2 = RandomData.download('RANDNX2', start_value=200, start_dt='2021-01-05')
+>>> rand_data1 = RandomData.fetch('RANDNX1', mean=0.2)
+>>> rand_data2 = RandomData.fetch('RANDNX2', start_value=200, start_dt='2021-01-05')
 >>> merged_data = vbt.Data.from_data(vbt.merge_dicts(rand_data1.data, rand_data2.data))
 >>> merged_data.get()
 symbol         RANDNX1     RANDNX2
@@ -219,7 +219,7 @@ symbol         RANDNX1     RANDNX2
     See `vectorbt.generic.stats_builder.StatsBuilderMixin.stats` and `Data.metrics`.
 
 ```python-repl
->>> rand_data = RandomData.download(['RANDNX1', 'RANDNX2'])
+>>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'])
 
 >>> rand_data.stats(column='a')
 Start                   2021-01-01 00:00:00+00:00
@@ -353,27 +353,27 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     @property
     def tz_localize(self) -> tp.Optional[tp.TimezoneLike]:
-        """`tz_localize` initially passed to `Data.download_symbol`."""
+        """`tz_localize` initially passed to `Data.fetch_symbol`."""
         return self._tz_localize
 
     @property
     def tz_convert(self) -> tp.Optional[tp.TimezoneLike]:
-        """`tz_convert` initially passed to `Data.download_symbol`."""
+        """`tz_convert` initially passed to `Data.fetch_symbol`."""
         return self._tz_convert
 
     @property
     def missing_index(self) -> str:
-        """`missing_index` initially passed to `Data.download_symbol`."""
+        """`missing_index` initially passed to `Data.fetch_symbol`."""
         return self._missing_index
 
     @property
     def missing_columns(self) -> str:
-        """`missing_columns` initially passed to `Data.download_symbol`."""
+        """`missing_columns` initially passed to `Data.fetch_symbol`."""
         return self._missing_columns
 
     @property
     def download_kwargs(self) -> dict:
-        """Keyword arguments initially passed to `Data.download_symbol`."""
+        """Keyword arguments initially passed to `Data.fetch_symbol`."""
         return self._download_kwargs
 
     @classmethod
@@ -549,20 +549,20 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         )
 
     @classmethod
-    def download_symbol(cls, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
-        """Abstract method to download a symbol."""
+    def fetch_symbol(cls, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+        """Abstract method to fetch a symbol."""
         raise NotImplementedError
 
     @classmethod
-    def download(cls: tp.Type[DataT],
-                 symbols: tp.Union[tp.Label, tp.Labels],
-                 tz_localize: tp.Optional[tp.TimezoneLike] = None,
-                 tz_convert: tp.Optional[tp.TimezoneLike] = None,
-                 missing_index: tp.Optional[str] = None,
-                 missing_columns: tp.Optional[str] = None,
-                 wrapper_kwargs: tp.KwargsLike = None,
-                 **kwargs) -> DataT:
-        """Download data using `Data.download_symbol`.
+    def fetch(cls: tp.Type[DataT],
+              symbols: tp.Union[tp.Label, tp.Labels],
+              tz_localize: tp.Optional[tp.TimezoneLike] = None,
+              tz_convert: tp.Optional[tp.TimezoneLike] = None,
+              missing_index: tp.Optional[str] = None,
+              missing_columns: tp.Optional[str] = None,
+              wrapper_kwargs: tp.KwargsLike = None,
+              **kwargs) -> DataT:
+        """Fetch data using `Data.fetch_symbol`.
 
         Args:
             symbols (hashable or sequence of hashable): One or multiple symbols.
@@ -574,7 +574,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index (str): See `Data.from_data`.
             missing_columns (str): See `Data.from_data`.
             wrapper_kwargs (dict): See `Data.from_data`.
-            **kwargs: Passed to `Data.download_symbol`.
+            **kwargs: Passed to `Data.fetch_symbol`.
 
                 If two symbols require different keyword arguments, pass `symbol_dict` for each argument.
         """
@@ -588,8 +588,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             # Select keyword arguments for this symbol
             _kwargs = cls.select_symbol_kwargs(s, kwargs)
 
-            # Download data for this symbol
-            data[s] = cls.download_symbol(s, **_kwargs)
+            # Fetch data for this symbol
+            data[s] = cls.fetch_symbol(s, **_kwargs)
 
         # Create new instance from data
         return cls.from_data(
@@ -621,7 +621,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             # Select keyword arguments for this symbol
             _kwargs = self.select_symbol_kwargs(k, kwargs)
 
-            # Download new data for this symbol
+            # Fetch new data for this symbol
             new_obj = self.update_symbol(k, **_kwargs)
 
             # Convert array to pandas
@@ -811,7 +811,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
         >>> start = '2021-01-01 UTC'  # crypto is in UTC
         >>> end = '2021-06-01 UTC'
-        >>> data = vbt.YFData.download(['BTC-USD', 'ETH-USD', 'ADA-USD'], start=start, end=end)
+        >>> data = vbt.YFData.fetch(['BTC-USD', 'ETH-USD', 'ADA-USD'], start=start, end=end)
 
         >>> data.plot(column='Close', base=1)
         ```

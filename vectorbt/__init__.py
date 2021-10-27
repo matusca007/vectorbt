@@ -281,7 +281,7 @@ Let's start with fetching the daily price of Bitcoin:
 >>> # Prepare data
 >>> start = '2019-01-01 UTC'  # crypto is in UTC
 >>> end = '2020-01-01 UTC'
->>> btc_price = vbt.YFData.download('BTC-USD', start=start, end=end).get('Close')
+>>> btc_price = vbt.YFData.fetch('BTC-USD', start=start, end=end).get('Close')
 
 >>> btc_price
 Date
@@ -395,7 +395,7 @@ combine price series for Bitcoin and Ethereum into one DataFrame and run the sam
 
 ```python-repl
 >>> # Multiple strategy instances and instruments
->>> eth_price = vbt.YFData.download('ETH-USD', start=start, end=end).get('Close')
+>>> eth_price = vbt.YFData.fetch('ETH-USD', start=start, end=end).get('Close')
 >>> comb_price = btc_price.vbt.concat(eth_price, keys=pd.Index(['BTC', 'ETH'], name='symbol'))
 >>> comb_price.vbt.drop_levels(-1, inplace=True)
 >>> comb_price

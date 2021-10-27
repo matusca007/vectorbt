@@ -206,7 +206,7 @@ cryptocurrencies in 2020 against every single pattern found in TA-Lib, and trans
 >>> start = '2020-01-01 UTC'  # crypto is UTC
 >>> end = '2020-09-01 UTC'
 >>> # OHLCV by column
->>> ohlcv = vbt.YFData.download(symbols, start=start, end=end).concat()
+>>> ohlcv = vbt.YFData.fetch(symbols, start=start, end=end).concat()
 >>> ohlcv['Open']
 
 symbol                          BTC-USD     ETH-USD   XRP-USD    BNB-USD  \\
@@ -655,7 +655,7 @@ concatenates their total returns:
 ...     pf = vbt.Portfolio.from_signals(price, entries, exits)
 ...     return pf.total_return()
 
->>> price = vbt.YFData.download(['BTC-USD', 'ETH-USD']).get('Close')
+>>> price = vbt.YFData.fetch(['BTC-USD', 'ETH-USD']).get('Close')
 >>> pipeline(price, [10, 10, 10], [20, 30, 50])
 fast_window  slow_window  symbol
 10           20           BTC-USD      157.110025
@@ -758,7 +758,7 @@ Name: sharpe_ratio, dtype: float64
 Let's simulate a portfolio with two columns:
 
 ```python-repl
->>> close = vbt.YFData.download(
+>>> close = vbt.YFData.fetch(
 ...     "BTC-USD",
 ...     start='2020-01-01 UTC',
 ...     end='2020-09-01 UTC'

@@ -26,7 +26,7 @@ def teardown_module():
 
 class MyData(vbt.Data):
     @classmethod
-    def download_symbol(cls, symbol, shape=(5, 3), start_date=datetime(2020, 1, 1), columns=None, index_mask=None,
+    def fetch_symbol(cls, symbol, shape=(5, 3), start_date=datetime(2020, 1, 1), columns=None, index_mask=None,
                         column_mask=None, return_arr=False, tz_localize=None, seed=seed):
         np.random.seed(seed)
         a = np.random.uniform(size=shape) + symbol
@@ -56,19 +56,19 @@ class MyData(vbt.Data):
         new_shape = (n, shape[1]) if len(shape) > 1 else (n,)
         new_seed = download_kwargs.pop('seed', seed) + 1
         kwargs = merge_dicts(download_kwargs, kwargs)
-        return self.download_symbol(symbol, shape=new_shape, seed=new_seed, **kwargs)
+        return self.fetch_symbol(symbol, shape=new_shape, seed=new_seed, **kwargs)
 
 
 class TestData:
     def test_config(self, tmp_path):
-        data = MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])
+        data = MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])
         assert MyData.loads(data.dumps()) == data
         data.save(tmp_path / 'data')
         assert MyData.load(tmp_path / 'data') == data
 
     def test_download(self):
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), return_arr=True).data[0],
+            MyData.fetch(0, shape=(5,), return_arr=True).data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -80,7 +80,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3), return_arr=True).data[0],
+            MyData.fetch(0, shape=(5, 3), return_arr=True).data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -103,7 +103,7 @@ class TestData:
             tz=timezone.utc
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,)).data[0],
+            MyData.fetch(0, shape=(5,)).data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -116,7 +116,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), columns='feat0').data[0],
+            MyData.fetch(0, shape=(5,), columns='feat0').data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -130,7 +130,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3)).data[0],
+            MyData.fetch(0, shape=(5, 3)).data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -143,7 +143,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).data[0],
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -156,7 +156,7 @@ class TestData:
                 columns=pd.Index(['feat0', 'feat1', 'feat2'], dtype='object'))
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,)).data[0],
+            MyData.fetch([0, 1], shape=(5,)).data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -169,7 +169,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,)).data[1],
+            MyData.fetch([0, 1], shape=(5,)).data[1],
             pd.Series(
                 [
                     1.3745401188473625,
@@ -182,7 +182,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3)).data[0],
+            MyData.fetch([0, 1], shape=(5, 3)).data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -195,7 +195,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3)).data[1],
+            MyData.fetch([0, 1], shape=(5, 3)).data[1],
             pd.DataFrame(
                 [
                     [1.3745401188473625, 1.9507143064099162, 1.7319939418114051],
@@ -219,7 +219,7 @@ class TestData:
             tz=timezone(timedelta(hours=2))
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), tz_localize='UTC', tz_convert='Europe/Berlin').data[0],
+            MyData.fetch(0, shape=(5,), tz_localize='UTC', tz_convert='Europe/Berlin').data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -236,7 +236,7 @@ class TestData:
             1: [True, True, True, True, False]
         })
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan').data[0],
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan').data[0],
             pd.Series(
                 [
                     np.nan,
@@ -249,7 +249,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan').data[1],
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan').data[1],
             pd.Series(
                 [
                     1.3745401188473625,
@@ -262,7 +262,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[0],
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[0],
             pd.Series(
                 [
                     0.9507143064099162,
@@ -273,7 +273,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[1],
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[1],
             pd.Series(
                 [
                     1.9507143064099162,
@@ -288,7 +288,7 @@ class TestData:
             1: [True, True, False]
         })
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan').data[0],
             pd.DataFrame(
                 [
@@ -302,7 +302,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan').data[1],
             pd.DataFrame(
                 [
@@ -316,7 +316,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop').data[0],
             pd.DataFrame(
                 [
@@ -329,7 +329,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop').data[1],
             pd.DataFrame(
                 [
@@ -342,21 +342,21 @@ class TestData:
             )
         )
         with pytest.raises(Exception):
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='raise', missing_columns='nan')
         with pytest.raises(Exception):
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='raise')
         with pytest.raises(Exception):
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='test', missing_columns='nan')
         with pytest.raises(Exception):
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='test')
 
     def test_update(self):
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), return_arr=True).update().data[0],
+            MyData.fetch(0, shape=(5,), return_arr=True).update().data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -368,7 +368,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), return_arr=True).update(n=2).data[0],
+            MyData.fetch(0, shape=(5,), return_arr=True).update(n=2).data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -381,7 +381,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3), return_arr=True).update().data[0],
+            MyData.fetch(0, shape=(5, 3), return_arr=True).update().data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -393,7 +393,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3), return_arr=True).update(n=2).data[0],
+            MyData.fetch(0, shape=(5, 3), return_arr=True).update(n=2).data[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -417,7 +417,7 @@ class TestData:
             tz=timezone.utc
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,)).update().data[0],
+            MyData.fetch(0, shape=(5,)).update().data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -442,7 +442,7 @@ class TestData:
             tz=timezone.utc
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,)).update(n=2).data[0],
+            MyData.fetch(0, shape=(5,)).update(n=2).data[0],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -467,7 +467,7 @@ class TestData:
             tz=timezone(timedelta(hours=2))
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), tz_localize='UTC', tz_convert='Europe/Berlin')
+            MyData.fetch(0, shape=(5,), tz_localize='UTC', tz_convert='Europe/Berlin')
                 .update(tz_localize=None).data[0],
             pd.Series(
                 [
@@ -489,7 +489,7 @@ class TestData:
             1: [False]
         })
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
                 .update(index_mask=update_index_mask).data[0],
             pd.Series(
                 [
@@ -503,7 +503,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
                 .update(index_mask=update_index_mask).data[1],
             pd.Series(
                 [
@@ -521,7 +521,7 @@ class TestData:
             1: [False, True]
         })
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
                 .update(n=2, index_mask=update_index_mask2).data[0],
             pd.Series(
                 [
@@ -536,7 +536,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
                 .update(n=2, index_mask=update_index_mask2).data[1],
             pd.Series(
                 [
@@ -551,7 +551,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
                 .update(index_mask=update_index_mask).data[0],
             pd.Series(
                 [
@@ -563,7 +563,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
                 .update(index_mask=update_index_mask).data[1],
             pd.Series(
                 [
@@ -575,7 +575,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
                 .update(n=2, index_mask=update_index_mask2).data[0],
             pd.Series(
                 [
@@ -587,7 +587,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
+            MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
                 .update(n=2, index_mask=update_index_mask2).data[1],
             pd.Series(
                 [
@@ -603,7 +603,7 @@ class TestData:
             1: [True, True, False]
         })
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan')
                 .update(index_mask=update_index_mask).data[0],
             pd.DataFrame(
@@ -618,7 +618,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan')
                 .update(index_mask=update_index_mask).data[1],
             pd.DataFrame(
@@ -633,7 +633,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan')
                 .update(n=2, index_mask=update_index_mask2).data[0],
             pd.DataFrame(
@@ -649,7 +649,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='nan', missing_columns='nan')
                 .update(n=2, index_mask=update_index_mask2).data[1],
             pd.DataFrame(
@@ -665,7 +665,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop')
                 .update(index_mask=update_index_mask).data[0],
             pd.DataFrame(
@@ -679,7 +679,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop')
                 .update(index_mask=update_index_mask).data[1],
             pd.DataFrame(
@@ -693,7 +693,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop')
                 .update(n=2, index_mask=update_index_mask2).data[0],
             pd.DataFrame(
@@ -707,7 +707,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
+            MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
                             missing_index='drop', missing_columns='drop')
                 .update(n=2, index_mask=update_index_mask2).data[1],
             pd.DataFrame(
@@ -734,7 +734,7 @@ class TestData:
             tz=timezone.utc
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), columns='feat0').concat()['feat0'],
+            MyData.fetch(0, shape=(5,), columns='feat0').concat()['feat0'],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -748,7 +748,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5,), columns='feat0').concat()['feat0'],
+            MyData.fetch([0, 1], shape=(5,), columns='feat0').concat()['feat0'],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -762,7 +762,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
             pd.Series(
                 [
                     0.3745401188473625,
@@ -776,7 +776,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
             pd.Series(
                 [
                     0.9507143064099162,
@@ -790,7 +790,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
             pd.Series(
                 [
                     0.7319939418114051,
@@ -804,7 +804,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -818,7 +818,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
             pd.DataFrame(
                 [
                     [0.9507143064099162, 1.9507143064099162],
@@ -832,7 +832,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
             pd.DataFrame(
                 [
                     [0.7319939418114051, 1.7319939418114051],
@@ -859,7 +859,7 @@ class TestData:
             tz=timezone.utc
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5,), columns='feat0').get(),
+            MyData.fetch(0, shape=(5,), columns='feat0').get(),
             pd.Series(
                 [
                     0.3745401188473625,
@@ -873,7 +873,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(),
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(),
             pd.DataFrame(
                 [
                     [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
@@ -887,7 +887,7 @@ class TestData:
             )
         )
         pd.testing.assert_series_equal(
-            MyData.download(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
+            MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
             pd.Series(
                 [
                     0.3745401188473625,
@@ -901,7 +901,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5,), columns='feat0').get(),
+            MyData.fetch([0, 1], shape=(5,), columns='feat0').get(),
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -915,7 +915,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -929,7 +929,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(['feat0', 'feat1'])[0],
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(['feat0', 'feat1'])[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -943,7 +943,7 @@ class TestData:
             )
         )
         pd.testing.assert_frame_equal(
-            MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get()[0],
+            MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get()[0],
             pd.DataFrame(
                 [
                     [0.3745401188473625, 1.3745401188473625],
@@ -958,14 +958,14 @@ class TestData:
         )
 
     def test_indexing(self):
-        assert MyData.download([0, 1], shape=(5,), columns='feat0').iloc[:3].wrapper == \
-               MyData.download([0, 1], shape=(3,), columns='feat0').wrapper
-        assert MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).iloc[:3].wrapper == \
-               MyData.download([0, 1], shape=(3, 3), columns=['feat0', 'feat1', 'feat2']).wrapper
-        assert MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])['feat0'].wrapper == \
-               MyData.download([0, 1], shape=(5,), columns='feat0').wrapper
-        assert MyData.download([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])[['feat0']].wrapper == \
-               MyData.download([0, 1], shape=(5, 1), columns=['feat0']).wrapper
+        assert MyData.fetch([0, 1], shape=(5,), columns='feat0').iloc[:3].wrapper == \
+               MyData.fetch([0, 1], shape=(3,), columns='feat0').wrapper
+        assert MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).iloc[:3].wrapper == \
+               MyData.fetch([0, 1], shape=(3, 3), columns=['feat0', 'feat1', 'feat2']).wrapper
+        assert MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])['feat0'].wrapper == \
+               MyData.fetch([0, 1], shape=(5,), columns='feat0').wrapper
+        assert MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2'])[['feat0']].wrapper == \
+               MyData.fetch([0, 1], shape=(5, 1), columns=['feat0']).wrapper
 
     def test_stats(self):
         index_mask = vbt.symbol_dict({
@@ -976,7 +976,7 @@ class TestData:
             0: [False, True, True],
             1: [True, True, False]
         })
-        data = MyData.download(
+        data = MyData.fetch(
             [0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
             missing_index='nan', missing_columns='nan', columns=['feat0', 'feat1', 'feat2'])
 
@@ -1037,14 +1037,14 @@ class TestData:
 
 class TestDataUpdater:
     def test_update(self):
-        data = MyData.download(0, shape=(5,), return_arr=True)
+        data = MyData.fetch(0, shape=(5,), return_arr=True)
         updater = vbt.DataUpdater(data)
         updater.update()
         assert updater.data == data.update()
         assert updater.config['data'] == data.update()
 
     def test_update_every(self):
-        data = MyData.download(0, shape=(5,), return_arr=True)
+        data = MyData.fetch(0, shape=(5,), return_arr=True)
         kwargs = dict(call_count=0)
 
         class DataUpdater(vbt.DataUpdater):

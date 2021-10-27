@@ -35,7 +35,7 @@ class DataUpdater(Configured):
     ...         if count_limit is not None and self.update_count >= count_limit:
     ...             raise vbt.CancelledError
 
-    >>> data = vbt.GBMData.download('SYMBOL', start='1 minute ago', freq='1s')
+    >>> data = vbt.GBMData.fetch('SYMBOL', start='1 minute ago', freq='1s')
     >>> my_updater = MyDataUpdater(data)
     >>> my_updater.update_every(count_limit=10)
     Data updated with 1 data points
