@@ -6,6 +6,9 @@
 !!! note
     Accessors do not utilize caching."""
 
+from vectorbt.opt_packages import assert_can_import
+assert_can_import('plotly')
+
 import pandas as pd
 from inspect import getmembers, isfunction
 import plotly.express as px

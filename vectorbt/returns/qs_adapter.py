@@ -98,6 +98,10 @@ We can still override any argument by overriding its default or by passing it di
 -1.5912029345745982
 ```
 """
+
+from vectorbt.opt_packages import assert_can_import
+assert_can_import('quantstats')
+
 import pandas as pd
 from inspect import getmembers, isfunction, signature, Parameter
 import quantstats as qs
