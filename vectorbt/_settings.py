@@ -324,6 +324,10 @@ ${config_doc}
 _settings['datetime'] = datetime
 
 data = dict(
+    show_progress=True,
+    tqdm_kwargs=Config(  # flex
+        dict()
+    ),
     tz_localize=get_utc_tz(),
     tz_convert=get_utc_tz(),
     missing_index='nan',

@@ -261,11 +261,13 @@ Name: group, dtype: object
 import numpy as np
 import pandas as pd
 import warnings
+from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.datetime_ import is_tz_aware, to_timezone
 from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
@@ -561,6 +563,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
               missing_index: tp.Optional[str] = None,
               missing_columns: tp.Optional[str] = None,
               wrapper_kwargs: tp.KwargsLike = None,
+              show_progress: tp.Optional[bool] = None,
+              tqdm_kwargs: tp.KwargsLike = None,
               **kwargs) -> DataT:
         """Fetch data using `Data.fetch_symbol`.
 
@@ -574,22 +578,42 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index (str): See `Data.from_data`.
             missing_columns (str): See `Data.from_data`.
             wrapper_kwargs (dict): See `Data.from_data`.
+            show_progress (bool): Whether to show the progress bar.
+
+                Will also forward this argument to `Data.fetch_symbol` if `show_progress` is in the signature.
+            tqdm_kwargs (dict): Keyword arguments passed to `tqdm`.
+
+                Will also forward this argument to `Data.fetch_symbol` if `tqdm_kwargs` is in the signature.
             **kwargs: Passed to `Data.fetch_symbol`.
 
                 If two symbols require different keyword arguments, pass `symbol_dict` for each argument.
         """
+        from vectorbt._settings import settings
+        data_cfg = settings['data']
+
         if checks.is_hashable(symbols):
             symbols = [symbols]
         elif not checks.is_sequence(symbols):
             raise TypeError("Symbols must be either hashable or sequence of hashable")
+        if show_progress is None:
+            show_progress = data_cfg['show_progress']
+        tqdm_kwargs = merge_dicts(data_cfg['tqdm_kwargs'], tqdm_kwargs)
 
         data = dict()
-        for s in symbols:
-            # Select keyword arguments for this symbol
-            _kwargs = cls.select_symbol_kwargs(s, kwargs)
+        with tqdm(total=len(symbols), disable=not show_progress, **tqdm_kwargs) as pbar:
+            for symbol in symbols:
+                pbar.set_description(symbol)
+                # Select keyword arguments for this symbol
+                _kwargs = cls.select_symbol_kwargs(symbol, kwargs)
 
-            # Fetch data for this symbol
-            data[s] = cls.fetch_symbol(s, **_kwargs)
+                # Fetch data for this symbol
+                func_arg_names = get_func_arg_names(cls.fetch_symbol)
+                if 'show_progress' in func_arg_names:
+                    _kwargs['show_progress'] = show_progress
+                if 'tqdm_kwargs' in func_arg_names:
+                    _kwargs['tqdm_kwargs'] = tqdm_kwargs
+                data[symbol] = cls.fetch_symbol(symbol, **_kwargs)
+                pbar.update(1)
 
         # Create new instance from data
         return cls.from_data(
