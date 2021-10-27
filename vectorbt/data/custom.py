@@ -264,6 +264,8 @@ class YFData(Data):
                 See `vectorbt.utils.datetime_.to_tzaware_datetime`.
             **kwargs: Keyword arguments passed to `yfinance.base.TickerBase.history`.
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('yfinance')
         import yfinance as yf
 
         # yfinance still uses mktime, which assumes that the passed date is in local time
@@ -401,7 +403,10 @@ class BinanceData(Data):
                  client: tp.Optional["ClientT"] = None,
                  **kwargs) -> BinanceDataT:
         """Override `vectorbt.data.base.Data.download` to instantiate a Binance client."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('binance')
         from binance.client import Client
+
         from vectorbt._settings import settings
         binance_cfg = settings['data']['custom']['binance']
 
@@ -633,7 +638,10 @@ class CCXTData(Data):
 
         For defaults, see `custom.data.ccxt` in `vectorbt._settings.settings`.
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ccxt')
         import ccxt
+
         from vectorbt._settings import settings
         ccxt_cfg = settings['data']['custom']['ccxt']
 

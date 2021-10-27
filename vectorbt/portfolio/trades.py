@@ -482,16 +482,14 @@ Name: group, dtype: object
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.array_ import min_rel_rescale, max_rel_rescale
-from vectorbt.utils.template import Rep, RepEval
+from vectorbt.utils.template import RepEval
 from vectorbt.utils.decorators import cached_property
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
@@ -987,6 +985,10 @@ class Trades(Ranges):
 
         ![](/docs/img/trades_plot_pnl.svg)
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure, get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -1182,6 +1184,10 @@ class Trades(Ranges):
         ```
 
         ![](/docs/img/trades_plot.svg)"""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure, get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 

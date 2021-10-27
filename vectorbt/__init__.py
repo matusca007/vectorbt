@@ -622,15 +622,6 @@ __pdoc__ = {}
 from vectorbt._version import __version__ as _version
 __version__ = _version
 
-# Most important modules and objects
-from vectorbt import _typing as tp
-from vectorbt.generic import nb, plotting
-from vectorbt._settings import settings
-from vectorbt.nb_registry import register_jit, register_generated_jit
-from vectorbt.ch_registry import register_chunkable
-from vectorbt.ca_registry import CAQuery, CAQueryDelegator
-from vectorbt.root_accessors import pd_acc, sr_acc, df_acc
-
 # Most important classes
 from vectorbt.utils import *
 from vectorbt.base import *
@@ -643,6 +634,14 @@ from vectorbt.portfolio import *
 from vectorbt.labels import *
 from vectorbt.messaging import *
 
+# Most important modules and objects
+from vectorbt import _typing as tp
+from vectorbt._settings import settings
+from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.ch_registry import register_chunkable
+from vectorbt.ca_registry import CAQuery, CAQueryDelegator
+from vectorbt.root_accessors import pd_acc, sr_acc, df_acc
+
 # Import all submodules
 from vectorbt.utils.module_ import import_submodules
 
@@ -651,6 +650,13 @@ import warnings
 from numba.core.errors import NumbaExperimentalFeatureWarning
 
 warnings.filterwarnings("ignore", category=NumbaExperimentalFeatureWarning)
+
+__blacklist__ = []
+
+try:
+    import plotly
+except ImportError:
+    __blacklist__.append('px_accessors')
 
 import_submodules(__name__)
 

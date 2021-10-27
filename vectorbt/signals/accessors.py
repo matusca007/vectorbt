@@ -207,7 +207,6 @@ from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.base import chunking as base_ch
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
-from vectorbt.generic import plotting
 from vectorbt.generic.ranges import Ranges
 from vectorbt.generic import nb as generic_nb
 from vectorbt.signals import nb
@@ -1992,7 +1991,7 @@ class SignalsAccessor(GenericAccessor):
 
     # ############# Plotting ############# #
 
-    def plot(self, yref: str = 'y', **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+    def plot(self, yref: str = 'y', **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Plot signals.
 
         Args:
@@ -2049,7 +2048,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
         SignalsAccessor.__init__(self, obj, **kwargs)
 
     def plot_as_markers(self, y: tp.Optional[tp.ArrayLike] = None,
-                        **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+                        **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Plot Series as markers.
 
         Args:
@@ -2090,7 +2089,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
         ), kwargs))
 
     def plot_as_entry_markers(self, y: tp.Optional[tp.ArrayLike] = None,
-                              **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+                              **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Plot signals as entry markers.
 
         See `SignalsSRAccessor.plot_as_markers`."""
@@ -2113,7 +2112,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
         ), kwargs))
 
     def plot_as_exit_markers(self, y: tp.Optional[tp.ArrayLike] = None,
-                             **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+                             **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Plot signals as exit markers.
 
         See `SignalsSRAccessor.plot_as_markers`."""

@@ -89,11 +89,9 @@ Name: agg_func_mean, dtype: object
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.root_accessors import register_df_vbt_accessor
-from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.generic.accessors import GenericAccessor, GenericDFAccessor
 from vectorbt.generic import nb
@@ -301,6 +299,10 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
 
         ![](/docs/img/ohlcv_plot.svg)
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure, make_subplots
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
         ohlcv_cfg = settings['ohlcv']

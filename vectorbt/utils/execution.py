@@ -4,6 +4,7 @@
 """Engines for executing functions."""
 
 from numba.core.registry import CPUDispatcher
+from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import merge_dicts, Configured
@@ -65,8 +66,6 @@ class SequenceEngine(ExecutionEngine):
 
     def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
         if self.show_progress:
-            from tqdm.auto import tqdm
-
             results = []
             with tqdm(total=n_calls, **self.tqdm_kwargs) as pbar:
                 for func, args, kwargs in funcs_args:
@@ -104,6 +103,8 @@ class DaskEngine(ExecutionEngine):
         return self._compute_kwargs
 
     def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('dask')
         import dask
 
         results_delayed = []
@@ -201,6 +202,8 @@ class RayEngine(ExecutionEngine):
         and invoking the remote decorator on each function using Ray.
 
         If `reuse_refs` is True, will generate one reference per unique object id."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ray')
         import ray
         from ray.remote_function import RemoteFunction
         from ray import ObjectRef
@@ -261,6 +264,8 @@ class RayEngine(ExecutionEngine):
         return funcs_args_refs
 
     def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ray')
         import ray
 
         if self.restart:

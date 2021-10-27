@@ -18,4 +18,21 @@ __all__ = [
     'ExpandingSplitter'
 ]
 
+__blacklist__ = []
+
+try:
+    import plotly
+except ImportError:
+    __blacklist__.append('plotting')
+else:
+    from vectorbt.generic.plotting import Gauge, Bar, Scatter, Histogram, Box, Heatmap, Volume
+
+    __all__.append('Gauge')
+    __all__.append('Bar')
+    __all__.append('Scatter')
+    __all__.append('Histogram')
+    __all__.append('Box')
+    __all__.append('Heatmap')
+    __all__.append('Volume')
+
 __pdoc__ = {k: False for k in __all__}

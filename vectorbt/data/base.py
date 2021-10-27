@@ -269,7 +269,6 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
-from vectorbt.generic import plotting
 
 __pdoc__ = {}
 
@@ -794,7 +793,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     def plot(self,
              column: tp.Optional[tp.Label] = None,
              base: tp.Optional[float] = None,
-             **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+             **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Plot orders.
 
         Args:

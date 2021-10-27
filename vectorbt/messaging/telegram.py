@@ -3,6 +3,9 @@
 
 """Messaging using `python-telegram-bot`."""
 
+from vectorbt.opt_packages import assert_can_import
+assert_can_import('telegram')
+
 import logging
 from functools import wraps
 from telegram import Update

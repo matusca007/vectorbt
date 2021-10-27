@@ -145,7 +145,6 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
 from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_2d_array, broadcast, broadcast_to
@@ -1493,6 +1492,7 @@ class ReturnsSRAccessor(ReturnsAccessor, GenericSRAccessor):
 
         ![](/docs/img/plot_cumulative.svg)
         """
+        from vectorbt.utils.figure import make_figure, get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 

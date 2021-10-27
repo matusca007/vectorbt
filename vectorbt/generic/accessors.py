@@ -221,7 +221,6 @@ from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import Config, merge_dicts, resolve_dict
-from vectorbt.utils.figure import make_figure, make_subplots
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils import chunking as ch
@@ -229,7 +228,7 @@ from vectorbt.base import indexes, reshaping
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.base.grouping import Grouper
-from vectorbt.generic import plotting, nb
+from vectorbt.generic import nb
 from vectorbt.generic.ranges import Ranges
 from vectorbt.generic.drawdowns import Drawdowns
 from vectorbt.generic.splitters import SplitterT, RangeSplitter, RollingSplitter, ExpandingSplitter
@@ -2406,7 +2405,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
              trace_names: tp.TraceNames = None,
              x_labels: tp.Optional[tp.Labels] = None,
              return_fig: bool = True,
-             **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+             **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create `vectorbt.generic.plotting.Scatter` and return the figure.
 
         ## Example
@@ -2417,12 +2416,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ![](/docs/img/df_plot.svg)
         """
+        from vectorbt.generic.plotting import Scatter
+
         if x_labels is None:
             x_labels = self.wrapper.index
         if trace_names is None:
             if self.is_frame() or (self.is_series() and self.wrapper.name is not None):
                 trace_names = self.wrapper.columns
-        scatter = plotting.Scatter(
+        scatter = Scatter(
             data=self.to_2d_array(),
             trace_names=trace_names,
             x_labels=x_labels,
@@ -2432,7 +2433,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             return scatter.fig
         return scatter
 
-    def lineplot(self, **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+    def lineplot(self, **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """`GenericAccessor.plot` with 'lines' mode.
 
         ## Example
@@ -2445,7 +2446,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """
         return self.plot(**merge_dicts(dict(trace_kwargs=dict(mode='lines')), kwargs))
 
-    def scatterplot(self, **kwargs) -> tp.Union[tp.BaseFigure, plotting.Scatter]:  # pragma: no cover
+    def scatterplot(self, **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """`GenericAccessor.plot` with 'markers' mode.
 
         ## Example
@@ -2462,7 +2463,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 trace_names: tp.TraceNames = None,
                 x_labels: tp.Optional[tp.Labels] = None,
                 return_fig: bool = True,
-                **kwargs) -> tp.Union[tp.BaseFigure, plotting.Bar]:  # pragma: no cover
+                **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create `vectorbt.generic.plotting.Bar` and return the figure.
 
         ## Example
@@ -2473,12 +2474,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ![](/docs/img/df_barplot.svg)
         """
+        from vectorbt.generic.plotting import Bar
+
         if x_labels is None:
             x_labels = self.wrapper.index
         if trace_names is None:
             if self.is_frame() or (self.is_series() and self.wrapper.name is not None):
                 trace_names = self.wrapper.columns
-        bar = plotting.Bar(
+        bar = Bar(
             data=self.to_2d_array(),
             trace_names=trace_names,
             x_labels=x_labels,
@@ -2492,7 +2495,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  trace_names: tp.TraceNames = None,
                  group_by: tp.GroupByLike = None,
                  return_fig: bool = True,
-                 **kwargs) -> tp.Union[tp.BaseFigure, plotting.Histogram]:  # pragma: no cover
+                 **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create `vectorbt.generic.plotting.Histogram` and return the figure.
 
         ## Example
@@ -2503,13 +2506,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ![](/docs/img/df_histplot.svg)
         """
+        from vectorbt.generic.plotting import Histogram
+
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.flatten_grouped(group_by=group_by).vbt.histplot(trace_names=trace_names, **kwargs)
 
         if trace_names is None:
             if self.is_frame() or (self.is_series() and self.wrapper.name is not None):
                 trace_names = self.wrapper.columns
-        hist = plotting.Histogram(
+        hist = Histogram(
             data=self.to_2d_array(),
             trace_names=trace_names,
             **kwargs
@@ -2522,7 +2527,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 trace_names: tp.TraceNames = None,
                 group_by: tp.GroupByLike = None,
                 return_fig: bool = True,
-                **kwargs) -> tp.Union[tp.BaseFigure, plotting.Box]:  # pragma: no cover
+                **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create `vectorbt.generic.plotting.Box` and return the figure.
 
         ## Example
@@ -2533,13 +2538,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ![](/docs/img/df_boxplot.svg)
         """
+        from vectorbt.generic.plotting import Box
+
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.flatten_grouped(group_by=group_by).vbt.boxplot(trace_names=trace_names, **kwargs)
 
         if trace_names is None:
             if self.is_frame() or (self.is_series() and self.wrapper.name is not None):
                 trace_names = self.wrapper.columns
-        box = plotting.Box(
+        box = Box(
             data=self.to_2d_array(),
             trace_names=trace_names,
             **kwargs
@@ -2625,6 +2632,8 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 
         ![](/docs/img/sr_plot_against.svg)
         """
+        from vectorbt.utils.figure import make_figure
+
         if trace_kwargs is None:
             trace_kwargs = {}
         if other_trace_kwargs is None:
@@ -2756,6 +2765,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 
         ![](/docs/img/sr_overlay_with_heatmap.svg)
         """
+        from vectorbt.utils.figure import make_subplots
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -2794,7 +2804,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                 slider_labels: tp.Optional[tp.Labels] = None,
                 return_fig: bool = True,
                 fig: tp.Optional[tp.BaseFigure] = None,
-                **kwargs) -> tp.Union[tp.BaseFigure, plotting.Heatmap]:  # pragma: no cover
+                **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create a heatmap figure based on object's multi-index and values.
 
         If index is not a multi-index, converts Series into a DataFrame and calls `GenericDFAccessor.heatmap`.
@@ -2851,6 +2861,8 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 
         ![](/docs/img/sr_heatmap_slider.gif)
         """
+        from vectorbt.generic.plotting import Heatmap
+
         if not isinstance(self.wrapper.index, pd.MultiIndex):
             return self.obj.to_frame().vbt.heatmap(
                 x_labels=x_labels, y_labels=y_labels,
@@ -2908,7 +2920,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                 ),
             ), kwargs)
             default_size = fig is None and 'height' not in _kwargs
-            fig = plotting.Heatmap(
+            fig = Heatmap(
                 data=reshaping.to_2d_array(df),
                 x_labels=x_labels,
                 y_labels=y_labels,
@@ -2940,7 +2952,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
         )
         return fig
 
-    def ts_heatmap(self, **kwargs) -> tp.Union[tp.BaseFigure, plotting.Heatmap]:  # pragma: no cover
+    def ts_heatmap(self, **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Heatmap of time-series data."""
         return self.obj.to_frame().vbt.ts_heatmap(**kwargs)
 
@@ -2958,7 +2970,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                fillna: tp.Optional[tp.Number] = None,
                fig: tp.Optional[tp.BaseFigure] = None,
                return_fig: bool = True,
-               **kwargs) -> tp.Union[tp.BaseFigure, plotting.Volume]:  # pragma: no cover
+               **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create a 3D volume figure based on object's multi-index and values.
 
         If multi-index contains more than three levels or you want them in specific order, pass
@@ -2987,6 +2999,8 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 
         ![](/docs/img/sr_volume.svg)
         """
+        from vectorbt.generic.plotting import Volume
+
         (x_level, y_level, z_level), (slider_level,) = indexes.pick_levels(
             self.wrapper.index,
             required_levels=(x_level, y_level, z_level),
@@ -3030,7 +3044,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                 v = np.nan_to_num(v, nan=fillna)
             if np.isnan(v).any():
                 contains_nan = True
-            volume = plotting.Volume(
+            volume = Volume(
                 data=v,
                 x_labels=x_labels,
                 y_labels=y_labels,
@@ -3064,7 +3078,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
                     )
                 ), kwargs)
                 default_size = fig is None and 'height' not in _kwargs
-                fig = plotting.Volume(
+                fig = Volume(
                     data=v,
                     x_labels=x_labels,
                     y_labels=y_labels,
@@ -3159,7 +3173,7 @@ class GenericDFAccessor(GenericAccessor, BaseDFAccessor):
                 x_labels: tp.Optional[tp.Labels] = None,
                 y_labels: tp.Optional[tp.Labels] = None,
                 return_fig: bool = True,
-                **kwargs) -> tp.Union[tp.BaseFigure, plotting.Heatmap]:  # pragma: no cover
+                **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Create `vectorbt.generic.plotting.Heatmap` and return the figure.
 
         ## Example
@@ -3175,11 +3189,13 @@ class GenericDFAccessor(GenericAccessor, BaseDFAccessor):
 
         ![](/docs/img/df_heatmap.svg)
         """
+        from vectorbt.generic.plotting import Heatmap
+
         if x_labels is None:
             x_labels = self.wrapper.columns
         if y_labels is None:
             y_labels = self.wrapper.index
-        heatmap = plotting.Heatmap(
+        heatmap = Heatmap(
             data=self.to_2d_array(),
             x_labels=x_labels,
             y_labels=y_labels,
@@ -3190,6 +3206,6 @@ class GenericDFAccessor(GenericAccessor, BaseDFAccessor):
         return heatmap
 
     def ts_heatmap(self, is_y_category: bool = True,
-                   **kwargs) -> tp.Union[tp.BaseFigure, plotting.Heatmap]:  # pragma: no cover
+                   **kwargs) -> tp.Union[tp.BaseFigure, tp.TraceUpdater]:  # pragma: no cover
         """Heatmap of time-series data."""
         return self.obj.transpose().iloc[::-1].vbt.heatmap(is_y_category=is_y_category, **kwargs)

@@ -8,16 +8,17 @@ Each creates a figure widget that is compatible with ipywidgets and enables inte
 data visualization in Jupyter Notebook and JupyterLab environments. For more details
 on using Plotly, see [Getting Started with Plotly in Python](https://plotly.com/python/getting-started/).
 
-The module can be accessed directly via `vbt.plotting`.
-
 !!! warning
     In case of errors, it won't be visible in the notebook cell, but in the logs."""
 
+from vectorbt.opt_packages import assert_can_import
+assert_can_import('plotly')
+
 import numpy as np
 import pandas as pd
+import math
 import plotly.graph_objects as go
 from plotly.basedatatypes import BaseTraceType
-import math
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
@@ -326,7 +327,6 @@ class Scatter(Configured, TraceUpdater):
             fig=fig,
             **layout_kwargs
         )
-
         if trace_kwargs is None:
             trace_kwargs = {}
         if add_trace_kwargs is None:

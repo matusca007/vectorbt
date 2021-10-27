@@ -1562,7 +1562,6 @@ from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.template import Rep, RepEval, RepFunc, deep_substitute
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.colors import adjust_opacity
-from vectorbt.utils.figure import get_domain
 from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_2d_array, broadcast, broadcast_to, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -5357,6 +5356,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericAccessor.plot`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5408,6 +5408,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericAccessor.plot`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5457,6 +5458,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5515,6 +5517,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5575,6 +5578,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5633,6 +5637,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5761,6 +5766,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericAccessor.plot`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5816,6 +5822,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
@@ -5873,6 +5880,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             hline_shape_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.add_shape` for zeroline.
             **kwargs: Keyword arguments passed to `vectorbt.generic.accessors.GenericSRAccessor.plot_against`.
         """
+        from vectorbt.utils.figure import get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 

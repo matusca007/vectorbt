@@ -12,11 +12,18 @@ from mypy_extensions import VarArg, KwArg
 from pandas.tseries.offsets import DateOffset
 from pandas.core.groupby import GroupBy as PandasGroupBy
 from pandas.core.resample import Resampler as PandasResampler
-from plotly.graph_objects import Figure, FigureWidget
-from plotly.basedatatypes import BaseFigure, BaseTraceType
 from numba.core.registry import CPUDispatcher
 from numba.typed import List as NumbaList
 from pathlib import Path
+
+try:
+    from plotly.graph_objects import Figure, FigureWidget
+    from plotly.basedatatypes import BaseFigure, BaseTraceType
+except ImportError:
+    Figure = Any
+    FigureWidget = Any
+    BaseFigure = Any
+    BaseTraceType = Any
 
 try:
     from typing import Protocol
@@ -27,6 +34,7 @@ if TYPE_CHECKING:
     from vectorbt.utils.parsing import Regex
     from vectorbt.utils.execution import ExecutionEngine
     from vectorbt.utils.chunking import Sizer, ChunkTaker, ChunkMeta, ChunkMetaGenerator
+    from vectorbt.generic.plotting import TraceUpdater
 else:
     Regex = 'Regex'
     ExecutionEngine = 'ExecutionEngine'
@@ -34,6 +42,7 @@ else:
     ChunkTaker = 'ChunkTaker'
     ChunkMeta = 'ChunkMeta'
     ChunkMetaGenerator = 'ChunkMetaGenerator'
+    TraceUpdater = 'TraceUpdater'
 
 # Generic types
 T = TypeVar("T")

@@ -106,11 +106,9 @@ Name: group, dtype: object
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.figure import make_figure
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
@@ -381,6 +379,10 @@ class Orders(Records):
         ```
 
         ![](/docs/img/orders_plot.svg)"""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 

@@ -15,7 +15,6 @@ from vectorbt.utils.decorators import (
     cached_method
 )
 from vectorbt.utils.caching import Cacheable
-from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplots
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.image_ import save_animation
 from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
@@ -63,10 +62,6 @@ __all__ = [
     'cacheable_method',
     'cached_method',
     'Cacheable',
-    'Figure',
-    'FigureWidget',
-    'make_figure',
-    'make_subplots',
     'set_seed',
     'save_animation',
     'AsyncJob',
@@ -99,5 +94,19 @@ __all__ = [
     'MemTracer',
     'stringify'
 ]
+
+__blacklist__ = []
+
+try:
+    import plotly
+except ImportError:
+    __blacklist__.append('figure')
+else:
+    from vectorbt.utils.figure import Figure, FigureWidget, make_figure, make_subplots
+
+    __all__.append('Figure')
+    __all__.append('FigureWidget')
+    __all__.append('make_figure')
+    __all__.append('make_subplots')
 
 __pdoc__ = {k: False for k in __all__}

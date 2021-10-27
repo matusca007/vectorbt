@@ -4,11 +4,9 @@
 """Signal generators built with `vectorbt.signals.factory.SignalFactory`."""
 
 import numpy as np
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import Config
-from vectorbt.utils.figure import make_figure
 from vectorbt.indicators.configs import flex_col_param_config, flex_elem_param_config
 from vectorbt.signals.enums import StopType
 from vectorbt.signals.factory import SignalFactory
@@ -594,6 +592,11 @@ def _bind_ohlcstx_plot(base_cls: type, entries_attr: str) -> tp.Callable:  # pra
              fig: tp.Optional[tp.BaseFigure] = None,
              _base_cls_plot: tp.Callable = base_cls_plot,
              **layout_kwargs) -> tp.BaseFigure:  # pragma: no cover
+
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure
         from vectorbt._settings import settings
         ohlcv_cfg = settings['ohlcv']
         plotting_cfg = settings['plotting']

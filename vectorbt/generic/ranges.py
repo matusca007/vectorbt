@@ -113,7 +113,6 @@ Name: group, dtype: object
 """
 
 import numpy as np
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import nb_registry
@@ -121,7 +120,6 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.figure import make_figure, get_domain
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.generic.enums import RangeStatus, range_dt
@@ -494,6 +492,10 @@ class Ranges(Records):
 
         ![](/docs/img/ranges_plot.svg)
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('plotly')
+        import plotly.graph_objects as go
+        from vectorbt.utils.figure import make_figure, get_domain
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 

@@ -114,8 +114,6 @@ import os
 import numpy as np
 import json
 import pkgutil
-import plotly.io as pio
-import plotly.graph_objects as go
 
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
@@ -407,7 +405,7 @@ plotting = dict(
                     cyan="#17becf"
                 )
             ),
-            template=Config(json.loads(pkgutil.get_data(__name__, "templates/light.json"))),  # flex
+            template=None
         ),
         dark=dict(
             color_schema=Config(  # flex
@@ -424,7 +422,7 @@ plotting = dict(
                     cyan="#17becf"
                 )
             ),
-            template=Config(json.loads(pkgutil.get_data(__name__, "templates/dark.json"))),  # flex
+            template=None
         ),
         seaborn=dict(
             color_schema=Config(  # flex
@@ -441,7 +439,7 @@ plotting = dict(
                     cyan="rgb(196,78,82)"
                 )
             ),
-            template=Config(json.loads(pkgutil.get_data(__name__, "templates/seaborn.json"))),  # flex
+            template=None
         ),
     ),
     layout=Config(  # flex
@@ -995,8 +993,17 @@ _settings['messaging'] = messaging
 class SettingsConfig(Config):
     """Extends `vectorbt.utils.config.Config` for global settings."""
 
+    def load_json_templates(self) -> None:
+        """Load templates from JSON files."""
+        for template_name in ['light', 'dark', 'seaborn']:
+            template = Config(json.loads(pkgutil.get_data(__name__, f"templates/{template_name}.json")))
+            self['plotting']['themes'][template_name]['template'] = template
+
     def register_template(self, theme: str) -> None:
         """Register template of a theme."""
+        import plotly.io as pio
+        import plotly.graph_objects as go
+
         pio.templates['vbt_' + theme] = go.layout.Template(self['plotting']['themes'][theme]['template'])
 
     def register_templates(self) -> None:
@@ -1035,7 +1042,11 @@ settings = SettingsConfig(
 
 Combines all sub-configs defined in this module."""
 
-settings.reset_theme()
+try:
+    settings.load_json_templates()
+    settings.reset_theme()
+except ImportError:
+    pass
 
 if 'VBT_SETTINGS_PATH' in os.environ:
     settings.load_update(os.environ['VBT_SETTINGS_PATH'], clear=True)
@@ -1043,7 +1054,11 @@ if 'VBT_SETTINGS_PATH' in os.environ:
 if 'VBT_SETTINGS_OVERRIDE_PATH' in os.environ:
     settings.load_update(os.environ['VBT_SETTINGS_OVERRIDE_PATH'], clear=False)
 
-settings.register_templates()
+try:
+    settings.register_templates()
+except ImportError:
+    pass
+
 settings.make_checkpoint()
 
 settings.substitute_sub_config_docs(

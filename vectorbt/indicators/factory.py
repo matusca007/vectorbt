@@ -3374,6 +3374,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
     @classmethod
     def get_talib_indicators(cls) -> tp.Set[str]:
         """Get all TA-Lib indicators."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('talib')
         import talib
 
         return set(talib.get_functions())
@@ -3429,6 +3431,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
             Other keyword arguments are passed to `vectorbt.indicators.factory.run_pipeline`.
         ```
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('talib')
         import talib
         from talib import abstract
 
@@ -3580,6 +3584,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
         !!! note
             Returns only the indicators that have been successfully parsed."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('pandas_ta')
         import pandas_ta
 
         indicators = set()
@@ -3675,6 +3681,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
             pd.Series: New feature generated.
         ```
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('pandas_ta')
         import pandas_ta
 
         func_name = func_name.lower()
@@ -3741,6 +3749,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
     @classmethod
     def get_ta_indicators(cls) -> tp.Set[str]:
         """Get all ta indicators."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ta')
         import ta
 
         ta_module_names = [k for k in dir(ta) if isinstance(getattr(ta, k), ModuleType)]
@@ -3758,6 +3768,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
     @classmethod
     def find_ta_indicator(cls, cls_name: str) -> IndicatorMixinT:
         """Get ta indicator class by its name."""
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ta')
         import ta
 
         ta_module_names = [k for k in dir(ta) if isinstance(getattr(ta, k), ModuleType)]
@@ -3866,6 +3878,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                 fillna(bool): if True, fill nan values.
         ```
         """
+        from vectorbt.opt_packages import assert_can_import
+        assert_can_import('ta')
         import ta
 
         ind_cls = cls.find_ta_indicator(cls_name)

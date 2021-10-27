@@ -6,7 +6,6 @@
 import numpy as np
 import imageio
 from tqdm.auto import tqdm
-import plotly.graph_objects as go
 
 from vectorbt import _typing as tp
 
@@ -62,6 +61,10 @@ def save_animation(fname: str,
         to_image_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.to_image`.
         **kwargs: Keyword arguments passed to `plot_func`.
     """
+    from vectorbt.opt_packages import assert_can_import
+    assert_can_import('plotly')
+    import plotly.graph_objects as go
+
     if writer_kwargs is None:
         writer_kwargs = {}
     if tqdm_kwargs is None:

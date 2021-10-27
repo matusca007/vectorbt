@@ -15,7 +15,6 @@ from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.template import deep_substitute
 from vectorbt.utils.tagging import match_tags
 from vectorbt.utils.attr_ import get_dict_attr
-from vectorbt.utils.figure import make_subplots, get_domain
 from vectorbt.base.wrapping import Wrapping
 
 
@@ -171,6 +170,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
 
         See `vectorbt.portfolio.base` for examples.
         """
+        from vectorbt.utils.figure import make_subplots, get_domain
         from vectorbt._settings import settings as _settings
         plotting_cfg = _settings['plotting']
 
