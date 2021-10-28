@@ -134,7 +134,7 @@ False
 >>> my_setup.caching_enabled
 True
 
->>> vbt.settings.caching['enabled'] = False
+>>> vbt.settings.caching['disable'] = True
 >>> my_setup.caching_enabled
 False
 
@@ -145,12 +145,18 @@ UserWarning: This operation has no effect: caching is disabled globally and this
 >>> my_setup.caching_enabled
 True
 
->>> vbt.settings.caching['whitelist_enabled'] = False
+>>> vbt.settings.caching['disable_whitelist'] = True
 >>> my_setup.caching_enabled
 False
 
 >>> my_setup.enable_caching(force=True)
 UserWarning: This operation has no effect: caching and whitelisting are disabled globally
+```
+
+To disable registration of new setups completely, use `disable_machinery`:
+
+```python-repl
+>>> vbt.settings.caching['disable_machinery'] = True
 ```
 
 ## Setup hierarchy
@@ -1080,7 +1086,10 @@ class CABaseSetup(CAMetrics):
 
         if self.use_cache is None or self.whitelist is None:
             return None
-        return self.use_cache and (caching_cfg['enabled'] or (self.whitelist and caching_cfg['whitelist_enabled']))
+        if self.use_cache:
+            if not caching_cfg['disable'] or (self.whitelist and not caching_cfg['disable_whitelist']):
+                return True
+        return False
 
     def register(self) -> None:
         """Register setup using `CacheableRegistry.register_setup`."""
@@ -1114,10 +1123,10 @@ class CABaseSetup(CAMetrics):
         if force:
             self._whitelist = True
         else:
-            if not caching_cfg['enabled'] and caching_cfg['whitelist_enabled'] and not silence_warnings:
+            if caching_cfg['disable'] and not caching_cfg['disable_whitelist'] and not silence_warnings:
                 warnings.warn("This operation has no effect: caching is disabled globally and this setup "
                               "is not whitelisted", stacklevel=2)
-        if not caching_cfg['enabled'] and not caching_cfg['whitelist_enabled'] and not silence_warnings:
+        if caching_cfg['disable'] and caching_cfg['disable_whitelist'] and not silence_warnings:
             warnings.warn("This operation has no effect: caching and whitelisting "
                           "are disabled globally", stacklevel=2)
         self._use_cache_lut = datetime.now(timezone.utc)
@@ -1499,7 +1508,7 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         from vectorbt._settings import settings
         caching_cfg = settings['caching']
 
-        if not caching_cfg['machinery_enabled']:
+        if caching_cfg['disable_machinery']:
             return None
 
         setup = registry.get_class_setup(cls_)
@@ -1632,7 +1641,7 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         from vectorbt._settings import settings
         caching_cfg = settings['caching']
 
-        if not caching_cfg['machinery_enabled']:
+        if caching_cfg['disable_machinery']:
             return None
 
         setup = registry.get_instance_setup(instance)
@@ -1764,7 +1773,7 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         from vectorbt._settings import settings
         caching_cfg = settings['caching']
 
-        if not caching_cfg['machinery_enabled']:
+        if caching_cfg['disable_machinery']:
             return None
 
         setup = registry.get_unbound_setup(cacheable)
@@ -1948,7 +1957,7 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         from vectorbt._settings import settings
         caching_cfg = settings['caching']
 
-        if not caching_cfg['machinery_enabled']:
+        if caching_cfg['disable_machinery']:
             return None
 
         setup = registry.get_run_setup(cacheable, instance=instance)

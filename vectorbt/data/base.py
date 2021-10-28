@@ -12,24 +12,23 @@ all pandas objects have the same index and columns by aligning them.
 Data can be downloaded by overriding the `Data.fetch_symbol` class method. What `Data` does
 under the hood is iterating over all symbols and calling this method.
 
-Let's create a simple data class `RandomData` that generates price based on
-random returns with provided mean and standard deviation:
+Let's create a simple data class `RandomSNData` that generates price based on
+standard-normally distributed returns:
 
 ```python-repl
 >>> import numpy as np
 >>> import pandas as pd
 >>> import vectorbt as vbt
 
->>> class RandomData(vbt.Data):
+>>> class RandomSNData(vbt.Data):
 ...     @classmethod
-...     def fetch_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
-...                      start_dt='2021-01-01', end_dt='2021-01-10'):
+...     def fetch_symbol(cls, symbol, start_value=100, start_dt='2021-01-01', end_dt='2021-01-10'):
 ...         index = pd.date_range(start_dt, end_dt)
-...         rand_returns = np.random.normal(mean, stdev, size=len(index))
+...         rand_returns = np.random.standard_normal(size=len(index))
 ...         rand_price = start_value + np.cumprod(rand_returns + 1)
 ...         return pd.Series(rand_price, index=index)
 
->>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'])
+>>> rand_data = RandomSNData.fetch(['RANDNX1', 'RANDNX2'])
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  101.042956  100.920462
@@ -48,7 +47,7 @@ To provide different keyword arguments for different symbols, we can use `symbol
 
 ```python-repl
 >>> start_value = vbt.symbol_dict({'RANDNX2': 200})
->>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'], start_value=start_value)
+>>> rand_data = RandomSNData.fetch(['RANDNX1', 'RANDNX2'], start_value=start_value)
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  101.083324  200.886078
@@ -69,7 +68,7 @@ In case two symbols have different index or columns, they are automatically alig
 ```python-repl
 >>> start_dt = vbt.symbol_dict({'RANDNX2': '2021-01-03'})
 >>> end_dt = vbt.symbol_dict({'RANDNX2': '2021-01-07'})
->>> rand_data = RandomData.fetch(
+>>> rand_data = RandomSNData.fetch(
 ...     ['RANDNX1', 'RANDNX2'], start_value=start_value,
 ...     start_dt=start_dt, end_dt=end_dt)
 >>> rand_data.get()
@@ -91,7 +90,7 @@ symbol         RANDNX1     RANDNX2
 Updating can be implemented by overriding the `Data.update_symbol` instance method, which takes
 the same arguments as `Data.fetch_symbol`. In contrast to the fetch method, the update
 method is an instance method and can access the data downloaded earlier. It can also access the
-keyword arguments initially passed to the fetch method, accessible under `Data.download_kwargs`.
+keyword arguments initially passed to the fetch method, accessible under `Data.fetch_kwargs`.
 Those arguments can be used as default arguments and overriden by arguments passed directly
 to the update method, using `vectorbt.utils.config.merge_dicts`.
 
@@ -102,23 +101,22 @@ Note that updating data always returns a new `Data` instance.
 >>> from datetime import timedelta
 >>> from vectorbt.utils.config import merge_dicts
 
->>> class RandomData(vbt.Data):
+>>> class RandomSNData(vbt.Data):
 ...     @classmethod
-...     def fetch_symbol(cls, symbol, mean=0., stdev=0.1, start_value=100,
-...                         start_dt='2021-01-01', end_dt='2021-01-10'):
+...     def fetch_symbol(cls, symbol, start_value=100, start_dt='2021-01-01', end_dt='2021-01-10'):
 ...         index = pd.date_range(start_dt, end_dt)
-...         rand_returns = np.random.normal(mean, stdev, size=len(index))
+...         rand_returns = np.random.standard_normal(size=len(index))
 ...         rand_price = start_value + np.cumprod(rand_returns + 1)
 ...         return pd.Series(rand_price, index=index)
 ...
 ...     def update_symbol(self, symbol, **kwargs):
-...         download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-...         download_kwargs['start_dt'] = self.data[symbol].index[-1]
-...         download_kwargs['end_dt'] = download_kwargs['start_dt'] + timedelta(days=2)
-...         kwargs = merge_dicts(download_kwargs, kwargs)
+...         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+...         fetch_kwargs['start_dt'] = self.data[symbol].index[-1]
+...         fetch_kwargs['end_dt'] = fetch_kwargs['start_dt'] + timedelta(days=2)
+...         kwargs = merge_dicts(fetch_kwargs, kwargs)
 ...         return self.fetch_symbol(symbol, **kwargs)
 
->>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'], end_dt='2021-01-05')
+>>> rand_data = RandomSNData.fetch(['RANDNX1', 'RANDNX2'], end_dt='2021-01-05')
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  100.956601  100.970865
@@ -159,8 +157,8 @@ defining custom fetch and update methods, or by manually merging their data dict
 into one data dict and passing it to the `Data.from_data` class method.
 
 ```python-repl
->>> rand_data1 = RandomData.fetch('RANDNX1', mean=0.2)
->>> rand_data2 = RandomData.fetch('RANDNX2', start_value=200, start_dt='2021-01-05')
+>>> rand_data1 = RandomSNData.fetch('RANDNX1', mean=0.2)
+>>> rand_data2 = RandomSNData.fetch('RANDNX2', start_value=200, start_dt='2021-01-05')
 >>> merged_data = vbt.Data.from_data(vbt.merge_dicts(rand_data1.data, rand_data2.data))
 >>> merged_data.get()
 symbol         RANDNX1     RANDNX2
@@ -183,7 +181,7 @@ on a `Data` instance, which forwards indexing operation to each Series/DataFrame
 
 ```python-repl
 >>> rand_data.loc['2021-01-07':'2021-01-09']
-<__main__.RandomData at 0x7fdba4e36198>
+<__main__.RandomSNData at 0x7fdba4e36198>
 
 >>> rand_data.loc['2021-01-07':'2021-01-09'].get()
 symbol         RANDNX1     RANDNX2
@@ -199,7 +197,7 @@ instance to the disk with `Data.save` and load it with `Data.load`:
 
 ```python-repl
 >>> rand_data.save('rand_data')
->>> rand_data = RandomData.load('rand_data')
+>>> rand_data = RandomSNData.load('rand_data')
 >>> rand_data.get()
 symbol         RANDNX1     RANDNX2
 2021-01-01  100.956601  100.970865
@@ -213,13 +211,16 @@ symbol         RANDNX1     RANDNX2
 2021-01-09  100.912639  100.934014
 ```
 
+!!! note
+    A more efficient way is to store each pandas object into an HDF5 file.
+
 ## Stats
 
 !!! hint
     See `vectorbt.generic.stats_builder.StatsBuilderMixin.stats` and `Data.metrics`.
 
 ```python-repl
->>> rand_data = RandomData.fetch(['RANDNX1', 'RANDNX2'])
+>>> rand_data = RandomSNData.fetch(['RANDNX1', 'RANDNX2'])
 
 >>> rand_data.stats(column='a')
 Start                   2021-01-01 00:00:00+00:00
@@ -261,13 +262,13 @@ Name: group, dtype: object
 import numpy as np
 import pandas as pd
 import warnings
-from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.datetime_ import is_tz_aware, to_timezone
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
+from vectorbt.utils.pbar import get_pbar
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
@@ -292,21 +293,23 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
         'data',
+        'single_symbol',
         'tz_localize',
         'tz_convert',
         'missing_index',
         'missing_columns',
-        'download_kwargs'
+        'fetch_kwargs'
     }
 
     def __init__(self,
                  wrapper: ArrayWrapper,
                  data: tp.Data,
+                 single_symbol: bool,
                  tz_localize: tp.Optional[tp.TimezoneLike],
                  tz_convert: tp.Optional[tp.TimezoneLike],
                  missing_index: str,
                  missing_columns: str,
-                 download_kwargs: dict,
+                 fetch_kwargs: dict,
                  **kwargs) -> None:
 
         checks.assert_instance_of(data, dict)
@@ -317,22 +320,24 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             self,
             wrapper,
             data=data,
+            single_symbol=single_symbol,
             tz_localize=tz_localize,
             tz_convert=tz_convert,
             missing_index=missing_index,
             missing_columns=missing_columns,
-            download_kwargs=download_kwargs,
+            fetch_kwargs=fetch_kwargs,
             **kwargs
         )
         StatsBuilderMixin.__init__(self)
         PlotsBuilderMixin.__init__(self)
 
         self._data = data
+        self._single_symbol = single_symbol
         self._tz_localize = tz_localize
         self._tz_convert = tz_convert
         self._missing_index = missing_index
         self._missing_columns = missing_columns
-        self._download_kwargs = download_kwargs
+        self._fetch_kwargs = fetch_kwargs
 
     def indexing_func(self: DataT, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> DataT:
         """Perform indexing on `Data`."""
@@ -347,6 +352,11 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     def data(self) -> tp.Data:
         """Data dictionary keyed by symbol."""
         return self._data
+
+    @property
+    def single_symbol(self) -> bool:
+        """Whether there is only one symbol in `Data.data`."""
+        return self._single_symbol
 
     @property
     def symbols(self) -> tp.List[tp.Label]:
@@ -374,9 +384,9 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._missing_columns
 
     @property
-    def download_kwargs(self) -> dict:
+    def fetch_kwargs(self) -> dict:
         """Keyword arguments initially passed to `Data.fetch_symbol`."""
-        return self._download_kwargs
+        return self._fetch_kwargs
 
     @classmethod
     def align_index(cls, data: tp.Data, missing: str = 'nan') -> tp.Data:
@@ -476,16 +486,19 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     @classmethod
     def from_data(cls: tp.Type[DataT],
                   data: tp.Data,
+                  single_symbol: bool = False,
                   tz_localize: tp.Optional[tp.TimezoneLike] = None,
                   tz_convert: tp.Optional[tp.TimezoneLike] = None,
                   missing_index: tp.Optional[str] = None,
                   missing_columns: tp.Optional[str] = None,
                   wrapper_kwargs: tp.KwargsLike = None,
+                  fetch_kwargs: tp.KwargsLike = None,
                   **kwargs) -> DataT:
         """Create a new `Data` instance from (aligned) data.
 
         Args:
             data (dict): Dictionary of array-like objects keyed by symbol.
+            single_symbol (bool): Whether there is only one symbol in `data`.
             tz_localize (timezone_like): If the index is tz-naive, convert to a timezone.
 
                 See `vectorbt.utils.datetime_.to_timezone`.
@@ -495,6 +508,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index (str): See `Data.align_index`.
             missing_columns (str): See `Data.align_columns`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
+            fetch_kwargs (dict): Keyword arguments initially passed to `Data.fetch_symbol`.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         For defaults, see `data` in `vectorbt._settings.settings`."""
@@ -512,6 +526,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_columns = data_cfg['missing_columns']
         if wrapper_kwargs is None:
             wrapper_kwargs = {}
+        if fetch_kwargs is None:
+            fetch_kwargs = {}
 
         data = data.copy()
         for k, v in data.items():
@@ -543,10 +559,12 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return cls(
             wrapper,
             data,
+            single_symbol,
             tz_localize=tz_localize,
             tz_convert=tz_convert,
             missing_index=missing_index,
             missing_columns=missing_columns,
+            fetch_kwargs=fetch_kwargs,
             **kwargs
         )
 
@@ -557,14 +575,14 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     @classmethod
     def fetch(cls: tp.Type[DataT],
-              symbols: tp.Union[tp.Label, tp.Labels],
+              symbols: tp.Union[tp.Label, tp.Labels] = None,
               tz_localize: tp.Optional[tp.TimezoneLike] = None,
               tz_convert: tp.Optional[tp.TimezoneLike] = None,
               missing_index: tp.Optional[str] = None,
               missing_columns: tp.Optional[str] = None,
               wrapper_kwargs: tp.KwargsLike = None,
               show_progress: tp.Optional[bool] = None,
-              tqdm_kwargs: tp.KwargsLike = None,
+              pbar_kwargs: tp.KwargsLike = None,
               **kwargs) -> DataT:
         """Fetch data using `Data.fetch_symbol`.
 
@@ -572,18 +590,19 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             symbols (hashable or sequence of hashable): One or multiple symbols.
 
                 !!! note
-                    Tuple is considered as a single symbol (since hashable).
+                    Tuple is considered as a single symbol (tuple is a hashable).
             tz_localize (any): See `Data.from_data`.
             tz_convert (any): See `Data.from_data`.
             missing_index (str): See `Data.from_data`.
             missing_columns (str): See `Data.from_data`.
             wrapper_kwargs (dict): See `Data.from_data`.
             show_progress (bool): Whether to show the progress bar.
+                Defaults to True if the global flag for data is True and there is more than one symbol.
 
-                Will also forward this argument to `Data.fetch_symbol` if `show_progress` is in the signature.
-            tqdm_kwargs (dict): Keyword arguments passed to `tqdm`.
+                Will also forward this argument to `Data.fetch_symbol` if in the signature.
+            pbar_kwargs (dict): Keyword arguments passed to `vectorbt.utils.pbar.get_pbar`.
 
-                Will also forward this argument to `Data.fetch_symbol` if `tqdm_kwargs` is in the signature.
+                Will also forward this argument to `Data.fetch_symbol` if in the signature.
             **kwargs: Passed to `Data.fetch_symbol`.
 
                 If two symbols require different keyword arguments, pass `symbol_dict` for each argument.
@@ -592,15 +611,18 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         data_cfg = settings['data']
 
         if checks.is_hashable(symbols):
+            single_symbol = True
             symbols = [symbols]
         elif not checks.is_sequence(symbols):
             raise TypeError("Symbols must be either hashable or sequence of hashable")
+        else:
+            single_symbol = False
         if show_progress is None:
-            show_progress = data_cfg['show_progress']
-        tqdm_kwargs = merge_dicts(data_cfg['tqdm_kwargs'], tqdm_kwargs)
+            show_progress = data_cfg['show_progress'] and not single_symbol
+        pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
 
         data = dict()
-        with tqdm(total=len(symbols), disable=not show_progress, **tqdm_kwargs) as pbar:
+        with get_pbar(total=len(symbols), show_progress=show_progress, **pbar_kwargs) as pbar:
             for symbol in symbols:
                 pbar.set_description(symbol)
                 # Select keyword arguments for this symbol
@@ -610,66 +632,91 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 func_arg_names = get_func_arg_names(cls.fetch_symbol)
                 if 'show_progress' in func_arg_names:
                     _kwargs['show_progress'] = show_progress
-                if 'tqdm_kwargs' in func_arg_names:
-                    _kwargs['tqdm_kwargs'] = tqdm_kwargs
+                if 'pbar_kwargs' in func_arg_names:
+                    _kwargs['pbar_kwargs'] = pbar_kwargs
                 data[symbol] = cls.fetch_symbol(symbol, **_kwargs)
                 pbar.update(1)
 
         # Create new instance from data
         return cls.from_data(
             data,
+            single_symbol=single_symbol,
             tz_localize=tz_localize,
             tz_convert=tz_convert,
             missing_index=missing_index,
             missing_columns=missing_columns,
             wrapper_kwargs=wrapper_kwargs,
-            download_kwargs=kwargs
+            fetch_kwargs=kwargs
         )
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         """Abstract method to update a symbol."""
-        raise NotImplementedError
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
-    def update(self: DataT, **kwargs) -> DataT:
+    def update(self: DataT, show_progress: bool = False, pbar_kwargs: tp.KwargsLike = None, **kwargs) -> DataT:
         """Update the data using `Data.update_symbol`.
 
         Args:
+            show_progress (bool): Whether to show the progress bar.
+                Defaults to False.
+
+                Will also forward this argument to `Data.update_symbol` if in `Data.fetch_kwargs`.
+            pbar_kwargs (dict): Keyword arguments passed to `vectorbt.utils.pbar.get_pbar`.
+
+                Will also forward this argument to `Data.update_symbol` if in `Data.pbar_kwargs`.
             **kwargs: Passed to `Data.update_symbol`.
 
                 If two symbols require different keyword arguments, pass `symbol_dict` for each argument.
 
         !!! note
-            Returns a new `Data` instance."""
+            Returns a new `Data` instance instead of changing the data in place."""
+        from vectorbt._settings import settings
+        data_cfg = settings['data']
+
+        pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
+
         new_data = dict()
-        for k, v in self.data.items():
-            # Select keyword arguments for this symbol
-            _kwargs = self.select_symbol_kwargs(k, kwargs)
+        with get_pbar(total=len(self.data), show_progress=show_progress, **pbar_kwargs) as pbar:
+            for k, v in self.data.items():
+                pbar.set_description(k)
 
-            # Fetch new data for this symbol
-            new_obj = self.update_symbol(k, **_kwargs)
+                # Select keyword arguments for this symbol
+                _kwargs = self.select_symbol_kwargs(k, kwargs)
 
-            # Convert array to pandas
-            if not isinstance(new_obj, (pd.Series, pd.DataFrame)):
-                new_obj = np.asarray(new_obj)
-                index = pd.RangeIndex(
-                    start=v.index[-1],
-                    stop=v.index[-1] + new_obj.shape[0],
-                    step=1
-                )
-                if new_obj.ndim == 1:
-                    new_obj = pd.Series(new_obj, index=index)
-                else:
-                    new_obj = pd.DataFrame(new_obj, index=index)
+                # Fetch new data for this symbol
+                func_arg_names = get_func_arg_names(self.fetch_symbol)
+                if 'show_progress' in func_arg_names:
+                    _kwargs['show_progress'] = show_progress
+                if 'pbar_kwargs' in func_arg_names:
+                    _kwargs['pbar_kwargs'] = pbar_kwargs
+                new_obj = self.update_symbol(k, **_kwargs)
 
-            # Perform operations with datetime-like index
-            if isinstance(new_obj.index, pd.DatetimeIndex):
-                if self.tz_localize is not None:
-                    if not is_tz_aware(new_obj.index):
-                        new_obj = new_obj.tz_localize(to_timezone(self.tz_localize))
-                if self.tz_convert is not None:
-                    new_obj = new_obj.tz_convert(to_timezone(self.tz_convert))
+                # Convert array to pandas
+                if not isinstance(new_obj, (pd.Series, pd.DataFrame)):
+                    new_obj = np.asarray(new_obj)
+                    index = pd.RangeIndex(
+                        start=v.index[-1],
+                        stop=v.index[-1] + new_obj.shape[0],
+                        step=1
+                    )
+                    if new_obj.ndim == 1:
+                        new_obj = pd.Series(new_obj, index=index)
+                    else:
+                        new_obj = pd.DataFrame(new_obj, index=index)
 
-            new_data[k] = new_obj
+                # Perform operations with datetime-like index
+                if isinstance(new_obj.index, pd.DatetimeIndex):
+                    if self.tz_localize is not None:
+                        if not is_tz_aware(new_obj.index):
+                            new_obj = new_obj.tz_localize(to_timezone(self.tz_localize))
+                    if self.tz_convert is not None:
+                        new_obj = new_obj.tz_convert(to_timezone(self.tz_convert))
+
+                new_data[k] = new_obj
+                pbar.update(1)
 
         # Align index and columns
         new_data = self.align_index(new_data, missing=self.missing_index)
@@ -703,18 +750,18 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             columns = pd.Index([first_data.name])
         else:
             columns = first_data.columns
-        if len(self.symbols) > 1:
-            new_data = {c: pd.DataFrame(
+        if self.single_symbol:
+            new_data = {c: pd.Series(
                 index=index,
-                columns=pd.Index(self.symbols, name=level_name),
+                name=self.symbols[0],
                 dtype=self.data[self.symbols[0]].dtype
                 if isinstance(self.data[self.symbols[0]], pd.Series)
                 else self.data[self.symbols[0]][c].dtype
             ) for c in columns}
         else:
-            new_data = {c: pd.Series(
+            new_data = {c: pd.DataFrame(
                 index=index,
-                name=self.symbols[0],
+                columns=pd.Index(self.symbols, name=level_name),
                 dtype=self.data[self.symbols[0]].dtype
                 if isinstance(self.data[self.symbols[0]], pd.Series)
                 else self.data[self.symbols[0]][c].dtype
@@ -725,20 +772,19 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                     col_data = self.data[s]
                 else:
                     col_data = self.data[s][c]
-                if len(self.symbols) > 1:
-                    new_data[c].loc[:, s] = col_data
-                else:
+                if self.single_symbol:
                     new_data[c].loc[:] = col_data
+                else:
+                    new_data[c].loc[:, s] = col_data
 
         return new_data
 
     def get(self, column: tp.Optional[tp.Label] = None, **kwargs) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Get column data.
 
-        If one symbol, returns data for that symbol.
-        If multiple symbols, performs concatenation first and returns a DataFrame if one column
-        and a tuple of DataFrames if a list of columns passed."""
-        if len(self.symbols) == 1:
+        If one symbol, returns data for that symbol. If multiple symbols, performs concatenation
+        first and returns a DataFrame if one column and a tuple of DataFrames if a list of columns passed."""
+        if self.single_symbol:
             if column is None:
                 return self.data[self.symbols[0]]
             return self.data[self.symbols[0]][column]

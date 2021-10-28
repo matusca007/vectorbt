@@ -43,8 +43,8 @@ group_by = pd.Index(['g1', 'g1', 'g2'])
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.caching['enabled'] = False
-    vbt.settings.caching['whitelist_enabled'] = False
+    vbt.settings.caching['disable'] = True
+    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
 
 

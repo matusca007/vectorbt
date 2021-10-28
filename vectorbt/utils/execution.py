@@ -4,10 +4,10 @@
 """Engines for executing functions."""
 
 from numba.core.registry import CPUDispatcher
-from tqdm.auto import tqdm
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import merge_dicts, Configured
+from vectorbt.utils.pbar import get_pbar
 
 try:
     from ray.remote_function import RemoteFunction as RemoteFunctionT
@@ -37,42 +37,40 @@ class SequenceEngine(ExecutionEngine):
 
     def __init__(self,
                  show_progress: tp.Optional[bool] = None,
-                 tqdm_kwargs: tp.KwargsLike = None) -> None:
+                 pbar_kwargs: tp.KwargsLike = None) -> None:
         from vectorbt._settings import settings
         execution_sequence_cfg = settings['execution']['sequence']
 
         if show_progress is None:
             show_progress = execution_sequence_cfg['show_progress']
-        tqdm_kwargs = merge_dicts(tqdm_kwargs, execution_sequence_cfg['tqdm_kwargs'])
+        pbar_kwargs = merge_dicts(pbar_kwargs, execution_sequence_cfg['pbar_kwargs'])
 
         self._show_progress = show_progress
-        self._tqdm_kwargs = tqdm_kwargs
+        self._pbar_kwargs = pbar_kwargs
 
         ExecutionEngine.__init__(
             self,
             show_progress=show_progress,
-            tqdm_kwargs=tqdm_kwargs
+            pbar_kwargs=pbar_kwargs
         )
 
     @property
     def show_progress(self) -> bool:
-        """Whether to show progress with tqdm."""
+        """Whether to show the progress bar using `vectorbt.utils.pbar.get_pbar`."""
         return self._show_progress
 
     @property
-    def tqdm_kwargs(self) -> tp.Kwargs:
-        """Keyword arguments passed to tqdm."""
-        return self._tqdm_kwargs
+    def pbar_kwargs(self) -> tp.Kwargs:
+        """Keyword arguments passed to `vectorbt.utils.pbar.get_pbar`."""
+        return self._pbar_kwargs
 
     def execute(self, funcs_args: tp.FuncsArgs, n_calls: tp.Optional[int] = None) -> list:
-        if self.show_progress:
-            results = []
-            with tqdm(total=n_calls, **self.tqdm_kwargs) as pbar:
-                for func, args, kwargs in funcs_args:
-                    results.append(func(*args, **kwargs))
-                    pbar.update(1)
-            return results
-        return [func(*args, **kwargs) for func, args, kwargs in funcs_args]
+        results = []
+        with get_pbar(total=n_calls, show_progress=self.show_progress, **self.pbar_kwargs) as pbar:
+            for func, args, kwargs in funcs_args:
+                results.append(func(*args, **kwargs))
+                pbar.update(1)
+        return results
 
 
 class DaskEngine(ExecutionEngine):

@@ -303,7 +303,7 @@ class TestCacheableRegistry:
         assert len(setup.cache) == 0
 
         setup.enable_caching()
-        vbt.settings['caching']['enabled'] = False
+        vbt.settings['caching']['disable'] = True
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 0
 
@@ -311,13 +311,13 @@ class TestCacheableRegistry:
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 1
 
-        vbt.settings['caching']['whitelist_enabled'] = False
+        vbt.settings['caching']['disable_whitelist'] = True
         assert setup.run(10, 20, c=30) == 60
         assert len(setup.cache) == 1
 
         setup.clear_cache()
-        vbt.settings['caching']['enabled'] = True
-        vbt.settings['caching']['whitelist_enabled'] = True
+        vbt.settings['caching']['disable'] = False
+        vbt.settings['caching']['disable_whitelist'] = False
 
         np.testing.assert_array_equal(
             setup.run(10, 20, c=np.array([1, 2, 3])),

@@ -32,8 +32,8 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.caching['enabled'] = False
-    vbt.settings.caching['whitelist_enabled'] = False
+    vbt.settings.caching['disable'] = True
+    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
 
 

@@ -5,9 +5,10 @@
 
 import numpy as np
 import imageio
-from tqdm.auto import tqdm
+import pandas as pd
 
 from vectorbt import _typing as tp
+from vectorbt.utils.pbar import get_pbar
 
 
 def hstack_image_arrays(a: tp.Array3d, b: tp.Array3d) -> tp.Array3d:
@@ -39,7 +40,7 @@ def save_animation(fname: str,
                    fps: int = 3,
                    writer_kwargs: dict = None,
                    show_progress: bool = True,
-                   tqdm_kwargs: tp.KwargsLike = None,
+                   pbar_kwargs: tp.KwargsLike = None,
                    to_image_kwargs: tp.KwargsLike = None,
                    **kwargs) -> None:
     """Save animation to a file.
@@ -57,7 +58,7 @@ def save_animation(fname: str,
         fps (int): Frames per second.
         writer_kwargs (dict): Keyword arguments passed to `imageio.get_writer`.
         show_progress (bool): Whether to show the progress bar.
-        tqdm_kwargs (dict): Keyword arguments passed to `tqdm`.
+        pbar_kwargs (dict): Keyword arguments passed to `vectorbt.utils.pbar.get_pbar`.
         to_image_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Figure.to_image`.
         **kwargs: Keyword arguments passed to `plot_func`.
     """
@@ -67,18 +68,21 @@ def save_animation(fname: str,
 
     if writer_kwargs is None:
         writer_kwargs = {}
-    if tqdm_kwargs is None:
-        tqdm_kwargs = {}
+    if pbar_kwargs is None:
+        pbar_kwargs = {}
     if to_image_kwargs is None:
         to_image_kwargs = {}
     if delta is None:
         delta = len(index) // 2
 
     with imageio.get_writer(fname, fps=fps, **writer_kwargs) as writer:
-        for i in tqdm(range(0, len(index) - delta, step), disable=not show_progress, **tqdm_kwargs):
+        pbar = get_pbar(range(0, len(index) - delta, step), show_progress=show_progress, **pbar_kwargs)
+        for i in pbar:
+            pbar.set_description("{} - {}".format(str(index[i]), str(index[i + delta - 1])))
             fig = plot_func(index[i:i + delta], *args, **kwargs)
             if isinstance(fig, (go.Figure, go.FigureWidget)):
                 fig = fig.to_image(format="png", **to_image_kwargs)
             if not isinstance(fig, np.ndarray):
                 fig = imageio.imread(fig)
             writer.append_data(fig)
+        pbar.close()

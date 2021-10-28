@@ -62,13 +62,13 @@ load it back, and replace in-place:
 
 ```python-repl
 >>> vbt.settings.save('my_settings')
->>> vbt.settings['caching']['enabled'] = False
->>> vbt.settings['caching']['enabled']
-False
+>>> vbt.settings['caching']['disable'] = True
+>>> vbt.settings['caching']['disable']
+True
 
 >>> vbt.settings.load_update('my_settings', clear=True)  # replace in-place
->>> vbt.settings['caching']['enabled']
-True
+>>> vbt.settings['caching']['disable']
+False
 ```
 
 Bonus: You can do the same with any sub-config inside `settings`!
@@ -126,9 +126,9 @@ __pdoc__ = {}
 _settings = {}
 
 caching = dict(
-    enabled=True,
-    whitelist_enabled=True,
-    machinery_enabled=True,
+    disable=False,
+    disable_whitelist=False,
+    disable_machinery=False,
     silence_warnings=False,
     register_lazily=True,
     ignore_args=[
@@ -189,7 +189,7 @@ _settings['numba'] = numba
 execution = dict(
     sequence=dict(
         show_progress=False,
-        tqdm_kwargs=Config(  # flex
+        pbar_kwargs=Config(  # flex
             dict()
         )
     ),
@@ -325,7 +325,7 @@ _settings['datetime'] = datetime
 
 data = dict(
     show_progress=True,
-    tqdm_kwargs=Config(  # flex
+    pbar_kwargs=Config(  # flex
         dict()
     ),
     tz_localize=get_utc_tz(),
@@ -990,6 +990,23 @@ Sub-config with settings applied to
 [GIPHY Translate Endpoint](https://developers.giphy.com/docs/api/endpoint#translate).""")
 
 _settings['messaging'] = messaging
+
+pbar = dict(
+    disable=False,
+    type='tqdm_auto',
+    kwargs=Config(  # flex
+        dict()
+    )
+)
+"""_"""
+
+__pdoc__['pbar'] = Sub("""Sub-config with settings applied across `vectorbt.utils.pbar`.
+
+```json
+${config_doc}
+```""")
+
+_settings['pbar'] = pbar
 
 
 # ############# Settings config ############# #

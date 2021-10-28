@@ -23,8 +23,8 @@ neg_ths = [np.array([1 / 2, 1 / 3]), np.array([1 / 2, 2 / 3]), np.array([1 / 2, 
 # ############# Global ############# #
 
 def setup_module():
-    vbt.settings.caching['enabled'] = False
-    vbt.settings.caching['whitelist_enabled'] = False
+    vbt.settings.caching['disable'] = True
+    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
 
 
