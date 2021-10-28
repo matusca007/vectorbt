@@ -303,7 +303,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     def __init__(self,
                  wrapper: ArrayWrapper,
-                 data: tp.Data,
+                 data: tp.DataDict,
                  single_symbol: bool,
                  tz_localize: tp.Optional[tp.TimezoneLike],
                  tz_convert: tp.Optional[tp.TimezoneLike],
@@ -349,7 +349,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         )
 
     @property
-    def data(self) -> tp.Data:
+    def data(self) -> tp.DataDict:
         """Data dictionary keyed by symbol."""
         return self._data
 
@@ -389,7 +389,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._fetch_kwargs
 
     @classmethod
-    def align_index(cls, data: tp.Data, missing: str = 'nan') -> tp.Data:
+    def align_index(cls, data: tp.DataDict, missing: str = 'nan') -> tp.DataDict:
         """Align data to have the same index.
 
         The argument `missing` accepts the following values:
@@ -424,7 +424,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return new_data
 
     @classmethod
-    def align_columns(cls, data: tp.Data, missing: str = 'raise') -> tp.Data:
+    def align_columns(cls, data: tp.DataDict, missing: str = 'raise') -> tp.DataDict:
         """Align data to have the same columns.
 
         See `Data.align_index` for `missing`."""
@@ -485,7 +485,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     @classmethod
     def from_data(cls: tp.Type[DataT],
-                  data: tp.Data,
+                  data: tp.DataDict,
                   single_symbol: bool = False,
                   tz_localize: tp.Optional[tp.TimezoneLike] = None,
                   tz_convert: tp.Optional[tp.TimezoneLike] = None,
@@ -494,7 +494,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                   wrapper_kwargs: tp.KwargsLike = None,
                   fetch_kwargs: tp.KwargsLike = None,
                   **kwargs) -> DataT:
-        """Create a new `Data` instance from (aligned) data.
+        """Create a new `Data` instance from data.
 
         Args:
             data (dict): Dictionary of array-like objects keyed by symbol.
@@ -584,7 +584,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
               show_progress: tp.Optional[bool] = None,
               pbar_kwargs: tp.KwargsLike = None,
               **kwargs) -> DataT:
-        """Fetch data using `Data.fetch_symbol`.
+        """Fetch data using `Data.fetch_symbol` and pass to `Data.from_data`.
 
         Args:
             symbols (hashable or sequence of hashable): One or multiple symbols.
@@ -614,7 +614,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             single_symbol = True
             symbols = [symbols]
         elif not checks.is_sequence(symbols):
-            raise TypeError("Symbols must be either hashable or sequence of hashable")
+            raise TypeError("Symbols must be either a hashable or a sequence of hashable")
         else:
             single_symbol = False
         if show_progress is None:
@@ -652,10 +652,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         """Abstract method to update a symbol."""
-        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
-        kwargs = merge_dicts(fetch_kwargs, kwargs)
-        return self.fetch_symbol(symbol, **kwargs)
+        raise NotImplementedError
 
     def update(self: DataT, show_progress: bool = False, pbar_kwargs: tp.KwargsLike = None, **kwargs) -> DataT:
         """Update the data using `Data.update_symbol`.
@@ -744,7 +741,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             data=new_data
         )
 
-    def concat(self, level_name: str = 'symbol') -> tp.Data:
+    def concat(self, level_name: str = 'symbol') -> tp.DataDict:
         """Return a dict of Series/DataFrames with symbols as columns, keyed by column name."""
         first_data = self.data[self.symbols[0]]
         index = first_data.index

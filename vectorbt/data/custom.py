@@ -1,12 +1,20 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Custom data classes that subclass `vectorbt.data.base.Data`."""
+"""Custom data classes that subclass `vectorbt.data.base.Data`.
+
+!!! note
+    Use absolute start and end dates instead of relative ones when fetching multiple
+    symbols of data: some symbols may take a considerable amount of time to fetch
+    such that they may shift the time period for the symbols coming next.
+    This happens when relative dates are parsed in `vectorbt.data.base.Data.fetch_symbol`
+    instead of parsing them once and for all symbols in `vectorbt.data.base.Data.fetch`."""
 
 import pandas as pd
 import time
 import warnings
 from functools import wraps
+import traceback
 
 from vectorbt import _typing as tp
 from vectorbt.utils.datetime_ import get_utc_tz, get_local_tz, to_tzaware_datetime, datetime_to_ms
@@ -58,6 +66,12 @@ class SyntheticData(Data):
         if len(index) == 0:
             raise ValueError("Date range is empty")
         return cls.generate_symbol(symbol, index, **kwargs)
+
+    def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 class RandomData(SyntheticData):
@@ -161,7 +175,7 @@ class YFData(Data):
     ...     end='2021-04-12 09:35:00 -0400',
     ...     interval='1m'
     ... )
-    >>> yf_data.get())
+    >>> yf_data.get()
                                      Open        High         Low       Close  \\
     Datetime
     2021-04-12 13:30:00+00:00  685.080017  685.679993  684.765015  685.679993
@@ -239,6 +253,12 @@ class YFData(Data):
             end = to_tzaware_datetime(end, tz=get_local_tz())
 
         return yf.Ticker(symbol).history(period=period, start=start, end=end, **kwargs)
+
+    def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 BinanceDataT = tp.TypeVar("BinanceDataT", bound="BinanceData")
@@ -376,7 +396,7 @@ class BinanceData(Data):
 
     @classmethod
     def fetch_symbol(cls,
-                     symbol: str,
+                     symbol: tp.Label,
                      client: tp.Optional["ClientT"] = None,
                      interval: str = '1d',
                      start: tp.DatetimeLike = 0,
@@ -431,35 +451,39 @@ class BinanceData(Data):
             return str(pd.Timestamp(to_tzaware_datetime(ts, tz=get_utc_tz())))
 
         # Iteratively collect the data
-        data: tp.List[list] = []
-        with get_pbar(show_progress=show_progress, **pbar_kwargs) as pbar:
-            pbar.set_description(_ts_to_str(start_ts))
-            while True:
-                # Fetch the klines for the next interval
-                next_data = client.get_klines(
-                    symbol=symbol,
-                    interval=interval,
-                    limit=limit,
-                    startTime=next_start_ts,
-                    endTime=end_ts
-                )
-                if len(data) > 0:
-                    next_data = list(filter(lambda d: next_start_ts < d[0] < end_ts, next_data))
-                else:
-                    next_data = list(filter(lambda d: d[0] < end_ts, next_data))
+        data = []
+        try:
+            with get_pbar(show_progress=show_progress, **pbar_kwargs) as pbar:
+                pbar.set_description(_ts_to_str(start_ts))
+                while True:
+                    # Fetch the klines for the next interval
+                    next_data = client.get_klines(
+                        symbol=symbol,
+                        interval=interval,
+                        limit=limit,
+                        startTime=next_start_ts,
+                        endTime=end_ts
+                    )
+                    if len(data) > 0:
+                        next_data = list(filter(lambda d: next_start_ts < d[0] < end_ts, next_data))
+                    else:
+                        next_data = list(filter(lambda d: d[0] < end_ts, next_data))
 
-                # Update the timestamps and the progress bar
-                if not len(next_data):
-                    break
-                data += next_data
-                pbar.set_description("{} - {}".format(
-                    _ts_to_str(start_ts),
-                    _ts_to_str(next_data[-1][0])
-                ))
-                pbar.update(1)
-                next_start_ts = next_data[-1][0]
-                if delay is not None:
-                    time.sleep(delay / 1000)  # be kind to api
+                    # Update the timestamps and the progress bar
+                    if not len(next_data):
+                        break
+                    data += next_data
+                    pbar.set_description("{} - {}".format(
+                        _ts_to_str(start_ts),
+                        _ts_to_str(next_data[-1][0])
+                    ))
+                    pbar.update(1)
+                    next_start_ts = next_data[-1][0]
+                    if delay is not None:
+                        time.sleep(delay / 1000)  # be kind to api
+        except Exception as e:
+            warnings.warn(traceback.format_exc())
+            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data.", stacklevel=2)
 
         # Convert data to a DataFrame
         df = pd.DataFrame(data, columns=[
@@ -491,6 +515,12 @@ class BinanceData(Data):
         del df['Ignore']
 
         return df
+
+    def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
 
 
 class CCXTData(Data):
@@ -543,7 +573,7 @@ class CCXTData(Data):
 
     @classmethod
     def fetch_symbol(cls,
-                     symbol: str,
+                     symbol: tp.Label,
                      exchange: tp.Union[str, "ExchangeT"] = 'binance',
                      config: tp.Optional[dict] = None,
                      timeframe: str = '1d',
@@ -658,29 +688,33 @@ class CCXTData(Data):
             return str(pd.Timestamp(to_tzaware_datetime(ts, tz=get_utc_tz())))
 
         # Iteratively collect the data
-        data: tp.List[list] = []
-        with get_pbar(show_progress=show_progress, **pbar_kwargs) as pbar:
-            pbar.set_description(_ts_to_str(start_ts))
-            while True:
-                # Fetch the klines for the next interval
-                next_data = _fetch(next_start_ts, limit)
-                if len(data) > 0:
-                    next_data = list(filter(lambda d: next_start_ts < d[0] < end_ts, next_data))
-                else:
-                    next_data = list(filter(lambda d: d[0] < end_ts, next_data))
+        data = []
+        try:
+            with get_pbar(show_progress=show_progress, **pbar_kwargs) as pbar:
+                pbar.set_description(_ts_to_str(start_ts))
+                while True:
+                    # Fetch the klines for the next interval
+                    next_data = _fetch(next_start_ts, limit)
+                    if len(data) > 0:
+                        next_data = list(filter(lambda d: next_start_ts < d[0] < end_ts, next_data))
+                    else:
+                        next_data = list(filter(lambda d: d[0] < end_ts, next_data))
 
-                # Update the timestamps and the progress bar
-                if not len(next_data):
-                    break
-                data += next_data
-                pbar.set_description("{} - {}".format(
-                    _ts_to_str(start_ts),
-                    _ts_to_str(next_data[-1][0])
-                ))
-                pbar.update(1)
-                next_start_ts = next_data[-1][0]
-                if delay is not None:
-                    time.sleep(delay / 1000)  # be kind to api
+                    # Update the timestamps and the progress bar
+                    if not len(next_data):
+                        break
+                    data += next_data
+                    pbar.set_description("{} - {}".format(
+                        _ts_to_str(start_ts),
+                        _ts_to_str(next_data[-1][0])
+                    ))
+                    pbar.update(1)
+                    next_start_ts = next_data[-1][0]
+                    if delay is not None:
+                        time.sleep(delay / 1000)  # be kind to api
+        except Exception as e:
+            warnings.warn(traceback.format_exc())
+            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data.", stacklevel=2)
 
         # Convert data to a DataFrame
         df = pd.DataFrame(data, columns=[
@@ -700,3 +734,9 @@ class CCXTData(Data):
         df['Volume'] = df['Volume'].astype(float)
 
         return df
+
+    def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)

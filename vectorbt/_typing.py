@@ -135,7 +135,7 @@ KwargsLikeSequence = MaybeSequence[KwargsLike]
 FileName = Union[str, Path]
 
 # Data
-Data = Dict[Label, SeriesFrame]
+DataDict = Dict[Label, SeriesFrame]
 
 # Plotting
 TraceName = Union[str, None]
