@@ -40,6 +40,7 @@ big_price_wide = big_price.vbt.tile(1000)
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['disable'] = True
     vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True

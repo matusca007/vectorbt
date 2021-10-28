@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Indicators built with `vectorbt.indicators.factory.IndicatorFactory`.
+"""Custom indicators built with `vectorbt.indicators.factory.IndicatorFactory`.
 
 You can access all the indicators either by `vbt.*` or `vbt.indicators.*`.
 
@@ -9,7 +9,7 @@ You can access all the indicators either by `vbt.*` or `vbt.indicators.*`.
 >>> import pandas as pd
 >>> import vectorbt as vbt
 
->>> # vectorbt.indicators.basic.MA
+>>> # vectorbt.indicators.custom.MA
 >>> vbt.MA.run(pd.Series([1, 2, 3]), [2, 3]).ma
 ma_window     2     3
 ma_ewm    False False

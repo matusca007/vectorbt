@@ -8,7 +8,7 @@ See [Using Technical Indicators to Develop Trading Strategies](https://www.inves
 
 from vectorbt import _typing as tp
 from vectorbt.indicators.factory import IndicatorFactory, IndicatorBase
-from vectorbt.indicators.basic import (
+from vectorbt.indicators.custom import (
     MA,
     MSTD,
     BBANDS,

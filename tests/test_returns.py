@@ -41,6 +41,7 @@ ret_acc = rets.vbt.returns(benchmark_rets=benchmark_rets)
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['disable'] = True
     vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.returns.defaults = dict(

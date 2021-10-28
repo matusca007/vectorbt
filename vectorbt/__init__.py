@@ -296,7 +296,7 @@ Freq: D, Name: Close, Length: 366, dtype: float64
 ```
 
 We are going to test a simple Dual Moving Average Crossover (DMAC) strategy. For this, we are going to
-use `vectorbt.indicators.basic.MA` class for calculating moving averages and generating signals.
+use `vectorbt.indicators.custom.MA` class for calculating moving averages and generating signals.
 
 Our first test is rather simple: buy when the 10-day moving average crosses above the 20-day moving
 average, and sell when opposite.

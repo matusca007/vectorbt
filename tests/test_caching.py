@@ -12,6 +12,7 @@ from vectorbt.utils.caching import Cacheable
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['register_lazily'] = False
 
 
@@ -1084,8 +1085,8 @@ class TestCacheableRegistry:
             pd.to_datetime([class_setup1.last_update_time]).values
         )
 
-    def test_disabled_machinery(self):
-        vbt.settings['caching']['machinery_enabled'] = False
+    def test_disable_machinery(self):
+        vbt.settings['caching']['disable_machinery'] = True
 
         class A(Cacheable):
             @vbt.cacheable_property
@@ -1121,7 +1122,7 @@ class TestCacheableRegistry:
         assert B.f2_test.get_ca_setup(b) is None
         assert f3_test.get_ca_setup() is None
 
-        vbt.settings['caching']['machinery_enabled'] = True
+        vbt.settings['caching']['disable_machinery'] = False
 
     def test_gc(self):
         class A(Cacheable):

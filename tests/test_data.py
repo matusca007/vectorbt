@@ -12,6 +12,7 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['disable'] = True
     vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
@@ -50,12 +51,12 @@ class MyData(vbt.Data):
         return df
 
     def update_symbol(self, symbol, n=1, **kwargs):
-        download_kwargs = self.select_symbol_kwargs(symbol, self.download_kwargs)
-        download_kwargs['start_date'] = self.data[symbol].index[-1]
-        shape = download_kwargs.pop('shape', (5, 3))
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start_date'] = self.data[symbol].index[-1]
+        shape = fetch_kwargs.pop('shape', (5, 3))
         new_shape = (n, shape[1]) if len(shape) > 1 else (n,)
-        new_seed = download_kwargs.pop('seed', seed) + 1
-        kwargs = merge_dicts(download_kwargs, kwargs)
+        new_seed = fetch_kwargs.pop('seed', seed) + 1
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, shape=new_shape, seed=new_seed, **kwargs)
 
 

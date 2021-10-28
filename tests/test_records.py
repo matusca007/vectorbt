@@ -56,6 +56,7 @@ records_nosort_grouped = vbt.records.Records(wrapper_grouped, records_nosort_arr
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['disable'] = True
     vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True

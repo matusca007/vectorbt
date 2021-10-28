@@ -32,6 +32,7 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    vbt.settings.pbar['disable'] = True
     vbt.settings.caching['disable'] = True
     vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
@@ -2390,7 +2391,7 @@ class TestFactory:
             )
 
 
-# ############# basic.py ############# #
+# ############# custom.py ############# #
 
 close_ts = pd.Series([1, 2, 3, 4, 3, 2, 1], index=pd.DatetimeIndex([
     datetime(2018, 1, 1),

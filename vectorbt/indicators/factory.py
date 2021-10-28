@@ -444,7 +444,7 @@ custom_upper  array_0 array_0 array_1 array_1
 2020-01-05        1.0     1.0     1.0     1.0
 ```
 
-Indicators can also be parameterless. See `vectorbt.indicators.basic.OBV`.
+Indicators can also be parameterless. See `vectorbt.indicators.custom.OBV`.
 
 ## Inputs
 
@@ -1068,7 +1068,7 @@ This makes possible accessing rows and columns by labels, integer positions, and
 >>> ma = vbt.MA.run(price, [2, 3])
 
 >>> ma[(2, 'b')]
-<vectorbt.indicators.basic.MA at 0x7fe4d10ddcc0>
+<vectorbt.indicators.custom.MA at 0x7fe4d10ddcc0>
 
 >>> ma[(2, 'b')].ma
 2020-01-01    NaN

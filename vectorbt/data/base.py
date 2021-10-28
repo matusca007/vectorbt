@@ -624,7 +624,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         data = dict()
         with get_pbar(total=len(symbols), show_progress=show_progress, **pbar_kwargs) as pbar:
             for symbol in symbols:
-                pbar.set_description(symbol)
+                if symbol is not None:
+                    pbar.set_description(str(symbol))
                 # Select keyword arguments for this symbol
                 _kwargs = cls.select_symbol_kwargs(symbol, kwargs)
 
@@ -681,7 +682,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         new_data = dict()
         with get_pbar(total=len(self.data), show_progress=show_progress, **pbar_kwargs) as pbar:
             for k, v in self.data.items():
-                pbar.set_description(k)
+                if k is not None:
+                    pbar.set_description(str(k))
 
                 # Select keyword arguments for this symbol
                 _kwargs = self.select_symbol_kwargs(k, kwargs)
