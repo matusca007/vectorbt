@@ -324,7 +324,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                  missing_index: str,
                  missing_columns: str,
                  fetch_kwargs: tp.Kwargs,
-                 last_index: tp.Dict[tp.Label, int],
+                 last_index: tp.Dict[tp.Symbol, int],
                  **kwargs) -> None:
 
         checks.assert_instance_of(data, dict)
@@ -376,7 +376,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._single_symbol
 
     @property
-    def symbols(self) -> tp.List[tp.Label]:
+    def symbols(self) -> tp.List[tp.Symbol]:
         """List of symbols."""
         return list(self.data.keys())
 
@@ -406,7 +406,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._fetch_kwargs
 
     @property
-    def last_index(self) -> tp.Dict[tp.Label, int]:
+    def last_index(self) -> tp.Dict[tp.Symbol, int]:
         """Last fetched index per symbol."""
         return self._last_index
 
@@ -536,7 +536,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return new_data
 
     @classmethod
-    def select_symbol_kwargs(cls, symbol: tp.Label, kwargs: dict) -> dict:
+    def select_symbol_kwargs(cls, symbol: tp.Symbol, kwargs: dict) -> dict:
         """Select keyword arguments belonging to `symbol`."""
         _kwargs = {}
         for k, v in kwargs.items():
@@ -557,7 +557,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                   missing_columns: tp.Optional[str] = None,
                   wrapper_kwargs: tp.KwargsLike = None,
                   fetch_kwargs: tp.KwargsLike = None,
-                  last_index: tp.Optional[tp.Dict[tp.Label, int]] = None,
+                  last_index: tp.Optional[tp.Dict[tp.Symbol, int]] = None,
                   **kwargs) -> DataT:
         """Create a new `Data` instance from data.
 
@@ -612,13 +612,13 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         )
 
     @classmethod
-    def fetch_symbol(cls, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+    def fetch_symbol(cls, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
         """Abstract method to fetch a symbol."""
         raise NotImplementedError
 
     @classmethod
     def fetch(cls: tp.Type[DataT],
-              symbols: tp.Union[tp.Label, tp.Labels] = None,
+              symbols: tp.Union[tp.Symbol, tp.Symbols] = None,
               tz_localize: tp.Optional[tp.TimezoneLike] = None,
               tz_convert: tp.Optional[tp.TimezoneLike] = None,
               missing_index: tp.Optional[str] = None,
@@ -692,7 +692,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             fetch_kwargs=kwargs
         )
 
-    def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
+    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
         """Abstract method to update a symbol."""
         raise NotImplementedError
 
@@ -706,7 +706,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 Will also forward this argument to `Data.update_symbol` if in `Data.fetch_kwargs`.
             pbar_kwargs (dict): Keyword arguments passed to `vectorbt.utils.pbar.get_pbar`.
 
-                Will also forward this argument to `Data.update_symbol` if in `Data.pbar_kwargs`.
+                Will also forward this argument to `Data.update_symbol` if in `Data.fetch_kwargs`.
             **kwargs: Passed to `Data.update_symbol`.
 
                 If two symbols require different keyword arguments, pass `symbol_dict` for each argument.
