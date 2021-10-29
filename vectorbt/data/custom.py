@@ -69,7 +69,7 @@ class SyntheticData(Data):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, **kwargs)
 
@@ -144,7 +144,7 @@ class RandomData(SyntheticData):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['start'] = self.last_index[symbol]
         _ = fetch_kwargs.pop('start_value', None)
         start_value = self.data[symbol].iloc[-2]
         fetch_kwargs['seed'] = None
@@ -256,7 +256,7 @@ class YFData(Data):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, **kwargs)
 
@@ -483,7 +483,8 @@ class BinanceData(Data):
                         time.sleep(delay / 1000)  # be kind to api
         except Exception as e:
             warnings.warn(traceback.format_exc())
-            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data.", stacklevel=2)
+            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data. "
+                          f"Use update() method to fetch missing data.", stacklevel=2)
 
         # Convert data to a DataFrame
         df = pd.DataFrame(data, columns=[
@@ -518,7 +519,7 @@ class BinanceData(Data):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, **kwargs)
 
@@ -714,7 +715,8 @@ class CCXTData(Data):
                         time.sleep(delay / 1000)  # be kind to api
         except Exception as e:
             warnings.warn(traceback.format_exc())
-            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data.", stacklevel=2)
+            warnings.warn(f"Symbol '{str(symbol)}' raised an exception. Returning incomplete data. "
+                          f"Use update() method to fetch missing data.", stacklevel=2)
 
         # Convert data to a DataFrame
         df = pd.DataFrame(data, columns=[
@@ -737,6 +739,6 @@ class CCXTData(Data):
 
     def update_symbol(self, symbol: tp.Label, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start'] = self.data[symbol].index[-1]
+        fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, **kwargs)

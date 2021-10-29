@@ -27,10 +27,22 @@ def teardown_module():
 
 class MyData(vbt.Data):
     @classmethod
-    def fetch_symbol(cls, symbol, shape=(5, 3), start_date=datetime(2020, 1, 1), columns=None, index_mask=None,
-                        column_mask=None, return_arr=False, tz_localize=None, seed=seed):
+    def fetch_symbol(cls, symbol, shape=(5, 3), start_date=datetime(2020, 1, 1),
+                     columns=None, index_mask=None, column_mask=None, return_arr=False,
+                     tz_localize=None, is_update=False):
         np.random.seed(seed)
-        a = np.random.uniform(size=shape) + symbol
+        a = np.empty(shape, dtype=object)
+        if a.ndim == 1:
+            for i in range(a.shape[0]):
+                a[i] = str(symbol) + '_' + str(i)
+                if is_update:
+                    a[i] += '_u'
+        else:
+            for col in range(a.shape[1]):
+                for i in range(a.shape[0]):
+                    a[i, col] = str(symbol) + '_' + str(col) + '_' + str(i)
+                    if is_update:
+                        a[i, col] += '_u'
         if return_arr:
             return a
         index = [start_date + timedelta(days=i) for i in range(a.shape[0])]
@@ -52,12 +64,11 @@ class MyData(vbt.Data):
 
     def update_symbol(self, symbol, n=1, **kwargs):
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-        fetch_kwargs['start_date'] = self.data[symbol].index[-1]
+        fetch_kwargs['start_date'] = self.last_index[symbol]
         shape = fetch_kwargs.pop('shape', (5, 3))
         new_shape = (n, shape[1]) if len(shape) > 1 else (n,)
-        new_seed = fetch_kwargs.pop('seed', seed) + 1
         kwargs = merge_dicts(fetch_kwargs, kwargs)
-        return self.fetch_symbol(symbol, shape=new_shape, seed=new_seed, **kwargs)
+        return self.fetch_symbol(symbol, shape=new_shape, is_update=True, **kwargs)
 
 
 class TestData:
@@ -67,16 +78,16 @@ class TestData:
         data.save(tmp_path / 'data')
         assert MyData.load(tmp_path / 'data') == data
 
-    def test_download(self):
+    def test_fetch(self):
         pd.testing.assert_series_equal(
             MyData.fetch(0, shape=(5,), return_arr=True).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ]
             )
         )
@@ -84,11 +95,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), return_arr=True).data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.8324426408004217, 0.21233911067827616, 0.18182496720710062]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_4', '0_1_4', '0_2_4']
                 ]
             )
         )
@@ -107,11 +118,11 @@ class TestData:
             MyData.fetch(0, shape=(5,)).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index
             )
@@ -120,11 +131,11 @@ class TestData:
             MyData.fetch(0, shape=(5,), columns='feat0').data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index,
                 name='feat0'
@@ -134,11 +145,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3)).data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.8324426408004217, 0.21233911067827616, 0.18182496720710062]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_4', '0_1_4', '0_2_4']
                 ],
                 index=index
             )
@@ -147,11 +158,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.8324426408004217, 0.21233911067827616, 0.18182496720710062]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_4', '0_1_4', '0_2_4']
                 ],
                 index=index,
                 columns=pd.Index(['feat0', 'feat1', 'feat2'], dtype='object'))
@@ -160,11 +171,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,)).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index
             )
@@ -173,11 +184,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,)).data[1],
             pd.Series(
                 [
-                    1.3745401188473625,
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366,
-                    1.15601864044243652
+                    '1_0',
+                    '1_1',
+                    '1_2',
+                    '1_3',
+                    '1_4'
                 ],
                 index=index
             )
@@ -186,11 +197,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3)).data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.8324426408004217, 0.21233911067827616, 0.18182496720710062]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_4', '0_1_4', '0_2_4']
                 ],
                 index=index
             )
@@ -199,11 +210,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3)).data[1],
             pd.DataFrame(
                 [
-                    [1.3745401188473625, 1.9507143064099162, 1.7319939418114051],
-                    [1.5986584841970366, 1.15601864044243652, 1.15599452033620265],
-                    [1.05808361216819946, 1.8661761457749352, 1.6011150117432088],
-                    [1.7080725777960455, 1.020584494295802447, 1.9699098521619943],
-                    [1.8324426408004217, 1.21233911067827616, 1.18182496720710062]
+                    ['1_0_0', '1_1_0', '1_2_0'],
+                    ['1_0_1', '1_1_1', '1_2_1'],
+                    ['1_0_2', '1_1_2', '1_2_2'],
+                    ['1_0_3', '1_1_3', '1_2_3'],
+                    ['1_0_4', '1_1_4', '1_2_4']
                 ],
                 index=index
             )
@@ -223,11 +234,11 @@ class TestData:
             MyData.fetch(0, shape=(5,), tz_localize='UTC', tz_convert='Europe/Berlin').data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index2
             )
@@ -241,10 +252,10 @@ class TestData:
             pd.Series(
                 [
                     np.nan,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index
             )
@@ -253,10 +264,10 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan').data[1],
             pd.Series(
                 [
-                    1.3745401188473625,
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366,
+                    '1_0',
+                    '1_1',
+                    '1_2',
+                    '1_3',
                     np.nan
                 ],
                 index=index
@@ -266,9 +277,9 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[0],
             pd.Series(
                 [
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366
+                    '0_1',
+                    '0_2',
+                    '0_3'
                 ],
                 index=index[1:4]
             )
@@ -277,9 +288,9 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop').data[1],
             pd.Series(
                 [
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366
+                    '1_1',
+                    '1_2',
+                    '1_3'
                 ],
                 index=index[1:4]
             )
@@ -290,27 +301,27 @@ class TestData:
         })
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan').data[0],
+                         missing_index='nan', missing_columns='nan').data[0],
             pd.DataFrame(
                 [
                     [np.nan, np.nan, np.nan],
-                    [np.nan, 0.15601864044243652, 0.15599452033620265],
-                    [np.nan, 0.8661761457749352, 0.6011150117432088],
-                    [np.nan, 0.020584494295802447, 0.9699098521619943],
-                    [np.nan, 0.21233911067827616, 0.18182496720710062]
+                    [np.nan, '0_1_1', '0_2_1'],
+                    [np.nan, '0_1_2', '0_2_2'],
+                    [np.nan, '0_1_3', '0_2_3'],
+                    [np.nan, '0_1_4', '0_2_4']
                 ],
                 index=index
             )
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan').data[1],
+                         missing_index='nan', missing_columns='nan').data[1],
             pd.DataFrame(
                 [
-                    [1.3745401188473625, 1.9507143064099162, np.nan],
-                    [1.5986584841970366, 1.15601864044243652, np.nan],
-                    [1.05808361216819946, 1.8661761457749352, np.nan],
-                    [1.7080725777960455, 1.020584494295802447, np.nan],
+                    ['1_0_0', '1_1_0', np.nan],
+                    ['1_0_1', '1_1_1', np.nan],
+                    ['1_0_2', '1_1_2', np.nan],
+                    ['1_0_3', '1_1_3', np.nan],
                     [np.nan, np.nan, np.nan]
                 ],
                 index=index
@@ -318,12 +329,12 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop').data[0],
+                         missing_index='drop', missing_columns='drop').data[0],
             pd.DataFrame(
                 [
-                    [0.15601864044243652],
-                    [0.8661761457749352],
-                    [0.020584494295802447]
+                    ['0_1_1'],
+                    ['0_1_2'],
+                    ['0_1_3']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -331,12 +342,12 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop').data[1],
+                         missing_index='drop', missing_columns='drop').data[1],
             pd.DataFrame(
                 [
-                    [1.15601864044243652],
-                    [1.8661761457749352],
-                    [1.020584494295802447]
+                    ['1_1_1'],
+                    ['1_1_2'],
+                    ['1_1_3']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -344,27 +355,27 @@ class TestData:
         )
         with pytest.raises(Exception):
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='raise', missing_columns='nan')
+                         missing_index='raise', missing_columns='nan')
         with pytest.raises(Exception):
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='raise')
+                         missing_index='nan', missing_columns='raise')
         with pytest.raises(Exception):
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='test', missing_columns='nan')
+                         missing_index='test', missing_columns='nan')
         with pytest.raises(Exception):
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='test')
+                         missing_index='nan', missing_columns='test')
 
     def test_update(self):
         pd.testing.assert_series_equal(
             MyData.fetch(0, shape=(5,), return_arr=True).update().data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u'
                 ]
             )
         )
@@ -372,12 +383,12 @@ class TestData:
             MyData.fetch(0, shape=(5,), return_arr=True).update(n=2).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896,
-                    0.6090665392794814
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u',
+                    '0_1_u'
                 ]
             )
         )
@@ -385,11 +396,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), return_arr=True).update().data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.11505456638977896, 0.6090665392794814, 0.13339096418598828]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_0_u', '0_1_0_u', '0_2_0_u']
                 ]
             )
         )
@@ -397,12 +408,12 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), return_arr=True).update(n=2).data[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.11505456638977896, 0.6090665392794814, 0.13339096418598828],
-                    [0.24058961996534878, 0.3271390558111398, 0.8591374909485977]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_0_u', '0_1_0_u', '0_2_0_u'],
+                    ['0_0_1_u', '0_1_1_u', '0_2_1_u']
                 ]
             )
         )
@@ -421,11 +432,11 @@ class TestData:
             MyData.fetch(0, shape=(5,)).update().data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u'
                 ],
                 index=index
             )
@@ -446,12 +457,12 @@ class TestData:
             MyData.fetch(0, shape=(5,)).update(n=2).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896,
-                    0.6090665392794814
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u',
+                    '0_1_u'
                 ],
                 index=updated_index
             )
@@ -472,11 +483,11 @@ class TestData:
                 .update(tz_localize=None).data[0],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u'
                 ],
                 index=index2
             )
@@ -495,10 +506,10 @@ class TestData:
             pd.Series(
                 [
                     np.nan,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u'
                 ],
                 index=index
             )
@@ -508,29 +519,29 @@ class TestData:
                 .update(index_mask=update_index_mask).data[1],
             pd.Series(
                 [
-                    1.3745401188473625,
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366,
+                    '1_0',
+                    '1_1',
+                    '1_2',
+                    '1_3',
                     np.nan
                 ],
                 index=index
             )
         )
         update_index_mask2 = vbt.symbol_dict({
-            0: [True, False],
-            1: [False, True]
+            0: [True, False, False],
+            1: [True, False, True]
         })
         pd.testing.assert_series_equal(
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
-                .update(n=2, index_mask=update_index_mask2).data[0],
+                .update(n=3, index_mask=update_index_mask2).data[0],
             pd.Series(
                 [
                     np.nan,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.11505456638977896,
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_0_u',
                     np.nan
                 ],
                 index=updated_index
@@ -538,15 +549,15 @@ class TestData:
         )
         pd.testing.assert_series_equal(
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='nan')
-                .update(n=2, index_mask=update_index_mask2).data[1],
+                .update(n=3, index_mask=update_index_mask2).data[1],
             pd.Series(
                 [
-                    1.3745401188473625,
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366,
+                    '1_0',
+                    '1_1',
+                    '1_2',
+                    '1_0_u',
                     np.nan,
-                    1.6090665392794814
+                    '1_2_u',
                 ],
                 index=updated_index
             )
@@ -556,9 +567,9 @@ class TestData:
                 .update(index_mask=update_index_mask).data[0],
             pd.Series(
                 [
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366
+                    '0_1',
+                    '0_2',
+                    '0_3'
                 ],
                 index=index[1:4]
             )
@@ -568,33 +579,33 @@ class TestData:
                 .update(index_mask=update_index_mask).data[1],
             pd.Series(
                 [
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366
+                    '1_1',
+                    '1_2',
+                    '1_3'
                 ],
                 index=index[1:4]
             )
         )
         pd.testing.assert_series_equal(
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
-                .update(n=2, index_mask=update_index_mask2).data[0],
+                .update(n=3, index_mask=update_index_mask2).data[0],
             pd.Series(
                 [
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366
+                    '0_1',
+                    '0_2',
+                    '0_3'
                 ],
                 index=index[1:4]
             )
         )
         pd.testing.assert_series_equal(
             MyData.fetch([0, 1], shape=(5,), index_mask=index_mask, missing_index='drop')
-                .update(n=2, index_mask=update_index_mask2).data[1],
+                .update(n=3, index_mask=update_index_mask2).data[1],
             pd.Series(
                 [
-                    1.9507143064099162,
-                    1.7319939418114051,
-                    1.5986584841970366
+                    '1_1',
+                    '1_2',
+                    '1_0_u'
                 ],
                 index=index[1:4]
             )
@@ -605,29 +616,29 @@ class TestData:
         })
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan')
+                         missing_index='nan', missing_columns='nan')
                 .update(index_mask=update_index_mask).data[0],
             pd.DataFrame(
                 [
                     [np.nan, np.nan, np.nan],
-                    [np.nan, 0.15601864044243652, 0.15599452033620265],
-                    [np.nan, 0.8661761457749352, 0.6011150117432088],
-                    [np.nan, 0.020584494295802447, 0.9699098521619943],
-                    [np.nan, 0.6090665392794814, 0.13339096418598828]
+                    [np.nan, '0_1_1', '0_2_1'],
+                    [np.nan, '0_1_2', '0_2_2'],
+                    [np.nan, '0_1_3', '0_2_3'],
+                    [np.nan, '0_1_0_u', '0_2_0_u']
                 ],
                 index=index
             )
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan')
+                         missing_index='nan', missing_columns='nan')
                 .update(index_mask=update_index_mask).data[1],
             pd.DataFrame(
                 [
-                    [1.3745401188473625, 1.9507143064099162, np.nan],
-                    [1.5986584841970366, 1.15601864044243652, np.nan],
-                    [1.05808361216819946, 1.8661761457749352, np.nan],
-                    [1.7080725777960455, 1.020584494295802447, np.nan],
+                    ['1_0_0', '1_1_0', np.nan],
+                    ['1_0_1', '1_1_1', np.nan],
+                    ['1_0_2', '1_1_2', np.nan],
+                    ['1_0_3', '1_1_3', np.nan],
                     [np.nan, np.nan, np.nan]
                 ],
                 index=index
@@ -635,15 +646,15 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan')
-                .update(n=2, index_mask=update_index_mask2).data[0],
+                         missing_index='nan', missing_columns='nan')
+                .update(n=3, index_mask=update_index_mask2).data[0],
             pd.DataFrame(
                 [
                     [np.nan, np.nan, np.nan],
-                    [np.nan, 0.15601864044243652, 0.15599452033620265],
-                    [np.nan, 0.8661761457749352, 0.6011150117432088],
-                    [np.nan, 0.020584494295802447, 0.9699098521619943],
-                    [np.nan, 0.6090665392794814, 0.13339096418598828],
+                    [np.nan, '0_1_1', '0_2_1'],
+                    [np.nan, '0_1_2', '0_2_2'],
+                    [np.nan, '0_1_3', '0_2_3'],
+                    [np.nan, '0_1_0_u', '0_2_0_u'],
                     [np.nan, np.nan, np.nan]
                 ],
                 index=updated_index
@@ -651,29 +662,29 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='nan', missing_columns='nan')
-                .update(n=2, index_mask=update_index_mask2).data[1],
+                         missing_index='nan', missing_columns='nan')
+                .update(n=3, index_mask=update_index_mask2).data[1],
             pd.DataFrame(
                 [
-                    [1.3745401188473625, 1.9507143064099162, np.nan],
-                    [1.5986584841970366, 1.15601864044243652, np.nan],
-                    [1.05808361216819946, 1.8661761457749352, np.nan],
-                    [1.7080725777960455, 1.020584494295802447, np.nan],
+                    ['1_0_0', '1_1_0', np.nan],
+                    ['1_0_1', '1_1_1', np.nan],
+                    ['1_0_2', '1_1_2', np.nan],
+                    ['1_0_0_u', '1_1_0_u', np.nan],
                     [np.nan, np.nan, np.nan],
-                    [1.2405896199653488, 1.3271390558111398, np.nan]
+                    ['1_0_2_u', '1_1_2_u', np.nan]
                 ],
                 index=updated_index
             )
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop')
+                         missing_index='drop', missing_columns='drop')
                 .update(index_mask=update_index_mask).data[0],
             pd.DataFrame(
                 [
-                    [0.15601864044243652],
-                    [0.8661761457749352],
-                    [0.020584494295802447]
+                    ['0_1_1'],
+                    ['0_1_2'],
+                    ['0_1_3']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -681,13 +692,13 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop')
+                         missing_index='drop', missing_columns='drop')
                 .update(index_mask=update_index_mask).data[1],
             pd.DataFrame(
                 [
-                    [1.15601864044243652],
-                    [1.8661761457749352],
-                    [1.020584494295802447]
+                    ['1_1_1'],
+                    ['1_1_2'],
+                    ['1_1_3']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -695,13 +706,13 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop')
-                .update(n=2, index_mask=update_index_mask2).data[0],
+                         missing_index='drop', missing_columns='drop')
+                .update(n=3, index_mask=update_index_mask2).data[0],
             pd.DataFrame(
                 [
-                    [0.15601864044243652],
-                    [0.8661761457749352],
-                    [0.020584494295802447]
+                    ['0_1_1'],
+                    ['0_1_2'],
+                    ['0_1_3']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -709,13 +720,13 @@ class TestData:
         )
         pd.testing.assert_frame_equal(
             MyData.fetch([0, 1], shape=(5, 3), index_mask=index_mask, column_mask=column_mask,
-                            missing_index='drop', missing_columns='drop')
-                .update(n=2, index_mask=update_index_mask2).data[1],
+                         missing_index='drop', missing_columns='drop')
+                .update(n=3, index_mask=update_index_mask2).data[1],
             pd.DataFrame(
                 [
-                    [1.15601864044243652],
-                    [1.8661761457749352],
-                    [1.020584494295802447]
+                    ['1_1_1'],
+                    ['1_1_2'],
+                    ['1_1_0_u']
                 ],
                 index=index[1:4],
                 columns=pd.Int64Index([1], dtype='int64')
@@ -738,11 +749,11 @@ class TestData:
             MyData.fetch(0, shape=(5,), columns='feat0').concat()['feat0'],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index,
                 name=0
@@ -752,11 +763,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,), columns='feat0').concat()['feat0'],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.9507143064099162, 1.9507143064099162],
-                    [0.7319939418114051, 1.7319939418114051],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.15601864044243652, 1.15601864044243652]
+                    ['0_0', '1_0'],
+                    ['0_1', '1_1'],
+                    ['0_2', '1_2'],
+                    ['0_3', '1_3'],
+                    ['0_4', '1_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -766,11 +777,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.5986584841970366,
-                    0.05808361216819946,
-                    0.7080725777960455,
-                    0.8324426408004217
+                    '0_0_0',
+                    '0_0_1',
+                    '0_0_2',
+                    '0_0_3',
+                    '0_0_4'
                 ],
                 index=index,
                 name=0
@@ -780,11 +791,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
             pd.Series(
                 [
-                    0.9507143064099162,
-                    0.15601864044243652,
-                    0.8661761457749352,
-                    0.020584494295802447,
-                    0.21233911067827616
+                    '0_1_0',
+                    '0_1_1',
+                    '0_1_2',
+                    '0_1_3',
+                    '0_1_4'
                 ],
                 index=index,
                 name=0
@@ -794,11 +805,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
             pd.Series(
                 [
-                    0.7319939418114051,
-                    0.15599452033620265,
-                    0.6011150117432088,
-                    0.9699098521619943,
-                    0.18182496720710062
+                    '0_2_0',
+                    '0_2_1',
+                    '0_2_2',
+                    '0_2_3',
+                    '0_2_4'
                 ],
                 index=index,
                 name=0
@@ -808,11 +819,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat0'],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.05808361216819946, 1.05808361216819946],
-                    [0.7080725777960455, 1.7080725777960455],
-                    [0.8324426408004217, 1.8324426408004217]
+                    ['0_0_0', '1_0_0'],
+                    ['0_0_1', '1_0_1'],
+                    ['0_0_2', '1_0_2'],
+                    ['0_0_3', '1_0_3'],
+                    ['0_0_4', '1_0_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -822,11 +833,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat1'],
             pd.DataFrame(
                 [
-                    [0.9507143064099162, 1.9507143064099162],
-                    [0.15601864044243652, 1.15601864044243652],
-                    [0.8661761457749352, 1.8661761457749352],
-                    [0.020584494295802447, 1.020584494295802447],
-                    [0.21233911067827616, 1.21233911067827616]
+                    ['0_1_0', '1_1_0'],
+                    ['0_1_1', '1_1_1'],
+                    ['0_1_2', '1_1_2'],
+                    ['0_1_3', '1_1_3'],
+                    ['0_1_4', '1_1_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -836,11 +847,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).concat()['feat2'],
             pd.DataFrame(
                 [
-                    [0.7319939418114051, 1.7319939418114051],
-                    [0.15599452033620265, 1.15599452033620265],
-                    [0.6011150117432088, 1.6011150117432088],
-                    [0.9699098521619943, 1.9699098521619943],
-                    [0.18182496720710062, 1.18182496720710062]
+                    ['0_2_0', '1_2_0'],
+                    ['0_2_1', '1_2_1'],
+                    ['0_2_2', '1_2_2'],
+                    ['0_2_3', '1_2_3'],
+                    ['0_2_4', '1_2_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -863,11 +874,11 @@ class TestData:
             MyData.fetch(0, shape=(5,), columns='feat0').get(),
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.9507143064099162,
-                    0.7319939418114051,
-                    0.5986584841970366,
-                    0.15601864044243652
+                    '0_0',
+                    '0_1',
+                    '0_2',
+                    '0_3',
+                    '0_4'
                 ],
                 index=index,
                 name='feat0'
@@ -877,11 +888,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(),
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 0.9507143064099162, 0.7319939418114051],
-                    [0.5986584841970366, 0.15601864044243652, 0.15599452033620265],
-                    [0.05808361216819946, 0.8661761457749352, 0.6011150117432088],
-                    [0.7080725777960455, 0.020584494295802447, 0.9699098521619943],
-                    [0.8324426408004217, 0.21233911067827616, 0.18182496720710062]
+                    ['0_0_0', '0_1_0', '0_2_0'],
+                    ['0_0_1', '0_1_1', '0_2_1'],
+                    ['0_0_2', '0_1_2', '0_2_2'],
+                    ['0_0_3', '0_1_3', '0_2_3'],
+                    ['0_0_4', '0_1_4', '0_2_4']
                 ],
                 index=index,
                 columns=pd.Index(['feat0', 'feat1', 'feat2'], dtype='object')
@@ -891,11 +902,11 @@ class TestData:
             MyData.fetch(0, shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
             pd.Series(
                 [
-                    0.3745401188473625,
-                    0.5986584841970366,
-                    0.05808361216819946,
-                    0.7080725777960455,
-                    0.8324426408004217
+                    '0_0_0',
+                    '0_0_1',
+                    '0_0_2',
+                    '0_0_3',
+                    '0_0_4'
                 ],
                 index=index,
                 name='feat0'
@@ -905,11 +916,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5,), columns='feat0').get(),
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.9507143064099162, 1.9507143064099162],
-                    [0.7319939418114051, 1.7319939418114051],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.15601864044243652, 1.15601864044243652]
+                    ['0_0', '1_0'],
+                    ['0_1', '1_1'],
+                    ['0_2', '1_2'],
+                    ['0_3', '1_3'],
+                    ['0_4', '1_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -919,11 +930,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get('feat0'),
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.05808361216819946, 1.05808361216819946],
-                    [0.7080725777960455, 1.7080725777960455],
-                    [0.8324426408004217, 1.8324426408004217]
+                    ['0_0_0', '1_0_0'],
+                    ['0_0_1', '1_0_1'],
+                    ['0_0_2', '1_0_2'],
+                    ['0_0_3', '1_0_3'],
+                    ['0_0_4', '1_0_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -933,11 +944,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get(['feat0', 'feat1'])[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.05808361216819946, 1.05808361216819946],
-                    [0.7080725777960455, 1.7080725777960455],
-                    [0.8324426408004217, 1.8324426408004217]
+                    ['0_0_0', '1_0_0'],
+                    ['0_0_1', '1_0_1'],
+                    ['0_0_2', '1_0_2'],
+                    ['0_0_3', '1_0_3'],
+                    ['0_0_4', '1_0_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')
@@ -947,11 +958,11 @@ class TestData:
             MyData.fetch([0, 1], shape=(5, 3), columns=['feat0', 'feat1', 'feat2']).get()[0],
             pd.DataFrame(
                 [
-                    [0.3745401188473625, 1.3745401188473625],
-                    [0.5986584841970366, 1.5986584841970366],
-                    [0.05808361216819946, 1.05808361216819946],
-                    [0.7080725777960455, 1.7080725777960455],
-                    [0.8324426408004217, 1.8324426408004217]
+                    ['0_0_0', '1_0_0'],
+                    ['0_0_1', '1_0_1'],
+                    ['0_0_2', '1_0_2'],
+                    ['0_0_3', '1_0_3'],
+                    ['0_0_4', '1_0_4']
                 ],
                 index=index,
                 columns=pd.Int64Index([0, 1], dtype='int64', name='symbol')

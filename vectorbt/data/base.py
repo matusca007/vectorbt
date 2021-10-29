@@ -72,6 +72,8 @@ In case two symbols have different index or columns, they are automatically alig
 ...     ['RANDNX1', 'RANDNX2'], start_value=start_value,
 ...     start_dt=start_dt, end_dt=end_dt)
 >>> rand_data.get()
+UserWarning: Symbols have mismatching index. Setting missing data points to NaN.
+
 symbol         RANDNX1     RANDNX2
 2021-01-01  101.028054         NaN
 2021-01-02  101.032090         NaN
@@ -87,15 +89,19 @@ symbol         RANDNX1     RANDNX2
 
 ## Updating
 
-Updating can be implemented by overriding the `Data.update_symbol` instance method, which takes
-the same arguments as `Data.fetch_symbol`. In contrast to the fetch method, the update
+Updating can be implemented by overriding the `Data.update_symbol` instance method, which mostly
+just prepares the arguments and calls `Data.fetch_symbol`. In contrast to the fetch method, the update
 method is an instance method and can access the data downloaded earlier. It can also access the
 keyword arguments initially passed to the fetch method, accessible under `Data.fetch_kwargs`.
 Those arguments can be used as default arguments and overriden by arguments passed directly
-to the update method, using `vectorbt.utils.config.merge_dicts`.
+to the update method, using `vectorbt.utils.config.merge_dicts`. Any instance of `Data` also
+has the property `Data.last_index`, which contains the last fetched index for each symbol.
+We can use this index to as the starting point for the next update.
 
-Let's define an update method that updates the latest data point and adds two news data points.
-Note that updating data always returns a new `Data` instance.
+Let's define an update method that updates the latest data point and adds a couple more.
+
+!!! note
+    Updating data always returns a new `Data` instance.
 
 ```python-repl
 >>> from datetime import timedelta
@@ -109,10 +115,10 @@ Note that updating data always returns a new `Data` instance.
 ...         rand_price = start_value + np.cumprod(rand_returns + 1)
 ...         return pd.Series(rand_price, index=index)
 ...
-...     def update_symbol(self, symbol, **kwargs):
+...     def update_symbol(self, symbol, days_more=2, **kwargs):
 ...         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
-...         fetch_kwargs['start_dt'] = self.data[symbol].index[-1]
-...         fetch_kwargs['end_dt'] = fetch_kwargs['start_dt'] + timedelta(days=2)
+...         fetch_kwargs['start_dt'] = self.last_index[symbol]
+...         fetch_kwargs['end_dt'] = fetch_kwargs['start_dt'] + timedelta(days=days_more)
 ...         kwargs = merge_dicts(fetch_kwargs, kwargs)
 ...         return self.fetch_symbol(symbol, **kwargs)
 
@@ -132,9 +138,9 @@ symbol         RANDNX1     RANDNX2
 2021-01-02  100.919011  100.987026
 2021-01-03  101.062733  100.835376
 2021-01-04  100.960535  100.820817
-2021-01-05  101.011255  100.887049 < updated from here
-2021-01-06  101.004149  100.808410
-2021-01-07  101.023673  100.714583
+2021-01-05  101.011255  100.887049 < updated last existing
+2021-01-06  101.004149  100.808410 < added new
+2021-01-07  101.023673  100.714583 < added new
 
 >>> rand_data = rand_data.update()
 >>> rand_data.get()
@@ -145,10 +151,19 @@ symbol         RANDNX1     RANDNX2
 2021-01-04  100.960535  100.820817
 2021-01-05  101.011255  100.887049
 2021-01-06  101.004149  100.808410
-2021-01-07  100.883400  100.874922 < updated from here
-2021-01-08  101.011738  100.780188
-2021-01-09  100.912639  100.934014
+2021-01-07  100.883400  100.874922 < updated last existing
+2021-01-08  101.011738  100.780188 < added new
+2021-01-09  100.912639  100.934014 < added new
 ```
+
+## Handling exceptions
+
+`Data.fetch` won't catch exceptions coming from `Data.fetch_symbol` - it's the task
+of `Data.fetch_symbol` to handle them. The best approach is to show a user warning
+whenever an exception has been thrown and return the data fetched up to this point in time
+(`vectorbt.data.custom.BinanceData` and `vectorbt.data.custom.CCXTData` do this).
+In such case, vectorbt will replace all missing data with NaN and keep track of the last valid index.
+You can then wait until your connection is stable and re-fetch the missing data using `Data.update`.
 
 ## Merging
 
@@ -157,7 +172,7 @@ defining custom fetch and update methods, or by manually merging their data dict
 into one data dict and passing it to the `Data.from_data` class method.
 
 ```python-repl
->>> rand_data1 = RandomSNData.fetch('RANDNX1', mean=0.2)
+>>> rand_data1 = RandomSNData.fetch('RANDNX1')
 >>> rand_data2 = RandomSNData.fetch('RANDNX2', start_value=200, start_dt='2021-01-05')
 >>> merged_data = vbt.Data.from_data(vbt.merge_dicts(rand_data1.data, rand_data2.data))
 >>> merged_data.get()
@@ -210,9 +225,6 @@ symbol         RANDNX1     RANDNX2
 2021-01-08  101.011738  100.780188
 2021-01-09  100.912639  100.934014
 ```
-
-!!! note
-    A more efficient way is to store each pandas object into an HDF5 file.
 
 ## Stats
 
@@ -270,6 +282,7 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.pbar import get_pbar
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
+from vectorbt.base.reshaping import to_pd_array
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 
@@ -298,7 +311,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         'tz_convert',
         'missing_index',
         'missing_columns',
-        'fetch_kwargs'
+        'fetch_kwargs',
+        'last_index'
     }
 
     def __init__(self,
@@ -309,12 +323,13 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                  tz_convert: tp.Optional[tp.TimezoneLike],
                  missing_index: str,
                  missing_columns: str,
-                 fetch_kwargs: dict,
+                 fetch_kwargs: tp.Kwargs,
+                 last_index: tp.Dict[tp.Label, int],
                  **kwargs) -> None:
 
         checks.assert_instance_of(data, dict)
-        for k, v in data.items():
-            checks.assert_meta_equal(v, data[list(data.keys())[0]])
+        for symbol, obj in data.items():
+            checks.assert_meta_equal(obj, data[list(data.keys())[0]])
 
         Wrapping.__init__(
             self,
@@ -326,6 +341,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index=missing_index,
             missing_columns=missing_columns,
             fetch_kwargs=fetch_kwargs,
+            last_index=last_index,
             **kwargs
         )
         StatsBuilderMixin.__init__(self)
@@ -338,11 +354,12 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         self._missing_index = missing_index
         self._missing_columns = missing_columns
         self._fetch_kwargs = fetch_kwargs
+        self._last_index = last_index
 
     def indexing_func(self: DataT, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> DataT:
         """Perform indexing on `Data`."""
         new_wrapper = pd_indexing_func(self.wrapper)
-        new_data = {k: pd_indexing_func(v) for k, v in self.data.items()}
+        new_data = {symbol: pd_indexing_func(obj) for symbol, obj in self.data.items()}
         return self.replace(
             wrapper=new_wrapper,
             data=new_data
@@ -388,71 +405,118 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         """Keyword arguments initially passed to `Data.fetch_symbol`."""
         return self._fetch_kwargs
 
+    @property
+    def last_index(self) -> tp.Dict[tp.Label, int]:
+        """Last fetched index per symbol."""
+        return self._last_index
+
     @classmethod
-    def align_index(cls, data: tp.DataDict, missing: str = 'nan') -> tp.DataDict:
+    def prepare_tzaware_index(cls,
+                              obj: tp.SeriesFrame,
+                              tz_localize: tp.Optional[tp.TimezoneLike] = None,
+                              tz_convert: tp.Optional[tp.TimezoneLike] = None) -> tp.SeriesFrame:
+        """Prepare a timezone-aware index of a pandas object.
+
+        If the index is tz-naive, convert to a timezone using `tz_localize`.
+        Convert the index from one timezone to another using `tz_convert`.
+        See `vectorbt.utils.datetime_.to_timezone`.
+
+        For defaults, see `data` in `vectorbt._settings.settings`."""
+        from vectorbt._settings import settings
+        data_cfg = settings['data']
+
+        if tz_localize is None:
+            tz_localize = data_cfg['tz_localize']
+        if tz_convert is None:
+            tz_convert = data_cfg['tz_convert']
+
+        if isinstance(obj.index, pd.DatetimeIndex):
+            if tz_localize is not None:
+                if not is_tz_aware(obj.index):
+                    obj = obj.tz_localize(to_timezone(tz_localize))
+            if tz_convert is not None:
+                obj = obj.tz_convert(to_timezone(tz_convert))
+        return obj
+
+    @classmethod
+    def align_index(cls, data: tp.DataDict, missing: tp.Optional[str] = None) -> tp.DataDict:
         """Align data to have the same index.
 
         The argument `missing` accepts the following values:
 
         * 'nan': set missing data points to NaN
         * 'drop': remove missing data points
-        * 'raise': raise an error"""
+        * 'raise': raise an error
+
+        For defaults, see `data` in `vectorbt._settings.settings`."""
         if len(data) == 1:
             return data
 
+        from vectorbt._settings import settings
+        data_cfg = settings['data']
+
+        if missing is None:
+            missing = data_cfg['missing_index']
+
         index = None
-        for k, v in data.items():
+        for symbol, obj in data.items():
             if index is None:
-                index = v.index
+                index = obj.index
             else:
-                if len(index.intersection(v.index)) != len(index.union(v.index)):
+                if len(index.intersection(obj.index)) != len(index.union(obj.index)):
                     if missing == 'nan':
                         warnings.warn("Symbols have mismatching index. "
                                       "Setting missing data points to NaN.", stacklevel=2)
-                        index = index.union(v.index)
+                        index = index.union(obj.index)
                     elif missing == 'drop':
                         warnings.warn("Symbols have mismatching index. "
                                       "Dropping missing data points.", stacklevel=2)
-                        index = index.intersection(v.index)
+                        index = index.intersection(obj.index)
                     elif missing == 'raise':
                         raise ValueError("Symbols have mismatching index")
                     else:
                         raise ValueError(f"missing='{missing}' is not recognized")
 
         # reindex
-        new_data = {k: v.reindex(index=index) for k, v in data.items()}
+        new_data = {symbol: obj.reindex(index=index) for symbol, obj in data.items()}
         return new_data
 
     @classmethod
-    def align_columns(cls, data: tp.DataDict, missing: str = 'raise') -> tp.DataDict:
+    def align_columns(cls, data: tp.DataDict, missing: tp.Optional[str] = None) -> tp.DataDict:
         """Align data to have the same columns.
 
         See `Data.align_index` for `missing`."""
         if len(data) == 1:
             return data
 
+        from vectorbt._settings import settings
+        data_cfg = settings['data']
+
+        if missing is None:
+            missing = data_cfg['missing_columns']
+
         columns = None
         multiple_columns = False
         name_is_none = False
-        for k, v in data.items():
-            if isinstance(v, pd.Series):
-                if v.name is None:
+        for symbol, obj in data.items():
+            if isinstance(obj, pd.Series):
+                if obj.name is None:
                     name_is_none = True
-                v = v.to_frame()
+                obj = obj.to_frame()
             else:
                 multiple_columns = True
             if columns is None:
-                columns = v.columns
+                columns = obj.columns
             else:
-                if len(columns.intersection(v.columns)) != len(columns.union(v.columns)):
+                if len(columns.intersection(obj.columns)) != len(columns.union(obj.columns)):
                     if missing == 'nan':
                         warnings.warn("Symbols have mismatching columns. "
                                       "Setting missing data points to NaN.", stacklevel=2)
-                        columns = columns.union(v.columns)
+                        columns = columns.union(obj.columns)
                     elif missing == 'drop':
                         warnings.warn("Symbols have mismatching columns. "
                                       "Dropping missing data points.", stacklevel=2)
-                        columns = columns.intersection(v.columns)
+                        columns = columns.intersection(obj.columns)
                     elif missing == 'raise':
                         raise ValueError("Symbols have mismatching columns")
                     else:
@@ -460,21 +524,21 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
         # reindex
         new_data = {}
-        for k, v in data.items():
-            if isinstance(v, pd.Series):
-                v = v.to_frame(name=v.name)
-            v = v.reindex(columns=columns)
+        for symbol, obj in data.items():
+            if isinstance(obj, pd.Series):
+                obj = obj.to_frame(name=obj.name)
+            obj = obj.reindex(columns=columns)
             if not multiple_columns:
-                v = v[columns[0]]
+                obj = obj[columns[0]]
                 if name_is_none:
-                    v = v.rename(None)
-            new_data[k] = v
+                    obj = obj.rename(None)
+            new_data[symbol] = obj
         return new_data
 
     @classmethod
     def select_symbol_kwargs(cls, symbol: tp.Label, kwargs: dict) -> dict:
         """Select keyword arguments belonging to `symbol`."""
-        _kwargs = dict()
+        _kwargs = {}
         for k, v in kwargs.items():
             if isinstance(v, symbol_dict):
                 if symbol in v:
@@ -493,67 +557,45 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                   missing_columns: tp.Optional[str] = None,
                   wrapper_kwargs: tp.KwargsLike = None,
                   fetch_kwargs: tp.KwargsLike = None,
+                  last_index: tp.Optional[tp.Dict[tp.Label, int]] = None,
                   **kwargs) -> DataT:
         """Create a new `Data` instance from data.
 
         Args:
             data (dict): Dictionary of array-like objects keyed by symbol.
             single_symbol (bool): Whether there is only one symbol in `data`.
-            tz_localize (timezone_like): If the index is tz-naive, convert to a timezone.
-
-                See `vectorbt.utils.datetime_.to_timezone`.
-            tz_convert (timezone_like): Convert the index from one timezone to another.
-
-                See `vectorbt.utils.datetime_.to_timezone`.
+            tz_localize (timezone_like): See `Data.prepare_tzaware_index`.
+            tz_convert (timezone_like): See `Data.prepare_tzaware_index`.
             missing_index (str): See `Data.align_index`.
             missing_columns (str): See `Data.align_columns`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             fetch_kwargs (dict): Keyword arguments initially passed to `Data.fetch_symbol`.
+            last_index (dict): Last fetched index per symbol.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         For defaults, see `data` in `vectorbt._settings.settings`."""
-        from vectorbt._settings import settings
-        data_cfg = settings['data']
-
-        # Get global defaults
-        if tz_localize is None:
-            tz_localize = data_cfg['tz_localize']
-        if tz_convert is None:
-            tz_convert = data_cfg['tz_convert']
-        if missing_index is None:
-            missing_index = data_cfg['missing_index']
-        if missing_columns is None:
-            missing_columns = data_cfg['missing_columns']
         if wrapper_kwargs is None:
             wrapper_kwargs = {}
         if fetch_kwargs is None:
             fetch_kwargs = {}
+        if last_index is None:
+            last_index = {}
 
         data = data.copy()
-        for k, v in data.items():
-            # Convert array to pandas
-            if not isinstance(v, (pd.Series, pd.DataFrame)):
-                v = np.asarray(v)
-                if v.ndim == 1:
-                    v = pd.Series(v)
-                else:
-                    v = pd.DataFrame(v)
+        for symbol, obj in data.items():
+            obj = to_pd_array(obj)
+            obj = cls.prepare_tzaware_index(obj, tz_localize=tz_localize, tz_convert=tz_convert)
+            data[symbol] = obj
+            if symbol not in last_index:
+                last_index[symbol] = obj.index[-1]
 
-            # Perform operations with datetime-like index
-            if isinstance(v.index, pd.DatetimeIndex):
-                if tz_localize is not None:
-                    if not is_tz_aware(v.index):
-                        v = v.tz_localize(to_timezone(tz_localize))
-                if tz_convert is not None:
-                    v = v.tz_convert(to_timezone(tz_convert))
-                v.index.freq = v.index.inferred_freq
-            data[k] = v
-
-        # Align index and columns
         data = cls.align_index(data, missing=missing_index)
         data = cls.align_columns(data, missing=missing_columns)
 
-        # Create new instance
+        for symbol, obj in data.items():
+            if isinstance(obj.index, pd.DatetimeIndex):
+                obj.index.freq = obj.index.inferred_freq
+
         symbols = list(data.keys())
         wrapper = ArrayWrapper.from_obj(data[symbols[0]], **wrapper_kwargs)
         return cls(
@@ -565,6 +607,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index=missing_index,
             missing_columns=missing_columns,
             fetch_kwargs=fetch_kwargs,
+            last_index=last_index,
             **kwargs
         )
 
@@ -621,21 +664,20 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             show_progress = data_cfg['show_progress'] and not single_symbol
         pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
 
-        data = dict()
+        data = {}
         with get_pbar(total=len(symbols), show_progress=show_progress, **pbar_kwargs) as pbar:
             for symbol in symbols:
                 if symbol is not None:
                     pbar.set_description(str(symbol))
-                # Select keyword arguments for this symbol
-                _kwargs = cls.select_symbol_kwargs(symbol, kwargs)
 
-                # Fetch data for this symbol
+                _kwargs = cls.select_symbol_kwargs(symbol, kwargs)
                 func_arg_names = get_func_arg_names(cls.fetch_symbol)
                 if 'show_progress' in func_arg_names:
                     _kwargs['show_progress'] = show_progress
                 if 'pbar_kwargs' in func_arg_names:
                     _kwargs['pbar_kwargs'] = pbar_kwargs
                 data[symbol] = cls.fetch_symbol(symbol, **_kwargs)
+
                 pbar.update(1)
 
         # Create new instance from data
@@ -655,7 +697,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         raise NotImplementedError
 
     def update(self: DataT, show_progress: bool = False, pbar_kwargs: tp.KwargsLike = None, **kwargs) -> DataT:
-        """Update the data using `Data.update_symbol`.
+        """Fetch additional data using `Data.update_symbol` and append it to the existing data.
 
         Args:
             show_progress (bool): Whether to show the progress bar.
@@ -676,65 +718,82 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
 
         pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
 
-        new_data = dict()
+        new_data = {}
         with get_pbar(total=len(self.data), show_progress=show_progress, **pbar_kwargs) as pbar:
-            for k, v in self.data.items():
-                if k is not None:
-                    pbar.set_description(str(k))
+            for symbol, obj in self.data.items():
+                if symbol is not None:
+                    pbar.set_description(str(symbol))
 
-                # Select keyword arguments for this symbol
-                _kwargs = self.select_symbol_kwargs(k, kwargs)
-
-                # Fetch new data for this symbol
+                _kwargs = self.select_symbol_kwargs(symbol, kwargs)
                 func_arg_names = get_func_arg_names(self.fetch_symbol)
                 if 'show_progress' in func_arg_names:
                     _kwargs['show_progress'] = show_progress
                 if 'pbar_kwargs' in func_arg_names:
                     _kwargs['pbar_kwargs'] = pbar_kwargs
-                new_obj = self.update_symbol(k, **_kwargs)
+                new_obj = self.update_symbol(symbol, **_kwargs)
 
-                # Convert array to pandas
                 if not isinstance(new_obj, (pd.Series, pd.DataFrame)):
-                    new_obj = np.asarray(new_obj)
-                    index = pd.RangeIndex(
-                        start=v.index[-1],
-                        stop=v.index[-1] + new_obj.shape[0],
+                    new_obj = to_pd_array(new_obj)
+                    new_obj.index = pd.RangeIndex(
+                        start=obj.index[-1],
+                        stop=obj.index[-1] + new_obj.shape[0],
                         step=1
                     )
-                    if new_obj.ndim == 1:
-                        new_obj = pd.Series(new_obj, index=index)
-                    else:
-                        new_obj = pd.DataFrame(new_obj, index=index)
+                new_obj = self.prepare_tzaware_index(
+                    new_obj,
+                    tz_localize=self.tz_localize,
+                    tz_convert=self.tz_convert
+                )
+                new_data[symbol] = new_obj
 
-                # Perform operations with datetime-like index
-                if isinstance(new_obj.index, pd.DatetimeIndex):
-                    if self.tz_localize is not None:
-                        if not is_tz_aware(new_obj.index):
-                            new_obj = new_obj.tz_localize(to_timezone(self.tz_localize))
-                    if self.tz_convert is not None:
-                        new_obj = new_obj.tz_convert(to_timezone(self.tz_convert))
-
-                new_data[k] = new_obj
                 pbar.update(1)
 
-        # Align index and columns
+        # Prepend existing data starting from lowest updated index (including) to new data
+        from_index = None
+        for symbol, new_obj in new_data.items():
+            if len(new_obj.index) > 0:
+                index = new_obj.index[0]
+            else:
+                continue
+            if from_index is None or index < from_index:
+                from_index = index
+        for symbol, new_obj in new_data.items():
+            if len(new_obj.index) > 0:
+                to_index = new_obj.index[0]
+            else:
+                to_index = None
+            obj = self.data[symbol]
+            if isinstance(obj, pd.DataFrame) and isinstance(new_obj, pd.DataFrame):
+                shared_columns = obj.columns.intersection(new_obj.columns)
+                obj = obj[shared_columns]
+                new_obj = new_obj[shared_columns]
+            elif isinstance(new_obj, pd.DataFrame):
+                new_obj = new_obj[obj.name]
+            elif isinstance(obj, pd.DataFrame):
+                obj = obj[new_obj.name]
+            obj = obj.loc[from_index:to_index]
+            new_obj = pd.concat((obj, new_obj), axis=0)
+            new_obj = new_obj[~new_obj.index.duplicated(keep='last')]
+            new_data[symbol] = new_obj
+
         new_data = self.align_index(new_data, missing=self.missing_index)
         new_data = self.align_columns(new_data, missing=self.missing_columns)
 
-        # Concatenate old and new data
-        for k, v in new_data.items():
-            if isinstance(self.data[k], pd.Series):
-                if isinstance(v, pd.DataFrame):
-                    v = v[self.data[k].name]
-            else:
-                v = v[self.data[k].columns]
-            v = pd.concat((self.data[k], v), axis=0)
-            v = v[~v.index.duplicated(keep='last')]
-            if isinstance(v.index, pd.DatetimeIndex):
-                v.index.freq = v.index.inferred_freq
-            new_data[k] = v
+        # Append new data to existing data ending at lowest updated index (excluding)
+        for symbol, new_obj in new_data.items():
+            obj = self.data[symbol]
+            if isinstance(obj, pd.DataFrame) and isinstance(new_obj, pd.DataFrame):
+                new_obj = new_obj[obj.columns]
+            elif isinstance(new_obj, pd.DataFrame):
+                new_obj = new_obj[obj.name]
+            obj = obj.loc[:from_index]
+            if obj.index[-1] == from_index:
+                obj = obj.iloc[:-1]
+            new_obj = pd.concat((obj, new_obj), axis=0)
+            if isinstance(new_obj.index, pd.DatetimeIndex):
+                new_obj.index.freq = new_obj.index.inferred_freq
+            new_data[symbol] = new_obj
 
-        # Create new instance
         new_index = new_data[self.symbols[0]].index
         return self.replace(
             wrapper=self.wrapper.replace(index=new_index),
@@ -844,8 +903,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 title='Null Counts',
                 calc_func=lambda self, group_by:
                 {
-                    k: v.isnull().vbt(wrapper=self.wrapper).sum(group_by=group_by)
-                    for k, v in self.data.items()
+                    symbol: obj.isnull().vbt(wrapper=self.wrapper).sum(group_by=group_by)
+                    for symbol, obj in self.data.items()
                 },
                 tags='data'
             )
