@@ -1067,6 +1067,11 @@ class TestCustom:
             csv_data.get(),
             sr
         )
+        csv_data = vbt.CSVData.fetch(tmp_path / 'temp.csv', start_row=2, end_row=3)
+        pd.testing.assert_series_equal(
+            csv_data.get(),
+            sr.iloc[2:4]
+        )
         df = pd.DataFrame(np.arange(20).reshape((10, 2)))
         df.columns = pd.MultiIndex.from_tuples([('1', '2'), ('3', '4')], names=['a', 'b'])
         df.to_csv(tmp_path / 'temp.csv')
@@ -1095,6 +1100,48 @@ class TestCustom:
             df
         )
         assert csv_data.returned_kwargs[tmp_path / 'temp.csv'] == {'last_row': 9}
+
+    def test_hdf_data(self, tmp_path):
+        sr = pd.Series(np.arange(10))
+        sr.to_hdf(tmp_path / 'temp.h5', 's')
+        hdf_data = vbt.HDFData.fetch('s', path=tmp_path / 'temp.h5')
+        pd.testing.assert_series_equal(
+            hdf_data.get(),
+            sr
+        )
+        hdf_data = vbt.HDFData.fetch('s', path=tmp_path / 'temp.h5', start_row=2, end_row=3)
+        pd.testing.assert_series_equal(
+            hdf_data.get(),
+            sr.iloc[2:4]
+        )
+        df = pd.DataFrame(np.arange(20).reshape((10, 2)))
+        df.columns = pd.MultiIndex.from_tuples([('1', '2'), ('3', '4')], names=['a', 'b'])
+        df.to_hdf(tmp_path / 'temp.h5', 'df')
+        hdf_data = vbt.HDFData.fetch('df', path=tmp_path / 'temp.h5', header=[0, 1], start_row=0, end_row=1)
+        pd.testing.assert_frame_equal(
+            hdf_data.get(),
+            df.iloc[:2]
+        )
+        assert hdf_data.returned_kwargs['df'] == {'last_row': 1}
+        hdf_data = hdf_data.update()
+        pd.testing.assert_frame_equal(
+            hdf_data.get(),
+            df.iloc[:2]
+        )
+        assert hdf_data.returned_kwargs['df'] == {'last_row': 1}
+        hdf_data = hdf_data.update(end_row=2)
+        hdf_data.get()
+        pd.testing.assert_frame_equal(
+            hdf_data.get(),
+            df.iloc[:3]
+        )
+        assert hdf_data.returned_kwargs['df'] == {'last_row': 2}
+        hdf_data = hdf_data.update(end_row=None)
+        pd.testing.assert_frame_equal(
+            hdf_data.get(),
+            df
+        )
+        assert hdf_data.returned_kwargs['df'] == {'last_row': 9}
 
     def test_random_data(self):
         pd.testing.assert_series_equal(

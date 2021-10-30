@@ -7,6 +7,7 @@ from vectorbt.data.base import symbol_dict, Data
 from vectorbt.data.updater import DataUpdater
 from vectorbt.data.custom import (
     CSVData,
+    HDFData,
     SyntheticData,
     RandomData,
     GBMData,
@@ -20,6 +21,7 @@ __all__ = [
     'Data',
     'DataUpdater',
     'CSVData',
+    'HDFData',
     'SyntheticData',
     'RandomData',
     'GBMData',

@@ -134,6 +134,87 @@ class CSVData(Data):
         return self.fetch_symbol(symbol, **kwargs)
 
 
+class HDFData(Data):
+    """`Data` for data that can be fetched and updated using `pd.read_hdf`.
+
+    ## Example
+
+    ```python-repl
+    >>> import vectorbt as vbt
+
+    >>> rand_data = vbt.RandomData.fetch(start='5 seconds ago', freq='1s')
+    >>> rand_data.get().to_hdf('rand_data.h5', 's')
+
+    >>> h5_data = vbt.HDFData.fetch('s', path='rand_data.h5')
+    >>> h5_data.get()
+    2021-10-30 17:53:14.243189+00:00    100.119015
+    2021-10-30 17:53:15.243189+00:00    100.798207
+    2021-10-30 17:53:16.243189+00:00    101.928613
+    2021-10-30 17:53:17.243189+00:00    102.828592
+    2021-10-30 17:53:18.243189+00:00    104.505259
+    2021-10-30 17:53:19.243189+00:00    106.384834
+    Freq: S, dtype: float64
+
+    >>> import time
+    >>> time.sleep(2)
+
+    >>> rand_data = rand_data.update()
+    >>> rand_data.get().to_hdf('rand_data.h5', 's')  # saves all data
+
+    >>> h5_data = h5_data.update()  # loads only subset of data
+    >>> h5_data.get()
+    2021-10-30 17:53:14.243189+00:00    100.119015
+    2021-10-30 17:53:15.243189+00:00    100.798207
+    2021-10-30 17:53:16.243189+00:00    101.928613
+    2021-10-30 17:53:17.243189+00:00    102.828592
+    2021-10-30 17:53:18.243189+00:00    104.505259
+    2021-10-30 17:53:19.243189+00:00    104.143708
+    2021-10-30 17:53:20.243189+00:00    104.661706
+    2021-10-30 17:53:21.243189+00:00    105.294653
+    Freq: S, dtype: float64
+    ```"""
+
+    @classmethod
+    def fetch_symbol(cls,
+                     symbol: tp.Symbol,
+                     path: tp.Optional[tp.Any] = None,
+                     start_row: int = 0,
+                     end_row: tp.Optional[int] = None,
+                     **kwargs) -> tp.Tuple[tp.SeriesFrame, tp.Kwargs]:
+        """Fetch a symbol.
+
+        If `path` is None, uses `symbol` as path to an HDF file with a single pandas object.
+
+        !!! note
+            `end_row` must include the last row.
+
+        See https://pandas.pydata.org/docs/reference/api/pandas.read_hdf.html for other arguments."""
+        if path is None:
+            path = symbol
+            key = None
+        else:
+            key = symbol
+        if end_row is not None:
+            stop = end_row + 1
+        else:
+            stop = None
+        obj = pd.read_hdf(
+            path,
+            key=key,
+            start=start_row,
+            stop=stop,
+            **kwargs
+        )
+        returned_kwargs = dict(last_row=start_row + len(obj.index) - 1)
+        return obj, returned_kwargs
+
+    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.Tuple[tp.SeriesFrame, tp.Kwargs]:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start_row'] = self.returned_kwargs[symbol]['last_row']
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
+
+
 class SyntheticData(Data):
     """`Data` for synthetically generated data.
 
