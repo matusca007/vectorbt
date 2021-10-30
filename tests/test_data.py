@@ -732,6 +732,17 @@ class TestData:
                 columns=pd.Int64Index([1], dtype='int64')
             )
         )
+        assert MyData.fetch(
+            [0, 1], shape=(5, 3),
+            index_mask=index_mask, column_mask=column_mask,
+            missing_index='drop', missing_columns='drop').last_index == \
+               {0: index[4], 1: index[3]}
+        assert MyData.fetch(
+            [0, 1], shape=(5, 3),
+            index_mask=index_mask, column_mask=column_mask,
+            missing_index='drop', missing_columns='drop')\
+                   .update(n=3, index_mask=update_index_mask2).last_index == \
+               {0: updated_index[4], 1: updated_index[5]}
 
     def test_concat(self):
         index = pd.DatetimeIndex(
@@ -1044,6 +1055,156 @@ class TestData:
         pd.testing.assert_index_equal(stats_df.index, data.wrapper.columns)
         pd.testing.assert_index_equal(stats_df.columns, stats_index)
 
+
+# ############# custom.py ############# #
+
+class TestCustom:
+    def test_csv_data(self, tmp_path):
+        sr = pd.Series(np.arange(10))
+        sr.to_csv(tmp_path / 'temp.csv')
+        csv_data = vbt.CSVData.fetch(tmp_path / 'temp.csv')
+        pd.testing.assert_series_equal(
+            csv_data.get(),
+            sr
+        )
+        df = pd.DataFrame(np.arange(20).reshape((10, 2)))
+        df.columns = pd.MultiIndex.from_tuples([('1', '2'), ('3', '4')], names=['a', 'b'])
+        df.to_csv(tmp_path / 'temp.csv')
+        csv_data = vbt.CSVData.fetch(tmp_path / 'temp.csv', header=[0, 1], start_row=0, end_row=1)
+        pd.testing.assert_frame_equal(
+            csv_data.get(),
+            df.iloc[:2]
+        )
+        assert csv_data.returned_kwargs[tmp_path / 'temp.csv'] == {'last_row': 1}
+        csv_data = csv_data.update()
+        pd.testing.assert_frame_equal(
+            csv_data.get(),
+            df.iloc[:2]
+        )
+        assert csv_data.returned_kwargs[tmp_path / 'temp.csv'] == {'last_row': 1}
+        csv_data = csv_data.update(end_row=2)
+        csv_data.get()
+        pd.testing.assert_frame_equal(
+            csv_data.get(),
+            df.iloc[:3]
+        )
+        assert csv_data.returned_kwargs[tmp_path / 'temp.csv'] == {'last_row': 2}
+        csv_data = csv_data.update(end_row=None)
+        pd.testing.assert_frame_equal(
+            csv_data.get(),
+            df
+        )
+        assert csv_data.returned_kwargs[tmp_path / 'temp.csv'] == {'last_row': 9}
+
+    def test_random_data(self):
+        pd.testing.assert_series_equal(
+            vbt.RandomData.fetch(start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.Series(
+                [100.49671415301123, 100.35776307348756, 101.00776880200878, 102.54614727815496, 102.3060320136544],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D')
+            )
+        )
+        pd.testing.assert_frame_equal(
+            vbt.RandomData.fetch(num_paths=2, start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.DataFrame(
+                [
+                    [100.49671415301123, 99.7658630430508],
+                    [100.35776307348756, 101.34137833772823],
+                    [101.00776880200878, 102.11910727009419],
+                    [102.54614727815496, 101.63968421831567],
+                    [102.3060320136544, 102.1911405333112]
+                ],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D'),
+                columns=pd.Index([0, 1], name='path')
+            )
+        )
+        pd.testing.assert_frame_equal(
+            vbt.RandomData.fetch([0, 1], start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.DataFrame(
+                [
+                    [100.49671415301123, 100.49671415301123],
+                    [100.35776307348756, 100.35776307348756],
+                    [101.00776880200878, 101.00776880200878],
+                    [102.54614727815496, 102.54614727815496],
+                    [102.3060320136544, 102.3060320136544]
+                ],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D'),
+                columns=pd.Index([0, 1], name='symbol')
+            )
+        )
+
+    def test_gbm_data(self):
+        pd.testing.assert_series_equal(
+            vbt.GBMData.fetch(start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.Series(
+                [100.49292505095792, 100.34905764408163, 100.99606643427086, 102.54091282498935, 102.29597577584751],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D')
+            )
+        )
+        pd.testing.assert_frame_equal(
+            vbt.GBMData.fetch(num_paths=2, start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.DataFrame(
+                [
+                    [100.49292505095792, 99.76114874768454],
+                    [100.34905764408163, 101.34402779029647],
+                    [100.99606643427086, 102.119662952671],
+                    [102.54091282498935, 101.6362789823718],
+                    [102.29597577584751, 102.1841061387023]
+                ],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D'),
+                columns=pd.Index([0, 1], name='path')
+            )
+        )
+        pd.testing.assert_frame_equal(
+            vbt.GBMData.fetch([0, 1], start='2021-01-01 UTC', end='2021-01-05 UTC', seed=42).get(),
+            pd.DataFrame(
+                [
+                    [100.49292505095792, 100.49292505095792],
+                    [100.34905764408163, 100.34905764408163],
+                    [100.99606643427086, 100.99606643427086],
+                    [102.54091282498935, 102.54091282498935],
+                    [102.29597577584751, 102.29597577584751]
+                ],
+                index=pd.DatetimeIndex([
+                    datetime(2021, 1, 1),
+                    datetime(2021, 1, 2),
+                    datetime(2021, 1, 3),
+                    datetime(2021, 1, 4),
+                    datetime(2021, 1, 5)
+                ], dtype='datetime64[ns, UTC]', freq='D'),
+                columns=pd.Index([0, 1], name='symbol')
+            )
+        )
 
 # ############# updater.py ############# #
 

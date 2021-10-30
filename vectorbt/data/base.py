@@ -138,9 +138,9 @@ symbol         RANDNX1     RANDNX2
 2021-01-02  100.919011  100.987026
 2021-01-03  101.062733  100.835376
 2021-01-04  100.960535  100.820817
-2021-01-05  101.011255  100.887049 < updated last existing
-2021-01-06  101.004149  100.808410 < added new
-2021-01-07  101.023673  100.714583 < added new
+2021-01-05  101.011255  100.887049  << updated last
+2021-01-06  101.004149  100.808410  << added new
+2021-01-07  101.023673  100.714583  << added new
 
 >>> rand_data = rand_data.update()
 >>> rand_data.get()
@@ -151,9 +151,9 @@ symbol         RANDNX1     RANDNX2
 2021-01-04  100.960535  100.820817
 2021-01-05  101.011255  100.887049
 2021-01-06  101.004149  100.808410
-2021-01-07  100.883400  100.874922 < updated last existing
-2021-01-08  101.011738  100.780188 < added new
-2021-01-09  100.912639  100.934014 < added new
+2021-01-07  100.883400  100.874922  << updated last
+2021-01-08  101.011738  100.780188  << added new
+2021-01-09  100.912639  100.934014  << added new
 ```
 
 ## Handling exceptions
@@ -312,7 +312,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         'missing_index',
         'missing_columns',
         'fetch_kwargs',
-        'last_index'
+        'last_index',
+        'returned_kwargs'
     }
 
     def __init__(self,
@@ -325,6 +326,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                  missing_columns: str,
                  fetch_kwargs: tp.Kwargs,
                  last_index: tp.Dict[tp.Symbol, int],
+                 returned_kwargs: tp.Kwargs,
                  **kwargs) -> None:
 
         checks.assert_instance_of(data, dict)
@@ -342,6 +344,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_columns=missing_columns,
             fetch_kwargs=fetch_kwargs,
             last_index=last_index,
+            returned_kwargs=returned_kwargs,
             **kwargs
         )
         StatsBuilderMixin.__init__(self)
@@ -355,6 +358,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         self._missing_columns = missing_columns
         self._fetch_kwargs = fetch_kwargs
         self._last_index = last_index
+        self._returned_kwargs = returned_kwargs
 
     def indexing_func(self: DataT, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> DataT:
         """Perform indexing on `Data`."""
@@ -409,6 +413,11 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     def last_index(self) -> tp.Dict[tp.Symbol, int]:
         """Last fetched index per symbol."""
         return self._last_index
+
+    @property
+    def returned_kwargs(self) -> dict:
+        """Keyword arguments returned by `Data.fetch_symbol` along with the data."""
+        return self._returned_kwargs
 
     @classmethod
     def prepare_tzaware_index(cls,
@@ -558,6 +567,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                   wrapper_kwargs: tp.KwargsLike = None,
                   fetch_kwargs: tp.KwargsLike = None,
                   last_index: tp.Optional[tp.Dict[tp.Symbol, int]] = None,
+                  returned_kwargs: tp.KwargsLike = None,
                   **kwargs) -> DataT:
         """Create a new `Data` instance from data.
 
@@ -571,6 +581,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             fetch_kwargs (dict): Keyword arguments initially passed to `Data.fetch_symbol`.
             last_index (dict): Last fetched index per symbol.
+            returned_kwargs (dict): Keyword arguments returned by `Data.fetch_symbol` along with the data.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         For defaults, see `data` in `vectorbt._settings.settings`."""
@@ -580,6 +591,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             fetch_kwargs = {}
         if last_index is None:
             last_index = {}
+        if returned_kwargs is None:
+            returned_kwargs = {}
 
         data = data.copy()
         for symbol, obj in data.items():
@@ -608,12 +621,16 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_columns=missing_columns,
             fetch_kwargs=fetch_kwargs,
             last_index=last_index,
+            returned_kwargs=returned_kwargs,
             **kwargs
         )
 
     @classmethod
-    def fetch_symbol(cls, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
-        """Abstract method to fetch a symbol."""
+    def fetch_symbol(cls, symbol: tp.Symbol, **kwargs) -> \
+            tp.Union[tp.SeriesFrame, tp.Tuple[tp.SeriesFrame, tp.Kwargs]]:
+        """Fetch a symbol.
+
+        May also return a dictionary that will be accessible as `Data.returned_kwargs`."""
         raise NotImplementedError
 
     @classmethod
@@ -665,6 +682,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
 
         data = {}
+        returned_kwargs = {}
         with get_pbar(total=len(symbols), show_progress=show_progress, **pbar_kwargs) as pbar:
             for symbol in symbols:
                 if symbol is not None:
@@ -676,7 +694,13 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                     _kwargs['show_progress'] = show_progress
                 if 'pbar_kwargs' in func_arg_names:
                     _kwargs['pbar_kwargs'] = pbar_kwargs
-                data[symbol] = cls.fetch_symbol(symbol, **_kwargs)
+                out = cls.fetch_symbol(symbol, **_kwargs)
+                if isinstance(out, tuple):
+                    data[symbol] = out[0]
+                    returned_kwargs[symbol] = out[1]
+                else:
+                    data[symbol] = out
+                    returned_kwargs[symbol] = {}
 
                 pbar.update(1)
 
@@ -689,11 +713,12 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             missing_index=missing_index,
             missing_columns=missing_columns,
             wrapper_kwargs=wrapper_kwargs,
-            fetch_kwargs=kwargs
+            fetch_kwargs=kwargs,
+            returned_kwargs=returned_kwargs
         )
 
     def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
-        """Abstract method to update a symbol."""
+        """Update a symbol."""
         raise NotImplementedError
 
     def update(self: DataT, show_progress: bool = False, pbar_kwargs: tp.KwargsLike = None, **kwargs) -> DataT:
@@ -719,6 +744,8 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         pbar_kwargs = merge_dicts(data_cfg['pbar_kwargs'], pbar_kwargs)
 
         new_data = {}
+        new_last_index = {}
+        new_returned_kwargs = {}
         with get_pbar(total=len(self.data), show_progress=show_progress, **pbar_kwargs) as pbar:
             for symbol, obj in self.data.items():
                 if symbol is not None:
@@ -730,7 +757,13 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                     _kwargs['show_progress'] = show_progress
                 if 'pbar_kwargs' in func_arg_names:
                     _kwargs['pbar_kwargs'] = pbar_kwargs
-                new_obj = self.update_symbol(symbol, **_kwargs)
+                out = self.update_symbol(symbol, **_kwargs)
+                if isinstance(out, tuple):
+                    new_obj = out[0]
+                    new_returned_kwargs[symbol] = out[1]
+                else:
+                    new_obj = out
+                    new_returned_kwargs[symbol] = {}
 
                 if not isinstance(new_obj, (pd.Series, pd.DataFrame)):
                     new_obj = to_pd_array(new_obj)
@@ -745,6 +778,10 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                     tz_convert=self.tz_convert
                 )
                 new_data[symbol] = new_obj
+                if len(new_obj.index) > 0:
+                    new_last_index[symbol] = new_obj.index[-1]
+                else:
+                    new_last_index[symbol] = self.last_index[symbol]
 
                 pbar.update(1)
 
@@ -797,7 +834,9 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         new_index = new_data[self.symbols[0]].index
         return self.replace(
             wrapper=self.wrapper.replace(index=new_index),
-            data=new_data
+            data=new_data,
+            last_index=new_last_index,
+            returned_kwargs=new_returned_kwargs
         )
 
     def concat(self, level_name: str = 'symbol') -> tp.DataDict:

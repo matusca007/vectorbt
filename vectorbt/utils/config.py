@@ -228,14 +228,14 @@ class Pickleable:
 
         return pickle.loads(dumps)
 
-    def save(self, fname: tp.FileName, **kwargs) -> None:
+    def save(self, fname: tp.PathLike, **kwargs) -> None:
         """Save dumps to a file."""
         dumps = self.dumps(**kwargs)
         with open(fname, "wb") as f:
             f.write(dumps)
 
     @classmethod
-    def load(cls: tp.Type[PickleableT], fname: tp.FileName, **kwargs) -> PickleableT:
+    def load(cls: tp.Type[PickleableT], fname: tp.PathLike, **kwargs) -> PickleableT:
         """Load dumps from a file and create new instance."""
         with open(fname, "rb") as f:
             dumps = f.read()
@@ -290,7 +290,7 @@ class PickleableDict(Pickleable, dict):
                 config[k] = v.cls.loads(v.dumps, **kwargs)
         return cls(**config)
 
-    def load_update(self, fname: tp.FileName, clear: bool = False, **kwargs) -> None:
+    def load_update(self, fname: tp.PathLike, clear: bool = False, **kwargs) -> None:
         """Load dumps from a file and update this instance in-place."""
         if clear:
             self.clear()
@@ -723,7 +723,7 @@ class Config(PickleableDict, Documented):
             as_attrs=obj['as_attrs']
         )
 
-    def load_update(self, fname: tp.FileName, clear: bool = False,
+    def load_update(self, fname: tp.PathLike, clear: bool = False,
                     nested: tp.Optional[bool] = None, **kwargs) -> None:
         """Load dumps from a file and update this instance in-place.
 

@@ -132,7 +132,7 @@ ArgsLike = Union[None, Args]
 Kwargs = Dict[str, Any]
 KwargsLike = Union[None, Kwargs]
 KwargsLikeSequence = MaybeSequence[KwargsLike]
-FileName = Union[str, Path]
+PathLike = Union[str, Path]
 
 # Data
 Symbol = Hashable

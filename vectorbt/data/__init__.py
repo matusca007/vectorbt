@@ -5,12 +5,21 @@
 
 from vectorbt.data.base import symbol_dict, Data
 from vectorbt.data.updater import DataUpdater
-from vectorbt.data.custom import SyntheticData, RandomData, GBMData, YFData, BinanceData, CCXTData
+from vectorbt.data.custom import (
+    CSVData,
+    SyntheticData,
+    RandomData,
+    GBMData,
+    YFData,
+    BinanceData,
+    CCXTData
+)
 
 __all__ = [
     'symbol_dict',
     'Data',
     'DataUpdater',
+    'CSVData',
     'SyntheticData',
     'RandomData',
     'GBMData',

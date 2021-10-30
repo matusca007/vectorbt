@@ -35,11 +35,110 @@ try:
 except ImportError:
     ExchangeT = tp.Any
 
+CSVDataT = tp.TypeVar("CSVDatat", bound="CSVData")
+
+
+class CSVData(Data):
+    """`Data` for data that can be fetched and updated using `pd.read_csv`.
+
+    ## Example
+
+    ```python-repl
+    >>> import vectorbt as vbt
+
+    >>> rand_data = vbt.RandomData.fetch(start='5 seconds ago', freq='1s')
+    >>> rand_data.get().to_csv('rand_data.csv')
+
+    >>> csv_data = vbt.CSVData.fetch('rand_data.csv')
+    >>> csv_data.get()
+    2021-10-30 11:19:32.168721+00:00    101.223837
+    2021-10-30 11:19:33.168721+00:00    101.580351
+    2021-10-30 11:19:34.168721+00:00    101.409540
+    2021-10-30 11:19:35.168721+00:00    101.198202
+    2021-10-30 11:19:36.168721+00:00    102.308458
+    2021-10-30 11:19:37.168721+00:00    102.692657
+    Freq: S, dtype: float64
+
+    >>> import time
+    >>> time.sleep(2)
+
+    >>> rand_data = rand_data.update()
+    >>> rand_data.get().to_csv('rand_data.csv')  # saves all data
+
+    >>> csv_data = csv_data.update()  # loads only subset of data
+    >>> csv_data.get()
+    2021-10-30 11:19:32.168721+00:00    101.223837
+    2021-10-30 11:19:33.168721+00:00    101.580351
+    2021-10-30 11:19:34.168721+00:00    101.409540
+    2021-10-30 11:19:35.168721+00:00    101.198202
+    2021-10-30 11:19:36.168721+00:00    102.308458
+    2021-10-30 11:19:37.168721+00:00    100.941811  << updated last
+    2021-10-30 11:19:38.168721+00:00    100.935500  << added new
+    2021-10-30 11:19:39.168721+00:00    100.618909  << added new
+    Freq: S, dtype: float64
+    ```"""
+
+    @classmethod
+    def fetch_symbol(cls,
+                     symbol: tp.Symbol,
+                     path: tp.Optional[tp.Any] = None,
+                     header: tp.MaybeSequence[int] = 0,
+                     index_col: int = 0,
+                     parse_dates: bool = True,
+                     start_row: int = 0,
+                     end_row: tp.Optional[int] = None,
+                     squeeze: bool = True,
+                     **kwargs) -> tp.Tuple[tp.SeriesFrame, tp.Kwargs]:
+        """Fetch a symbol.
+
+        If `path` is None, uses `symbol` as path.
+
+        `skiprows` and `nrows` will be automatically calculated based on `start_row` and `end_row`.
+
+        !!! note
+            `start_row` and `end_row` must exclude header rows, while `end_row` must include the last row.
+
+        See https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html for other arguments."""
+        if path is None:
+            path = symbol
+        if isinstance(header, int):
+            header = [header]
+        header_rows = header[-1] + 1
+        start_row += header_rows
+        if end_row is not None:
+            end_row += header_rows
+        skiprows = range(header_rows, start_row)
+        if end_row is not None:
+            nrows = end_row - start_row + 1
+        else:
+            nrows = None
+        obj = pd.read_csv(
+            path,
+            header=header,
+            index_col=index_col,
+            parse_dates=parse_dates,
+            skiprows=skiprows,
+            nrows=nrows,
+            squeeze=squeeze,
+            **kwargs
+        )
+        if isinstance(obj, pd.Series) and obj.name == '0':
+            obj.name = None
+        returned_kwargs = dict(last_row=start_row - header_rows + len(obj.index) - 1)
+        return obj, returned_kwargs
+
+    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.Tuple[tp.SeriesFrame, tp.Kwargs]:
+        fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
+        fetch_kwargs['start_row'] = self.returned_kwargs[symbol]['last_row']
+        kwargs = merge_dicts(fetch_kwargs, kwargs)
+        return self.fetch_symbol(symbol, **kwargs)
+
 
 class SyntheticData(Data):
     """`Data` for synthetically generated data.
 
-    Exposes an abstract class method `SyntheticData.generate_symbol`. Everything else is taken care of."""
+    Exposes an abstract class method `SyntheticData.generate_symbol`.
+    Everything else is taken care of."""
 
     @classmethod
     def generate_symbol(cls, symbol: tp.Symbol, index: tp.Index, **kwargs) -> tp.SeriesFrame:
@@ -54,7 +153,7 @@ class SyntheticData(Data):
                      freq: tp.Union[None, str, pd.DateOffset] = None,
                      date_range_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.SeriesFrame:
-        """Fetch the symbol.
+        """Fetch a symbol.
 
         Generates datetime index and passes it to `SyntheticData.generate_symbol` to fill
         the Series/DataFrame with generated data."""
@@ -118,8 +217,8 @@ class RandomData(SyntheticData):
             start_value (float): Value at time 0.
 
                 Does not appear as the first value in the output data.
-            mean (float): Drift, or mean of the absolute change.
-            std (float): Standard deviation of the absolute change.
+            mean (float): Drift, or mean of the percentage change.
+            std (float): Standard deviation of the percentage change.
             seed (int): Set seed to make output deterministic.
         """
         if seed is not None:
@@ -200,7 +299,7 @@ class GBMData(RandomData):
         return pd.DataFrame(out, index=index, columns=columns)
 
 
-class YFData(Data):
+class YFData(Data):  # pragma: no cover
     """`Data` for data coming from `yfinance`.
 
     Stocks are usually in the timezone "+0500" and cryptocurrencies in UTC.
@@ -272,7 +371,7 @@ class YFData(Data):
 
     @classmethod
     def fetch_symbol(cls,
-                     symbol: tp.Symbol,
+                     symbol: str,
                      period: str = 'max',
                      start: tp.Optional[tp.DatetimeLike] = None,
                      end: tp.Optional[tp.DatetimeLike] = None,
@@ -302,7 +401,7 @@ class YFData(Data):
 
         return yf.Ticker(symbol).history(period=period, start=start, end=end, **kwargs)
 
-    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
+    def update_symbol(self, symbol: str, **kwargs) -> tp.SeriesFrame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
         fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
@@ -312,7 +411,7 @@ class YFData(Data):
 BinanceDataT = tp.TypeVar("BinanceDataT", bound="BinanceData")
 
 
-class BinanceData(Data):
+class BinanceData(Data):  # pragma: no cover
     """`Data` for data coming from `python-binance`.
 
     ## Example
@@ -422,7 +521,7 @@ class BinanceData(Data):
 
     @classmethod
     def fetch(cls: tp.Type[BinanceDataT],
-              symbols: tp.Symbols,
+              symbols: tp.Sequence[str],
               client: tp.Optional["ClientT"] = None,
               **kwargs) -> BinanceDataT:
         """Override `vectorbt.data.base.Data.fetch` to instantiate a Binance client."""
@@ -444,7 +543,7 @@ class BinanceData(Data):
 
     @classmethod
     def fetch_symbol(cls,
-                     symbol: tp.Symbol,
+                     symbol: str,
                      client: tp.Optional["ClientT"] = None,
                      interval: str = '1d',
                      start: tp.DatetimeLike = 0,
@@ -565,14 +664,14 @@ class BinanceData(Data):
 
         return df
 
-    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
+    def update_symbol(self, symbol: str, **kwargs) -> tp.Frame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
         fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
         return self.fetch_symbol(symbol, **kwargs)
 
 
-class CCXTData(Data):
+class CCXTData(Data):  # pragma: no cover
     """`Data` for data coming from `ccxt`.
 
     ## Example
@@ -622,7 +721,7 @@ class CCXTData(Data):
 
     @classmethod
     def fetch_symbol(cls,
-                     symbol: tp.Symbol,
+                     symbol: str,
                      exchange: tp.Union[str, "ExchangeT"] = 'binance',
                      config: tp.Optional[dict] = None,
                      timeframe: str = '1d',
@@ -785,7 +884,7 @@ class CCXTData(Data):
 
         return df
 
-    def update_symbol(self, symbol: tp.Symbol, **kwargs) -> tp.SeriesFrame:
+    def update_symbol(self, symbol: str, **kwargs) -> tp.Frame:
         fetch_kwargs = self.select_symbol_kwargs(symbol, self.fetch_kwargs)
         fetch_kwargs['start'] = self.last_index[symbol]
         kwargs = merge_dicts(fetch_kwargs, kwargs)
