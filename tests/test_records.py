@@ -3940,21 +3940,21 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Size'].values,
+            records_readable['Req Size'].values,
             np.array([
                 1.0, 0.1, -1.0, -0.1, np.nan, 1.0, -1.0, 2.0, -1.0, -0.1, 1.0, 0.1, np.nan, -1.0, 1.0, -2.0, 1.0, 0.1,
                 -1.0, -0.1, np.nan, 1.0, -2.0, 2.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Price'].values,
+            records_readable['Req Price'].values,
             np.array([
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0,
                 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Size Type'].values,
+            records_readable['Req Size Type'].values,
             np.array([
                 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount',
                 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount', 'Amount',
@@ -3963,7 +3963,7 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Direction'].values,
+            records_readable['Req Direction'].values,
             np.array([
                 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both',
                 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both', 'Both',
@@ -3971,28 +3971,28 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Fees'].values,
+            records_readable['Req Fees'].values,
             np.array([
                 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
                 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Fixed Fees'].values,
+            records_readable['Req Fixed Fees'].values,
             np.array([
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Slippage'].values,
+            records_readable['Req Slippage'].values,
             np.array([
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Min Size'].values,
+            records_readable['Req Min Size'].values,
             np.array([
                 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08,
                 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08, 1e-08,
@@ -4000,7 +4000,7 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Max Size'].values,
+            records_readable['Req Max Size'].values,
             np.array([
                 np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf,
                 np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf, np.inf,
@@ -4008,21 +4008,22 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Rejection Prob'].values,
+            records_readable['Req Size Granularity'].values,
+            np.array([
+                np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
+                np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+            ])
+        )
+        np.testing.assert_array_equal(
+            records_readable['Req Rejection Prob'].values,
             np.array([
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Allow Partial'].values,
-            np.array([
-                True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
-                True, True, True, True, True, True, True, True, True, True, True, True, True, True, True
-            ])
-        )
-        np.testing.assert_array_equal(
-            records_readable['Request Raise Rejection'].values,
+            records_readable['Req Lock Cash'].values,
             np.array([
                 False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
                 False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
@@ -4030,7 +4031,22 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Request Log'].values,
+            records_readable['Req Allow Partial'].values,
+            np.array([
+                True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
+                True, True, True, True, True, True, True, True, True, True, True, True, True, True, True
+            ])
+        )
+        np.testing.assert_array_equal(
+            records_readable['Req Raise Rejection'].values,
+            np.array([
+                False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                False, False, False, False, False, False, False, False, False, False, False, False, False, False, False,
+                False, False
+            ])
+        )
+        np.testing.assert_array_equal(
+            records_readable['Req Log'].values,
             np.array([
                 True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True, True,
                 True, True, True, True, True, True, True, True, True, True, True, True, True, True, True
@@ -4085,21 +4101,21 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Size'].values,
+            records_readable['Res Size'].values,
             np.array([
                 1.0, 0.1, 1.0, 0.1, np.nan, 1.0, 1.0, 2.0, 1.0, 0.1, 1.0, 0.1, np.nan, 1.0, 1.0, 2.0, 1.0, 0.1, 1.0,
                 0.1, np.nan, 1.0, 2.0, 2.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Price'].values,
+            records_readable['Res Price'].values,
             np.array([
                 1.0, 2.0, 3.0, 4.0, np.nan, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, np.nan, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0,
                 4.0, np.nan, 6.0, 7.0, 8.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Fees'].values,
+            records_readable['Res Fees'].values,
             np.array([
                 0.01, 0.002, 0.03, 0.004, np.nan, 0.06, 0.07, 0.16, 0.01, 0.002, 0.03, 0.004, np.nan, 0.06, 0.07, 0.16,
                 0.01, 0.002, 0.03, 0.004, np.nan, 0.06, 0.14, 0.16, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan,
@@ -4107,7 +4123,7 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Side'].values,
+            records_readable['Res Side'].values,
             np.array([
                 'Buy', 'Buy', 'Sell', 'Sell', None, 'Buy', 'Sell', 'Buy', 'Sell', 'Sell', 'Buy', 'Buy', None, 'Sell',
                 'Buy', 'Sell', 'Buy', 'Buy', 'Sell', 'Sell', None, 'Buy', 'Sell', 'Buy', None, None, None, None, None,
@@ -4115,7 +4131,7 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Status'].values,
+            records_readable['Res Status'].values,
             np.array([
                 'Filled', 'Filled', 'Filled', 'Filled', 'Ignored', 'Filled', 'Filled', 'Filled', 'Filled', 'Filled',
                 'Filled', 'Filled', 'Ignored', 'Filled', 'Filled', 'Filled', 'Filled', 'Filled', 'Filled', 'Filled',
@@ -4124,7 +4140,7 @@ class TestLogs:
             ])
         )
         np.testing.assert_array_equal(
-            records_readable['Result Status Info'].values,
+            records_readable['Res Status Info'].values,
             np.array([
                 None, None, None, None, 'SizeNaN', None, None, None, None, None, None, None, 'SizeNaN', None, None,
                 None, None, None, None, None, 'SizeNaN', None, None, None, 'SizeNaN', 'SizeNaN', 'SizeNaN', 'SizeNaN',

@@ -132,48 +132,51 @@ logs_field_config = Config(
                 title='Value'
             ),
             req_size=dict(
-                title='Request Size'
+                title='Req Size'
             ),
             req_price=dict(
-                title='Request Price'
+                title='Req Price'
             ),
             req_size_type=dict(
-                title='Request Size Type',
+                title='Req Size Type',
                 mapping=SizeType
             ),
             req_direction=dict(
-                title='Request Direction',
+                title='Req Direction',
                 mapping=Direction
             ),
             req_fees=dict(
-                title='Request Fees'
+                title='Req Fees'
             ),
             req_fixed_fees=dict(
-                title='Request Fixed Fees'
+                title='Req Fixed Fees'
             ),
             req_slippage=dict(
-                title='Request Slippage'
+                title='Req Slippage'
             ),
             req_min_size=dict(
-                title='Request Min Size'
+                title='Req Min Size'
             ),
             req_max_size=dict(
-                title='Request Max Size'
+                title='Req Max Size'
+            ),
+            req_size_granularity=dict(
+                title='Req Size Granularity'
             ),
             req_reject_prob=dict(
-                title='Request Rejection Prob'
+                title='Req Rejection Prob'
             ),
             req_lock_cash=dict(
-                title='Request Lock Cash'
+                title='Req Lock Cash'
             ),
             req_allow_partial=dict(
-                title='Request Allow Partial'
+                title='Req Allow Partial'
             ),
             req_raise_reject=dict(
-                title='Request Raise Rejection'
+                title='Req Raise Rejection'
             ),
             req_log=dict(
-                title='Request Log'
+                title='Req Log'
             ),
             new_cash=dict(
                 title='New Cash'
@@ -194,24 +197,24 @@ logs_field_config = Config(
                 title='New Value'
             ),
             res_size=dict(
-                title='Result Size'
+                title='Res Size'
             ),
             res_price=dict(
-                title='Result Price'
+                title='Res Price'
             ),
             res_fees=dict(
-                title='Result Fees'
+                title='Res Fees'
             ),
             res_side=dict(
-                title='Result Side',
+                title='Res Side',
                 mapping=OrderSide
             ),
             res_status=dict(
-                title='Result Status',
+                title='Res Status',
                 mapping=OrderStatus
             ),
             res_status_info=dict(
-                title='Result Status Info',
+                title='Res Status Info',
                 mapping=OrderStatusInfo
             ),
             order_id=dict(

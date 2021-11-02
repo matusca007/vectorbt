@@ -90,6 +90,7 @@ def buy_nb(exec_state: ExecuteOrderState,
            slippage: float = 0.,
            min_size: float = 0.,
            max_size: float = np.inf,
+           size_granularity: float = np.nan,
            lock_cash: bool = False,
            allow_partial: bool = True,
            percent: float = np.nan) -> tp.Tuple[ExecuteOrderState, OrderResult]:
@@ -140,37 +141,50 @@ def buy_nb(exec_state: ExecuteOrderState,
     else:
         adj_size = size
 
-    if adj_size == 0:
-        return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeZero)
-
     if adj_size > max_size:
         if not allow_partial:
             return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.MaxSizeExceeded)
 
         adj_size = max_size
 
+    # Adjust granularity
+    if not np.isnan(size_granularity):
+        adj_size = adj_size // size_granularity * size_granularity
+
     # Get cash required to complete this order
     req_cash = adj_size * adj_price
     req_fees = req_cash * fees + fixed_fees
-    adj_req_cash = req_cash + req_fees
+    total_req_cash = req_cash + req_fees
 
-    if is_close_or_less_nb(adj_req_cash, cash_limit):
+    if is_close_or_less_nb(total_req_cash, cash_limit):
         # Sufficient amount of cash
         final_size = adj_size
         fees_paid = req_fees
-        final_cash = adj_req_cash
+        final_req_cash = total_req_cash
     else:
         # Insufficient amount of cash, size will be less than requested
 
         # For fees of 10% and 1$ per transaction, you can buy for 90$ (new_req_cash)
         # to spend 100$ (cash_limit) in total
-        new_req_cash = add_nb(cash_limit, -fixed_fees) / (1 + fees)
-        if new_req_cash <= 0:
+        max_req_cash = add_nb(cash_limit, -fixed_fees) / (1 + fees)
+        if max_req_cash <= 0:
             return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.CantCoverFees)
 
-        final_size = new_req_cash / adj_price
-        fees_paid = cash_limit - new_req_cash
-        final_cash = cash_limit
+        max_acq_size = max_req_cash / adj_price
+
+        if not np.isnan(size_granularity):
+            # Adjust granularity
+            final_size = max_acq_size // size_granularity * size_granularity
+            new_req_cash = final_size * adj_price
+            fees_paid = new_req_cash * fees + fixed_fees
+            final_req_cash = new_req_cash + fees_paid
+        else:
+            final_size = max_acq_size
+            fees_paid = cash_limit - max_req_cash
+            final_req_cash = cash_limit
+
+    if is_close_nb(adj_size, 0):
+        return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeZero)
 
     # Check against minimum size
     if is_less_nb(final_size, min_size):
@@ -181,7 +195,7 @@ def buy_nb(exec_state: ExecuteOrderState,
         return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.PartialFill)
 
     # Update current cash balance and position
-    new_cash = add_nb(exec_state.cash, -final_cash)
+    new_cash = add_nb(exec_state.cash, -final_req_cash)
     new_position = add_nb(exec_state.position, final_size)
 
     # Update current debt and free cash
@@ -193,10 +207,10 @@ def buy_nb(exec_state: ExecuteOrderState,
         avg_entry_price = exec_state.debt / abs(exec_state.position)
         debt_diff = short_size * avg_entry_price
         new_debt = add_nb(exec_state.debt, -debt_diff)
-        new_free_cash = add_nb(exec_state.free_cash + 2 * debt_diff, -final_cash)
+        new_free_cash = add_nb(exec_state.free_cash + 2 * debt_diff, -final_req_cash)
     else:
         new_debt = exec_state.debt
-        new_free_cash = add_nb(exec_state.free_cash, -final_cash)
+        new_free_cash = add_nb(exec_state.free_cash, -final_req_cash)
 
     # Return filled order
     order_result = OrderResult(
@@ -226,6 +240,7 @@ def sell_nb(exec_state: ExecuteOrderState,
             slippage: float = 0.,
             min_size: float = 0.,
             max_size: float = np.inf,
+            size_granularity: float = np.nan,
             lock_cash: bool = False,
             allow_partial: bool = True,
             percent: float = np.nan) -> tp.Tuple[ExecuteOrderState, OrderResult]:
@@ -291,6 +306,10 @@ def sell_nb(exec_state: ExecuteOrderState,
         if exec_state.position == 0:
             return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.NoOpenPosition)
 
+    # Adjust granularity
+    if not np.isnan(size_granularity):
+        size_limit = size_limit // size_granularity * size_granularity
+
     if is_close_nb(size_limit, 0):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeZero)
 
@@ -309,12 +328,12 @@ def sell_nb(exec_state: ExecuteOrderState,
     fees_paid = acq_cash * fees + fixed_fees
 
     # Get final cash by subtracting costs
-    final_cash = add_nb(acq_cash, -fees_paid)
-    if final_cash < 0:
+    final_acq_cash = add_nb(acq_cash, -fees_paid)
+    if final_acq_cash < 0:
         return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.CantCoverFees)
 
     # Update current cash balance and position
-    new_cash = exec_state.cash + final_cash
+    new_cash = exec_state.cash + final_acq_cash
     new_position = add_nb(exec_state.position, -size_limit)
 
     # Update current debt and free cash
@@ -325,11 +344,11 @@ def sell_nb(exec_state: ExecuteOrderState,
             short_size = abs(new_position)
         short_value = short_size * adj_price
         new_debt = exec_state.debt + short_value
-        free_cash_diff = add_nb(final_cash, -2 * short_value)
+        free_cash_diff = add_nb(final_acq_cash, -2 * short_value)
         new_free_cash = add_nb(exec_state.free_cash, free_cash_diff)
     else:
         new_debt = exec_state.debt
-        new_free_cash = exec_state.free_cash + final_cash
+        new_free_cash = exec_state.free_cash + final_acq_cash
 
     # Return filled order
     order_result = OrderResult(
@@ -426,6 +445,8 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
         raise ValueError("order.min_size must be finite and 0 or greater")
     if order.max_size <= 0:
         raise ValueError("order.max_size must be greater than 0")
+    if order.size_granularity <= 0:
+        raise ValueError("order.size_granularity must be greater than 0")
     if not np.isfinite(order.reject_prob) or order.reject_prob < 0 or order.reject_prob > 1:
         raise ValueError("order.reject_prob must be between 0 and 1")
 
@@ -489,6 +510,7 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
             slippage=order.slippage,
             min_size=order.min_size,
             max_size=order.max_size,
+            size_granularity=order.size_granularity,
             lock_cash=order.lock_cash,
             allow_partial=order.allow_partial,
             percent=percent
@@ -504,6 +526,7 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
             slippage=order.slippage,
             min_size=order.min_size,
             max_size=order.max_size,
+            size_granularity=order.size_granularity,
             lock_cash=order.lock_cash,
             allow_partial=order.allow_partial,
             percent=percent
@@ -558,6 +581,7 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['req_slippage'][r, col] = order.slippage
     records['req_min_size'][r, col] = order.min_size
     records['req_max_size'][r, col] = order.max_size
+    records['req_size_granularity'][r, col] = order.size_granularity
     records['req_reject_prob'][r, col] = order.reject_prob
     records['req_lock_cash'][r, col] = order.lock_cash
     records['req_allow_partial'][r, col] = order.allow_partial
@@ -755,6 +779,7 @@ def order_nb(size: float = np.nan,
              slippage: float = 0.,
              min_size: float = 0.,
              max_size: float = np.inf,
+             size_granularity: float = np.nan,
              reject_prob: float = 0.,
              lock_cash: bool = False,
              allow_partial: bool = True,
@@ -767,18 +792,19 @@ def order_nb(size: float = np.nan,
     return Order(
         size=float(size),
         price=float(price),
-        size_type=size_type,
-        direction=direction,
+        size_type=int(size_type),
+        direction=int(direction),
         fees=float(fees),
         fixed_fees=float(fixed_fees),
         slippage=float(slippage),
         min_size=float(min_size),
         max_size=float(max_size),
+        size_granularity=float(size_granularity),
         reject_prob=float(reject_prob),
-        lock_cash=lock_cash,
-        allow_partial=allow_partial,
-        raise_reject=raise_reject,
-        log=log
+        lock_cash=bool(lock_cash),
+        allow_partial=bool(allow_partial),
+        raise_reject=bool(raise_reject),
+        log=bool(log)
     )
 
 
@@ -789,6 +815,7 @@ def close_position_nb(price: float = np.inf,
                       slippage: float = 0.,
                       min_size: float = 0.,
                       max_size: float = np.inf,
+                      size_granularity: float = np.nan,
                       reject_prob: float = 0.,
                       lock_cash: bool = False,
                       allow_partial: bool = True,
@@ -806,6 +833,7 @@ def close_position_nb(price: float = np.inf,
         slippage=slippage,
         min_size=min_size,
         max_size=max_size,
+        size_granularity=size_granularity,
         reject_prob=reject_prob,
         lock_cash=lock_cash,
         allow_partial=allow_partial,
@@ -1102,6 +1130,7 @@ def replace_inf_price_nb(prev_close: float, close: float, order: Order) -> Order
         slippage=order.slippage,
         min_size=order.min_size,
         max_size=order.max_size,
+        size_granularity=order.size_granularity,
         reject_prob=order.reject_prob,
         lock_cash=order.lock_cash,
         allow_partial=order.allow_partial,
@@ -1289,6 +1318,7 @@ def update_pos_record_nb(record: tp.Record,
         slippage=portfolio_ch.flex_array_gl_slicer,
         min_size=portfolio_ch.flex_array_gl_slicer,
         max_size=portfolio_ch.flex_array_gl_slicer,
+        size_granularity=portfolio_ch.flex_array_gl_slicer,
         reject_prob=portfolio_ch.flex_array_gl_slicer,
         lock_cash=portfolio_ch.flex_array_gl_slicer,
         allow_partial=portfolio_ch.flex_array_gl_slicer,
@@ -1319,6 +1349,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                             slippage: tp.FlexArray = np.asarray(0.),
                             min_size: tp.FlexArray = np.asarray(0.),
                             max_size: tp.FlexArray = np.asarray(np.inf),
+                            size_granularity: tp.FlexArray = np.asarray(np.nan),
                             reject_prob: tp.FlexArray = np.asarray(0.),
                             lock_cash: tp.FlexArray = np.asarray(False),
                             allow_partial: tp.FlexArray = np.asarray(True),
@@ -1479,6 +1510,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     slippage=flex_select_auto_nb(slippage, i, col, flex_2d),
                     min_size=flex_select_auto_nb(min_size, i, col, flex_2d),
                     max_size=flex_select_auto_nb(max_size, i, col, flex_2d),
+                    size_granularity=flex_select_auto_nb(size_granularity, i, col, flex_2d),
                     reject_prob=flex_select_auto_nb(reject_prob, i, col, flex_2d),
                     lock_cash=flex_select_auto_nb(lock_cash, i, col, flex_2d),
                     allow_partial=flex_select_auto_nb(allow_partial, i, col, flex_2d),
@@ -1865,6 +1897,7 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
         slippage=portfolio_ch.flex_array_gl_slicer,
         min_size=portfolio_ch.flex_array_gl_slicer,
         max_size=portfolio_ch.flex_array_gl_slicer,
+        size_granularity=portfolio_ch.flex_array_gl_slicer,
         reject_prob=portfolio_ch.flex_array_gl_slicer,
         lock_cash=portfolio_ch.flex_array_gl_slicer,
         allow_partial=portfolio_ch.flex_array_gl_slicer,
@@ -1916,6 +1949,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  slippage: tp.FlexArray = np.asarray(0.),
                                  min_size: tp.FlexArray = np.asarray(0.),
                                  max_size: tp.FlexArray = np.asarray(np.inf),
+                                 size_granularity: tp.FlexArray = np.asarray(np.nan),
                                  reject_prob: tp.FlexArray = np.asarray(0.),
                                  lock_cash: tp.FlexArray = np.asarray(False),
                                  allow_partial: tp.FlexArray = np.asarray(True),
@@ -2312,6 +2346,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                         slippage=_slippage,
                         min_size=flex_select_auto_nb(min_size, i, col, flex_2d),
                         max_size=flex_select_auto_nb(max_size, i, col, flex_2d),
+                        size_granularity=flex_select_auto_nb(size_granularity, i, col, flex_2d),
                         reject_prob=flex_select_auto_nb(reject_prob, i, col, flex_2d),
                         lock_cash=flex_select_auto_nb(lock_cash, i, col, flex_2d),
                         allow_partial=flex_select_auto_nb(allow_partial, i, col, flex_2d),

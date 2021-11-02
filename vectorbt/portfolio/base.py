@@ -1767,6 +1767,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     slippage: tp.Optional[tp.ArrayLike] = None,
                     min_size: tp.Optional[tp.ArrayLike] = None,
                     max_size: tp.Optional[tp.ArrayLike] = None,
+                    size_granularity: tp.Optional[tp.ArrayLike] = None,
                     reject_prob: tp.Optional[tp.ArrayLike] = None,
                     lock_cash: tp.Optional[tp.ArrayLike] = None,
                     allow_partial: tp.Optional[tp.ArrayLike] = None,
@@ -1827,6 +1828,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 See `vectorbt.portfolio.enums.Order.max_size`. Will broadcast.
 
                 Will be partially filled if exceeded.
+            size_granularity (float or array_like): Granularity of the size.
+                See `vectorbt.portfolio.enums.Order.size_granularity`. Will broadcast.
             reject_prob (float or array_like): Order rejection probability.
                 See `vectorbt.portfolio.enums.Order.reject_prob`. Will broadcast.
             lock_cash (bool or array_like): Whether to lock cash when shorting.
@@ -2049,6 +2052,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             min_size = portfolio_cfg['min_size']
         if max_size is None:
             max_size = portfolio_cfg['max_size']
+        if size_granularity is None:
+            size_granularity = portfolio_cfg['size_granularity']
         if reject_prob is None:
             reject_prob = portfolio_cfg['reject_prob']
         if lock_cash is None:
@@ -2114,6 +2119,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             slippage=slippage,
             min_size=min_size,
             max_size=max_size,
+            size_granularity=size_granularity,
             reject_prob=reject_prob,
             lock_cash=lock_cash,
             allow_partial=allow_partial,
@@ -2194,6 +2200,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      slippage: tp.Optional[tp.ArrayLike] = None,
                      min_size: tp.Optional[tp.ArrayLike] = None,
                      max_size: tp.Optional[tp.ArrayLike] = None,
+                     size_granularity: tp.Optional[tp.ArrayLike] = None,
                      reject_prob: tp.Optional[tp.ArrayLike] = None,
                      lock_cash: tp.Optional[tp.ArrayLike] = None,
                      allow_partial: tp.Optional[tp.ArrayLike] = None,
@@ -2317,6 +2324,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Will be partially filled if exceeded. You might not be able to properly close
                 the position if accumulation is enabled and `max_size` is too low.
+            size_granularity (float or array_like): See `Portfolio.from_orders`.
             reject_prob (float or array_like): See `Portfolio.from_orders`.
             lock_cash (bool or array_like): See `Portfolio.from_orders`.
             allow_partial (bool or array_like): See `Portfolio.from_orders`.
@@ -2888,6 +2896,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             min_size = portfolio_cfg['min_size']
         if max_size is None:
             max_size = portfolio_cfg['max_size']
+        if size_granularity is None:
+            size_granularity = portfolio_cfg['size_granularity']
         if reject_prob is None:
             reject_prob = portfolio_cfg['reject_prob']
         if lock_cash is None:
@@ -3012,6 +3022,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             slippage=slippage,
             min_size=min_size,
             max_size=max_size,
+            size_granularity=size_granularity,
             reject_prob=reject_prob,
             lock_cash=lock_cash,
             allow_partial=allow_partial,
@@ -4076,9 +4087,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         else:
             if flexible:
                 func = nb.flex_simulate_nb
-                if not use_numba and hasattr(func, 'py_func'):
+                if use_numba:
+                    func = nb_registry.redecorate_parallel(func, nb_parallel)
+                elif hasattr(func, 'py_func'):
                     func = func.py_func
-                func = nb_registry.redecorate_parallel(func, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
@@ -4114,9 +4126,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 )
             else:
                 func = nb.simulate_nb
-                if not use_numba and hasattr(func, 'py_func'):
+                if use_numba:
+                    func = nb_registry.redecorate_parallel(func, nb_parallel)
+                elif hasattr(func, 'py_func'):
                     func = func.py_func
-                func = nb_registry.redecorate_parallel(func, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
