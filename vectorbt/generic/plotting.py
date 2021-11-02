@@ -287,6 +287,7 @@ class Scatter(Configured, TraceUpdater):
                  trace_kwargs: tp.KwargsLikeSequence = None,
                  add_trace_kwargs: tp.KwargsLike = None,
                  fig: tp.Optional[tp.BaseFigure] = None,
+                 use_gl: tp.Optional[bool] = None,
                  **layout_kwargs) -> None:
         """Create a scatter plot.
 
@@ -301,6 +302,10 @@ class Scatter(Configured, TraceUpdater):
                 Can be specified per trace as a sequence of dicts.
             add_trace_kwargs (dict): Keyword arguments passed to `add_trace`.
             fig (Figure or FigureWidget): Figure to add traces to.
+            use_gl (bool): Whether to use `plotly.graph_objects.Scattergl`.
+
+                Defaults to the global setting. If the global setting is None, becomes True
+                if there are more than 10,000 data points.
             **layout_kwargs: Keyword arguments for layout.
 
         ## Example
@@ -327,6 +332,10 @@ class Scatter(Configured, TraceUpdater):
             fig=fig,
             **layout_kwargs
         )
+
+        from vectorbt._settings import settings
+        plotting_cfg = settings['plotting']
+
         if trace_kwargs is None:
             trace_kwargs = {}
         if add_trace_kwargs is None:
@@ -344,6 +353,10 @@ class Scatter(Configured, TraceUpdater):
             trace_names = [trace_names]
         if x_labels is not None:
             x_labels = clean_labels(x_labels)
+        if use_gl is None:
+            use_gl = plotting_cfg['use_gl']
+        if use_gl is None:
+            use_gl = use_gl is None and data is not None and data.size >= 10000
 
         if fig is None:
             fig = make_figure()
@@ -354,7 +367,11 @@ class Scatter(Configured, TraceUpdater):
             trace_name = _trace_kwargs.pop('name', trace_name)
             if trace_name is not None:
                 trace_name = str(trace_name)
-            scatter = go.Scatter(
+            if use_gl:
+                scatter_obj = go.Scattergl
+            else:
+                scatter_obj = go.Scatter
+            scatter = scatter_obj(
                 x=x_labels,
                 name=trace_name,
                 showlegend=trace_name is not None

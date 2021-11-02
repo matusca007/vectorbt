@@ -378,6 +378,7 @@ plotting = dict(
     show_kwargs=Config(  # flex
         dict()
     ),
+    use_gl=None,
     color_schema=Config(  # flex
         dict(
             increasing="#1b9e76",
