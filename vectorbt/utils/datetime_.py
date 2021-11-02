@@ -77,7 +77,7 @@ def to_timezone(tz: tp.TimezoneLike, to_py_timezone: tp.Optional[bool] = None, *
     If the timezone object can't be checked for equality based on its properties,
     it's automatically converted to `datetime.timezone`.
 
-    If `to_py_timezone` is set to True, will convert to `datetime.timezone`.
+    If `to_py_timezone` is set to True, will convert to `datetime.timezone`. See global settings.
 
     `**kwargs` are passed to `dateparser.parse`."""
     from vectorbt._settings import settings
@@ -87,6 +87,7 @@ def to_timezone(tz: tp.TimezoneLike, to_py_timezone: tp.Optional[bool] = None, *
         return get_local_tz()
     if to_py_timezone is None:
         to_py_timezone = datetime_cfg['to_py_timezone']
+
     if isinstance(tz, str):
         try:
             tz = pytz.timezone(tz)
@@ -99,7 +100,7 @@ def to_timezone(tz: tp.TimezoneLike, to_py_timezone: tp.Optional[bool] = None, *
     if isinstance(tz, timedelta):
         tz = timezone(tz)
     if isinstance(tz, tzinfo):
-        if to_py_timezone or tz != copy.copy(tz):
+        if to_py_timezone:
             return timezone(tz.utcoffset(datetime.now()))
         return tz
     raise TypeError("Couldn't parse the timezone")

@@ -186,6 +186,24 @@ ${config_doc}
 
 _settings['numba'] = numba
 
+math = dict(
+    rel_tol=1e-9,  # 1,000,000,000 == 1,000,000,001
+    abs_tol=1e-12  # 0.000000000001 == 0.000000000002
+)
+"""_"""
+
+__pdoc__['math'] = Sub("""Sub-config with settings applied across `vectorbt.utils.math_`.
+
+!!! note
+    All math settings are applied only once on startup. 
+    Changing them afterwards will have no effect.
+
+```json
+${config_doc}
+```""")
+
+_settings['math'] = math
+
 execution = dict(
     sequence=dict(
         show_progress=False,
