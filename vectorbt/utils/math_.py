@@ -8,12 +8,12 @@ import numpy as np
 from vectorbt.nb_registry import register_jit
 from vectorbt._settings import settings
 
-rel_tol = settings['math']['rel_tol']
-abs_tol = settings['math']['abs_tol']
+_rel_tol = settings['math']['rel_tol']
+_abs_tol = settings['math']['abs_tol']
 
 
 @register_jit(cache=True)
-def is_close_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
+def is_close_nb(a: float, b: float, rel_tol: float = _rel_tol, abs_tol: float = _abs_tol) -> bool:
     """Tell whether two values are approximately equal."""
     if np.isnan(a) or np.isnan(b):
         return False
@@ -25,7 +25,7 @@ def is_close_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = a
 
 
 @register_jit(cache=True)
-def is_close_or_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
+def is_close_or_less_nb(a: float, b: float, rel_tol: float = _rel_tol, abs_tol: float = _abs_tol) -> bool:
     """Tell whether the first value is approximately less than or equal to the second value."""
     if is_close_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
         return True
@@ -33,7 +33,7 @@ def is_close_or_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: f
 
 
 @register_jit(cache=True)
-def is_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
+def is_less_nb(a: float, b: float, rel_tol: float = _rel_tol, abs_tol: float = _abs_tol) -> bool:
     """Tell whether the first value is approximately less than the second value."""
     if is_close_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
         return False
@@ -41,7 +41,7 @@ def is_less_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = ab
 
 
 @register_jit(cache=True)
-def is_addition_zero_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> bool:
+def is_addition_zero_nb(a: float, b: float, rel_tol: float = _rel_tol, abs_tol: float = _abs_tol) -> bool:
     """Tell whether addition of two values yields zero."""
     if np.sign(a) != np.sign(b):
         return is_close_nb(abs(a), abs(b), rel_tol=rel_tol, abs_tol=abs_tol)
@@ -49,7 +49,7 @@ def is_addition_zero_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: f
 
 
 @register_jit(cache=True)
-def add_nb(a: float, b: float, rel_tol: float = rel_tol, abs_tol: float = abs_tol) -> float:
+def add_nb(a: float, b: float, rel_tol: float = _rel_tol, abs_tol: float = _abs_tol) -> float:
     """Add two floats."""
     if is_addition_zero_nb(a, b, rel_tol=rel_tol, abs_tol=abs_tol):
         return 0.

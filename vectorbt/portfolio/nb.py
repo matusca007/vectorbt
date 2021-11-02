@@ -1305,7 +1305,7 @@ def update_pos_record_nb(record: tp.Record,
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit(cache=True)
+@register_jit(cache=True, tags={'can_parallel'})
 def simulate_from_orders_nb(target_shape: tp.Shape,
                             group_lens: tp.Array1d,
                             init_cash: tp.Array1d,
@@ -1901,7 +1901,7 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit
+@register_jit(tags={'can_parallel'})
 def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  group_lens: tp.Array1d,
                                  init_cash: tp.Array1d,
@@ -2037,7 +2037,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
 
     from_col = 0
-    for group in range(len(group_lens)):
+    for group in prange(len(group_lens)):
         to_col = from_col + group_lens[group]
         group_len = to_col - from_col
         cash_now = init_cash[group]
@@ -2507,7 +2507,7 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit
+@register_jit(tags={'can_parallel'})
 def simulate_nb(target_shape: tp.Shape,
                 group_lens: tp.Array1d,
                 init_cash: tp.Array1d,
@@ -2941,7 +2941,7 @@ def simulate_nb(target_shape: tp.Shape,
     pre_sim_out = pre_sim_func_nb(pre_sim_ctx, *pre_sim_args)
 
     from_col = 0
-    for group in range(len(group_lens)):
+    for group in prange(len(group_lens)):
         to_col = from_col + group_lens[group]
         group_len = to_col - from_col
 
@@ -4109,7 +4109,7 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit
+@register_jit(tags={'can_parallel'})
 def flex_simulate_nb(target_shape: tp.Shape,
                      group_lens: tp.Array1d,
                      init_cash: tp.Array1d,
@@ -4379,7 +4379,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     pre_sim_out = pre_sim_func_nb(pre_sim_ctx, *pre_sim_args)
 
     from_col = 0
-    for group in range(len(group_lens)):
+    for group in prange(len(group_lens)):
         to_col = from_col + group_lens[group]
         group_len = to_col - from_col
 

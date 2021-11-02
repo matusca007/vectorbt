@@ -1783,6 +1783,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     seed: tp.Optional[int] = None,
                     group_by: tp.GroupByLike = None,
                     broadcast_kwargs: tp.KwargsLike = None,
+                    nb_parallel: tp.Optional[bool] = None,
                     chunked: tp.ChunkedOption = None,
                     wrapper_kwargs: tp.KwargsLike = None,
                     freq: tp.Optional[tp.FrequencyLike] = None,
@@ -1922,6 +1923,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
             group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
+            nb_parallel (bool): Whether to turn on parallelization with Numba.
+
+                Note that a combination of chunking and multithreading is often much faster.
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
@@ -2145,7 +2149,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_logs = 0
 
         # Perform the simulation
-        func = ch_registry.resolve_chunked(nb.simulate_from_orders_nb, chunked)
+        func = nb_registry.redecorate_parallel(nb.simulate_from_orders_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -2228,6 +2233,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      broadcast_named_args: tp.KwargsLike = None,
                      broadcast_kwargs: tp.KwargsLike = None,
                      template_mapping: tp.Optional[tp.Mapping] = None,
+                     nb_parallel: tp.Optional[bool] = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper_kwargs: tp.KwargsLike = None,
                      freq: tp.Optional[tp.FrequencyLike] = None,
@@ -2410,6 +2416,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 and this method will substitute them by their corresponding broadcasted objects.
             broadcast_kwargs (dict): See `Portfolio.from_orders`.
             template_mapping (mapping): Mapping to replace templates in arguments.
+            nb_parallel (bool): See `Portfolio.from_orders`.
             chunked (any): See `Portfolio.from_orders`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
@@ -3130,7 +3137,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         checks.assert_numba_func(adjust_tp_func_nb)
 
         # Perform the simulation
-        func = ch_registry.resolve_chunked(nb.simulate_from_signal_func_nb, chunked)
+        func = nb_registry.redecorate_parallel(nb.simulate_from_signal_func_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -3363,6 +3371,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         broadcast_named_args: tp.KwargsLike = None,
                         broadcast_kwargs: tp.KwargsLike = None,
                         template_mapping: tp.Optional[tp.Mapping] = None,
+                        nb_parallel: tp.Optional[bool] = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper_kwargs: tp.KwargsLike = None,
                         freq: tp.Optional[tp.FrequencyLike] = None,
@@ -3485,6 +3494,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             broadcast_named_args (dict): See `Portfolio.from_signals`.
             broadcast_kwargs (dict): See `Portfolio.from_orders`.
             template_mapping (mapping): See `Portfolio.from_signals`.
+            nb_parallel (bool): See `Portfolio.from_orders`.
+
+                !!! warning
+                    Assumes that groups are independent and there is no data flowing between them.
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
@@ -4065,6 +4078,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 func = nb.flex_simulate_nb
                 if not use_numba and hasattr(func, 'py_func'):
                     func = func.py_func
+                func = nb_registry.redecorate_parallel(func, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
@@ -4102,6 +4116,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 func = nb.simulate_nb
                 if not use_numba and hasattr(func, 'py_func'):
                     func = func.py_func
+                func = nb_registry.redecorate_parallel(func, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,

@@ -1654,6 +1654,39 @@ class TestFromOrders:
         with pytest.raises(Exception):
             _ = from_orders_both(close=price_wide, log=True, max_logs=4)
 
+    def test_nb_parallel(self):
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        pf = from_orders_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, nb_parallel=True)
+        pf2 = from_orders_both(
+            close=price_wide2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
+        pf = from_orders_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, nb_parallel=True)
+        pf2 = from_orders_both(
+            close=price_wide2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
+
     def test_chunked(self):
         price_wide2 = price_wide.copy()
         price_wide2.iloc[:, 1] *= 0.9
@@ -3389,6 +3422,43 @@ class TestFromSignals:
         _ = from_signals_both(close=price_wide, log=True, max_logs=2)
         with pytest.raises(Exception):
             _ = from_signals_both(close=price_wide, log=True, max_logs=1)
+
+    def test_nb_parallel(self):
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        entries2 = pd.concat((entries, entries.vbt.signals.fshift(1), entries.vbt.signals.fshift(2)), axis=1)
+        entries2.columns = price_wide2.columns
+        exits2 = pd.concat((exits, exits.vbt.signals.fshift(1), exits.vbt.signals.fshift(2)), axis=1)
+        exits2.columns = price_wide2.columns
+        pf = from_signals_both(
+            close=price_wide2, entries=entries2, exits=exits2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, nb_parallel=True)
+        pf2 = from_signals_both(
+            close=price_wide2, entries=entries2, exits=exits2, init_cash=[100, 200, 300], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), log=True, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
+        pf = from_signals_both(
+            close=price_wide2, entries=entries2, exits=exits2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, nb_parallel=True)
+        pf2 = from_signals_both(
+            close=price_wide2, entries=entries2, exits=exits2, init_cash=[100, 200], size=[1, 2, 3],
+            group_by=np.array([0, 0, 1]), cash_sharing=True, log=True, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
 
     def test_chunked(self):
         price_wide2 = price_wide.copy()
@@ -5331,6 +5401,41 @@ class TestFromOrderFunc:
             _ = vbt.Portfolio.from_order_func(
                 price_wide, log_order_func, np.asarray(np.inf),
                 row_wise=test_row_wise, max_logs=4, flexible=test_flexible)
+
+    @pytest.mark.parametrize("test_flexible", [False, True])
+    def test_nb_parallel(self, test_flexible):
+        order_func = flex_order_func_nb if test_flexible else order_func_nb
+        price_wide2 = price_wide.copy()
+        price_wide2.iloc[:, 1] *= 0.9
+        price_wide2.iloc[:, 2] *= 1.1
+        pf = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, row_wise=False, flexible=test_flexible, nb_parallel=True)
+        pf2 = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, row_wise=False, flexible=test_flexible, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
+        pf = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, cash_sharing=True, row_wise=False, flexible=test_flexible, nb_parallel=True)
+        pf2 = vbt.Portfolio.from_order_func(
+            price_wide2, order_func, vbt.Rep('size'), broadcast_named_args=dict(size=[0, 1, np.inf]),
+            group_by=group_by, cash_sharing=True, row_wise=False, flexible=test_flexible, nb_parallel=False)
+        record_arrays_close(
+            pf.order_records,
+            pf2.order_records
+        )
+        record_arrays_close(
+            pf.log_records,
+            pf2.log_records
+        )
 
     @pytest.mark.parametrize("test_row_wise", [False, True])
     @pytest.mark.parametrize("test_flexible", [False, True])
