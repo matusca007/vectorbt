@@ -4,8 +4,9 @@
 """Global registry for Numba-compiled functions."""
 
 import warnings
-from numba import jit, generated_jit
 from functools import partial
+
+from numba import jit, generated_jit
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks

@@ -62,11 +62,11 @@ Date
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import merge_dicts
-from vectorbt.utils.colors import adjust_opacity
 from vectorbt.generic import nb as generic_nb
-from vectorbt.indicators.factory import IndicatorFactory
 from vectorbt.indicators import nb
+from vectorbt.indicators.factory import IndicatorFactory
+from vectorbt.utils.colors import adjust_opacity
+from vectorbt.utils.config import merge_dicts
 
 # ############# MA ############# #
 

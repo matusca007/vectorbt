@@ -91,10 +91,10 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
+from vectorbt.generic import nb
+from vectorbt.generic.accessors import GenericAccessor, GenericDFAccessor
 from vectorbt.root_accessors import register_df_vbt_accessor
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.generic.accessors import GenericAccessor, GenericDFAccessor
-from vectorbt.generic import nb
 
 __pdoc__ = {}
 

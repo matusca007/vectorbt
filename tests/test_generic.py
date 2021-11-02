@@ -1,8 +1,9 @@
+from datetime import datetime
+
 import numpy as np
 import pandas as pd
-from numba import njit
-from datetime import datetime
 import pytest
+from numba import njit
 from sklearn.model_selection import TimeSeriesSplit
 
 import vectorbt as vbt

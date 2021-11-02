@@ -413,27 +413,28 @@ To use scatterplots or any other plots that require index, convert to pandas fir
 ![](/docs/img/mapped_to_pd_plot.svg)
 """
 
-import numpy as np
-import pandas as pd
 import warnings
 
+import numpy as np
+import pandas as pd
+
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
+from vectorbt.base.reshaping import to_1d_array, to_dict
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.ch_registry import ch_registry
+from vectorbt.generic import nb as generic_nb
+from vectorbt.generic.plots_builder import PlotsBuilderMixin
+from vectorbt.generic.stats_builder import StatsBuilderMixin
+from vectorbt.nb_registry import nb_registry
+from vectorbt.records import nb
+from vectorbt.records.col_mapper import ColumnMapper
 from vectorbt.utils import checks
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.array_ import index_repeating_rows_nb
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, Configured
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config, Configured
-from vectorbt.utils.array_ import index_repeating_rows_nb
-from vectorbt.utils import chunking as ch
-from vectorbt.base.reshaping import to_1d_array, to_dict
-from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.generic import nb as generic_nb
-from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.generic.plots_builder import PlotsBuilderMixin
-from vectorbt.records.col_mapper import ColumnMapper
-from vectorbt.records import nb
 
 MappedArrayT = tp.TypeVar("MappedArrayT", bound="MappedArray")
 IndexingMetaT = tp.Tuple[

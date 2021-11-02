@@ -27,17 +27,17 @@ import numpy as np
 from numba import prange
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
-from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils.array_ import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
-from vectorbt.utils import chunking as ch
-from vectorbt.utils.template import Rep
-from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.base import chunking as base_ch
-from vectorbt.generic.enums import range_dt, RangeStatus
+from vectorbt.base.indexing import flex_select_auto_nb
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
+from vectorbt.generic.enums import range_dt, RangeStatus
+from vectorbt.nb_registry import register_jit
 from vectorbt.records import chunking as records_ch
 from vectorbt.signals.enums import StopType
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.array_ import uniform_summing_to_one_nb, rescale_float_to_int_nb, renormalize_nb
+from vectorbt.utils.template import Rep
 
 
 # ############# Generation ############# #

@@ -1,8 +1,9 @@
+import gc
+import weakref
+
 import numpy as np
 import pandas as pd
 import pytest
-import weakref
-import gc
 
 import vectorbt as vbt
 from vectorbt.ca_registry import ca_registry, CAQuery, CARunSetup, CARunResult

@@ -44,13 +44,14 @@ Class methods of any accessor can be conveniently accessed using `pd_acc`, `sr_a
 !!! note
     Accessors in vectorbt are not cached, so querying `df.vbt` twice will also call `Vbt_DFAccessor` twice."""
 
-import pandas as pd
-from pandas.core.accessor import DirNamesMixin
 import warnings
 
+import pandas as pd
+from pandas.core.accessor import DirNamesMixin
+
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Configured
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
+from vectorbt.utils.config import Configured
 
 ParentAccessorT = tp.TypeVar("ParentAccessorT", bound=object)
 AccessorT = tp.TypeVar("AccessorT", bound=object)

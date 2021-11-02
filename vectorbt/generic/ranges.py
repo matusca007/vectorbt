@@ -115,18 +115,18 @@ Name: group, dtype: object
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
-from vectorbt.ch_registry import ch_registry
-from vectorbt.utils.decorators import cached_property
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.colors import adjust_lightness
 from vectorbt.base.reshaping import to_pd_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.generic.enums import RangeStatus, range_dt
+from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb
+from vectorbt.generic.enums import RangeStatus, range_dt
+from vectorbt.nb_registry import nb_registry
 from vectorbt.records.base import Records
-from vectorbt.records.mapped_array import MappedArray
 from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records.mapped_array import MappedArray
+from vectorbt.utils.colors import adjust_lightness
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.decorators import cached_property
 
 __pdoc__ = {}
 

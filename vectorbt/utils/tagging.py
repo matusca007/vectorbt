@@ -4,8 +4,8 @@
 """Utilities for working with tags."""
 
 from vectorbt import _typing as tp
-from vectorbt.utils.template import RepEval
 from vectorbt.utils.parsing import get_ex_var_names
+from vectorbt.utils.template import RepEval
 
 
 def match_tags(tags: tp.MaybeIterable[str], in_tags: tp.MaybeIterable[str]) -> bool:

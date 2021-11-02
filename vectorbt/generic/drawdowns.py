@@ -168,19 +168,19 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
-from vectorbt.ch_registry import ch_registry
-from vectorbt.utils.decorators import cached_property
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.template import RepEval
 from vectorbt.base.reshaping import to_2d_array, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
-from vectorbt.records.mapped_array import MappedArray
+from vectorbt.nb_registry import nb_registry
 from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records.mapped_array import MappedArray
+from vectorbt.utils.colors import adjust_lightness
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.decorators import cached_property
+from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
 

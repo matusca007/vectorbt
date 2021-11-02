@@ -3,21 +3,22 @@
 
 """Utilities for chunking."""
 
-import numpy as np
-import pandas as pd
 import inspect
 import multiprocessing
-from functools import wraps
 import re
 import uuid
 import warnings
+from functools import wraps
+
+import numpy as np
+import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.execution import execute
 from vectorbt.utils.parsing import annotate_args, match_ann_arg, get_func_arg_names
 from vectorbt.utils.template import deep_substitute, Rep
-from vectorbt.utils.execution import execute
 
 __pdoc__ = {}
 

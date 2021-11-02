@@ -1,17 +1,19 @@
-import numpy as np
-import pandas as pd
-from numba import njit
-import pytest
+import asyncio
+import inspect
 import os
 from collections import namedtuple
-from itertools import product, combinations
-import asyncio
-import pytz
 from copy import copy, deepcopy
-import inspect
 from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
+from itertools import product, combinations
+
+import numpy as np
+import pandas as pd
+import pytest
+import pytz
+from numba import njit
 
 import vectorbt as vbt
+from tests.utils import chunk_meta_equal
 from vectorbt.utils import (
     checks,
     config,
@@ -31,8 +33,6 @@ from vectorbt.utils import (
     execution,
     chunking
 )
-
-from tests.utils import chunk_meta_equal
 
 dask_available = True
 try:

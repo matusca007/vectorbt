@@ -20,12 +20,12 @@ from numba import prange
 from numba.np.numpy_support import as_dtype
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit, register_generated_jit
-from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils import chunking as ch
 from vectorbt.base import chunking as base_ch
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
+from vectorbt.nb_registry import register_jit, register_generated_jit
 from vectorbt.records import chunking as records_ch
+from vectorbt.utils import chunking as ch
 
 
 # ############# Generation ############# #

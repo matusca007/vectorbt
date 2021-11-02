@@ -3,19 +3,19 @@
 
 """Mixin for building plots out of subplots."""
 
-from collections import Counter
-import warnings
 import inspect
 import string
+import warnings
+from collections import Counter
 
 from vectorbt import _typing as tp
+from vectorbt.base.wrapping import Wrapping
 from vectorbt.utils import checks
+from vectorbt.utils.attr_ import get_dict_attr
 from vectorbt.utils.config import Config, merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names
-from vectorbt.utils.template import deep_substitute
 from vectorbt.utils.tagging import match_tags
-from vectorbt.utils.attr_ import get_dict_attr
-from vectorbt.base.wrapping import Wrapping
+from vectorbt.utils.template import deep_substitute
 
 
 class MetaPlotsBuilderMixin(type):

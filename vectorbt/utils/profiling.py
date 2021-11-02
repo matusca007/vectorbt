@@ -3,13 +3,13 @@
 
 """Utilities for profiling time and memory."""
 
-from timeit import default_timer
 import tracemalloc
 from datetime import timedelta
+from timeit import default_timer
+
 import humanize
 
 from vectorbt import _typing as tp
-
 
 TimerT = tp.TypeVar("TimerT", bound="Timer")
 

@@ -6,12 +6,11 @@
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
-from vectorbt.utils.template import Rep
-from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
 from vectorbt.base.chunking import GroupLensMapper, FlexArraySlicer, group_lens_mapper
 from vectorbt.portfolio.enums import SimulationOutput
-
+from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
+from vectorbt.utils.config import Config
+from vectorbt.utils.template import Rep
 
 flex_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper)
 """Flexible slicer along the column axis based on group lengths."""

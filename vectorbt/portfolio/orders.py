@@ -108,13 +108,13 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
+from vectorbt.portfolio.enums import order_dt, OrderSide
 from vectorbt.records.base import Records
 from vectorbt.records.decorators import attach_fields, override_field_config
-from vectorbt.portfolio.enums import order_dt, OrderSide
+from vectorbt.utils.colors import adjust_lightness
+from vectorbt.utils.config import merge_dicts, Config
 
 __pdoc__ = {}
 

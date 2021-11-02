@@ -102,15 +102,16 @@ We can still override any argument by overriding its default or by passing it di
 from vectorbt.opt_packages import assert_can_import
 assert_can_import('quantstats')
 
-import pandas as pd
 from inspect import getmembers, isfunction, signature, Parameter
+
+import pandas as pd
 import quantstats as qs
 
 from vectorbt import _typing as tp
+from vectorbt.returns.accessors import ReturnsAccessor
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Configured
 from vectorbt.utils.parsing import get_func_arg_names
-from vectorbt.returns.accessors import ReturnsAccessor
 
 
 def attach_qs_methods(cls: tp.Type[tp.T], replace_signature: bool = True) -> tp.Type[tp.T]:

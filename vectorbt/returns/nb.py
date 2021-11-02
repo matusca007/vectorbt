@@ -29,12 +29,12 @@ import numpy as np
 from numba import prange
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
-from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils.math_ import add_nb
-from vectorbt.utils import chunking as ch
 from vectorbt.base import chunking as base_ch
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
+from vectorbt.nb_registry import register_jit
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.math_ import add_nb
 
 
 @register_jit(cache=True)

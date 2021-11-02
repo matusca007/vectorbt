@@ -110,10 +110,11 @@ False
     The environment variable must be set before importing vectorbt.
 """
 
-import os
-import numpy as np
 import json
+import os
 import pkgutil
+
+import numpy as np
 
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz

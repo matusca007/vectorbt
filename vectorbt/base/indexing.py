@@ -12,9 +12,9 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
+from vectorbt.base import indexes, reshaping
 from vectorbt.nb_registry import register_jit
 from vectorbt.utils import checks
-from vectorbt.base import indexes, reshaping
 
 
 class IndexingError(Exception):

@@ -3,9 +3,8 @@
 
 """Utilities for images."""
 
-import numpy as np
 import imageio
-import pandas as pd
+import numpy as np
 
 from vectorbt import _typing as tp
 from vectorbt.utils.pbar import get_pbar

@@ -134,24 +134,25 @@ dtype: object
 This class inherits subplots from `vectorbt.generic.accessors.GenericAccessor`.
 """
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from scipy.stats import skew, kurtosis
-import warnings
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
-from vectorbt.ch_registry import ch_registry
-from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
-from vectorbt.utils import checks
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
-from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_2d_array, broadcast, broadcast_to
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.generic.drawdowns import Drawdowns
+from vectorbt.ch_registry import ch_registry
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
+from vectorbt.generic.drawdowns import Drawdowns
+from vectorbt.nb_registry import nb_registry
 from vectorbt.returns import nb, metrics
+from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
+from vectorbt.utils import checks
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
 
 __pdoc__ = {}
 

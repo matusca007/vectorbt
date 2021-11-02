@@ -3,10 +3,12 @@
 
 """Extensions to `vectorbt.utils.chunking`."""
 
-import numpy as np
 import uuid
 
+import numpy as np
+
 from vectorbt import _typing as tp
+from vectorbt.base.chunking import get_group_lens_slice
 from vectorbt.utils.chunking import (
     ArgGetterMixin,
     ChunkMeta,
@@ -14,7 +16,6 @@ from vectorbt.utils.chunking import (
     ChunkSlicer,
     ChunkMapper
 )
-from vectorbt.base.chunking import get_group_lens_slice
 
 
 class ColLensSizer(ArgSizer):

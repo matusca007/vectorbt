@@ -187,29 +187,30 @@ Name: 0, dtype: object
 This class inherits subplots from `vectorbt.generic.accessors.GenericAccessor`.
 """
 
-import numpy as np
-import pandas as pd
 import warnings
 
+import numpy as np
+import pandas as pd
+
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
-from vectorbt.ch_registry import ch_registry
-from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
-from vectorbt.utils import checks
-from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.template import RepEval
-from vectorbt.utils.random_ import set_seed_nb
-from vectorbt.utils import chunking as ch
+from vectorbt.base import chunking as base_ch
 from vectorbt.base import reshaping
 from vectorbt.base.wrapping import ArrayWrapper
-from vectorbt.base import chunking as base_ch
-from vectorbt.records.mapped_array import MappedArray
+from vectorbt.ch_registry import ch_registry
+from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic.ranges import Ranges
-from vectorbt.generic import nb as generic_nb
+from vectorbt.nb_registry import nb_registry
+from vectorbt.records.mapped_array import MappedArray
+from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.signals import nb
+from vectorbt.utils import checks
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.colors import adjust_lightness
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.decorators import class_or_instancemethod
+from vectorbt.utils.random_ import set_seed_nb
+from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
 

@@ -5,17 +5,18 @@
 
 Reshape functions transform a pandas object/NumPy array in some way."""
 
-import numpy as np
-from numpy.lib.stride_tricks import _broadcast_shape
-import pandas as pd
-from collections.abc import Sequence
 import functools
 import itertools
+from collections.abc import Sequence
+
+import numpy as np
+import pandas as pd
+from numpy.lib.stride_tricks import _broadcast_shape
 
 from vectorbt import _typing as tp
+from vectorbt.base import indexes, wrapping
 from vectorbt.utils import checks
 from vectorbt.utils.config import resolve_dict, merge_dicts
-from vectorbt.base import indexes, wrapping
 
 
 def shape_to_tuple(shape: tp.ShapeLike) -> tp.Shape:

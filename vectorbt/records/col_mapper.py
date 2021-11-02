@@ -4,10 +4,10 @@
 """Class for mapping column arrays."""
 
 from vectorbt import _typing as tp
-from vectorbt.utils.decorators import cached_property, cached_method
 from vectorbt.base.reshaping import to_1d_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.records import nb
+from vectorbt.utils.decorators import cached_property, cached_method
 
 
 class ColumnMapper(Wrapping):

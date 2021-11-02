@@ -64,19 +64,18 @@ under the hood, which is mostly much faster than with pandas.
 
     Grouping is only supported by the methods that accept the `group_by` argument."""
 
-import warnings
 import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.utils import checks
-from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
-from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
-from vectorbt.utils.config import merge_dicts, resolve_dict
-from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
 from vectorbt.base import combining, reshaping, indexes
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
+from vectorbt.utils import checks
+from vectorbt.utils.config import merge_dicts, resolve_dict
+from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
+from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
+from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
 
 BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 

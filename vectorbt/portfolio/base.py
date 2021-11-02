@@ -1547,40 +1547,39 @@ You can also replace templates across all subplots by using the global template 
 
 ![](/docs/img/portfolio_plot_path.svg)
 """
+
 import warnings
 
 import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
-from vectorbt.ch_registry import ch_registry
-from vectorbt.utils import checks
-from vectorbt.utils.decorators import cacheable_property, cached_property, cached_method, class_or_instancemethod
-from vectorbt.utils.enum_ import map_enum_fields
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.template import Rep, RepEval, RepFunc, deep_substitute
-from vectorbt.utils.random_ import set_seed
-from vectorbt.utils.colors import adjust_opacity
-from vectorbt.utils import chunking as ch
 from vectorbt.base.reshaping import to_1d_array, to_2d_array, broadcast, broadcast_to, to_pd_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
-from vectorbt.base import chunking as base_ch
-from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.generic.plots_builder import PlotsBuilderMixin
-from vectorbt.generic.drawdowns import Drawdowns
+from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb as generic_nb
-from vectorbt.records import chunking as records_ch
-from vectorbt.signals.generators import RANDNX, RPROBNX
-from vectorbt.returns.accessors import ReturnsAccessor
-from vectorbt.returns import nb as returns_nb
+from vectorbt.generic.drawdowns import Drawdowns
+from vectorbt.generic.plots_builder import PlotsBuilderMixin
+from vectorbt.generic.stats_builder import StatsBuilderMixin
+from vectorbt.nb_registry import nb_registry
+from vectorbt.portfolio import chunking as portfolio_ch
 from vectorbt.portfolio import nb
+from vectorbt.portfolio.decorators import attach_returns_acc_methods
+from vectorbt.portfolio.enums import *
+from vectorbt.portfolio.logs import Logs
 from vectorbt.portfolio.orders import Orders
 from vectorbt.portfolio.trades import Trades, EntryTrades, ExitTrades, Positions
-from vectorbt.portfolio.logs import Logs
-from vectorbt.portfolio.enums import *
-from vectorbt.portfolio.decorators import attach_returns_acc_methods
-from vectorbt.portfolio import chunking as portfolio_ch
+from vectorbt.returns import nb as returns_nb
+from vectorbt.returns.accessors import ReturnsAccessor
+from vectorbt.signals.generators import RANDNX, RPROBNX
+from vectorbt.utils import checks
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.colors import adjust_opacity
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.decorators import cacheable_property, cached_property, class_or_instancemethod
+from vectorbt.utils.enum_ import map_enum_fields
+from vectorbt.utils.random_ import set_seed
+from vectorbt.utils.template import RepEval, deep_substitute
 
 try:
     import quantstats as qs

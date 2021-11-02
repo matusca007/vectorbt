@@ -8,7 +8,9 @@ assert_can_import('telegram')
 
 import logging
 from functools import wraps
+
 from telegram import Update
+from telegram.error import Unauthorized, ChatMigrated
 from telegram.ext import (
     Handler,
     CallbackContext,
@@ -21,7 +23,6 @@ from telegram.ext import (
     Defaults
 )
 from telegram.utils.helpers import effective_message_type
-from telegram.error import Unauthorized, ChatMigrated
 
 from vectorbt import _typing as tp
 from vectorbt.utils.config import merge_dicts, Configured

@@ -22,17 +22,17 @@ These only accept NumPy arrays and other Numba-compatible types.
 
 import numpy as np
 from numba import prange
-from numba.np.numpy_support import as_dtype
 from numba.core.types import Omitted
+from numba.np.numpy_support import as_dtype
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit, register_generated_jit
-from vectorbt.ch_registry import register_chunkable
-from vectorbt.utils.template import Rep
-from vectorbt.utils import chunking as ch
 from vectorbt.base import chunking as base_ch
+from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic.enums import RangeStatus, DrawdownStatus, range_dt, drawdown_dt
+from vectorbt.nb_registry import register_jit, register_generated_jit
 from vectorbt.records import chunking as records_ch
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.template import Rep
 
 
 @register_jit(cache=True)

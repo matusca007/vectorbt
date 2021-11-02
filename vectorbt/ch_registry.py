@@ -5,9 +5,9 @@
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
+from vectorbt.utils.chunking import chunked, resolve_chunked
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.template import RepEval
-from vectorbt.utils.chunking import chunked, resolve_chunked
 
 
 class ChunkableRegistry:

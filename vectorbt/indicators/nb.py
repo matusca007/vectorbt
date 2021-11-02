@@ -16,8 +16,8 @@ classes. These only accept NumPy arrays and other Numba-compatible types.
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
 from vectorbt.generic import nb as generic_nb
+from vectorbt.nb_registry import register_jit
 
 
 @register_jit(cache=True)

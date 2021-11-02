@@ -51,24 +51,24 @@ import numpy as np
 from numba import prange
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
+from vectorbt.base import chunking as base_ch
+from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.ch_registry import register_chunkable
+from vectorbt.generic import nb as generic_nb
+from vectorbt.nb_registry import register_jit
+from vectorbt.portfolio import chunking as portfolio_ch
+from vectorbt.portfolio.enums import *
+from vectorbt.records import chunking as records_ch
+from vectorbt.returns import nb as returns_nb
+from vectorbt.utils import chunking as ch
+from vectorbt.utils.array_ import insert_argsort_nb
 from vectorbt.utils.math_ import (
     is_close_nb,
     is_close_or_less_nb,
     is_less_nb,
     add_nb
 )
-from vectorbt.utils.array_ import insert_argsort_nb
-from vectorbt.utils import chunking as ch
 from vectorbt.utils.template import Rep, RepFunc
-from vectorbt.base.indexing import flex_select_auto_nb
-from vectorbt.base import chunking as base_ch
-from vectorbt.generic import nb as generic_nb
-from vectorbt.records import chunking as records_ch
-from vectorbt.returns import nb as returns_nb
-from vectorbt.portfolio.enums import *
-from vectorbt.portfolio import chunking as portfolio_ch
 
 
 # ############# Order processing ############# #

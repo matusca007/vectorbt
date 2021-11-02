@@ -11,20 +11,21 @@
     This happens when relative dates are parsed in `vectorbt.data.base.Data.fetch_symbol`
     instead of parsing them once and for all symbols in `vectorbt.data.base.Data.fetch`."""
 
-import pandas as pd
 import time
+import traceback
 import warnings
 from functools import wraps
-import traceback
+
+import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.utils.datetime_ import get_utc_tz, get_local_tz, to_tzaware_datetime, datetime_to_ms
-from vectorbt.utils.config import merge_dicts
-from vectorbt.utils.parsing import get_func_kwargs
-from vectorbt.utils.random_ import set_seed
-from vectorbt.utils.pbar import get_pbar
-from vectorbt.data.base import Data
 from vectorbt.data import nb
+from vectorbt.data.base import Data
+from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.datetime_ import get_utc_tz, get_local_tz, to_tzaware_datetime, datetime_to_ms
+from vectorbt.utils.parsing import get_func_kwargs
+from vectorbt.utils.pbar import get_pbar
+from vectorbt.utils.random_ import set_seed
 
 try:
     from binance.client import Client as ClientT

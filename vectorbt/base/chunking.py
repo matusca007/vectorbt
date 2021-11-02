@@ -3,12 +3,12 @@
 
 """Extensions to `vectorbt.utils.chunking`."""
 
-import numpy as np
-from numba.typed import List
 import uuid
 
+import numpy as np
+from numba.typed import List
+
 from vectorbt import _typing as tp
-from vectorbt.utils.parsing import match_ann_arg
 from vectorbt.utils.chunking import (
     ArgGetterMixin,
     ChunkMeta,
@@ -16,6 +16,7 @@ from vectorbt.utils.chunking import (
     ArraySelector,
     ArraySlicer
 )
+from vectorbt.utils.parsing import match_ann_arg
 
 
 def column_stack(results: list) -> tp.MaybeTuple[list]:

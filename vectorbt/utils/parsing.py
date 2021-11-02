@@ -3,10 +3,10 @@
 
 """Utilities for parsing."""
 
-import inspect
 import ast
-import sys
+import inspect
 import re
+import sys
 
 from vectorbt import _typing as tp
 from vectorbt.utils.docs import SafeToStr

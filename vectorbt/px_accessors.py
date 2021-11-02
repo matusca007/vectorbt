@@ -9,18 +9,19 @@
 from vectorbt.opt_packages import assert_can_import
 assert_can_import('plotly')
 
-import pandas as pd
 from inspect import getmembers, isfunction
+
+import pandas as pd
 import plotly.express as px
 
 from vectorbt import _typing as tp
-from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
-from vectorbt.utils import checks
-from vectorbt.utils.figure import make_figure
-from vectorbt.utils.config import merge_dicts
 from vectorbt.base.accessors import BaseAccessor, BaseDFAccessor, BaseSRAccessor
 from vectorbt.base.reshaping import to_2d_array
 from vectorbt.generic.plotting import clean_labels
+from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
+from vectorbt.utils import checks
+from vectorbt.utils.config import merge_dicts
+from vectorbt.utils.figure import make_figure
 
 
 def attach_px_methods(cls: tp.Type[tp.T]) -> tp.Type[tp.T]:

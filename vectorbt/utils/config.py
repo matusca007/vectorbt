@@ -3,16 +3,17 @@
 
 """Utilities for configuration."""
 
-from copy import copy, deepcopy
-from collections import namedtuple
 import inspect
+from collections import namedtuple
+from copy import copy, deepcopy
+
 import humanize
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.docs import Documented, stringify
-from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.caching import Cacheable
+from vectorbt.utils.decorators import class_or_instancemethod
+from vectorbt.utils.docs import Documented, stringify
 
 
 class Default:

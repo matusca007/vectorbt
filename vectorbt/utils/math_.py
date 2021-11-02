@@ -5,8 +5,8 @@
 
 import numpy as np
 
-from vectorbt.nb_registry import register_jit
 from vectorbt._settings import settings
+from vectorbt.nb_registry import register_jit
 
 _rel_tol = settings['math']['rel_tol']
 _abs_tol = settings['math']['abs_tol']

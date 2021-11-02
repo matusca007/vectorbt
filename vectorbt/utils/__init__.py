@@ -3,22 +3,7 @@
 
 """Modules with utilities that are used throughout vectorbt."""
 
-from vectorbt.utils.config import atomic_dict, merge_dicts, Config, Configured, AtomicConfig
-from vectorbt.utils.template import Sub, Rep, RepEval, RepFunc, deep_substitute
-from vectorbt.utils.parsing import Regex
-from vectorbt.utils.decorators import (
-    cacheable_property,
-    cached_property,
-    cacheable,
-    cached,
-    cacheable_method,
-    cached_method
-)
 from vectorbt.utils.caching import Cacheable
-from vectorbt.utils.random_ import set_seed
-from vectorbt.utils.image_ import save_animation
-from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
-from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
 from vectorbt.utils.chunking import (
     ChunkMeta,
     ArgChunkMeta,
@@ -40,8 +25,23 @@ from vectorbt.utils.chunking import (
     KwargsTaker,
     chunked
 )
-from vectorbt.utils.profiling import Timer, MemTracer
+from vectorbt.utils.config import atomic_dict, merge_dicts, Config, Configured, AtomicConfig
+from vectorbt.utils.decorators import (
+    cacheable_property,
+    cached_property,
+    cacheable,
+    cached,
+    cacheable_method,
+    cached_method
+)
 from vectorbt.utils.docs import stringify
+from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
+from vectorbt.utils.image_ import save_animation
+from vectorbt.utils.parsing import Regex
+from vectorbt.utils.profiling import Timer, MemTracer
+from vectorbt.utils.random_ import set_seed
+from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
+from vectorbt.utils.template import Sub, Rep, RepEval, RepFunc, deep_substitute
 
 __all__ = [
     'atomic_dict',

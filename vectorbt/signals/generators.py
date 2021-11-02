@@ -6,7 +6,6 @@
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
 from vectorbt.indicators.configs import flex_col_param_config, flex_elem_param_config
 from vectorbt.signals.enums import StopType
 from vectorbt.signals.factory import SignalFactory
@@ -17,6 +16,7 @@ from vectorbt.signals.nb import (
     ohlc_stop_place_nb,
     rand_place_nb
 )
+from vectorbt.utils.config import Config
 
 # ############# RAND ############# #
 

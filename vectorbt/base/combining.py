@@ -8,14 +8,14 @@ done upon stacking the results into one NumPy array - since vectorbt is all abou
 large spaces of hyperparameters, concatenating the results of each hyperparameter combination into
 a single DataFrame is important. All functions are available in both Python and Numba-compiled form."""
 
-import numpy as np
 import warnings
+
+import numpy as np
 from numba.typed import List
 
 from vectorbt import _typing as tp
 from vectorbt.nb_registry import register_jit
 from vectorbt.utils.execution import execute
-from vectorbt.base import reshaping
 
 
 @register_jit

@@ -14,19 +14,20 @@ on using Plotly, see [Getting Started with Plotly in Python](https://plotly.com/
 from vectorbt.opt_packages import assert_can_import
 assert_can_import('plotly')
 
+import math
+
 import numpy as np
 import pandas as pd
-import math
 import plotly.graph_objects as go
 from plotly.basedatatypes import BaseTraceType
 
 from vectorbt import _typing as tp
+from vectorbt.base import reshaping
 from vectorbt.utils import checks
-from vectorbt.utils.figure import make_figure
 from vectorbt.utils.array_ import renormalize
 from vectorbt.utils.colors import rgb_from_cmap
 from vectorbt.utils.config import Configured, resolve_dict
-from vectorbt.base import reshaping
+from vectorbt.utils.figure import make_figure
 
 
 def clean_labels(labels: tp.Labels) -> tp.Labels:

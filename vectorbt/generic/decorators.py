@@ -6,8 +6,8 @@
 import inspect
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import nb_registry
 from vectorbt.ch_registry import ch_registry
+from vectorbt.nb_registry import nb_registry
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names

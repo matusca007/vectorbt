@@ -4,6 +4,7 @@
 """Utilities for random number generation."""
 
 import random
+
 import numpy as np
 
 from vectorbt.nb_registry import register_jit

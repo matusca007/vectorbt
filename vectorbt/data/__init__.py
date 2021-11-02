@@ -4,7 +4,6 @@
 """Modules for working with data sources."""
 
 from vectorbt.data.base import symbol_dict, Data
-from vectorbt.data.updater import DataUpdater
 from vectorbt.data.custom import (
     CSVData,
     HDFData,
@@ -15,6 +14,7 @@ from vectorbt.data.custom import (
     BinanceData,
     CCXTData
 )
+from vectorbt.data.updater import DataUpdater
 
 __all__ = [
     'symbol_dict',

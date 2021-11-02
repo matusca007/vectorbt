@@ -403,22 +403,23 @@ To remove all setups:
 ```
 """
 
-import warnings
 import inspect
-import weakref
-import pandas as pd
 import sys
-import humanize
+import warnings
+import weakref
 from datetime import datetime, timezone, timedelta
+
+import humanize
+import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
-from vectorbt.utils.docs import SafeToStr
-from vectorbt.utils.decorators import cacheableT, cacheable_property
 from vectorbt.utils.caching import Cacheable
-from vectorbt.utils.parsing import Regex, hash_args, UnhashableArgsError
-from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.datetime_ import to_naive_datetime
+from vectorbt.utils.decorators import cacheableT, cacheable_property
+from vectorbt.utils.docs import SafeToStr
+from vectorbt.utils.hashing import Hashable
+from vectorbt.utils.parsing import Regex, hash_args, UnhashableArgsError
 from vectorbt.utils.profiling import Timer
 
 __pdoc__ = {}
