@@ -598,6 +598,10 @@ def broadcast(*args: tp.ArrayLike,
     # Get final shape
     if to_shape is None:
         to_shape = _broadcast_shape(*map(np.asarray, arr_args_2d))
+    if not isinstance(to_shape, tuple):
+        to_shape = (to_shape,)
+    if len(to_shape) == 0:
+        to_shape = (1,)
 
     # Perform broadcasting
     new_args = []
