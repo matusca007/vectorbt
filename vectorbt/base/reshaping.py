@@ -57,6 +57,8 @@ def to_pd_array(arg: tp.ArrayLike, convert_index: bool = True) -> tp.PandasArray
             return index_to_series(arg)
         return arg
     arg = np.asarray(arg)
+    if arg.ndim == 0:
+        arg = arg[None]
     if arg.ndim == 1:
         return pd.Series(arg)
     if arg.ndim == 2:

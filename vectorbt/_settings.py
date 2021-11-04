@@ -898,6 +898,7 @@ portfolio = dict(
     min_size=1e-8,
     max_size=np.inf,
     size_granularity=np.nan,
+    price_area_vio_mode='ignore',
     lock_cash=False,
     allow_partial=True,
     raise_reject=False,

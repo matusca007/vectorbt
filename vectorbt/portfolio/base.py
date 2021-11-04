@@ -1768,11 +1768,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     max_size: tp.Optional[tp.ArrayLike] = None,
                     size_granularity: tp.Optional[tp.ArrayLike] = None,
                     reject_prob: tp.Optional[tp.ArrayLike] = None,
+                    price_area_vio_mode: tp.Optional[tp.ArrayLike] = None,
                     lock_cash: tp.Optional[tp.ArrayLike] = None,
                     allow_partial: tp.Optional[tp.ArrayLike] = None,
                     raise_reject: tp.Optional[tp.ArrayLike] = None,
                     log: tp.Optional[tp.ArrayLike] = None,
                     val_price: tp.Optional[tp.ArrayLike] = None,
+                    open: tp.Optional[tp.ArrayLike] = None,
+                    high: tp.Optional[tp.ArrayLike] = None,
+                    low: tp.Optional[tp.ArrayLike] = None,
                     init_cash: tp.Optional[tp.ArrayLike] = None,
                     cash_sharing: tp.Optional[bool] = None,
                     call_seq: tp.Optional[tp.ArrayLike] = None,
@@ -1792,14 +1796,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Simulate portfolio from orders - size, price, fees, and other information.
 
         Args:
-            close (array_like): Last asset price at each time step.
+            close (array_like): Latest asset price at each time step.
                 Will broadcast.
 
                 Used for calculating unrealized PnL and portfolio value.
             size (float or array_like): Size to order.
                 See `vectorbt.portfolio.enums.Order.size`. Will broadcast.
-            size_type (SizeType or array_like): See `vectorbt.portfolio.enums.SizeType`.
-                See `vectorbt.portfolio.enums.Order.size_type`. Will broadcast.
+            size_type (SizeType or array_like): See `vectorbt.portfolio.enums.SizeType` and
+                `vectorbt.portfolio.enums.Order.size_type`. Will broadcast.
 
                 !!! warning
                     Be cautious using `SizeType.Percent` with `call_seq` set to 'auto'.
@@ -1807,8 +1811,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     needs to be approximated in advance. But since `SizeType.Percent` depends
                     upon the cash balance, which cannot be calculated in advance since it may change
                     after each order, this can yield a non-optimal call sequence.
-            direction (Direction or array_like): See `vectorbt.portfolio.enums.Direction`.
-                See `vectorbt.portfolio.enums.Order.direction`. Will broadcast.
+            direction (Direction or array_like): See `vectorbt.portfolio.enums.Direction` and
+                `vectorbt.portfolio.enums.Order.direction`. Will broadcast.
             price (array_like of float): Order price.
                 See `vectorbt.portfolio.enums.Order.price`. Defaults to `np.inf`. Will broadcast.
 
@@ -1831,6 +1835,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 See `vectorbt.portfolio.enums.Order.size_granularity`. Will broadcast.
             reject_prob (float or array_like): Order rejection probability.
                 See `vectorbt.portfolio.enums.Order.reject_prob`. Will broadcast.
+            price_area_vio_mode (PriceAreaVioMode or array_like): See `vectorbt.portfolio.enums.PriceAreaVioMode`.
+                Will broadcast.
             lock_cash (bool or array_like): Whether to lock cash when shorting.
                 See `vectorbt.portfolio.enums.Order.lock_cash`. Will broadcast.
             allow_partial (bool or array_like): Whether to allow partial fills.
@@ -1844,8 +1850,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             val_price (array_like of float): Asset valuation price.
                 Will broadcast.
 
-                * Any `-np.inf` element is replaced by the latest valuation price (the previous `close` or
-                    the latest known valuation price if `ffill_val_price`).
+                * Any `-np.inf` element is replaced by the latest valuation price
+                    (`open` or the latest known valuation price if `ffill_val_price`).
                 * Any `np.inf` element is replaced by the current order price.
 
                 Used at the time of decision making to calculate value of each asset in the group,
@@ -1860,6 +1866,18 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     Make sure to use timestamp for `val_price` that comes before timestamps of
                     all orders in the group with cash sharing (previous `close` for example),
                     otherwise you're cheating yourself.
+            open (array_like of float): First asset price at each time step.
+                Defaults to `np.nan`. Will broadcast.
+
+                Used as a price boundary (see `vectorbt.portfolio.enums.PriceArea`).
+            high (array_like of float): Highest asset price at each time step.
+                Defaults to `np.nan`. Will broadcast.
+
+                Used as a price boundary (see `vectorbt.portfolio.enums.PriceArea`).
+            low (array_like of float): Lowest asset price at each time step.
+                Defaults to `np.nan`. Will broadcast.
+
+                Used as a price boundary (see `vectorbt.portfolio.enums.PriceArea`).
             init_cash (InitCashMode, float or array_like of float): Initial capital.
 
                 By default, will broadcast to the number of columns.
@@ -2055,6 +2073,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             size_granularity = portfolio_cfg['size_granularity']
         if reject_prob is None:
             reject_prob = portfolio_cfg['reject_prob']
+        if price_area_vio_mode is None:
+            price_area_vio_mode = portfolio_cfg['price_area_vio_mode']
+        price_area_vio_mode = map_enum_fields(price_area_vio_mode, PriceAreaVioMode)
         if lock_cash is None:
             lock_cash = portfolio_cfg['lock_cash']
         if allow_partial is None:
@@ -2065,6 +2086,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             log = portfolio_cfg['log']
         if val_price is None:
             val_price = portfolio_cfg['val_price']
+        if open is None:
+            open = np.nan
+        if high is None:
+            high = np.nan
+        if low is None:
+            low = np.nan
         if init_cash is None:
             init_cash = portfolio_cfg['init_cash']
         if isinstance(init_cash, str):
@@ -2120,11 +2147,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_size=max_size,
             size_granularity=size_granularity,
             reject_prob=reject_prob,
+            price_area_vio_mode=price_area_vio_mode,
             lock_cash=lock_cash,
             allow_partial=allow_partial,
             raise_reject=raise_reject,
             log=log,
             val_price=val_price,
+            open=open,
+            high=high,
+            low=low,
             close=close
         )
         keep_raw = [True] * len(broadcastable_args)
@@ -2201,6 +2232,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      max_size: tp.Optional[tp.ArrayLike] = None,
                      size_granularity: tp.Optional[tp.ArrayLike] = None,
                      reject_prob: tp.Optional[tp.ArrayLike] = None,
+                     price_area_vio_mode: tp.Optional[tp.ArrayLike] = None,
                      lock_cash: tp.Optional[tp.ArrayLike] = None,
                      allow_partial: tp.Optional[tp.ArrayLike] = None,
                      raise_reject: tp.Optional[tp.ArrayLike] = None,
@@ -2325,6 +2357,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 the position if accumulation is enabled and `max_size` is too low.
             size_granularity (float or array_like): See `Portfolio.from_orders`.
             reject_prob (float or array_like): See `Portfolio.from_orders`.
+            price_area_vio_mode (PriceAreaVioMode or array_like): See `Portfolio.from_orders`.
             lock_cash (bool or array_like): See `Portfolio.from_orders`.
             allow_partial (bool or array_like): See `Portfolio.from_orders`.
             raise_reject (bool or array_like): See `Portfolio.from_orders`.
@@ -2343,18 +2376,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Takes only effect if `short_entries` and `short_exits` are not set.
             val_price (array_like of float): See `Portfolio.from_orders`.
-            open (array_like of float): First asset price at each time step.
-                Defaults to `np.nan`, which gets replaced by `close`. Will broadcast.
+            open (array_like of float): See `Portfolio.from_orders`.
 
-                Used solely for stop signals.
-            high (array_like of float): Highest asset price at each time step.
-                Defaults to `np.nan`, which gets replaced by the maximum out of `open` and `close`. Will broadcast.
+                For stop signals, `np.nan` gets replaced by `close`.
+            high (array_like of float): See `Portfolio.from_orders`.
 
-                Used solely for stop signals.
-            low (array_like of float): Lowest asset price at each time step.
-                Defaults to `np.nan`, which gets replaced by the minimum out of `open` and `close`. Will broadcast.
+                For stop signals, `np.nan` replaced by the maximum out of `open` and `close`.
+            low (array_like of float): See `Portfolio.from_orders`.
 
-                Used solely for stop signals.
+                For stop signals, `np.nan` replaced by the minimum out of `open` and `close`.
             sl_stop (array_like of float): Stop loss.
                 Will broadcast.
 
@@ -2899,6 +2929,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             size_granularity = portfolio_cfg['size_granularity']
         if reject_prob is None:
             reject_prob = portfolio_cfg['reject_prob']
+        if price_area_vio_mode is None:
+            price_area_vio_mode = portfolio_cfg['price_area_vio_mode']
+        price_area_vio_mode = map_enum_fields(price_area_vio_mode, PriceAreaVioMode)
         if lock_cash is None:
             lock_cash = portfolio_cfg['lock_cash']
         if allow_partial is None:
@@ -3023,6 +3056,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_size=max_size,
             size_granularity=size_granularity,
             reject_prob=reject_prob,
+            price_area_vio_mode=price_area_vio_mode,
             lock_cash=lock_cash,
             allow_partial=allow_partial,
             raise_reject=raise_reject,
@@ -3369,6 +3403,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         post_segment_args: tp.Args = (),
                         post_order_func_nb: nb.PostOrderFuncT = nb.no_post_func_nb,
                         post_order_args: tp.Args = (),
+                        open: tp.Optional[tp.ArrayLike] = None,
+                        high: tp.Optional[tp.ArrayLike] = None,
+                        low: tp.Optional[tp.ArrayLike] = None,
                         ffill_val_price: tp.Optional[bool] = None,
                         update_value: tp.Optional[bool] = None,
                         fill_pos_record: tp.Optional[bool] = None,
@@ -3400,8 +3437,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         * `row_wise` and `flexible`: See `vectorbt.portfolio.nb.flex_simulate_row_wise_nb`
 
         Args:
-            close (array_like): Last asset price at each time step.
-                Will broadcast to `target_shape`.
+            close (array_like): Latest asset price at each time step.
+                Will broadcast.
 
                 Used for calculating unrealized PnL and portfolio value.
             order_func_nb (callable): Order generation function.
@@ -3475,6 +3512,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             post_order_func_nb (callable): Callback that is called after the order has been processed.
             post_order_args (tuple): Packed arguments passed to `post_order_func_nb`.
                 Defaults to `()`.
+            open (array_like of float): See `Portfolio.from_orders`.
+            high (array_like of float): See `Portfolio.from_orders`.
+            low (array_like of float): See `Portfolio.from_orders`.
             ffill_val_price (bool): Whether to track valuation price only if it's known.
 
                 Otherwise, unknown `close` will lead to NaN in valuation price at the next timestamp.
@@ -3845,7 +3885,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         portfolio_cfg = settings['portfolio']
 
-        close = to_pd_array(close)
         if flexible is None:
             flexible = portfolio_cfg['flexible']
         if init_cash is None:
@@ -3875,6 +3914,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             call_pre_segment = portfolio_cfg['call_pre_segment']
         if call_post_segment is None:
             call_post_segment = portfolio_cfg['call_post_segment']
+        if open is None:
+            open = np.nan
+        if high is None:
+            high = np.nan
+        if low is None:
+            low = np.nan
         if ffill_val_price is None:
             ffill_val_price = portfolio_cfg['ffill_val_price']
         if update_value is None:
@@ -3907,25 +3952,30 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             raise ValueError("group_select cannot be disabled if cash_sharing=True")
 
         # Prepare the simulation
-        broadcastable_args = {**dict(close=close), **broadcast_named_args}
-        if len(broadcastable_args) > 1:
-            close_idx = list(broadcastable_args.keys()).index('close')
-            keep_raw = [True] * len(broadcastable_args)
-            keep_raw[close_idx] = False
-            broadcast_kwargs = merge_dicts(dict(
-                keep_raw=keep_raw,
-                require_kwargs=dict(requirements='W')
-            ), broadcast_kwargs)
-            broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
-            broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
-            close = broadcasted_args['close']
-            if not checks.is_pandas(close):
-                close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
-        else:
-            broadcasted_args = broadcastable_args
+        broadcastable_args = dict(
+            open=open,
+            high=high,
+            low=low,
+            close=close
+        )
+        broadcastable_args = {**broadcastable_args, **broadcast_named_args}
+        # Only close is broadcast, others can remain unchanged thanks to flexible indexing
+        close_idx = list(broadcastable_args.keys()).index('close')
+        keep_raw = [True] * len(broadcastable_args)
+        keep_raw[close_idx] = False
+        broadcast_kwargs = merge_dicts(dict(
+            keep_raw=keep_raw,
+            require_kwargs=dict(requirements='W')
+        ), broadcast_kwargs)
+        broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
+        broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        close = broadcasted_args['close']
+        if not checks.is_pandas(close):
+            close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
         flex_2d = close.ndim == 2
         broadcasted_args['close'] = to_2d_array(close)
         target_shape_2d = (close.shape[0], close.shape[1] if close.ndim > 1 else 1)
+
         wrapper = ArrayWrapper.from_obj(close, freq=freq, group_by=group_by, **wrapper_kwargs)
         cs_group_lens = wrapper.grouper.get_group_lens(group_by=None if cash_sharing else False)
         init_cash = np.require(np.broadcast_to(init_cash, (len(cs_group_lens),)), dtype=np.float_)
@@ -4037,6 +4087,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_order_args=order_args,
                     post_order_func_nb=post_order_func_nb,
                     post_order_args=post_order_args,
+                    open=broadcasted_args['open'],
+                    high=broadcasted_args['high'],
+                    low=broadcasted_args['low'],
                     close=broadcasted_args['close'],
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4075,6 +4128,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     order_args=order_args,
                     post_order_func_nb=post_order_func_nb,
                     post_order_args=post_order_args,
+                    open=broadcasted_args['open'],
+                    high=broadcasted_args['high'],
+                    low=broadcasted_args['low'],
                     close=broadcasted_args['close'],
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4115,6 +4171,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_order_args=order_args,
                     post_order_func_nb=post_order_func_nb,
                     post_order_args=post_order_args,
+                    open=broadcasted_args['open'],
+                    high=broadcasted_args['high'],
+                    low=broadcasted_args['low'],
                     close=broadcasted_args['close'],
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4155,6 +4214,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     order_args=order_args,
                     post_order_func_nb=post_order_func_nb,
                     post_order_args=post_order_args,
+                    open=broadcasted_args['open'],
+                    high=broadcasted_args['high'],
+                    low=broadcasted_args['low'],
                     close=broadcasted_args['close'],
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,

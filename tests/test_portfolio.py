@@ -115,10 +115,6 @@ def test_execute_order_nb():
     with pytest.raises(Exception):
         _ = nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
-            nb.order_nb(10, np.inf))
-    with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
-            ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, -10))
     with pytest.raises(Exception):
         _ = nb.execute_order_nb(
@@ -740,23 +736,97 @@ class TestFromOrders:
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_orders_both(price=-np.inf).order_records,
+            from_orders_both(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 1, 100.0, 1.0, 0.0, 1), (1, 0, 3, 66.66666666666667, 3.0, 0.0, 0)
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_orders_longonly(price=-np.inf).order_records,
+            from_orders_longonly(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 3, 33.333333333333336, 3.0, 0.0, 0), (1, 0, 4, 33.333333333333336, 4.0, 0.0, 1)
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_orders_shortonly(price=-np.inf).order_records,
+            from_orders_shortonly(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 3, 33.333333333333336, 3.0, 0.0, 1), (1, 0, 4, 33.333333333333336, 4.0, 0.0, 0)
             ], dtype=order_dt)
         )
+
+    def test_price_area(self):
+        record_arrays_close(
+            from_orders_both(
+                open=2, high=4, low=1, close=3,
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.55, 0., 0), (0, 1, 0, 1., 3.3, 0., 0), (0, 2, 0, 1., 5.5, 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_orders_longonly(
+                open=2, high=4, low=1, close=3,
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.55, 0., 0), (0, 1, 0, 1., 3.3, 0., 0), (0, 2, 0, 1., 5.5, 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_orders_shortonly(
+                open=2, high=4, low=1, close=3,
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.45, 0., 1), (0, 1, 0, 1., 2.7, 0., 1), (0, 2, 0, 1., 4.5, 0., 1)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_orders_both(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 0), (0, 1, 0, 1., 3., 0., 0), (0, 2, 0, 1., 4., 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_orders_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 0), (0, 1, 0, 1., 3., 0., 0), (0, 2, 0, 1., 4., 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_orders_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 1), (0, 1, 0, 1., 3., 0., 1), (0, 2, 0, 1., 4., 0., 1)
+            ], dtype=order_dt)
+        )
+        with pytest.raises(Exception):
+            _ = from_orders_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=0.5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_orders_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=np.inf, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_orders_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_orders_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=0.5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_orders_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=np.inf, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_orders_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=5, size=1, slippage=0.1)
 
     def test_val_price(self):
         price_nan = pd.Series([1, 2, np.nan, 4, 5], index=price.index)
@@ -1257,21 +1327,21 @@ class TestFromOrders:
         record_arrays_close(
             from_orders_both(log=True).log_records,
             np.array([
-                (0, 0, 0, 0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, np.inf, 1.0, 0, 2,
-                 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 0.0,
-                 100.0, 0.0, 0.0, 1.0, 100.0, 100.0, 1.0, 0.0, 0, 0, -1, 0),
-                (1, 0, 0, 1, 0.0, 100.0, 0.0, 0.0, 2.0, 200.0, -np.inf, 2.0, 0, 2,
-                 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 400.0,
+                (0, 0, 0, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, np.inf,
+                 np.inf, 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 0.0, 100.0, 0.0, 0.0, 1.0, 100.0, 100.0, 1.0, 0.0, 0, 0, -1, 0),
+                (1, 0, 0, 1, np.nan, np.nan, np.nan, 2.0, 0.0, 100.0, 0.0, 0.0, 2.0, 200.0, -np.inf, np.inf,
+                 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 400.0,
                  -100.0, 200.0, 0.0, 2.0, 200.0, 200.0, 2.0, 0.0, 1, 0, -1, 1),
-                (2, 0, 0, 2, 400.0, -100.0, 200.0, 0.0, 3.0, 100.0, np.nan, 3.0, 0,
-                 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 400.0,
-                 -100.0, 200.0, 0.0, 3.0, 100.0, np.nan, np.nan, np.nan, -1, 1, 0, -1),
-                (3, 0, 0, 3, 400.0, -100.0, 200.0, 0.0, 4.0, 0.0, np.inf, 4.0, 0, 2,
-                 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 0.0, 0.0,
-                 0.0, 0.0, 4.0, 0.0, 100.0, 4.0, 0.0, 0, 0, -1, 2),
-                (4, 0, 0, 4, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, -np.inf, 5.0, 0, 2, 0.0,
-                 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 0.0, 0.0,
-                 0.0, 0.0, 5.0, 0.0, np.nan, np.nan, np.nan, -1, 2, 6, -1)
+                (2, 0, 0, 2, np.nan, np.nan, np.nan, 3.0, 400.0, -100.0, 200.0, 0.0, 3.0, 100.0, np.nan,
+                 np.inf, 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 400.0, -100.0, 200.0, 0.0, 3.0, 100.0, np.nan, np.nan, np.nan, -1, 1, 0, -1),
+                (3, 0, 0, 3, np.nan, np.nan, np.nan, 4.0, 400.0, -100.0, 200.0, 0.0, 4.0, 0.0, np.inf, np.inf,
+                 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 0.0,
+                 0.0, 0.0, 0.0, 4.0, 0.0, 100.0, 4.0, 0.0, 0, 0, -1, 2),
+                (4, 0, 0, 4, np.nan, np.nan, np.nan, 5.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, -np.inf, np.inf, 0,
+                 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 0.0,
+                 0.0, 0.0, 0.0, 5.0, 0.0, np.nan, np.nan, np.nan, -1, 2, 6, -1)
             ], dtype=log_dt)
         )
 
@@ -2044,23 +2114,97 @@ class TestFromSignals:
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_signals_both(price=-np.inf).order_records,
+            from_signals_both(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 1, 100.0, 1.0, 0.0, 0), (1, 0, 3, 200.0, 3.0, 0.0, 1)
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_signals_longonly(price=-np.inf).order_records,
+            from_signals_longonly(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 1, 100.0, 1.0, 0.0, 0), (1, 0, 3, 100.0, 3.0, 0.0, 1)
             ], dtype=order_dt)
         )
         record_arrays_close(
-            from_signals_shortonly(price=-np.inf).order_records,
+            from_signals_shortonly(price=-np.inf, open=price.shift(1)).order_records,
             np.array([
                 (0, 0, 1, 100.0, 1.0, 0.0, 1), (1, 0, 3, 66.66666666666667, 3.0, 0.0, 0)
             ], dtype=order_dt)
         )
+
+    def test_price_area(self):
+        record_arrays_close(
+            from_signals_both(
+                open=2, high=4, low=1, close=3,
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.55, 0., 0), (0, 1, 0, 1., 3.3, 0., 0), (0, 2, 0, 1., 5.5, 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_longonly(
+                open=2, high=4, low=1, close=3,
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.55, 0., 0), (0, 1, 0, 1., 3.3, 0., 0), (0, 2, 0, 1., 5.5, 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_shortonly(
+                open=2, high=4, low=1, close=3,
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.45, 0., 1), (0, 1, 0, 1., 2.7, 0., 1), (0, 2, 0, 1., 4.5, 0., 1)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_both(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 0), (0, 1, 0, 1., 3., 0., 0), (0, 2, 0, 1., 4., 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 0), (0, 1, 0, 1., 3., 0., 0), (0, 2, 0, 1., 4., 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='cap',
+                entries=True, exits=False, price=[[0.5, np.inf, 5]], size=1, slippage=0.1).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 1), (0, 1, 0, 1., 3., 0., 1), (0, 2, 0, 1., 4., 0., 1)
+            ], dtype=order_dt)
+        )
+        with pytest.raises(Exception):
+            _ = from_signals_longonly(
+                entries=True, exits=False, open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                price=0.5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_signals_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                entries=True, exits=False, price=np.inf, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_signals_longonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                entries=True, exits=False, price=5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_signals_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                entries=True, exits=False, price=0.5, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_signals_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                entries=True, exits=False, price=np.inf, size=1, slippage=0.1)
+        with pytest.raises(Exception):
+            _ = from_signals_shortonly(
+                open=2, high=4, low=1, close=3, price_area_vio_mode='error',
+                entries=True, exits=False, price=5, size=1, slippage=0.1)
 
     def test_val_price(self):
         price_nan = pd.Series([1, 2, np.nan, 4, 5], index=price.index)
@@ -2350,12 +2494,12 @@ class TestFromSignals:
         record_arrays_close(
             from_signals_both(log=True).log_records,
             np.array([
-                (0, 0, 0, 0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, np.inf, 1.0, 0, 2, 0.0, 0.0,
-                 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 0.0, 100.0, 0.0, 0.0, 1.0,
-                 100.0, 100.0, 1.0, 0.0, 0, 0, -1, 0),
-                (1, 0, 0, 3, 0.0, 100.0, 0.0, 0.0, 4.0, 400.0, -np.inf, 4.0, 0, 2, 0.0,
-                 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 800.0, -100.0,
-                 400.0, 0.0, 4.0, 400.0, 200.0, 4.0, 0.0, 1, 0, -1, 1)
+                (0, 0, 0, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0,
+                 np.inf, np.inf, 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 0.0, 100.0, 0.0, 0.0, 1.0, 100.0, 100.0, 1.0, 0.0, 0, 0, -1, 0),
+                (1, 0, 0, 3, np.nan, np.nan, np.nan, 4.0, 0.0, 100.0, 0.0, 0.0, 4.0, 400.0, -np.inf, np.inf,
+                 0, 2, 0.0, 0.0, 0.0, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 800.0,
+                 -100.0, 400.0, 0.0, 4.0, 400.0, 200.0, 4.0, 0.0, 1, 0, -1, 1)
             ], dtype=log_dt)
         )
 
@@ -3743,6 +3887,79 @@ class TestFromOrderFunc:
 
     @pytest.mark.parametrize("test_row_wise", [False, True])
     @pytest.mark.parametrize("test_flexible", [False, True])
+    def test_price_area(self, test_row_wise, test_flexible):
+        @njit
+        def order_func2_nb(c, price, price_area_vio_mode):
+            _price = nb.get_elem_nb(c, price)
+            _price_area_vio_mode = nb.get_elem_nb(c, price_area_vio_mode)
+            return nb.order_nb(
+                1 if c.i % 2 == 0 else -1,
+                _price,
+                slippage=0.1,
+                price_area_vio_mode=_price_area_vio_mode
+            )
+
+        @njit
+        def flex_order_func2_nb(c, price, price_area_vio_mode):
+            if c.call_idx < c.group_len:
+                _price = nb.get_col_elem_nb(c, c.from_col + c.call_idx, price)
+                _price_area_vio_mode = nb.get_col_elem_nb(c, c.from_col + c.call_idx, price_area_vio_mode)
+                return c.from_col + c.call_idx, nb.order_nb(
+                    1 if c.i % 2 == 0 else -1,
+                    _price,
+                    slippage=0.1,
+                    price_area_vio_mode=_price_area_vio_mode
+                )
+            return -1, nb.order_nothing_nb()
+
+        order_func = flex_order_func2_nb if test_flexible else order_func2_nb
+        record_arrays_close(
+            vbt.Portfolio.from_order_func(
+                3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
+                open=2, high=4, low=1,
+                row_wise=test_row_wise, flexible=test_flexible,
+                broadcast_named_args=dict(
+                    price=[[0.5, np.inf, 5]],
+                    price_area_vio_mode=PriceAreaVioMode.Ignore
+                )).order_records,
+            np.array([
+                (0, 0, 0, 1., 0.55, 0., 0), (0, 1, 0, 1., 3.3, 0., 0), (0, 2, 0, 1., 5.5, 0., 0)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            vbt.Portfolio.from_order_func(
+                3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
+                open=2, high=4, low=1,
+                row_wise=test_row_wise, flexible=test_flexible,
+                broadcast_named_args=dict(
+                    price=[[0.5, np.inf, 5]],
+                    price_area_vio_mode=PriceAreaVioMode.Cap
+                )).order_records,
+            np.array([
+                (0, 0, 0, 1., 1., 0., 0), (0, 1, 0, 1., 3., 0., 0), (0, 2, 0, 1., 4., 0., 0)
+            ], dtype=order_dt)
+        )
+        with pytest.raises(Exception):
+            _ = vbt.Portfolio.from_order_func(
+                3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
+                open=2, high=4, low=1,
+                row_wise=test_row_wise, flexible=test_flexible,
+                broadcast_named_args=dict(price=0.5, price_area_vio_mode=PriceAreaVioMode.Error))
+        with pytest.raises(Exception):
+            _ = vbt.Portfolio.from_order_func(
+                3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
+                open=2, high=4, low=1,
+                row_wise=test_row_wise, flexible=test_flexible,
+                broadcast_named_args=dict(price=np.inf, price_area_vio_mode=PriceAreaVioMode.Error))
+        with pytest.raises(Exception):
+            _ = vbt.Portfolio.from_order_func(
+                3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
+                open=2, high=4, low=1,
+                row_wise=test_row_wise, flexible=test_flexible,
+                broadcast_named_args=dict(price=5, price_area_vio_mode=PriceAreaVioMode.Error))
+
+    @pytest.mark.parametrize("test_row_wise", [False, True])
+    @pytest.mark.parametrize("test_flexible", [False, True])
     def test_group_by(self, test_row_wise, test_flexible):
         order_func = flex_order_func_nb if test_flexible else order_func_nb
         pf = vbt.Portfolio.from_order_func(
@@ -4469,58 +4686,59 @@ class TestFromOrderFunc:
         record_arrays_close(
             c.log_records.flatten(order='F'),
             np.array([
-                (0, 0, 0, 0, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, 1.0, 1.0, 0, 2, 0.01, 1.0,
-                 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 97.9799, 1.0, 0.0, 97.9799,
-                 1.01, 98.9899, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
-                (1, 0, 0, 1, 95.9598, 1.0, 0.0, 95.9598, 1.0, 97.9598, 1.0, 2.0, 0,
-                 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 92.9196,
-                 2.0, 0.0, 92.9196, 2.02, 97.95960000000001, 1.0, 2.02, 1.0202, 0, 0, -1, 1),
-                (2, 0, 0, 2, 89.8794, 2.0, 0.0, 89.8794, 2.0, 97.8794, 1.0, 3.0, 0, 2,
-                 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 85.8191, 3.0,
-                 0.0, 85.8191, 3.0300000000000002, 98.90910000000001, 1.0,
+                (0, 0, 0, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, 1.0, 1.0, 0,
+                 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True, 97.9799,
+                 1.0, 0.0, 97.9799, 1.01, 98.9899, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
+                (1, 0, 0, 1, np.nan, np.nan, np.nan, 2.0, 95.9598, 1.0, 0.0, 95.9598, 1.0, 97.9598, 1.0,
+                 2.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 92.9196, 2.0, 0.0, 92.9196, 2.02, 97.95960000000001, 1.0, 2.02, 1.0202, 0, 0, -1, 1),
+                (2, 0, 0, 2, np.nan, np.nan, np.nan, 3.0, 89.8794, 2.0, 0.0, 89.8794, 2.0, 97.8794, 1.0,
+                 3.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 85.8191, 3.0, 0.0, 85.8191, 3.0300000000000002, 98.90910000000001, 1.0,
                  3.0300000000000002, 1.0303, 0, 0, -1, 2),
-                (3, 0, 0, 3, 81.75880000000001, 3.0, 0.0, 81.75880000000001, 3.0, 99.75880000000001,
-                 1.0, 4.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True,
-                 76.67840000000001, 4.0, 0.0, 76.67840000000001, 4.04, 101.83840000000001,
-                 1.0, 4.04, 1.0404, 0, 0, -1, 3),
-                (4, 0, 0, 4, 71.59800000000001, 4.0, 0.0, 71.59800000000001, 4.0,
-                 103.59800000000001, 1.0, 5.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0,
-                 False, True, False, True, 65.49750000000002, 5.0, 0.0, 65.49750000000002,
+                (3, 0, 0, 3, np.nan, np.nan, np.nan, 4.0, 81.75880000000001, 3.0, 0.0, 81.75880000000001,
+                 3.0, 99.75880000000001, 1.0, 4.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 76.67840000000001, 4.0, 0.0, 76.67840000000001, 4.04,
+                 101.83840000000001, 1.0, 4.04, 1.0404, 0, 0, -1, 3),
+                (4, 0, 0, 4, np.nan, np.nan, np.nan, 5.0, 71.59800000000001, 4.0, 0.0, 71.59800000000001,
+                 4.0, 103.59800000000001, 1.0, 5.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0,
+                 0, False, True, False, True, 65.49750000000002, 5.0, 0.0, 65.49750000000002,
                  5.05, 106.74750000000002, 1.0, 5.05, 1.0505, 0, 0, -1, 4),
-                (0, 0, 1, 0, 97.9799, 0.0, 0.0, 97.9799, np.nan, 98.9899, 1.0, 1.0, 0, 2,
-                 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 95.9598, 1.0,
-                 0.0, 95.9598, 1.01, 97.97980000000001, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
-                (1, 0, 1, 1, 92.9196, 1.0, 0.0, 92.9196, 1.0, 97.95960000000001, 1.0, 2.0,
-                 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 89.8794,
-                 2.0, 0.0, 89.8794, 2.02, 97.95940000000002, 1.0, 2.02, 1.0202, 0, 0, -1, 1),
-                (2, 0, 1, 2, 85.8191, 2.0, 0.0, 85.8191, 2.0, 98.90910000000001,
-                 1.0, 3.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True,
-                 81.75880000000001, 3.0, 0.0, 81.75880000000001, 3.0300000000000002,
-                 99.93880000000001, 1.0, 3.0300000000000002, 1.0303, 0, 0, -1, 2),
-                (3, 0, 1, 3, 76.67840000000001, 3.0, 0.0, 76.67840000000001, 3.0,
-                 101.83840000000001, 1.0, 4.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0,
-                 False, True, False, True, 71.59800000000001, 4.0, 0.0, 71.59800000000001,
-                 4.04, 103.918, 1.0, 4.04, 1.0404, 0, 0, -1, 3),
-                (4, 0, 1, 4, 65.49750000000002, 4.0, 0.0, 65.49750000000002, 4.0,
-                 106.74750000000002, 1.0, 5.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0,
-                 False, True, False, True, 59.39700000000002, 5.0, 0.0, 59.39700000000002,
-                 5.05, 109.89700000000002, 1.0, 5.05, 1.0505, 0, 0, -1, 4),
-                (0, 1, 2, 0, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, 1.0, 1.0, 0, 2, 0.01,
-                 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 97.9799, 1.0, 0.0,
-                 97.9799, 1.01, 98.9899, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
-                (1, 1, 2, 1, 97.9799, 1.0, 0.0, 97.9799, 1.0, 98.9799, 1.0, 2.0, 0, 2,
-                 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 94.9397, 2.0,
+                (0, 0, 1, 0, np.nan, np.nan, np.nan, 1.0, 97.9799, 0.0, 0.0, 97.9799, np.nan, 98.9899, 1.0,
+                 1.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True, 95.9598,
+                 1.0, 0.0, 95.9598, 1.01, 97.97980000000001, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
+                (1, 0, 1, 1, np.nan, np.nan, np.nan, 2.0, 92.9196, 1.0, 0.0, 92.9196, 1.0, 97.95960000000001,
+                 1.0, 2.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 89.8794, 2.0, 0.0, 89.8794, 2.02, 97.95940000000002, 1.0, 2.02, 1.0202, 0, 0, -1, 1),
+                (2, 0, 1, 2, np.nan, np.nan, np.nan, 3.0, 85.8191, 2.0, 0.0, 85.8191, 2.0, 98.90910000000001,
+                 1.0, 3.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 81.75880000000001, 3.0, 0.0, 81.75880000000001, 3.0300000000000002, 99.93880000000001,
+                 1.0, 3.0300000000000002, 1.0303, 0, 0, -1, 2),
+                (3, 0, 1, 3, np.nan, np.nan, np.nan, 4.0, 76.67840000000001, 3.0, 0.0, 76.67840000000001,
+                 3.0, 101.83840000000001, 1.0, 4.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 71.59800000000001, 4.0, 0.0, 71.59800000000001, 4.04,
+                 103.918, 1.0, 4.04, 1.0404, 0, 0, -1, 3),
+                (4, 0, 1, 4, np.nan, np.nan, np.nan, 5.0, 65.49750000000002, 4.0, 0.0, 65.49750000000002,
+                 4.0, 106.74750000000002, 1.0, 5.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 59.39700000000002, 5.0, 0.0, 59.39700000000002, 5.05,
+                 109.89700000000002, 1.0, 5.05, 1.0505, 0, 0, -1, 4),
+                (0, 1, 2, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, 1.0, 1.0, 0,
+                 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True, 97.9799, 1.0,
+                 0.0, 97.9799, 1.01, 98.9899, 1.0, 1.01, 1.0101, 0, 0, -1, 0),
+                (1, 1, 2, 1, np.nan, np.nan, np.nan, 2.0, 97.9799, 1.0, 0.0, 97.9799, 1.0, 98.9799, 1.0, 2.0,
+                 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True, 94.9397, 2.0,
                  0.0, 94.9397, 2.02, 98.97970000000001, 1.0, 2.02, 1.0202, 0, 0, -1, 1),
-                (2, 1, 2, 2, 94.9397, 2.0, 0.0, 94.9397, 2.0, 98.9397, 1.0, 3.0, 0,
-                 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 90.8794,
-                 3.0, 0.0, 90.8794, 3.0300000000000002, 99.96940000000001, 1.0,
+                (2, 1, 2, 2, np.nan, np.nan, np.nan, 3.0, 94.9397, 2.0, 0.0, 94.9397, 2.0, 98.9397, 1.0,
+                 3.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 90.8794, 3.0, 0.0, 90.8794, 3.0300000000000002, 99.96940000000001, 1.0,
                  3.0300000000000002, 1.0303, 0, 0, -1, 2),
-                (3, 1, 2, 3, 90.8794, 3.0, 0.0, 90.8794, 3.0, 99.8794, 1.0, 4.0, 0, 2,
-                 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 85.799, 4.0,
-                 0.0, 85.799, 4.04, 101.959, 1.0, 4.04, 1.0404, 0, 0, -1, 3),
-                (4, 1, 2, 4, 85.799, 4.0, 0.0, 85.799, 4.0, 101.799, 1.0, 5.0, 0, 2,
-                 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, False, True, False, True, 79.69850000000001,
-                 5.0, 0.0, 79.69850000000001, 5.05, 104.94850000000001, 1.0, 5.05, 1.0505, 0, 0, -1, 4)
+                (3, 1, 2, 3, np.nan, np.nan, np.nan, 4.0, 90.8794, 3.0, 0.0, 90.8794, 3.0, 99.8794, 1.0,
+                 4.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 85.799, 4.0, 0.0, 85.799, 4.04, 101.959, 1.0, 4.04, 1.0404, 0, 0, -1, 3),
+                (4, 1, 2, 4, np.nan, np.nan, np.nan, 5.0, 85.799, 4.0, 0.0, 85.799, 4.0, 101.799, 1.0,
+                 5.0, 0, 2, 0.01, 1.0, 0.01, 0.0, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 79.69850000000001, 5.0, 0.0, 79.69850000000001, 5.05, 104.94850000000001,
+                 1.0, 5.05, 1.0505, 0, 0, -1, 4)
             ], dtype=log_dt)
         )
         np.testing.assert_array_equal(
@@ -5839,55 +6057,56 @@ class TestPortfolio:
         record_arrays_close(
             pf.logs.values,
             np.array([
-                (0, 0, 0, 0, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, 1.0, np.nan, 0, 0, 0.01,
-                 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 100.0, 0.0, 0.0,
-                 100.0, np.nan, 100.0, np.nan, np.nan, np.nan, -1, 1, 1, -1),
-                (1, 0, 0, 1, 100.0, 0.0, 0.0, 100.0, 2.0, 100.0, 0.1, 2.0, 0, 0, 0.01,
-                 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 99.69598, 0.1,
-                 0.0, 99.69598, 2.0, 100.0, 0.1, 2.02, 0.10202, 0, 0, -1, 0),
-                (2, 0, 0, 2, 99.69598, 0.1, 0.0, 99.69598, 3.0, 99.99598, -1.0, 3.0,
-                 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 99.89001,
-                 0.0, 0.0, 99.89001, 3.0, 99.99598, 0.1, 2.9699999999999998, 0.10297, 1, 0, -1, 1),
-                (3, 0, 0, 3, 99.89001, 0.0, 0.0, 99.89001, 4.0, 99.89001, -0.1, 4.0,
-                 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True,
-                 99.89001, 0.0, 0.0, 99.89001, 4.0, 99.89001, np.nan, np.nan, np.nan, -1, 2, 8, -1),
-                (4, 0, 0, 4, 99.89001, 0.0, 0.0, 99.89001, 5.0, 99.89001, 1.0, 5.0, 0,
-                 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 94.68951,
-                 1.0, 0.0, 94.68951, 5.0, 99.89001, 1.0, 5.05, 0.1505, 0, 0, -1, 2),
-                (0, 1, 1, 0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, 1.0, 1.0, 0, 1, 0.01,
-                 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 100.8801, -1.0,
-                 0.99, 98.9001, 1.0, 100.0, 1.0, 0.99, 0.10990000000000001, 1, 0, -1, 0),
-                (1, 1, 1, 1, 100.8801, -1.0, 0.99, 98.9001, 2.0, 98.8801, 0.1, 2.0, 0, 1,
-                 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 100.97612,
-                 -1.1, 1.188, 98.60011999999999, 2.0, 98.8801, 0.1, 1.98, 0.10198, 1, 0, -1, 1),
-                (2, 1, 1, 2, 100.97612, -1.1, 1.188, 98.60011999999999, 2.0, 98.77611999999999,
-                 -1.0, np.nan, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 100.97612,
-                 -1.1, 1.188, 98.60011999999999, 2.0, 98.77611999999999, np.nan, np.nan, np.nan, -1, 1, 1, -1),
-                (3, 1, 1, 3, 100.97612, -1.1, 1.188, 98.60011999999999, 4.0, 96.57611999999999,
-                 -0.1, 4.0, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True,
-                 100.46808, -1.0, 1.08, 98.30807999999999, 4.0, 96.57611999999999, 0.1, 4.04,
-                 0.10404000000000001, 0, 0, -1, 2),
-                (4, 1, 1, 4, 100.46808, -1.0, 1.08, 98.30807999999999, 5.0, 95.46808, 1.0, 5.0, 0, 1,
-                 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 105.26858, -2.0, 6.03,
-                 93.20857999999998, 5.0, 95.46808, 1.0, 4.95, 0.14950000000000002, 1, 0, -1, 3),
-                (0, 2, 2, 0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, 1.0, 1.0, 0, 2, 0.01, 0.1,
-                 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 98.8799, 1.0, 0.0, 98.8799,
-                 1.0, 100.0, 1.0, 1.01, 0.1101, 0, 0, -1, 0),
-                (1, 2, 2, 1, 98.8799, 1.0, 0.0, 98.8799, 2.0, 100.8799, 0.1, 2.0, 0, 2, 0.01,
-                 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True, 98.57588000000001, 1.1,
-                 0.0, 98.57588000000001, 2.0, 100.8799, 0.1, 2.02, 0.10202, 0, 0, -1, 1),
-                (2, 2, 2, 2, 98.57588000000001, 1.1, 0.0, 98.57588000000001, 3.0, 101.87588000000001,
-                 -1.0, 3.0, 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True,
-                 101.41618000000001, 0.10000000000000009, 0.0, 101.41618000000001, 3.0,
-                 101.87588000000001, 1.0, 2.9699999999999998, 0.1297, 1, 0, -1, 2),
-                (3, 2, 2, 3, 101.41618000000001, 0.10000000000000009, 0.0, 101.41618000000001,
-                 4.0, 101.81618000000002, -0.1, 4.0, 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0,
-                 False, True, False, True, 101.70822000000001, 0.0, 0.0, 101.70822000000001,
-                 4.0, 101.81618000000002, 0.1, 3.96, 0.10396000000000001, 1, 0, -1, 3),
-                (4, 2, 2, 4, 101.70822000000001, 0.0, 0.0, 101.70822000000001, 4.0, 101.70822000000001,
-                 1.0, np.nan, 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, False, True, False, True,
-                 101.70822000000001, 0.0, 0.0, 101.70822000000001, 4.0, 101.70822000000001,
-                 np.nan, np.nan, np.nan, -1, 1, 1, -1)
+                (0, 0, 0, 0, np.nan, np.nan, np.nan, np.nan, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0,
+                 1.0, np.inf, 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True,
+                 False, True, 100.0, 0.0, 0.0, 100.0, np.nan, 100.0, np.nan, np.nan, np.nan, -1, 1, 1, -1),
+                (1, 0, 0, 1, np.nan, np.nan, np.nan, 2.0, 100.0, 0.0, 0.0, 100.0, 2.0, 100.0, 0.1,
+                 np.inf, 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False,
+                 True, 99.69598, 0.1, 0.0, 99.69598, 2.0, 100.0, 0.1, 2.02, 0.10202, 0, 0, -1, 0),
+                (2, 0, 0, 2, np.nan, np.nan, np.nan, 3.0, 99.69598, 0.1, 0.0, 99.69598, 3.0, 99.99598,
+                 -1.0, np.inf, 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 99.89001, 0.0, 0.0, 99.89001, 3.0, 99.99598, 0.1, 2.9699999999999998, 0.10297, 1, 0, -1, 1),
+                (3, 0, 0, 3, np.nan, np.nan, np.nan, 4.0, 99.89001, 0.0, 0.0, 99.89001, 4.0, 99.89001,
+                 -0.1, np.inf, 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False,
+                 True, 99.89001, 0.0, 0.0, 99.89001, 4.0, 99.89001, np.nan, np.nan, np.nan, -1, 2, 8, -1),
+                (4, 0, 0, 4, np.nan, np.nan, np.nan, 5.0, 99.89001, 0.0, 0.0, 99.89001, 5.0, 99.89001, 1.0,
+                 np.inf, 0, 0, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 94.68951, 1.0, 0.0, 94.68951, 5.0, 99.89001, 1.0, 5.05, 0.1505, 0, 0, -1, 2),
+                (0, 1, 1, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, 1.0, np.inf,
+                 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 100.8801,
+                 -1.0, 0.99, 98.9001, 1.0, 100.0, 1.0, 0.99, 0.10990000000000001, 1, 0, -1, 0),
+                (1, 1, 1, 1, np.nan, np.nan, np.nan, 2.0, 100.8801, -1.0, 0.99, 98.9001, 2.0, 98.8801, 0.1,
+                 np.inf, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 100.97612, -1.1, 1.188, 98.60011999999999, 2.0, 98.8801, 0.1, 1.98, 0.10198, 1, 0, -1, 1),
+                (2, 1, 1, 2, np.nan, np.nan, np.nan, np.nan, 100.97612, -1.1, 1.188, 98.60011999999999, 2.0,
+                 98.77611999999999, -1.0, np.inf, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 100.97612, -1.1, 1.188, 98.60011999999999, 2.0,
+                 98.77611999999999, np.nan, np.nan, np.nan, -1, 1, 1, -1),
+                (3, 1, 1, 3, np.nan, np.nan, np.nan, 4.0, 100.97612, -1.1, 1.188, 98.60011999999999, 4.0,
+                 96.57611999999999, -0.1, np.inf, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False,
+                 True, False, True, 100.46808, -1.0, 1.08, 98.30807999999999, 4.0, 96.57611999999999,
+                 0.1, 4.04, 0.10404000000000001, 0, 0, -1, 2),
+                (4, 1, 1, 4, np.nan, np.nan, np.nan, 5.0, 100.46808, -1.0, 1.08, 98.30807999999999, 5.0, 95.46808,
+                 1.0, np.inf, 0, 1, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True,
+                 105.26858, -2.0, 6.03, 93.20857999999998, 5.0, 95.46808, 1.0, 4.95, 0.14950000000000002, 1, 0, -1, 3),
+                (0, 2, 2, 0, np.nan, np.nan, np.nan, 1.0, 100.0, 0.0, 0.0, 100.0, 1.0, 100.0, 1.0, np.inf, 0, 2,
+                 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 98.8799, 1.0,
+                 0.0, 98.8799, 1.0, 100.0, 1.0, 1.01, 0.1101, 0, 0, -1, 0),
+                (1, 2, 2, 1, np.nan, np.nan, np.nan, 2.0, 98.8799, 1.0, 0.0, 98.8799, 2.0, 100.8799, 0.1, np.inf,
+                 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 98.57588000000001,
+                 1.1, 0.0, 98.57588000000001, 2.0, 100.8799, 0.1, 2.02, 0.10202, 0, 0, -1, 1),
+                (2, 2, 2, 2, np.nan, np.nan, np.nan, 3.0, 98.57588000000001, 1.1, 0.0, 98.57588000000001,
+                 3.0, 101.87588000000001, -1.0, np.inf, 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 101.41618000000001, 0.10000000000000009, 0.0, 101.41618000000001,
+                 3.0, 101.87588000000001, 1.0, 2.9699999999999998, 0.1297, 1, 0, -1, 2),
+                (3, 2, 2, 3, np.nan, np.nan, np.nan, 4.0, 101.41618000000001, 0.10000000000000009, 0.0,
+                 101.41618000000001, 4.0, 101.81618000000002, -0.1, np.inf, 0, 2, 0.01, 0.1, 0.01,
+                 1e-08, np.inf, np.nan, 0.0, 0, False, True, False, True, 101.70822000000001, 0.0, 0.0,
+                 101.70822000000001, 4.0, 101.81618000000002, 0.1, 3.96, 0.10396000000000001, 1, 0, -1, 3),
+                (4, 2, 2, 4, np.nan, np.nan, np.nan, np.nan, 101.70822000000001, 0.0, 0.0, 101.70822000000001,
+                 4.0, 101.70822000000001, 1.0, np.inf, 0, 2, 0.01, 0.1, 0.01, 1e-08, np.inf, np.nan, 0.0, 0,
+                 False, True, False, True, 101.70822000000001, 0.0, 0.0, 101.70822000000001, 4.0,
+                 101.70822000000001, np.nan, np.nan, np.nan, -1, 1, 1, -1)
             ], dtype=log_dt)
         )
         result = pd.Series(

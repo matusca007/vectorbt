@@ -77,7 +77,40 @@ from vectorbt.utils.template import Rep, RepFunc
 @register_jit(cache=True)
 def order_not_filled_nb(status: int, status_info: int) -> OrderResult:
     """Return `OrderResult` for order that hasn't been filled."""
-    return OrderResult(np.nan, np.nan, np.nan, -1, status, status_info)
+    return OrderResult(
+        size=np.nan,
+        price=np.nan,
+        fees=np.nan,
+        side=-1,
+        status=status,
+        status_info=status_info
+    )
+
+
+@register_jit(cache=True)
+def check_adj_price_nb(adj_price: float,
+                       price_area: PriceArea = NoPriceArea,
+                       is_closing_price: bool = False,
+                       price_area_vio_mode: int = PriceAreaVioMode.Ignore) -> float:
+    """Check whether adjusted price is within bounds."""
+    if price_area_vio_mode == PriceAreaVioMode.Ignore:
+        return adj_price
+    if adj_price > price_area.high:
+        if price_area_vio_mode == PriceAreaVioMode.Error:
+            raise ValueError("Adjusted order price goes above the highest price")
+        elif price_area_vio_mode == PriceAreaVioMode.Cap:
+            adj_price = price_area.high
+    if adj_price < price_area.low:
+        if price_area_vio_mode == PriceAreaVioMode.Error:
+            raise ValueError("Adjusted order price goes below than the lowest price")
+        elif price_area_vio_mode == PriceAreaVioMode.Cap:
+            adj_price = price_area.low
+    if is_closing_price and adj_price != price_area.close:
+        if price_area_vio_mode == PriceAreaVioMode.Error:
+            raise ValueError("Adjusted order price goes beyond the closing price")
+        elif price_area_vio_mode == PriceAreaVioMode.Cap:
+            adj_price = price_area.close
+    return adj_price
 
 
 @register_jit(cache=True)
@@ -91,13 +124,22 @@ def buy_nb(exec_state: ExecuteOrderState,
            min_size: float = 0.,
            max_size: float = np.inf,
            size_granularity: float = np.nan,
+           price_area_vio_mode: int = PriceAreaVioMode.Ignore,
            lock_cash: bool = False,
            allow_partial: bool = True,
-           percent: float = np.nan) -> tp.Tuple[ExecuteOrderState, OrderResult]:
+           percent: float = np.nan,
+           price_area: PriceArea = NoPriceArea,
+           is_closing_price: bool = False) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Buy or/and cover."""
 
     # Get price adjusted with slippage
     adj_price = price * (1 + slippage)
+    adj_price = check_adj_price_nb(
+        adj_price=adj_price,
+        price_area=price_area,
+        is_closing_price=is_closing_price,
+        price_area_vio_mode=price_area_vio_mode
+    )
 
     # Set cash limit
     if lock_cash:
@@ -241,13 +283,22 @@ def sell_nb(exec_state: ExecuteOrderState,
             min_size: float = 0.,
             max_size: float = np.inf,
             size_granularity: float = np.nan,
+            price_area_vio_mode: int = PriceAreaVioMode.Ignore,
             lock_cash: bool = False,
             allow_partial: bool = True,
-            percent: float = np.nan) -> tp.Tuple[ExecuteOrderState, OrderResult]:
+            percent: float = np.nan,
+            price_area: PriceArea = NoPriceArea,
+            is_closing_price: bool = False) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Sell or/and short sell."""
 
     # Get price adjusted with slippage
     adj_price = price * (1 - slippage)
+    adj_price = check_adj_price_nb(
+        adj_price=adj_price,
+        price_area=price_area,
+        is_closing_price=is_closing_price,
+        price_area_vio_mode=price_area_vio_mode
+    )
 
     # Get optimal order size
     if direction == Direction.LongOnly:
@@ -369,12 +420,15 @@ def sell_nb(exec_state: ExecuteOrderState,
 
 
 @register_jit(cache=True)
-def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[ExecuteOrderState, OrderResult]:
+def execute_order_nb(state: ProcessOrderState,
+                     order: Order,
+                     price_area: PriceArea = NoPriceArea) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Execute an order given the current state.
 
     Args:
         state (ProcessOrderState): See `vectorbt.portfolio.enums.ProcessOrderState`.
         order (Order): See `vectorbt.portfolio.enums.Order`.
+        price_area (OrderPriceArea): See `vectorbt.portfolio.enums.PriceArea`.
 
     Error is thrown if an input has value that is not expected.
     Order is ignored if its execution has no effect on the current balance.
@@ -408,33 +462,53 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
         free_cash=free_cash
     )
 
+    # Check price bounds
+    if np.isinf(price_area.open) or price_area.open <= 0:
+        raise ValueError("price_area.open must be either NaN, or finite and greater than 0")
+    if np.isinf(price_area.high) or price_area.high <= 0:
+        raise ValueError("price_area.high must be either NaN, or finite and greater than 0")
+    if np.isinf(price_area.low) or price_area.low <= 0:
+        raise ValueError("price_area.low must be either NaN, or finite and greater than 0")
+    if np.isinf(price_area.close) or price_area.close <= 0:
+        raise ValueError("price_area.close must be either NaN, or finite and greater than 0")
+
+    # Resolve price
+    order_price = order.price
+    is_closing_price = False
+    if np.isinf(order_price):
+        if order_price > 0:
+            order_price = price_area.close
+            is_closing_price = True
+        else:
+            order_price = price_area.open
+
     # Ignore order if size or price is nan
     if np.isnan(order.size):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeNaN)
-    if np.isnan(order.price):
+    if np.isnan(order_price):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.PriceNaN)
 
     # Check execution state
     if np.isnan(cash) or cash < 0:
-        raise ValueError("cash cannot be NaN and must be greater than 0")
+        raise ValueError("state.cash cannot be NaN and must be greater than 0")
     if not np.isfinite(position):
-        raise ValueError("position must be finite")
+        raise ValueError("state.position must be finite")
     if not np.isfinite(debt) or debt < 0:
-        raise ValueError("debt must be finite and 0 or greater")
+        raise ValueError("state.debt must be finite and 0 or greater")
     if np.isnan(free_cash):
-        raise ValueError("free_cash cannot be NaN")
+        raise ValueError("state.free_cash cannot be NaN")
 
     # Check order
-    if not np.isfinite(order.price) or order.price <= 0:
+    if not np.isfinite(order_price) or order_price <= 0:
         raise ValueError("order.price must be finite and greater than 0")
     if order.size_type < 0 or order.size_type >= len(SizeType):
         raise ValueError("order.size_type is invalid")
     if order.direction < 0 or order.direction >= len(Direction):
         raise ValueError("order.direction is invalid")
     if order.direction == Direction.LongOnly and position < 0:
-        raise ValueError("position is negative but order.direction is Direction.LongOnly")
+        raise ValueError("state.position is negative but order.direction is Direction.LongOnly")
     if order.direction == Direction.ShortOnly and position > 0:
-        raise ValueError("position is positive but order.direction is Direction.ShortOnly")
+        raise ValueError("state.position is positive but order.direction is Direction.ShortOnly")
     if not np.isfinite(order.fees):
         raise ValueError("order.fees must be finite")
     if not np.isfinite(order.fixed_fees):
@@ -446,7 +520,7 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
     if np.isnan(order.max_size) or order.max_size <= 0:
         raise ValueError("order.max_size must be greater than 0")
     if np.isinf(order.size_granularity) or order.size_granularity <= 0:
-        raise ValueError("order.size_granularity must be either NaN or finite and greater than 0")
+        raise ValueError("order.size_granularity must be either NaN, or finite and greater than 0")
     if not np.isfinite(order.reject_prob) or order.reject_prob < 0 or order.reject_prob > 1:
         raise ValueError("order.reject_prob must be between 0 and 1")
 
@@ -501,9 +575,9 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
 
     if order_size > 0:
         new_exec_state, order_result = buy_nb(
-            exec_state,
-            order_size,
-            order.price,
+            exec_state=exec_state,
+            size=order_size,
+            price=order_price,
             direction=order.direction,
             fees=order.fees,
             fixed_fees=order.fixed_fees,
@@ -511,15 +585,18 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
             min_size=order.min_size,
             max_size=order.max_size,
             size_granularity=order.size_granularity,
+            price_area_vio_mode=order.price_area_vio_mode,
             lock_cash=order.lock_cash,
             allow_partial=order.allow_partial,
-            percent=percent
+            percent=percent,
+            price_area=price_area,
+            is_closing_price=is_closing_price
         )
     else:
         new_exec_state, order_result = sell_nb(
-            exec_state,
-            -order_size,
-            order.price,
+            exec_state=exec_state,
+            size=-order_size,
+            price=order_price,
             direction=order.direction,
             fees=order.fees,
             fixed_fees=order.fixed_fees,
@@ -527,9 +604,12 @@ def execute_order_nb(state: ProcessOrderState, order: Order) -> tp.Tuple[Execute
             min_size=order.min_size,
             max_size=order.max_size,
             size_granularity=order.size_granularity,
+            price_area_vio_mode=order.price_area_vio_mode,
             lock_cash=order.lock_cash,
             allow_partial=order.allow_partial,
-            percent=percent
+            percent=percent,
+            price_area=price_area,
+            is_closing_price=is_closing_price
         )
 
     if order.reject_prob > 0:
@@ -545,6 +625,7 @@ def fill_log_record_nb(records: tp.RecordArray2d,
                        group: int,
                        col: int,
                        i: int,
+                       price_area: PriceArea,
                        cash: float,
                        position: float,
                        debt: float,
@@ -566,6 +647,10 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['group'][r, col] = group
     records['col'][r, col] = col
     records['idx'][r, col] = i
+    records['open'][r, col] = price_area.open
+    records['high'][r, col] = price_area.high
+    records['low'][r, col] = price_area.low
+    records['close'][r, col] = price_area.close
     records['cash'][r, col] = cash
     records['position'][r, col] = position
     records['debt'][r, col] = debt
@@ -583,6 +668,7 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['req_max_size'][r, col] = order.max_size
     records['req_size_granularity'][r, col] = order.size_granularity
     records['req_reject_prob'][r, col] = order.reject_prob
+    records['req_price_area_vio_mode'][r, col] = order.price_area_vio_mode
     records['req_lock_cash'][r, col] = order.lock_cash
     records['req_allow_partial'][r, col] = order.allow_partial
     records['req_raise_reject'][r, col] = order.raise_reject
@@ -682,6 +768,7 @@ def update_value_nb(cash_before: float,
 def process_order_nb(group: int,
                      col: int,
                      i: int,
+                     price_area: PriceArea,
                      state: ProcessOrderState,
                      update_value: bool,
                      order: Order,
@@ -692,7 +779,11 @@ def process_order_nb(group: int,
     """Process an order by executing it, saving relevant information to the logs, and returning a new state."""
 
     # Execute the order
-    exec_state, order_result = execute_order_nb(state, order)
+    exec_state, order_result = execute_order_nb(
+        state=state,
+        order=order,
+        price_area=price_area
+    )
 
     # Raise if order rejected
     is_rejected = order_result.status == OrderStatus.Rejected
@@ -738,6 +829,7 @@ def process_order_nb(group: int,
             group,
             col,
             i,
+            price_area,
             state.cash,
             state.position,
             state.debt,
@@ -781,6 +873,7 @@ def order_nb(size: float = np.nan,
              max_size: float = np.inf,
              size_granularity: float = np.nan,
              reject_prob: float = 0.,
+             price_area_vio_mode: int = PriceAreaVioMode.Ignore,
              lock_cash: bool = False,
              allow_partial: bool = True,
              raise_reject: bool = False,
@@ -801,6 +894,7 @@ def order_nb(size: float = np.nan,
         max_size=float(max_size),
         size_granularity=float(size_granularity),
         reject_prob=float(reject_prob),
+        price_area_vio_mode=int(price_area_vio_mode),
         lock_cash=bool(lock_cash),
         allow_partial=bool(allow_partial),
         raise_reject=bool(raise_reject),
@@ -817,6 +911,7 @@ def close_position_nb(price: float = np.inf,
                       max_size: float = np.inf,
                       size_granularity: float = np.nan,
                       reject_prob: float = 0.,
+                      price_area_vio_mode: int = PriceAreaVioMode.Ignore,
                       lock_cash: bool = False,
                       allow_partial: bool = True,
                       raise_reject: bool = False,
@@ -835,6 +930,7 @@ def close_position_nb(price: float = np.inf,
         max_size=max_size,
         size_granularity=size_granularity,
         reject_prob=reject_prob,
+        price_area_vio_mode=price_area_vio_mode,
         lock_cash=lock_cash,
         allow_partial=allow_partial,
         raise_reject=raise_reject,
@@ -1113,33 +1209,6 @@ def sort_call_seq_nb(ctx: SegmentContext,
 
 
 @register_jit(cache=True)
-def replace_inf_price_nb(prev_close: float, close: float, order: Order) -> Order:
-    """Replace infinity price in an order."""
-    order_price = order.price
-    if order_price > 0:
-        order_price = close  # upper bound is close
-    else:
-        order_price = prev_close  # lower bound is prev close
-    return order_nb(
-        size=order.size,
-        price=order_price,
-        size_type=order.size_type,
-        direction=order.direction,
-        fees=order.fees,
-        fixed_fees=order.fixed_fees,
-        slippage=order.slippage,
-        min_size=order.min_size,
-        max_size=order.max_size,
-        size_granularity=order.size_granularity,
-        reject_prob=order.reject_prob,
-        lock_cash=order.lock_cash,
-        allow_partial=order.allow_partial,
-        raise_reject=order.raise_reject,
-        log=order.log
-    )
-
-
-@register_jit(cache=True)
 def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Execute an order without persistence."""
     state = ProcessOrderState(
@@ -1152,14 +1221,17 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
         oidx=-1,
         lidx=-1
     )
-    if np.isinf(order.price):
-        if ctx.i > 0:
-            prev_close = flex_select_auto_nb(ctx.close, ctx.i - 1, ctx.col, ctx.flex_2d)
-        else:
-            prev_close = np.nan
-        close = flex_select_auto_nb(ctx.close, ctx.i, ctx.col, ctx.flex_2d)
-        order = replace_inf_price_nb(prev_close, close, order)
-    return execute_order_nb(state, order)
+    price_area = PriceArea(
+        open=flex_select_auto_nb(ctx.open, ctx.i, ctx.col, ctx.flex_2d),
+        high=flex_select_auto_nb(ctx.high, ctx.i, ctx.col, ctx.flex_2d),
+        low=flex_select_auto_nb(ctx.low, ctx.i, ctx.col, ctx.flex_2d),
+        close=flex_select_auto_nb(ctx.close, ctx.i, ctx.col, ctx.flex_2d)
+    )
+    return execute_order_nb(
+        state=state,
+        order=order,
+        price_area=price_area
+    )
 
 
 @register_jit(cache=True)
@@ -1299,6 +1371,18 @@ def update_pos_record_nb(record: tp.Record,
         )
 
 
+@register_jit(cache=True)
+def resolve_inf_price_nb(price: float, prev_close: float, open: float, close: float) -> float:
+    """Resolve an infinite price using the current bounds such as open and close."""
+    if np.isinf(price):
+        if price > 0:
+            return close
+        if not np.isnan(open):
+            return open
+        return prev_close
+    return price
+
+
 # ############# Simulation ############# #
 
 
@@ -1320,11 +1404,15 @@ def update_pos_record_nb(record: tp.Record,
         max_size=portfolio_ch.flex_array_gl_slicer,
         size_granularity=portfolio_ch.flex_array_gl_slicer,
         reject_prob=portfolio_ch.flex_array_gl_slicer,
+        price_area_vio_mode=portfolio_ch.flex_array_gl_slicer,
         lock_cash=portfolio_ch.flex_array_gl_slicer,
         allow_partial=portfolio_ch.flex_array_gl_slicer,
         raise_reject=portfolio_ch.flex_array_gl_slicer,
         log=portfolio_ch.flex_array_gl_slicer,
         val_price=portfolio_ch.flex_array_gl_slicer,
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
         close=portfolio_ch.flex_array_gl_slicer,
         auto_call_seq=None,
         ffill_val_price=None,
@@ -1351,11 +1439,15 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                             max_size: tp.FlexArray = np.asarray(np.inf),
                             size_granularity: tp.FlexArray = np.asarray(np.nan),
                             reject_prob: tp.FlexArray = np.asarray(0.),
+                            price_area_vio_mode: tp.FlexArray = np.asarray(np.nan),
                             lock_cash: tp.FlexArray = np.asarray(False),
                             allow_partial: tp.FlexArray = np.asarray(True),
                             raise_reject: tp.FlexArray = np.asarray(False),
                             log: tp.FlexArray = np.asarray(False),
                             val_price: tp.FlexArray = np.asarray(np.inf),
+                            open: tp.FlexArray = np.asarray(np.nan),
+                            high: tp.FlexArray = np.asarray(np.nan),
+                            low: tp.FlexArray = np.asarray(np.nan),
                             close: tp.FlexArray = np.asarray(np.nan),
                             auto_call_seq: bool = False,
                             ffill_val_price: bool = True,
@@ -1411,7 +1503,6 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
     last_debt = np.full(target_shape[1], 0., dtype=np.float_)
     last_val_price = np.full(target_shape[1], np.nan, dtype=np.float_)
-    order_price = np.full(target_shape[1], np.nan, dtype=np.float_)
     temp_order_value = np.empty(target_shape[1], dtype=np.float_)
     last_oidx = np.full(target_shape[1], -1, dtype=np.int_)
     last_lidx = np.full(target_shape[1], -1, dtype=np.int_)
@@ -1430,26 +1521,17 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
             for k in range(group_len):
                 col = from_col + k
 
-                # Resolve order price
+                # Resolve order and valuation price
                 _price = flex_select_auto_nb(price, i, col, flex_2d)
-                if np.isinf(_price):
-                    if _price > 0:
-                        _price = flex_select_auto_nb(close, i, col, flex_2d)  # upper bound is close
-                    elif i > 0:
-                        _price = flex_select_auto_nb(close, i - 1, col, flex_2d)  # lower bound is prev close
-                    else:
-                        _price = np.nan  # first timestamp has no prev close
-                order_price[col] = _price
-
-                # Resolve valuation price
                 _val_price = flex_select_auto_nb(val_price, i, col, flex_2d)
-                if np.isinf(_val_price):
-                    if _val_price > 0:
-                        _val_price = _price  # upper bound is order price
-                    elif i > 0:
-                        _val_price = flex_select_auto_nb(close, i - 1, col, flex_2d)  # lower bound is prev close
-                    else:
-                        _val_price = np.nan  # first timestamp has no prev close
+                if i > 0:
+                    _prev_price = flex_select_auto_nb(close, i - 1, col, flex_2d)
+                else:
+                    _prev_price = np.nan
+                _open = flex_select_auto_nb(open, i, col, flex_2d)
+                _close = flex_select_auto_nb(close, i, col, flex_2d)
+                _price = resolve_inf_price_nb(_price, _prev_price, _open, _close)
+                _val_price = resolve_inf_price_nb(_val_price, _prev_price, _open, _price)
                 if not np.isnan(_val_price) or not ffill_val_price:
                     last_val_price[col] = _val_price
 
@@ -1502,7 +1584,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 # Generate the next order
                 order = order_nb(
                     size=flex_select_auto_nb(size, i, col, flex_2d),
-                    price=order_price[col],
+                    price=flex_select_auto_nb(price, i, col, flex_2d),
                     size_type=flex_select_auto_nb(size_type, i, col, flex_2d),
                     direction=flex_select_auto_nb(direction, i, col, flex_2d),
                     fees=flex_select_auto_nb(fees, i, col, flex_2d),
@@ -1512,6 +1594,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     max_size=flex_select_auto_nb(max_size, i, col, flex_2d),
                     size_granularity=flex_select_auto_nb(size_granularity, i, col, flex_2d),
                     reject_prob=flex_select_auto_nb(reject_prob, i, col, flex_2d),
+                    price_area_vio_mode=flex_select_auto_nb(price_area_vio_mode, i, col, flex_2d),
                     lock_cash=flex_select_auto_nb(lock_cash, i, col, flex_2d),
                     allow_partial=flex_select_auto_nb(allow_partial, i, col, flex_2d),
                     raise_reject=flex_select_auto_nb(raise_reject, i, col, flex_2d),
@@ -1519,6 +1602,12 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 )
 
                 # Process the order
+                price_area = PriceArea(
+                    open=flex_select_auto_nb(open, i, col, flex_2d),
+                    high=flex_select_auto_nb(high, i, col, flex_2d),
+                    low=flex_select_auto_nb(low, i, col, flex_2d),
+                    close=flex_select_auto_nb(close, i, col, flex_2d)
+                )
                 state = ProcessOrderState(
                     cash=cash_now,
                     position=position_now,
@@ -1527,16 +1616,18 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     val_price=val_price_now,
                     value=value_now
                 )
-
                 order_result, new_state = process_order_nb(
-                    group, col, i,
-                    state,
-                    update_value,
-                    order,
-                    order_records,
-                    last_oidx,
-                    log_records,
-                    last_lidx
+                    group=group,
+                    col=col,
+                    i=i,
+                    price_area=price_area,
+                    state=state,
+                    update_value=update_value,
+                    order=order,
+                    order_records=order_records,
+                    last_oidx=last_oidx,
+                    log_records=log_records,
+                    last_lidx=last_lidx
                 )
 
                 # Update state
@@ -1899,6 +1990,7 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
         max_size=portfolio_ch.flex_array_gl_slicer,
         size_granularity=portfolio_ch.flex_array_gl_slicer,
         reject_prob=portfolio_ch.flex_array_gl_slicer,
+        price_area_vio_mode=portfolio_ch.flex_array_gl_slicer,
         lock_cash=portfolio_ch.flex_array_gl_slicer,
         allow_partial=portfolio_ch.flex_array_gl_slicer,
         raise_reject=portfolio_ch.flex_array_gl_slicer,
@@ -1951,6 +2043,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  max_size: tp.FlexArray = np.asarray(np.inf),
                                  size_granularity: tp.FlexArray = np.asarray(np.nan),
                                  reject_prob: tp.FlexArray = np.asarray(0.),
+                                 price_area_vio_mode: tp.FlexArray = np.asarray(np.nan),
                                  lock_cash: tp.FlexArray = np.asarray(False),
                                  allow_partial: tp.FlexArray = np.asarray(True),
                                  raise_reject: tp.FlexArray = np.asarray(False),
@@ -2081,39 +2174,26 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
             for k in range(group_len):
                 col = from_col + k
 
-                # Resolve order price
+                # Resolve order and valuation price
                 _price = flex_select_auto_nb(price, i, col, flex_2d)
-                if np.isinf(_price):
-                    if _price > 0:
-                        _price = flex_select_auto_nb(close, i, col, flex_2d)  # upper bound is close
-                    else:
-                        _open = flex_select_auto_nb(open, i, col, flex_2d)
-                        if not np.isnan(_open):
-                            _price = _open  # lower bound is open
-                        elif i > 0:
-                            _price = flex_select_auto_nb(close, i - 1, col, flex_2d)  # lower bound is prev close
-                        else:
-                            _price = np.nan  # first timestamp has no prev close
-
-                # Resolve valuation price
                 _val_price = flex_select_auto_nb(val_price, i, col, flex_2d)
-                if np.isinf(_val_price):
-                    if _val_price > 0:
-                        _val_price = _price  # upper bound is order price
-                    elif i > 0:
-                        _val_price = flex_select_auto_nb(close, i - 1, col, flex_2d)  # lower bound is prev close
-                    else:
-                        _val_price = np.nan  # first timestamp has no prev close
+                if i > 0:
+                    _prev_price = flex_select_auto_nb(close, i - 1, col, flex_2d)
+                else:
+                    _prev_price = np.nan
+                _open = flex_select_auto_nb(open, i, col, flex_2d)
+                _close = flex_select_auto_nb(close, i, col, flex_2d)
+                _price = resolve_inf_price_nb(_price, _prev_price, _open, _close)
+                _val_price = resolve_inf_price_nb(_val_price, _prev_price, _open, _price)
                 if not np.isnan(_val_price) or not ffill_val_price:
                     last_val_price[col] = _val_price
-                price_arr[col] = _price
 
             # Get size and value of each order
             for k in range(group_len):
                 col = from_col + k  # order doesn't matter
 
                 position_now = last_position[col]
-                _price = price_arr[col]
+                _price = flex_select_auto_nb(price, i, col, flex_2d)
                 _slippage = flex_select_auto_nb(slippage, i, col, flex_2d)
                 stop_price = np.nan
                 if use_stops:
@@ -2348,6 +2428,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                         max_size=flex_select_auto_nb(max_size, i, col, flex_2d),
                         size_granularity=flex_select_auto_nb(size_granularity, i, col, flex_2d),
                         reject_prob=flex_select_auto_nb(reject_prob, i, col, flex_2d),
+                        price_area_vio_mode=flex_select_auto_nb(price_area_vio_mode, i, col, flex_2d),
                         lock_cash=flex_select_auto_nb(lock_cash, i, col, flex_2d),
                         allow_partial=flex_select_auto_nb(allow_partial, i, col, flex_2d),
                         raise_reject=flex_select_auto_nb(raise_reject, i, col, flex_2d),
@@ -2355,6 +2436,12 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                     )
 
                     # Process the order
+                    price_area = PriceArea(
+                        open=flex_select_auto_nb(open, i, col, flex_2d),
+                        high=flex_select_auto_nb(high, i, col, flex_2d),
+                        low=flex_select_auto_nb(low, i, col, flex_2d),
+                        close=flex_select_auto_nb(close, i, col, flex_2d)
+                    )
                     state = ProcessOrderState(
                         cash=cash_now,
                         position=position_now,
@@ -2363,16 +2450,18 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                         val_price=val_price_now,
                         value=value_now
                     )
-
                     order_result, new_state = process_order_nb(
-                        group, col, i,
-                        state,
-                        update_value,
-                        order,
-                        order_records,
-                        last_oidx,
-                        log_records,
-                        last_lidx
+                        group=group,
+                        col=col,
+                        i=i,
+                        price_area=price_area,
+                        state=state,
+                        update_value=update_value,
+                        order=order,
+                        order_records=order_records,
+                        last_oidx=last_oidx,
+                        log_records=log_records,
+                        last_lidx=last_lidx
                     )
 
                     # Update state
@@ -2532,6 +2621,9 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
         order_args=ch.ArgsTaker(),
         post_order_func_nb=None,
         post_order_args=ch.ArgsTaker(),
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
         close=portfolio_ch.flex_array_gl_slicer,
         ffill_val_price=None,
         update_value=None,
@@ -2567,6 +2659,9 @@ def simulate_nb(target_shape: tp.Shape,
                 order_args: tp.Args = (),
                 post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                 post_order_args: tp.Args = (),
+                open: tp.FlexArray = np.asarray(np.nan),
+                high: tp.FlexArray = np.asarray(np.nan),
+                low: tp.FlexArray = np.asarray(np.nan),
                 close: tp.FlexArray = np.asarray(np.nan),
                 ffill_val_price: bool = True,
                 update_value: bool = False,
@@ -2671,6 +2766,9 @@ def simulate_nb(target_shape: tp.Shape,
             Must accept `vectorbt.portfolio.enums.PostOrderContext`, unpacked tuple from
             `pre_segment_func_nb`, and `*post_order_args`. Must return nothing.
         post_order_args (tuple): Arguments passed to `post_order_func_nb`.
+        open (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.open`.
+        high (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.high`.
+        low (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.low`.
         close (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.close`.
         ffill_val_price (bool): See `vectorbt.portfolio.enums.SimulationContext.ffill_val_price`.
         update_value (bool): See `vectorbt.portfolio.enums.SimulationContext.update_value`.
@@ -2954,6 +3052,9 @@ def simulate_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -2990,6 +3091,9 @@ def simulate_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -3030,6 +3134,9 @@ def simulate_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -3119,6 +3226,9 @@ def simulate_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -3155,15 +3265,14 @@ def simulate_nb(target_shape: tp.Shape,
                         pos_record_now=pos_record_now
                     )
                     order = order_func_nb(order_ctx, *pre_segment_out, *order_args)
-                    if np.isinf(order.price):
-                        if i > 0:
-                            _prev_close = flex_select_auto_nb(close, i - 1, col, flex_2d)
-                        else:
-                            _prev_close = np.nan
-                        _close = flex_select_auto_nb(close, i, col, flex_2d)
-                        order = replace_inf_price_nb(_prev_close, _close, order)
 
                     # Process the order
+                    price_area = PriceArea(
+                        open=flex_select_auto_nb(open, i, col, flex_2d),
+                        high=flex_select_auto_nb(high, i, col, flex_2d),
+                        low=flex_select_auto_nb(low, i, col, flex_2d),
+                        close=flex_select_auto_nb(close, i, col, flex_2d)
+                    )
                     state = ProcessOrderState(
                         cash=cash_now,
                         position=position_now,
@@ -3172,16 +3281,18 @@ def simulate_nb(target_shape: tp.Shape,
                         val_price=val_price_now,
                         value=value_now
                     )
-
                     order_result, new_state = process_order_nb(
-                        group, col, i,
-                        state,
-                        update_value,
-                        order,
-                        order_records,
-                        last_oidx,
-                        log_records,
-                        last_lidx
+                        group=group,
+                        col=col,
+                        i=i,
+                        price_area=price_area,
+                        state=state,
+                        update_value=update_value,
+                        order=order,
+                        order_records=order_records,
+                        last_oidx=last_oidx,
+                        log_records=log_records,
+                        last_lidx=last_lidx
                     )
 
                     # Update state
@@ -3231,6 +3342,9 @@ def simulate_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -3325,6 +3439,9 @@ def simulate_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -3362,6 +3479,9 @@ def simulate_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -3399,6 +3519,9 @@ def simulate_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -3453,6 +3576,9 @@ def simulate_nb(target_shape: tp.Shape,
         order_args=ch.ArgsTaker(),
         post_order_func_nb=None,
         post_order_args=ch.ArgsTaker(),
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
         close=portfolio_ch.flex_array_gl_slicer,
         ffill_val_price=None,
         update_value=None,
@@ -3488,6 +3614,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          order_args: tp.Args = (),
                          post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                          post_order_args: tp.Args = (),
+                         open: tp.FlexArray = np.asarray(np.nan),
+                         high: tp.FlexArray = np.asarray(np.nan),
+                         low: tp.FlexArray = np.asarray(np.nan),
                          close: tp.FlexArray = np.asarray(np.nan),
                          ffill_val_price: bool = True,
                          update_value: bool = False,
@@ -3633,6 +3762,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -3666,6 +3798,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -3706,6 +3841,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -3795,6 +3933,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -3831,15 +3972,14 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         pos_record_now=pos_record_now
                     )
                     order = order_func_nb(order_ctx, *pre_segment_out, *order_args)
-                    if np.isinf(order.price):
-                        if i > 0:
-                            _prev_close = flex_select_auto_nb(close, i - 1, col, flex_2d)
-                        else:
-                            _prev_close = np.nan
-                        _close = flex_select_auto_nb(close, i, col, flex_2d)
-                        order = replace_inf_price_nb(_prev_close, _close, order)
 
                     # Process the order
+                    price_area = PriceArea(
+                        open=flex_select_auto_nb(open, i, col, flex_2d),
+                        high=flex_select_auto_nb(high, i, col, flex_2d),
+                        low=flex_select_auto_nb(low, i, col, flex_2d),
+                        close=flex_select_auto_nb(close, i, col, flex_2d)
+                    )
                     state = ProcessOrderState(
                         cash=cash_now,
                         position=position_now,
@@ -3848,16 +3988,18 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         val_price=val_price_now,
                         value=value_now
                     )
-
                     order_result, new_state = process_order_nb(
-                        group, col, i,
-                        state,
-                        update_value,
-                        order,
-                        order_records,
-                        last_oidx,
-                        log_records,
-                        last_lidx,
+                        group=group,
+                        col=col,
+                        i=i,
+                        price_area=price_area,
+                        state=state,
+                        update_value=update_value,
+                        order=order,
+                        order_records=order_records,
+                        last_oidx=last_oidx,
+                        log_records=log_records,
+                        last_lidx=last_lidx
                     )
 
                     # Update state
@@ -3907,6 +4049,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -4001,6 +4146,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4040,6 +4188,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -4072,6 +4223,9 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -4134,6 +4288,9 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
         flex_order_args=ch.ArgsTaker(),
         post_order_func_nb=None,
         post_order_args=ch.ArgsTaker(),
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
         close=portfolio_ch.flex_array_gl_slicer,
         ffill_val_price=None,
         update_value=None,
@@ -4168,6 +4325,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      flex_order_args: tp.Args = (),
                      post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                      post_order_args: tp.Args = (),
+                     open: tp.FlexArray = np.asarray(np.nan),
+                     high: tp.FlexArray = np.asarray(np.nan),
+                     low: tp.FlexArray = np.asarray(np.nan),
                      close: tp.FlexArray = np.asarray(np.nan),
                      ffill_val_price: bool = True,
                      update_value: bool = False,
@@ -4392,6 +4552,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -4428,6 +4591,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -4466,6 +4632,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4537,6 +4706,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -4586,15 +4758,13 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         value_now = last_value[col]
                         return_now = last_return[col]
 
-                    if np.isinf(order.price):
-                        if i > 0:
-                            _prev_close = flex_select_auto_nb(close, i - 1, col, flex_2d)
-                        else:
-                            _prev_close = np.nan
-                        _close = flex_select_auto_nb(close, i, col, flex_2d)
-                        order = replace_inf_price_nb(_prev_close, _close, order)
-
                     # Process the order
+                    price_area = PriceArea(
+                        open=flex_select_auto_nb(open, i, col, flex_2d),
+                        high=flex_select_auto_nb(high, i, col, flex_2d),
+                        low=flex_select_auto_nb(low, i, col, flex_2d),
+                        close=flex_select_auto_nb(close, i, col, flex_2d)
+                    )
                     state = ProcessOrderState(
                         cash=cash_now,
                         position=position_now,
@@ -4603,16 +4773,18 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         val_price=val_price_now,
                         value=value_now
                     )
-
                     order_result, new_state = process_order_nb(
-                        group, col, i,
-                        state,
-                        update_value,
-                        order,
-                        order_records,
-                        last_oidx,
-                        log_records,
-                        last_lidx
+                        group=group,
+                        col=col,
+                        i=i,
+                        price_area=price_area,
+                        state=state,
+                        update_value=update_value,
+                        order=order,
+                        order_records=order_records,
+                        last_oidx=last_oidx,
+                        log_records=log_records,
+                        last_lidx=last_lidx
                     )
 
                     # Update state
@@ -4662,6 +4834,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -4756,6 +4931,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -4793,6 +4971,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -4830,6 +5011,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -4883,6 +5067,9 @@ def flex_simulate_nb(target_shape: tp.Shape,
         flex_order_args=ch.ArgsTaker(),
         post_order_func_nb=None,
         post_order_args=ch.ArgsTaker(),
+        open=portfolio_ch.flex_array_gl_slicer,
+        high=portfolio_ch.flex_array_gl_slicer,
+        low=portfolio_ch.flex_array_gl_slicer,
         close=portfolio_ch.flex_array_gl_slicer,
         ffill_val_price=None,
         update_value=None,
@@ -4917,6 +5104,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               flex_order_args: tp.Args = (),
                               post_order_func_nb: PostOrderFuncT = no_post_func_nb,
                               post_order_args: tp.Args = (),
+                              open: tp.FlexArray = np.asarray(np.nan),
+                              high: tp.FlexArray = np.asarray(np.nan),
+                              low: tp.FlexArray = np.asarray(np.nan),
                               close: tp.FlexArray = np.asarray(np.nan),
                               ffill_val_price: bool = True,
                               update_value: bool = False,
@@ -4977,6 +5167,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
@@ -5010,6 +5203,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -5049,6 +5245,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -5120,6 +5319,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -5169,15 +5371,13 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         value_now = last_value[col]
                         return_now = last_return[col]
 
-                    if np.isinf(order.price):
-                        if i > 0:
-                            _prev_close = flex_select_auto_nb(close, i - 1, col, flex_2d)
-                        else:
-                            _prev_close = np.nan
-                        _close = flex_select_auto_nb(close, i, col, flex_2d)
-                        order = replace_inf_price_nb(_prev_close, _close, order)
-
                     # Process the order
+                    price_area = PriceArea(
+                        open=flex_select_auto_nb(open, i, col, flex_2d),
+                        high=flex_select_auto_nb(high, i, col, flex_2d),
+                        low=flex_select_auto_nb(low, i, col, flex_2d),
+                        close=flex_select_auto_nb(close, i, col, flex_2d)
+                    )
                     state = ProcessOrderState(
                         cash=cash_now,
                         position=position_now,
@@ -5186,16 +5386,18 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         val_price=val_price_now,
                         value=value_now
                     )
-
                     order_result, new_state = process_order_nb(
-                        group, col, i,
-                        state,
-                        update_value,
-                        order,
-                        order_records,
-                        last_oidx,
-                        log_records,
-                        last_lidx
+                        group=group,
+                        col=col,
+                        i=i,
+                        price_area=price_area,
+                        state=state,
+                        update_value=update_value,
+                        order=order,
+                        order_records=order_records,
+                        last_oidx=last_oidx,
+                        log_records=log_records,
+                        last_lidx=last_lidx
                     )
 
                     # Update state
@@ -5245,6 +5447,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
+                        open=open,
+                        high=high,
+                        low=low,
                         close=close,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
@@ -5339,6 +5544,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
+                    open=open,
+                    high=high,
+                    low=low,
                     close=close,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
@@ -5378,6 +5586,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
+            open=open,
+            high=high,
+            low=low,
             close=close,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
@@ -5410,6 +5621,9 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
+        open=open,
+        high=high,
+        low=low,
         close=close,
         ffill_val_price=ffill_val_price,
         update_value=update_value,

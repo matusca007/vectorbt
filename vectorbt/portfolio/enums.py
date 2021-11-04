@@ -24,12 +24,15 @@ __all__ = [
     'StopUpdateMode',
     'SizeType',
     'Direction',
+    'PriceAreaVioMode',
     'OrderStatus',
     'OrderSide',
     'OrderStatusInfo',
     'TradeDirection',
     'TradeStatus',
     'TradesType',
+    'PriceArea',
+    'NoPriceArea',
     'ProcessOrderState',
     'ExecuteOrderState',
     'SimulationOutput',
@@ -433,6 +436,28 @@ Attributes:
 """
 
 
+class PriceAreaVioModeT(tp.NamedTuple):
+    Ignore: int = 0
+    Cap: int = 1
+    Error: int = 2
+
+
+PriceAreaVioMode = PriceAreaVioModeT()
+"""_"""
+
+__pdoc__['PriceAreaVioMode'] = f"""Price are violation mode.
+
+```json
+{stringify(PriceAreaVioMode)}
+```
+
+Attributes:
+    Ignore: Ignore any violation.
+    Cap: Cap price to prevent violation.
+    Error: Throw an error upon violation.
+"""
+
+
 class OrderStatusT(tp.NamedTuple):
     Filled: int = 0
     Ignored: int = 1
@@ -576,6 +601,42 @@ __pdoc__['TradesType'] = f"""Trades type.
 # ############# Named tuples ############# #
 
 
+class PriceArea(tp.NamedTuple):
+    open: float
+    high: float
+    low: float
+    close: float
+
+
+__pdoc__['PriceArea'] = """Price area defined by four boundaries.
+
+Used together with `PriceAreaVioMode`."""
+__pdoc__['PriceArea.open'] = "Opening price of the time step."
+__pdoc__['PriceArea.high'] = """Highest price of the time step.
+
+Violation takes place when adjusted price goes above this value.
+"""
+__pdoc__['PriceArea.low'] = """Lowest price of the time step.
+
+Violation takes place when adjusted price goes below this value.
+"""
+__pdoc__['PriceArea.close'] = """Closing price of the time step.
+
+Violation takes place when adjusted price goes beyond this value.
+"""
+
+
+NoPriceArea = PriceArea(
+    open=np.nan,
+    high=np.nan,
+    low=np.nan,
+    close=np.nan
+)
+"""_"""
+
+__pdoc__['NoPriceArea'] = "No price area."
+
+
 class ProcessOrderState(tp.NamedTuple):
     cash: float
     position: float
@@ -627,6 +688,9 @@ class SimulationContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -742,7 +806,22 @@ __pdoc__['SimulationContext.call_post_segment'] = """Whether to call `post_segme
 `SimulationContext.segment_mask`.
 
 Allows, for example, to write user-defined arrays such as returns at the end of each segment."""
-__pdoc__['SimulationContext.close'] = """Latest asset price at each time step.
+__pdoc__['SimulationContext.open'] = """Opening price.
+
+Replaces `Order.price` in case it's `-np.inf`.
+
+Similar behavior to that of `SimulationContext.close`."""
+__pdoc__['SimulationContext.high'] = """Highest price.
+
+Similar behavior to that of `SimulationContext.close`."""
+__pdoc__['SimulationContext.low'] = """Lowest price.
+
+Similar behavior to that of `SimulationContext.close`."""
+__pdoc__['SimulationContext.close'] = """Closing price at each time step.
+
+Replaces `Order.price` in case it's `np.inf`.
+
+Acts as a boundary - see `PriceArea.close`.
 
 Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d`, 
 so it can be passed as 
@@ -984,6 +1063,9 @@ class GroupContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1062,6 +1144,9 @@ class RowContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1109,6 +1194,9 @@ class SegmentContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1176,6 +1264,9 @@ class OrderContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1254,6 +1345,9 @@ class PostOrderContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1350,6 +1444,9 @@ class FlexOrderContext(tp.NamedTuple):
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
+    open: tp.Array
+    high: tp.Array
+    low: tp.Array
     close: tp.Array
     ffill_val_price: bool
     update_value: bool
@@ -1407,6 +1504,7 @@ class Order(tp.NamedTuple):
     max_size: float = np.inf
     size_granularity: float = np.nan
     reject_prob: float = 0.0
+    price_area_vio_mode: int = PriceAreaVioMode.Ignore
     lock_cash: bool = False
     allow_partial: bool = True
     raise_reject: bool = False
@@ -1440,8 +1538,8 @@ __pdoc__['Order.price'] = """Price per unit.
 
 Final price will depend upon slippage.
 
-* If `-np.inf`, replaced by the current open (if available) or the previous close (≈ the current open in crypto).
-* If `np.inf`, replaced by the current close.
+* If `-np.inf`, gets replaced by the current open.
+* If `np.inf`, gets replaced by the current close.
 
 !!! note
     Make sure to use timestamps that come between (and ideally not including) the current open and close."""
@@ -1478,6 +1576,7 @@ Placing an order of 12.5 shares (in any direction) will order exactly 12.0 share
 __pdoc__['Order.reject_prob'] = """Probability of rejecting this order to simulate a random rejection event.
 
 Not everything goes smoothly in real life. Use random rejections to test your order management for robustness."""
+__pdoc__['Order.price_area_vio_mode'] = "See `PriceAreaVioMode`."
 __pdoc__['Order.lock_cash'] = """Whether to lock cash when shorting. 
 
 If enabled, prevents `free_cash` from turning negative when buying or short selling.
@@ -1506,6 +1605,7 @@ NoOrder = Order(
     max_size=np.nan,
     size_granularity=np.nan,
     reject_prob=np.nan,
+    price_area_vio_mode=-1,
     lock_cash=False,
     allow_partial=False,
     raise_reject=False,
@@ -1667,6 +1767,10 @@ _log_fields = [
     ('group', np.int_),
     ('col', np.int_),
     ('idx', np.int_),
+    ('open', np.float_),
+    ('high', np.float_),
+    ('low', np.float_),
+    ('close', np.float_),
     ('cash', np.float_),
     ('position', np.float_),
     ('debt', np.float_),
@@ -1684,6 +1788,7 @@ _log_fields = [
     ('req_max_size', np.float_),
     ('req_size_granularity', np.float_),
     ('req_reject_prob', np.float_),
+    ('req_price_area_vio_mode', np.int_),
     ('req_lock_cash', np.bool_),
     ('req_allow_partial', np.bool_),
     ('req_raise_reject', np.bool_),

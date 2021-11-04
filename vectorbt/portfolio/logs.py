@@ -113,6 +113,18 @@ logs_field_config = Config(
             group=dict(
                 title='Group'
             ),
+            open=dict(
+                title='Open'
+            ),
+            high=dict(
+                title='High'
+            ),
+            low=dict(
+                title='Low'
+            ),
+            close=dict(
+                title='Close'
+            ),
             cash=dict(
                 title='Cash'
             ),
@@ -165,6 +177,9 @@ logs_field_config = Config(
             ),
             req_reject_prob=dict(
                 title='Req Rejection Prob'
+            ),
+            req_price_area_vio_mode=dict(
+                title='Req Price Area Violation Mode'
             ),
             req_lock_cash=dict(
                 title='Req Lock Cash'
