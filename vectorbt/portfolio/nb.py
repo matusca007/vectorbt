@@ -89,10 +89,10 @@ def order_not_filled_nb(status: int, status_info: int) -> OrderResult:
 
 @register_jit(cache=True)
 def check_adj_price_nb(adj_price: float,
-                       price_area: PriceArea = NoPriceArea,
-                       is_closing_price: bool = False,
-                       price_area_vio_mode: int = PriceAreaVioMode.Ignore) -> float:
-    """Check whether adjusted price is within bounds."""
+                       price_area: PriceArea,
+                       is_closing_price: bool,
+                       price_area_vio_mode: int) -> float:
+    """Check whether adjusted price is within price boundaries."""
     if price_area_vio_mode == PriceAreaVioMode.Ignore:
         return adj_price
     if adj_price > price_area.high:
@@ -134,12 +134,7 @@ def buy_nb(exec_state: ExecuteOrderState,
 
     # Get price adjusted with slippage
     adj_price = price * (1 + slippage)
-    adj_price = check_adj_price_nb(
-        adj_price=adj_price,
-        price_area=price_area,
-        is_closing_price=is_closing_price,
-        price_area_vio_mode=price_area_vio_mode
-    )
+    adj_price = check_adj_price_nb(adj_price, price_area, is_closing_price, price_area_vio_mode)
 
     # Set cash limit
     if lock_cash:
@@ -293,12 +288,7 @@ def sell_nb(exec_state: ExecuteOrderState,
 
     # Get price adjusted with slippage
     adj_price = price * (1 - slippage)
-    adj_price = check_adj_price_nb(
-        adj_price=adj_price,
-        price_area=price_area,
-        is_closing_price=is_closing_price,
-        price_area_vio_mode=price_area_vio_mode
-    )
+    adj_price = check_adj_price_nb(adj_price, price_area, is_closing_price, price_area_vio_mode)
 
     # Get optimal order size
     if direction == Direction.LongOnly:
@@ -462,7 +452,7 @@ def execute_order_nb(state: ProcessOrderState,
         free_cash=free_cash
     )
 
-    # Check price bounds
+    # Check price area
     if np.isinf(price_area.open) or price_area.open <= 0:
         raise ValueError("price_area.open must be either NaN, or finite and greater than 0")
     if np.isinf(price_area.high) or price_area.high <= 0:
@@ -626,19 +616,9 @@ def fill_log_record_nb(records: tp.RecordArray2d,
                        col: int,
                        i: int,
                        price_area: PriceArea,
-                       cash: float,
-                       position: float,
-                       debt: float,
-                       free_cash: float,
-                       val_price: float,
-                       value: float,
+                       state: ProcessOrderState,
                        order: Order,
-                       new_cash: float,
-                       new_position: float,
-                       new_debt: float,
-                       new_free_cash: float,
-                       new_val_price: float,
-                       new_value: float,
+                       new_state: ProcessOrderState,
                        order_result: OrderResult,
                        order_id: int) -> None:
     """Fill a log record."""
@@ -651,12 +631,12 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['high'][r, col] = price_area.high
     records['low'][r, col] = price_area.low
     records['close'][r, col] = price_area.close
-    records['cash'][r, col] = cash
-    records['position'][r, col] = position
-    records['debt'][r, col] = debt
-    records['free_cash'][r, col] = free_cash
-    records['val_price'][r, col] = val_price
-    records['value'][r, col] = value
+    records['cash'][r, col] = state.cash
+    records['position'][r, col] = state.position
+    records['debt'][r, col] = state.debt
+    records['free_cash'][r, col] = state.free_cash
+    records['val_price'][r, col] = state.val_price
+    records['value'][r, col] = state.value
     records['req_size'][r, col] = order.size
     records['req_price'][r, col] = order.price
     records['req_size_type'][r, col] = order.size_type
@@ -673,12 +653,12 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['req_allow_partial'][r, col] = order.allow_partial
     records['req_raise_reject'][r, col] = order.raise_reject
     records['req_log'][r, col] = order.log
-    records['new_cash'][r, col] = new_cash
-    records['new_position'][r, col] = new_position
-    records['new_debt'][r, col] = new_debt
-    records['new_free_cash'][r, col] = new_free_cash
-    records['new_val_price'][r, col] = new_val_price
-    records['new_value'][r, col] = new_value
+    records['new_cash'][r, col] = new_state.cash
+    records['new_position'][r, col] = new_state.position
+    records['new_debt'][r, col] = new_state.debt
+    records['new_free_cash'][r, col] = new_state.free_cash
+    records['new_val_price'][r, col] = new_state.val_price
+    records['new_value'][r, col] = new_state.value
     records['res_size'][r, col] = order_result.size
     records['res_price'][r, col] = order_result.price
     records['res_fees'][r, col] = order_result.fees
@@ -819,6 +799,16 @@ def process_order_nb(group: int,
         )
         last_oidx[col] += 1
 
+    # Create new state
+    new_state = ProcessOrderState(
+        cash=exec_state.cash,
+        position=exec_state.position,
+        debt=exec_state.debt,
+        free_cash=exec_state.free_cash,
+        val_price=new_val_price,
+        value=new_value
+    )
+
     if order.log:
         # Fill log record
         if last_lidx[col] >= log_records.shape[0] - 1:
@@ -830,33 +820,13 @@ def process_order_nb(group: int,
             col,
             i,
             price_area,
-            state.cash,
-            state.position,
-            state.debt,
-            state.free_cash,
-            state.val_price,
-            state.value,
+            state,
             order,
-            exec_state.cash,
-            exec_state.position,
-            exec_state.debt,
-            exec_state.free_cash,
-            new_val_price,
-            new_value,
+            new_state,
             order_result,
             last_oidx[col] if is_filled else -1
         )
         last_lidx[col] += 1
-
-    # Create new state
-    new_state = ProcessOrderState(
-        cash=exec_state.cash,
-        position=exec_state.position,
-        debt=exec_state.debt,
-        free_cash=exec_state.free_cash,
-        val_price=new_val_price,
-        value=new_value
-    )
 
     return order_result, new_state
 
@@ -1373,7 +1343,7 @@ def update_pos_record_nb(record: tp.Record,
 
 @register_jit(cache=True)
 def resolve_inf_price_nb(price: float, prev_close: float, open: float, close: float) -> float:
-    """Resolve an infinite price using the current bounds such as open and close."""
+    """Resolve an infinite price using price boundaries."""
     if np.isinf(price):
         if price > 0:
             return close
@@ -1530,7 +1500,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                     _prev_price = np.nan
                 _open = flex_select_auto_nb(open, i, col, flex_2d)
                 _close = flex_select_auto_nb(close, i, col, flex_2d)
-                _price = resolve_inf_price_nb(_price, _prev_price, _open, _close)
+                _price = resolve_inf_price_nb(_price, np.nan, _open, _close)
                 _val_price = resolve_inf_price_nb(_val_price, _prev_price, _open, _price)
                 if not np.isnan(_val_price) or not ffill_val_price:
                     last_val_price[col] = _val_price
@@ -1569,7 +1539,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 if cash_sharing:
                     col_i = call_seq[i, col]
                     if col_i >= group_len:
-                        raise ValueError("Call index exceeds bounds of the group")
+                        raise ValueError("Call index out of bounds of the group")
                     col = from_col + col_i
 
                 # Get current values per column
@@ -2183,7 +2153,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                     _prev_price = np.nan
                 _open = flex_select_auto_nb(open, i, col, flex_2d)
                 _close = flex_select_auto_nb(close, i, col, flex_2d)
-                _price = resolve_inf_price_nb(_price, _prev_price, _open, _close)
+                _price = resolve_inf_price_nb(_price, np.nan, _open, _close)
                 _val_price = resolve_inf_price_nb(_val_price, _prev_price, _open, _price)
                 if not np.isnan(_val_price) or not ffill_val_price:
                     last_val_price[col] = _val_price
@@ -2391,7 +2361,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                 if cash_sharing:
                     col_i = call_seq[i, col]
                     if col_i >= group_len:
-                        raise ValueError("Call index exceeds bounds of the group")
+                        raise ValueError("Call index out of bounds of the group")
                     col = from_col + col_i
 
                 # Get current values per column
@@ -3197,7 +3167,7 @@ def simulate_nb(target_shape: tp.Shape,
                 for k in range(group_len):
                     col_i = call_seq_now[k]
                     if col_i >= group_len:
-                        raise ValueError("Call index exceeds bounds of the group")
+                        raise ValueError("Call index out of bounds of the group")
                     col = from_col + col_i
 
                     # Get current values
@@ -3904,7 +3874,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                 for k in range(group_len):
                     col_i = call_seq_now[k]
                     if col_i >= group_len:
-                        raise ValueError("Call index exceeds bounds of the group")
+                        raise ValueError("Call index out of bounds of the group")
                     col = from_col + col_i
 
                     # Get current values
@@ -4740,7 +4710,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     if col == -1:
                         break
                     if col < from_col or col >= to_col:
-                        raise ValueError("Column exceeds bounds of the group")
+                        raise ValueError("Column out of bounds of the group")
 
                     # Get current values
                     position_now = last_position[col]
@@ -5353,7 +5323,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     if col == -1:
                         break
                     if col < from_col or col >= to_col:
-                        raise ValueError("Column exceeds bounds of the group")
+                        raise ValueError("Column out of bounds of the group")
 
                     # Get current values
                     position_now = last_position[col]

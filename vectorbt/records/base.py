@@ -651,6 +651,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                         df[title] = self.get_map_field_to_index(col_name)
                     else:
                         df[title] = self.get_apply_mapping_arr(col_name)
+        if all([isinstance(col, tuple) for col in df.columns]):
+            df.columns = pd.MultiIndex.from_tuples(df.columns)
         return df
 
     def get_field_setting(self, field: str, setting: str, default: tp.Any = None) -> tp.Any:

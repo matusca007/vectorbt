@@ -108,132 +108,138 @@ logs_field_config = Config(
         dtype=log_dt,
         settings=dict(
             id=dict(
-                title='Log Id'
+                title=('Meta', 'Log Id')
+            ),
+            col=dict(
+                title=('Meta', 'Column')
+            ),
+            idx=dict(
+                title=('Meta', 'Timestamp')
             ),
             group=dict(
-                title='Group'
+                title=('Meta', 'Group')
             ),
             open=dict(
-                title='Open'
+                title=('Price Area', 'Open')
             ),
             high=dict(
-                title='High'
+                title=('Price Area', 'High')
             ),
             low=dict(
-                title='Low'
+                title=('Price Area', 'Low')
             ),
             close=dict(
-                title='Close'
+                title=('Price Area', 'Close')
             ),
             cash=dict(
-                title='Cash'
+                title=('State', 'Cash')
             ),
             position=dict(
-                title='Position'
+                title=('State', 'Position')
             ),
             debt=dict(
-                title='Debt'
+                title=('State', 'Debt')
             ),
             free_cash=dict(
-                title='Free Cash'
+                title=('State', 'Free Cash')
             ),
             val_price=dict(
-                title='Val Price'
+                title=('State', 'Valuation Price')
             ),
             value=dict(
-                title='Value'
+                title=('State', 'Value')
             ),
             req_size=dict(
-                title='Req Size'
+                title=('Request', 'Size')
             ),
             req_price=dict(
-                title='Req Price'
+                title=('Request', 'Price')
             ),
             req_size_type=dict(
-                title='Req Size Type',
+                title=('Request', 'Size Type'),
                 mapping=SizeType
             ),
             req_direction=dict(
-                title='Req Direction',
+                title=('Request', 'Direction'),
                 mapping=Direction
             ),
             req_fees=dict(
-                title='Req Fees'
+                title=('Request', 'Fees')
             ),
             req_fixed_fees=dict(
-                title='Req Fixed Fees'
+                title=('Request', 'Fixed Fees')
             ),
             req_slippage=dict(
-                title='Req Slippage'
+                title=('Request', 'Slippage')
             ),
             req_min_size=dict(
-                title='Req Min Size'
+                title=('Request', 'Min Size')
             ),
             req_max_size=dict(
-                title='Req Max Size'
+                title=('Request', 'Max Size')
             ),
             req_size_granularity=dict(
-                title='Req Size Granularity'
+                title=('Request', 'Size Granularity')
             ),
             req_reject_prob=dict(
-                title='Req Rejection Prob'
+                title=('Request', 'Rejection Prob')
             ),
             req_price_area_vio_mode=dict(
-                title='Req Price Area Violation Mode'
+                title=('Request', 'Price Area Violation Mode')
             ),
             req_lock_cash=dict(
-                title='Req Lock Cash'
+                title=('Request', 'Lock Cash')
             ),
             req_allow_partial=dict(
-                title='Req Allow Partial'
+                title=('Request', 'Allow Partial')
             ),
             req_raise_reject=dict(
-                title='Req Raise Rejection'
+                title=('Request', 'Raise Rejection')
             ),
             req_log=dict(
-                title='Req Log'
+                title=('Request', 'Log')
             ),
             new_cash=dict(
-                title='New Cash'
+                title=('New State', 'Cash')
             ),
             new_position=dict(
-                title='New Position'
+                title=('New State', 'Position')
             ),
             new_debt=dict(
-                title='New Debt'
+                title=('New State', 'Debt')
             ),
             new_free_cash=dict(
-                title='New Free Cash'
+                title=('New State', 'Free Cash')
             ),
             new_val_price=dict(
-                title='New Val Price'
+                title=('New State', 'Valuation Price')
             ),
             new_value=dict(
-                title='New Value'
+                title=('New State', 'Value')
             ),
             res_size=dict(
-                title='Res Size'
+                title=('Result', 'Size')
             ),
             res_price=dict(
-                title='Res Price'
+                title=('Result', 'Price')
             ),
             res_fees=dict(
-                title='Res Fees'
+                title=('Result', 'Fees')
             ),
             res_side=dict(
-                title='Res Side',
+                title=('Result', 'Side'),
                 mapping=OrderSide
             ),
             res_status=dict(
-                title='Res Status',
+                title=('Result', 'Status'),
                 mapping=OrderStatus
             ),
             res_status_info=dict(
-                title='Res Status Info',
+                title=('Result', 'Status Info'),
                 mapping=OrderStatusInfo
             ),
             order_id=dict(
-                title='Order Id'
+                title=('Result', 'Order Id')
             )
         )
     ),
