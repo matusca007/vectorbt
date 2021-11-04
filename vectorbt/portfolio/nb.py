@@ -786,7 +786,7 @@ def process_order_nb(group: int,
         new_val_price = state.val_price
         new_value = state.value
 
-    if is_filled:
+    if is_filled and order_records.shape[0] > 0:
         # Fill order record
         if last_oidx[col] >= order_records.shape[0] - 1:
             raise IndexError("order_records index out of range. Set a higher max_orders.")
@@ -809,7 +809,7 @@ def process_order_nb(group: int,
         value=new_value
     )
 
-    if order.log:
+    if order.log and log_records.shape[0] > 0:
         # Fill log record
         if last_lidx[col] >= log_records.shape[0] - 1:
             raise IndexError("log_records index out of range. Set a higher max_logs.")
@@ -1205,21 +1205,39 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
 
 
 @register_jit(cache=True)
-def init_records_nb(target_shape: tp.Shape,
-                    max_orders: tp.Optional[int] = None,
-                    max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray2d, tp.RecordArray2d]:
-    """Initialize order and log records."""
+def prepare_records_nb(target_shape: tp.Shape,
+                       max_orders: tp.Optional[int] = None,
+                       max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray2d, tp.RecordArray2d]:
+    """Prepare records."""
     if max_orders is None:
         order_records = np.empty((target_shape[0], target_shape[1]), dtype=order_dt)
     else:
         order_records = np.empty((max_orders, target_shape[1]), dtype=order_dt)
     if max_logs is None:
         log_records = np.empty((target_shape[0], target_shape[1]), dtype=log_dt)
-    elif max_logs == 0:
-        log_records = np.empty((1, target_shape[1]), dtype=log_dt)
     else:
         log_records = np.empty((max_logs, target_shape[1]), dtype=log_dt)
     return order_records, log_records
+
+
+@register_jit(cache=True)
+def prepare_simout_nb(order_records: tp.RecordArray2d,
+                      log_records: tp.RecordArray2d,
+                      last_oidx: tp.Array1d,
+                      last_lidx: tp.Array1d) -> SimulationOutput:
+    """Prepare simulation output."""
+    if order_records.shape[0] > 0:
+        order_records_repart = generic_nb.repartition_nb(order_records, last_oidx + 1)
+    else:
+        order_records_repart = order_records.flatten()
+    if log_records.shape[0] > 0:
+        log_records_repart = generic_nb.repartition_nb(log_records, last_lidx + 1)
+    else:
+        log_records_repart = log_records.flatten()
+    return SimulationOutput(
+        order_records=order_records_repart,
+        log_records=log_records_repart,
+    )
 
 
 @register_jit(cache=True)
@@ -1468,7 +1486,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
     cash_sharing = is_grouped_nb(group_lens)
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
     last_debt = np.full(target_shape[1], 0., dtype=np.float_)
@@ -1614,10 +1632,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                 if not np.isnan(val_price_now) or not ffill_val_price:
                     last_val_price[col] = val_price_now
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 @register_jit(cache=True)
@@ -2099,7 +2114,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
     cash_sharing = is_grouped_nb(group_lens)
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
     last_debt = np.full(target_shape[1], 0., dtype=np.float_)
@@ -2498,10 +2513,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
 
         from_col = to_col
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 @register_jit
@@ -2996,7 +3008,7 @@ def simulate_nb(target_shape: tp.Shape,
     check_group_lens_nb(group_lens, target_shape[1])
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_cash = init_cash.copy()
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
@@ -3513,10 +3525,7 @@ def simulate_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 @register_chunkable(
@@ -3706,7 +3715,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     check_group_lens_nb(group_lens, target_shape[1])
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_cash = init_cash.copy()
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
@@ -4217,10 +4226,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 @register_jit
@@ -4496,7 +4502,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     check_group_lens_nb(group_lens, target_shape[1])
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_cash = init_cash.copy()
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
@@ -5005,10 +5011,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 @register_chunkable(
@@ -5111,7 +5114,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     check_group_lens_nb(group_lens, target_shape[1])
     check_group_init_cash_nb(group_lens, target_shape[1], init_cash, cash_sharing)
 
-    order_records, log_records = init_records_nb(target_shape, max_orders, max_logs)
+    order_records, log_records = prepare_records_nb(target_shape, max_orders, max_logs)
     init_cash = init_cash.astype(np.float_)
     last_cash = init_cash.copy()
     last_position = np.full(target_shape[1], 0., dtype=np.float_)
@@ -5615,10 +5618,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     )
     post_sim_func_nb(post_sim_ctx, *post_sim_args)
 
-    return SimulationOutput(
-        order_records=generic_nb.repartition_nb(order_records, last_oidx + 1),
-        log_records=generic_nb.repartition_nb(log_records, last_lidx + 1),
-    )
+    return prepare_simout_nb(order_records, log_records, last_oidx, last_lidx)
 
 
 # ############# Trade records ############# #

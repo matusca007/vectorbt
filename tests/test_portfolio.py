@@ -1757,14 +1757,16 @@ class TestFromOrders:
         )
 
     def test_max_orders(self):
-        _ = from_orders_both(close=price_wide)
-        _ = from_orders_both(close=price_wide, max_orders=3)
+        assert from_orders_both(close=price_wide).order_records.shape[0] == 9
+        assert from_orders_both(close=price_wide, max_orders=3).order_records.shape[0] == 9
+        assert from_orders_both(close=price_wide, max_orders=0).order_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = from_orders_both(close=price_wide, max_orders=2)
 
     def test_max_logs(self):
-        _ = from_orders_both(close=price_wide, log=True)
-        _ = from_orders_both(close=price_wide, log=True, max_logs=5)
+        assert from_orders_both(close=price_wide, log=True).log_records.shape[0] == 15
+        assert from_orders_both(close=price_wide, log=True, max_logs=5).log_records.shape[0] == 15
+        assert from_orders_both(close=price_wide, log=True, max_logs=0).log_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = from_orders_both(close=price_wide, log=True, max_logs=4)
 
@@ -3606,14 +3608,16 @@ class TestFromSignals:
         )
 
     def test_max_orders(self):
-        _ = from_signals_both(close=price_wide)
-        _ = from_signals_both(close=price_wide, max_orders=2)
+        assert from_signals_both(close=price_wide).order_records.shape[0] == 6
+        assert from_signals_both(close=price_wide, max_orders=2).order_records.shape[0] == 6
+        assert from_signals_both(close=price_wide, max_orders=0).order_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = from_signals_both(close=price_wide, max_orders=1)
 
     def test_max_logs(self):
-        _ = from_signals_both(close=price_wide, log=True)
-        _ = from_signals_both(close=price_wide, log=True, max_logs=2)
+        assert from_signals_both(close=price_wide, log=True).log_records.shape[0] == 6
+        assert from_signals_both(close=price_wide, log=True, max_logs=2).log_records.shape[0] == 6
+        assert from_signals_both(close=price_wide, log=True, max_logs=0).log_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = from_signals_both(close=price_wide, log=True, max_logs=1)
 
@@ -5644,12 +5648,15 @@ class TestFromOrderFunc:
     @pytest.mark.parametrize("test_flexible", [False, True])
     def test_max_orders(self, test_row_wise, test_flexible):
         order_func = flex_order_func_nb if test_flexible else order_func_nb
-        _ = vbt.Portfolio.from_order_func(
+        assert vbt.Portfolio.from_order_func(
             price_wide, order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, flexible=test_flexible)
-        _ = vbt.Portfolio.from_order_func(
+            row_wise=test_row_wise, flexible=test_flexible).order_records.shape[0] == 15
+        assert vbt.Portfolio.from_order_func(
             price_wide, order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, max_orders=5, flexible=test_flexible)
+            row_wise=test_row_wise, max_orders=5, flexible=test_flexible).order_records.shape[0] == 15
+        assert vbt.Portfolio.from_order_func(
+            price_wide, order_func, np.asarray(np.inf),
+            row_wise=test_row_wise, max_orders=0, flexible=test_flexible).order_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = vbt.Portfolio.from_order_func(
                 price_wide, order_func, np.asarray(np.inf),
@@ -5659,12 +5666,15 @@ class TestFromOrderFunc:
     @pytest.mark.parametrize("test_flexible", [False, True])
     def test_max_logs(self, test_row_wise, test_flexible):
         log_order_func = log_flex_order_func_nb if test_flexible else log_order_func_nb
-        _ = vbt.Portfolio.from_order_func(
+        assert vbt.Portfolio.from_order_func(
             price_wide, log_order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, flexible=test_flexible)
-        _ = vbt.Portfolio.from_order_func(
+            row_wise=test_row_wise, flexible=test_flexible).log_records.shape[0] == 15
+        assert vbt.Portfolio.from_order_func(
             price_wide, log_order_func, np.asarray(np.inf),
-            row_wise=test_row_wise, max_logs=5, flexible=test_flexible)
+            row_wise=test_row_wise, max_logs=5, flexible=test_flexible).log_records.shape[0] == 15
+        assert vbt.Portfolio.from_order_func(
+            price_wide, log_order_func, np.asarray(np.inf),
+            row_wise=test_row_wise, max_logs=0, flexible=test_flexible).log_records.shape[0] == 0
         with pytest.raises(Exception):
             _ = vbt.Portfolio.from_order_func(
                 price_wide, log_order_func, np.asarray(np.inf),

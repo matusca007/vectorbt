@@ -1934,12 +1934,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_orders (int): The max number of order records expected to be filled at each column.
                 Defaults to the number of rows in the broadcasted shape.
 
-                Set to a lower number if you run out of memory.
+                Set to a lower number if you run out of memory, and to 0 to not fill.
             max_logs (int): The max number of log records expected to be filled at each column.
                 Defaults to the number of rows in the broadcasted shape if any of the `log` is True,
                 otherwise to 0.
 
-                Set to a lower number if you run out of memory.
+                Set to a lower number if you run out of memory, and to 0 to not fill.
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
             group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
@@ -3533,12 +3533,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             max_orders (int): The max number of order records expected to be filled at each column.
                 Defaults to the number of rows in the broadcasted shape.
 
-                Set to a lower number if you run out of memory.
+                Set to a lower number if you run out of memory, to 0 to not fill, and to a higher number
+                if there are more than one order expected at each timestamp.
             max_logs (int): The max number of log records expected to be filled at each column.
                 Defaults to the number of rows in the broadcasted shape.
 
-                Set to a lower number if you run out of memory, or to a higher number if there are
-                more than one order expected at each timestamp.
+                Set to a lower number if you run out of memory, to 0 to not fill, and to a higher number
+                if there are more than one order expected at each timestamp.
             seed (int): See `Portfolio.from_orders`.
             group_by (any): See `Portfolio.from_orders`.
             broadcast_named_args (dict): See `Portfolio.from_signals`.
