@@ -912,6 +912,7 @@ portfolio = dict(
     stop_conflict_mode='exit',
     upon_stop_exit='close',
     upon_stop_update='override',
+    signal_priority='stop',
     use_stops=None,
     log=False,
     upon_long_conflict='ignore',

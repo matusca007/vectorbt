@@ -1820,7 +1820,7 @@ def signals_to_size_nb(position_now: float,
     direction = Direction.Both
     abs_position_now = abs(position_now)
     if is_less_nb(size, 0):
-        raise ValueError("Negative size is not allowed. You must express direction using signals.")
+        raise ValueError("Negative size is not allowed. Please express direction using signals.")
 
     if position_now > 0:
         # We're in a long position
@@ -2050,6 +2050,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  stop_exit_price: tp.FlexArray = np.asarray(StopExitPrice.StopLimit),
                                  upon_stop_exit: tp.FlexArray = np.asarray(StopExitMode.Close),
                                  upon_stop_update: tp.FlexArray = np.asarray(StopUpdateMode.Override),
+                                 signal_priority: tp.FlexArray = np.asarray(SignalPriority.Stop),
                                  adjust_sl_func_nb: AdjustSLFuncT = no_adjust_sl_func_nb,
                                  adjust_sl_args: tp.Args = (),
                                  adjust_tp_func_nb: AdjustTPFuncT = no_adjust_tp_func_nb,
@@ -2178,8 +2179,6 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                 col = from_col + k  # order doesn't matter
 
                 position_now = last_position[col]
-                _price = flex_select_auto_nb(price, i, col, flex_2d)
-                _slippage = flex_select_auto_nb(slippage, i, col, flex_2d)
                 stop_price = np.nan
                 if use_stops:
                     # Adjust stops
@@ -2249,75 +2248,96 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                     sl_curr_i[col] = i
                                     sl_curr_price[col] = _low
 
-                # Get signals
                 _accumulate = flex_select_auto_nb(accumulate, i, col, flex_2d)
+                stop_signal_set = False
                 if use_stops and not np.isnan(stop_price):
-                    # Stop signal comes first
+                    # Get stop signal
                     _upon_stop_exit = flex_select_auto_nb(upon_stop_exit, i, col, flex_2d)
                     is_long_entry, is_long_exit, is_short_entry, is_short_exit, _accumulate = \
                         generate_stop_signal_nb(position_now, _upon_stop_exit, _accumulate)
 
+                    # Resolve price and slippage
                     _close = flex_select_auto_nb(close, i, col, flex_2d)
                     _stop_exit_price = flex_select_auto_nb(stop_exit_price, i, col, flex_2d)
-                    _price, _slippage = resolve_stop_price_and_slippage_nb(
+                    _price = flex_select_auto_nb(price, i, col, flex_2d)
+                    _slippage = flex_select_auto_nb(slippage, i, col, flex_2d)
+                    _stex_price, _stex_slippage = resolve_stop_price_and_slippage_nb(
                         stop_price,
                         _price,
                         _close,
                         _slippage,
                         _stop_exit_price
                     )
-                else:
-                    # User-defined signal comes first
-                    signal_ctx = SignalContext(
-                        i=i,
-                        col=col,
-                        position_now=position_now,
-                        val_price_now=last_val_price[col],
-                        flex_2d=flex_2d
-                    )
-                    is_long_entry, is_long_exit, is_short_entry, is_short_exit = \
-                        signal_func_nb(signal_ctx, *signal_args)
 
-                    # Resolve signal conflicts
-                    if is_long_entry or is_short_entry:
-                        _upon_long_conflict = flex_select_auto_nb(upon_long_conflict, i, col, flex_2d)
-                        is_long_entry, is_long_exit = resolve_signal_conflict_nb(
+                    # Convert both signals to size (direction-aware), size type, and direction
+                    _stex_size, _stex_size_type, _stex_direction = signals_to_size_nb(
+                        last_position[col],
+                        is_long_entry,
+                        is_long_exit,
+                        is_short_entry,
+                        is_short_exit,
+                        flex_select_auto_nb(size, i, col, flex_2d),
+                        flex_select_auto_nb(size_type, i, col, flex_2d),
+                        _accumulate,
+                        last_val_price[col]
+                    )
+                    stop_signal_set = _stex_size != 0
+
+                # Get user-defined signal
+                signal_ctx = SignalContext(
+                    i=i,
+                    col=col,
+                    position_now=position_now,
+                    val_price_now=last_val_price[col],
+                    flex_2d=flex_2d
+                )
+                is_long_entry, is_long_exit, is_short_entry, is_short_exit = \
+                    signal_func_nb(signal_ctx, *signal_args)
+
+                # Resolve signal conflicts
+                if is_long_entry or is_short_entry:
+                    _upon_long_conflict = flex_select_auto_nb(upon_long_conflict, i, col, flex_2d)
+                    is_long_entry, is_long_exit = resolve_signal_conflict_nb(
+                        position_now,
+                        is_long_entry,
+                        is_long_exit,
+                        Direction.LongOnly,
+                        _upon_long_conflict
+                    )
+                    _upon_short_conflict = flex_select_auto_nb(upon_short_conflict, i, col, flex_2d)
+                    is_short_entry, is_short_exit = resolve_signal_conflict_nb(
+                        position_now,
+                        is_short_entry,
+                        is_short_exit,
+                        Direction.ShortOnly,
+                        _upon_short_conflict
+                    )
+
+                    # Resolve direction conflicts
+                    _upon_dir_conflict = flex_select_auto_nb(upon_dir_conflict, i, col, flex_2d)
+                    is_long_entry, is_short_entry = resolve_dir_conflict_nb(
+                        position_now,
+                        is_long_entry,
+                        is_short_entry,
+                        _upon_dir_conflict
+                    )
+
+                    # Resolve opposite entry
+                    _upon_opposite_entry = flex_select_auto_nb(upon_opposite_entry, i, col, flex_2d)
+                    is_long_entry, is_long_exit, is_short_entry, is_short_exit, _accumulate = \
+                        resolve_opposite_entry_nb(
                             position_now,
                             is_long_entry,
                             is_long_exit,
-                            Direction.LongOnly,
-                            _upon_long_conflict
-                        )
-                        _upon_short_conflict = flex_select_auto_nb(upon_short_conflict, i, col, flex_2d)
-                        is_short_entry, is_short_exit = resolve_signal_conflict_nb(
-                            position_now,
                             is_short_entry,
                             is_short_exit,
-                            Direction.ShortOnly,
-                            _upon_short_conflict
+                            _upon_opposite_entry,
+                            _accumulate
                         )
 
-                        # Resolve direction conflicts
-                        _upon_dir_conflict = flex_select_auto_nb(upon_dir_conflict, i, col, flex_2d)
-                        is_long_entry, is_short_entry = resolve_dir_conflict_nb(
-                            position_now,
-                            is_long_entry,
-                            is_short_entry,
-                            _upon_dir_conflict
-                        )
-
-                        # Resolve opposite entry
-                        _upon_opposite_entry = flex_select_auto_nb(upon_opposite_entry, i, col, flex_2d)
-                        is_long_entry, is_long_exit, is_short_entry, is_short_exit, _accumulate = \
-                            resolve_opposite_entry_nb(
-                                position_now,
-                                is_long_entry,
-                                is_long_exit,
-                                is_short_entry,
-                                is_short_exit,
-                                _upon_opposite_entry,
-                                _accumulate
-                            )
+                    # Resolve price and slippage
+                    _price = flex_select_auto_nb(price, i, col, flex_2d)
+                    _slippage = flex_select_auto_nb(slippage, i, col, flex_2d)
 
                 # Convert both signals to size (direction-aware), size type, and direction
                 _size, _size_type, _direction = signals_to_size_nb(
@@ -2331,6 +2351,22 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                     _accumulate,
                     last_val_price[col]
                 )
+                user_signal_set = _size != 0
+
+                # Decide on which signal should be executed: stop or user-defined?
+                if stop_signal_set and user_signal_set:
+                    if signal_priority == SignalPriority.Stop:
+                        _price = _stex_price
+                        _slippage = _stex_slippage
+                        _size = _stex_size
+                        _size_type = _stex_size_type
+                        _direction = _stex_direction
+                elif stop_signal_set:
+                    _price = _stex_price
+                    _slippage = _stex_slippage
+                    _size = _stex_size
+                    _size_type = _stex_size_type
+                    _direction = _stex_direction
 
                 # Save all info
                 price_arr[col] = _price

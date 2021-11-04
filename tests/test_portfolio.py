@@ -3553,6 +3553,33 @@ class TestFromSignals:
             ], dtype=order_dt)
         )
 
+    def test_signal_priority(self):
+        entries = pd.Series([True, False, False, False, False], index=price.index)
+        exits = pd.Series([False, False, False, True, False], index=price.index)
+
+        close = pd.Series([5., 4., 3., 2., 1.], index=price.index)
+        open = close + 0.25
+        high = close + 0.5
+        low = close - 0.5
+        record_arrays_close(
+            from_signals_both(
+                close=close, entries=entries, exits=exits,
+                sl_stop=[[0.1, 0.5]], signal_priority='stop').order_records,
+            np.array([
+                (0, 0, 0, 20.0, 5.0, 0.0, 0), (1, 0, 1, 20.0, 4.0, 0.0, 1), (2, 0, 3, 40.0, 2.0, 0.0, 1),
+                (0, 1, 0, 20.0, 5.0, 0.0, 0), (1, 1, 3, 20.0, 2.0, 0.0, 1)
+            ], dtype=order_dt)
+        )
+        record_arrays_close(
+            from_signals_both(
+                close=close, entries=entries, exits=exits,
+                sl_stop=[[0.1, 0.5]], signal_priority='user').order_records,
+            np.array([
+                (0, 0, 0, 20.0, 5.0, 0.0, 0), (1, 0, 1, 20.0, 4.0, 0.0, 1), (2, 0, 3, 40.0, 2.0, 0.0, 1),
+                (0, 1, 0, 20.0, 5.0, 0.0, 0), (1, 1, 3, 40.0, 2.0, 0.0, 1)
+            ], dtype=order_dt)
+        )
+
     def test_adjust_sl_func(self):
         entries = pd.Series([True, False, False, False, False], index=price.index)
         exits = pd.Series([False, False, False, False, False], index=price.index)

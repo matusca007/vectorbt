@@ -2254,6 +2254,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      stop_exit_price: tp.Optional[tp.ArrayLike] = None,
                      upon_stop_exit: tp.Optional[tp.ArrayLike] = None,
                      upon_stop_update: tp.Optional[tp.ArrayLike] = None,
+                     signal_priority: tp.Optional[tp.ArrayLike] = None,
                      adjust_sl_func_nb: nb.AdjustSLFuncT = nb.no_adjust_sl_func_nb,
                      adjust_sl_args: tp.Args = (),
                      adjust_tp_func_nb: nb.AdjustTPFuncT = nb.no_adjust_tp_func_nb,
@@ -2415,6 +2416,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 Only has effect if accumulation is enabled.
 
                 If provided on per-element basis, gets applied upon repeated entry.
+            signal_priority (SignalPriority or array_like): See `vectorbt.portfolio.enums.SignalPriority`.
+                Will broadcast.
+
+                Only has effect if both stop signal and user-defined signal are executable.
+
+                !!! note
+                    Which option to choose depends on **when** the user-defined signal is available:
+
+                    * at open (user signal wins)
+                    * between open and close (not enough information!)
+                    * at close (stop signal wins)
             adjust_sl_func_nb (callable): Function to adjust stop loss.
                 Defaults to `vectorbt.portfolio.nb.no_adjust_sl_func_nb`.
 
@@ -2986,6 +2998,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if upon_stop_update is None:
             upon_stop_update = portfolio_cfg['upon_stop_update']
         upon_stop_update = map_enum_fields(upon_stop_update, StopUpdateMode)
+        if signal_priority is None:
+            signal_priority = portfolio_cfg['signal_priority']
+        signal_priority = map_enum_fields(signal_priority, SignalPriority)
         if use_stops is None:
             use_stops = portfolio_cfg['use_stops']
         if use_stops is None:
@@ -3077,7 +3092,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             stop_entry_price=stop_entry_price,
             stop_exit_price=stop_exit_price,
             upon_stop_exit=upon_stop_exit,
-            upon_stop_update=upon_stop_update
+            upon_stop_update=upon_stop_update,
+            signal_priority=signal_priority
         )
         if not signal_func_mode:
             if ls_mode:

@@ -22,6 +22,7 @@ __all__ = [
     'StopExitPrice',
     'StopExitMode',
     'StopUpdateMode',
+    'SignalPriority',
     'SizeType',
     'Direction',
     'PriceAreaVioMode',
@@ -361,6 +362,28 @@ Attributes:
     Keep: Keep the old stop.
     Override: Override the old stop, but only if the new stop is not NaN.
     OverrideNaN: Override the old stop, even if the new stop is NaN.
+"""
+
+
+class SignalPriorityT(tp.NamedTuple):
+    Stop: int = 0
+    User: int = 1
+
+
+SignalPriority = SignalPriorityT()
+"""_"""
+
+__pdoc__['SignalPriority'] = f"""Signal priority.
+
+```json
+{stringify(SignalPriority)}
+```
+
+Which signal comes first if both stop signal or user-defined signal are executable?
+
+Attributes:
+    Stop: Stop signal comes first.
+    User: User-defined signal comes first.
 """
 
 
