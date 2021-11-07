@@ -170,9 +170,7 @@ numba = dict(
         dict()
     ),
     override_options=Config(  # flex
-        dict(
-            cache=False
-        )
+        dict()
     )
 )
 """_"""
@@ -190,6 +188,7 @@ ${config_doc}
 _settings['numba'] = numba
 
 math = dict(
+    use_tol=True,
     rel_tol=1e-9,  # 1,000,000,000 == 1,000,000,001
     abs_tol=1e-12  # 0.000000000001 == 0.000000000002
 )
