@@ -13,8 +13,12 @@ information we would like to represent by each element? Creating multiple matric
 a waste of memory.
 
 Records make possible representing complex, sparse information in a dense format. They are just
-an array of one-dimensional arrays of fixed schema. You can imagine records being a DataFrame,
-where each row represents a record and each column represents a specific attribute.
+an array of one-dimensional arrays of a fixed schema, where each element holds a different
+kind of information. You can imagine records being a DataFrame, where each row represents a record
+and each column represents a specific attribute. Read more on structured arrays
+[here](https://numpy.org/doc/stable/user/basics.rec.html).
+
+For example, let's represent two DataFrames as a single record array:
 
 ```plaintext
                a     b
@@ -34,13 +38,13 @@ attr2 =  1  10.0   NaN
 1      1    0    1      2     10
 2      2    0    3      4     12
 3      0    1    0      5     13
-4      1    1    1      7     15
+4      1    1    2      7     15
 5      2    1    3      8     16
 ```
 
 Another advantage of records is that they are not constrained by size. Multiple records can map
-to a single element in a matrix. For example, one can define multiple orders at the same time step,
-which is impossible to represent in a matrix form without using complex data types.
+to a single element in a matrix. For example, one can define multiple orders at the same timestamp,
+which is impossible to represent in a matrix form without duplicating index entries or using complex data types.
 
 Consider the following example:
 

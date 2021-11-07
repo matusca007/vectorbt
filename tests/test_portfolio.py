@@ -10,6 +10,7 @@ from numba.typed import List
 import vectorbt as vbt
 from tests.utils import record_arrays_close
 from vectorbt.generic.enums import drawdown_dt
+from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.portfolio import nb
 from vectorbt.portfolio.enums import *
 from vectorbt.utils.random_ import set_seed
@@ -691,7 +692,7 @@ class TestFromOrders:
         record_arrays_close(
             from_orders_shortonly(fees=0.1, fixed_fees=0.1, size_granularity=1).order_records,
             np.array([
-                (0, 0, 0, 90., 1.,  9.1, 1), (1, 0, 1, 82., 2., 16.5, 0)
+                (0, 0, 0, 90., 1., 9.1, 1), (1, 0, 1, 82., 2., 16.5, 0)
             ], dtype=order_dt)
         )
 
@@ -885,24 +886,60 @@ class TestFromOrders:
             from_orders_shortonly(close=price_nan, size=order_size_one, val_price=price_nan,
                                   size_type='value', ffill_val_price=False).order_records
         )
-        shift_price_nan = price_nan.shift(1)
+        price_all_nan = pd.Series([np.nan, np.nan, np.nan, np.nan, np.nan], index=price.index)
         record_arrays_close(
             from_orders_both(close=price_nan, size=order_size_one, val_price=-np.inf,
                              size_type='value', ffill_val_price=False).order_records,
-            from_orders_both(close=price_nan, size=order_size_one, val_price=shift_price_nan,
+            from_orders_both(close=price_nan, size=order_size_one, val_price=price_all_nan,
                              size_type='value', ffill_val_price=False).order_records
         )
         record_arrays_close(
             from_orders_longonly(close=price_nan, size=order_size_one, val_price=-np.inf,
                                  size_type='value', ffill_val_price=False).order_records,
-            from_orders_longonly(close=price_nan, size=order_size_one, val_price=shift_price_nan,
+            from_orders_longonly(close=price_nan, size=order_size_one, val_price=price_all_nan,
                                  size_type='value', ffill_val_price=False).order_records
         )
         record_arrays_close(
             from_orders_shortonly(close=price_nan, size=order_size_one, val_price=-np.inf,
                                   size_type='value', ffill_val_price=False).order_records,
-            from_orders_shortonly(close=price_nan, size=order_size_one, val_price=shift_price_nan,
+            from_orders_shortonly(close=price_nan, size=order_size_one, val_price=price_all_nan,
                                   size_type='value', ffill_val_price=False).order_records
+        )
+        record_arrays_close(
+            from_orders_both(close=price_nan, size=order_size_one, val_price=np.nan,
+                             size_type='value').order_records,
+            from_orders_both(close=price_nan, size=order_size_one, val_price=shift_price,
+                             size_type='value').order_records
+        )
+        record_arrays_close(
+            from_orders_longonly(close=price_nan, size=order_size_one, val_price=np.nan,
+                                 size_type='value').order_records,
+            from_orders_longonly(close=price_nan, size=order_size_one, val_price=shift_price,
+                                 size_type='value').order_records
+        )
+        record_arrays_close(
+            from_orders_shortonly(close=price_nan, size=order_size_one, val_price=np.nan,
+                                  size_type='value').order_records,
+            from_orders_shortonly(close=price_nan, size=order_size_one, val_price=shift_price,
+                                  size_type='value').order_records
+        )
+        record_arrays_close(
+            from_orders_both(close=price_nan, open=price_nan, size=order_size_one, val_price=np.nan,
+                             size_type='value').order_records,
+            from_orders_both(close=price_nan, size=order_size_one, val_price=price_nan,
+                             size_type='value').order_records
+        )
+        record_arrays_close(
+            from_orders_longonly(close=price_nan, open=price_nan, size=order_size_one, val_price=np.nan,
+                                 size_type='value').order_records,
+            from_orders_longonly(close=price_nan, size=order_size_one, val_price=price_nan,
+                                 size_type='value').order_records
+        )
+        record_arrays_close(
+            from_orders_shortonly(close=price_nan, open=price_nan, size=order_size_one, val_price=np.nan,
+                                  size_type='value').order_records,
+            from_orders_shortonly(close=price_nan, size=order_size_one, val_price=price_nan,
+                                  size_type='value').order_records
         )
 
     def test_fees(self):
@@ -2230,10 +2267,10 @@ class TestFromSignals:
         )
         shift_price = price_nan.ffill().shift(1)
         record_arrays_close(
-            from_signals_both(close=price_nan, size=1, val_price=-np.inf,
-                              size_type='value').order_records,
-            from_signals_both(close=price_nan, size=1, val_price=shift_price,
-                              size_type='value').order_records
+            from_signals_longonly(close=price_nan, size=1, val_price=-np.inf,
+                                  size_type='value').order_records,
+            from_signals_longonly(close=price_nan, size=1, val_price=shift_price,
+                                  size_type='value').order_records
         )
         record_arrays_close(
             from_signals_longonly(close=price_nan, size=1, val_price=-np.inf,
@@ -2265,24 +2302,60 @@ class TestFromSignals:
             from_signals_shortonly(close=price_nan, size=1, val_price=price_nan,
                                    size_type='value', ffill_val_price=False).order_records
         )
-        shift_price_nan = price_nan.shift(1)
+        price_all_nan = pd.Series([np.nan, np.nan, np.nan, np.nan, np.nan], index=price.index)
         record_arrays_close(
             from_signals_both(close=price_nan, size=1, val_price=-np.inf,
                               size_type='value', ffill_val_price=False).order_records,
-            from_signals_both(close=price_nan, size=1, val_price=shift_price_nan,
+            from_signals_both(close=price_nan, size=1, val_price=price_all_nan,
                               size_type='value', ffill_val_price=False).order_records
         )
         record_arrays_close(
             from_signals_longonly(close=price_nan, size=1, val_price=-np.inf,
                                   size_type='value', ffill_val_price=False).order_records,
-            from_signals_longonly(close=price_nan, size=1, val_price=shift_price_nan,
+            from_signals_longonly(close=price_nan, size=1, val_price=price_all_nan,
                                   size_type='value', ffill_val_price=False).order_records
         )
         record_arrays_close(
             from_signals_shortonly(close=price_nan, size=1, val_price=-np.inf,
                                    size_type='value', ffill_val_price=False).order_records,
-            from_signals_shortonly(close=price_nan, size=1, val_price=shift_price_nan,
+            from_signals_shortonly(close=price_nan, size=1, val_price=price_all_nan,
                                    size_type='value', ffill_val_price=False).order_records
+        )
+        record_arrays_close(
+            from_signals_both(close=price_nan, size=1, val_price=np.nan,
+                              size_type='value').order_records,
+            from_signals_both(close=price_nan, size=1, val_price=shift_price,
+                              size_type='value').order_records
+        )
+        record_arrays_close(
+            from_signals_longonly(close=price_nan, size=1, val_price=np.nan,
+                                  size_type='value').order_records,
+            from_signals_longonly(close=price_nan, size=1, val_price=shift_price,
+                                  size_type='value').order_records
+        )
+        record_arrays_close(
+            from_signals_shortonly(close=price_nan, size=1, val_price=np.nan,
+                                   size_type='value').order_records,
+            from_signals_shortonly(close=price_nan, size=1, val_price=shift_price,
+                                   size_type='value').order_records
+        )
+        record_arrays_close(
+            from_signals_both(close=price_nan, open=price_nan, size=1, val_price=np.nan,
+                              size_type='value').order_records,
+            from_signals_both(close=price_nan, size=1, val_price=price_nan,
+                              size_type='value').order_records
+        )
+        record_arrays_close(
+            from_signals_longonly(close=price_nan, open=price_nan, size=1, val_price=np.nan,
+                                  size_type='value').order_records,
+            from_signals_longonly(close=price_nan, size=1, val_price=price_nan,
+                                  size_type='value').order_records
+        )
+        record_arrays_close(
+            from_signals_shortonly(close=price_nan, open=price_nan, size=1, val_price=np.nan,
+                                   size_type='value').order_records,
+            from_signals_shortonly(close=price_nan, size=1, val_price=price_nan,
+                                   size_type='value').order_records
         )
 
     def test_fees(self):
@@ -4436,31 +4509,31 @@ class TestFromOrderFunc:
         np.testing.assert_array_equal(
             return_arr1,
             np.array([
-                [np.nan, np.nan],
-                [-0.02, -0.01],
-                [0.00510204081632653, 0.0],
-                [0.005076142131979695, -0.010101010101010102],
-                [0.0, 0.00510204081632653]
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0]
             ])
         )
         np.testing.assert_array_equal(
             return_arr2,
             np.array([
                 [0.0, -0.01, 0.0],
-                [-0.01, -0.01, -0.005],
-                [0.01020408163265306, 0.01020408163265306, 0.0],
-                [0.015228426395939087, 0.015228426395939087, -0.005050505050505051],
-                [0.0, -0.005050505050505051, 0.01020408163265306]
+                [0.01020408163265306, 0.01020408163265306, 0.005050505050505051],
+                [0.005076142131979695, 0.005076142131979695, 0.0],
+                [0.010101010101010102, 0.010101010101010102, 0.00510204081632653],
+                [0.0, -0.005050505050505051, 0.005076142131979695]
             ])
         )
         np.testing.assert_array_equal(
             return_arr3,
             np.array([
                 [-0.01, -0.02, -0.01],
-                [-0.01, -0.015, -0.01],
-                [0.01020408163265306, 0.01020408163265306, -0.010101010101010102],
-                [0.015228426395939087, 0.005076142131979695, -0.005050505050505051],
-                [-0.005050505050505051, -0.020202020202020204, 0.01020408163265306]
+                [0.01020408163265306, 0.00510204081632653, 0.0],
+                [0.005076142131979695, 0.005076142131979695, -0.010101010101010102],
+                [0.010101010101010102, 0.0, 0.00510204081632653],
+                [-0.005050505050505051, -0.020202020202020204, 0.005076142131979695]
             ])
         )
         record_arrays_close(
@@ -4526,14 +4599,15 @@ class TestFromOrderFunc:
         sim_order_cash_arr = np.empty(size.shape, dtype=np.float_)
         sim_order_value_arr = np.empty(size.shape, dtype=np.float_)
         sim_order_return_arr = np.empty(size.shape, dtype=np.float_)
+        pos_record_arr = np.empty(size.shape[1], dtype=trade_dt)
 
         def post_order_func_nb(c):
             sim_order_cash_arr[c.i, c.col] = c.cash_now
             sim_order_value_arr[c.i, c.col] = c.value_now
             sim_order_return_arr[c.i, c.col] = c.value_now
             if c.i == 0 and c.call_idx == 0:
-                sim_order_return_arr[c.i, c.col] -= c.init_cash[c.group]
-                sim_order_return_arr[c.i, c.col] /= c.init_cash[c.group]
+                sim_order_return_arr[c.i, c.col] -= flex_select_auto_nb(c.init_cash, 0, c.group, True)
+                sim_order_return_arr[c.i, c.col] /= flex_select_auto_nb(c.init_cash, 0, c.group, True)
             else:
                 if c.call_idx == 0:
                     prev_i = c.i - 1
@@ -4552,11 +4626,15 @@ class TestFromOrderFunc:
             value_arr[c.i, c.group] = c.last_value[c.group]
             return_arr[c.i, c.group] = c.last_return[c.group]
 
+        def post_sim_func_nb(c):
+            pos_record_arr[:] = c.last_pos_record
+
         pf = vbt.Portfolio.from_order_func(
             close,
             order_func_nb,
             post_order_func_nb=post_order_func_nb,
             post_segment_func_nb=post_segment_func_nb,
+            post_sim_func_nb=post_sim_func_nb,
             use_numba=False,
             row_wise=test_row_wise,
             update_value=True,
@@ -4663,10 +4741,6 @@ class TestFromOrderFunc:
         np.testing.assert_array_equal(
             c.group_lens,
             np.array([2, 1])
-        )
-        np.testing.assert_array_equal(
-            c.init_cash,
-            np.array([100., 100.])
         )
         assert c.cash_sharing
         if test_flexible:
@@ -4787,10 +4861,6 @@ class TestFromOrderFunc:
         np.testing.assert_array_equal(
             c.last_value,
             np.array([109.39700000000002, 104.69850000000001])
-        )
-        np.testing.assert_array_equal(
-            c.second_last_value,
-            np.array([103.59800000000001, 101.799])
         )
         np.testing.assert_array_equal(
             c.last_return,
@@ -5753,14 +5823,14 @@ class TestFromOrderFunc:
             chunked = dict(
                 arg_take_spec=dict(
                     flex_order_args=vbt.ArgsTaker(
-                        vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')),)
+                        vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')), )
                 )
             )
         else:
             chunked = dict(
                 arg_take_spec=dict(
                     order_args=vbt.ArgsTaker(
-                        vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')),)
+                        vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens')), )
                 )
             )
         pf = vbt.Portfolio.from_order_func(
@@ -6843,8 +6913,16 @@ class TestPortfolio:
                 cash_flow=pf2.cash_flow(), wrapper=pf2.wrapper)
         )
         pd.testing.assert_series_equal(
-            pf.get_init_cash(nb_parallel=True),
-            pf.get_init_cash(nb_parallel=False)
+            vbt.Portfolio.from_orders(
+                price_na, 1000., init_cash=InitCashMode.Auto).get_init_cash(nb_parallel=True),
+            vbt.Portfolio.from_orders(
+                price_na, 1000., init_cash=InitCashMode.Auto).get_init_cash(nb_parallel=False)
+        )
+        pd.testing.assert_series_equal(
+            vbt.Portfolio.from_orders(
+                price_na, 1000., init_cash=InitCashMode.Auto).get_init_cash(chunked=True),
+            vbt.Portfolio.from_orders(
+                price_na, 1000., init_cash=InitCashMode.Auto).get_init_cash(chunked=False)
         )
 
     def test_cash(self):
@@ -7453,12 +7531,12 @@ class TestPortfolio:
         pd.testing.assert_series_equal(
             pf.final_value(),
             pf.__class__.final_value(
-                init_cash=pf.init_cash, total_profit=pf.total_profit(), wrapper=pf.wrapper)
+                init_value=pf.init_value, total_profit=pf.total_profit(), wrapper=pf.wrapper)
         )
         pd.testing.assert_series_equal(
             pf_grouped.final_value(),
             pf_grouped.__class__.final_value(
-                init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
+                init_value=pf_grouped.init_value, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
             pf.final_value(nb_parallel=True),
@@ -7508,12 +7586,12 @@ class TestPortfolio:
         pd.testing.assert_series_equal(
             pf.total_return(),
             pf.__class__.total_return(
-                init_cash=pf.init_cash, total_profit=pf.total_profit(), wrapper=pf.wrapper)
+                init_value=pf.init_value, total_profit=pf.total_profit(), wrapper=pf.wrapper)
         )
         pd.testing.assert_series_equal(
             pf_grouped.total_return(),
             pf_grouped.__class__.total_return(
-                init_cash=pf_grouped.init_cash, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
+                init_value=pf_grouped.init_value, total_profit=pf_grouped.total_profit(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_series_equal(
             pf.total_return(nb_parallel=True),
@@ -7598,20 +7676,20 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf.returns(),
             pf.__class__.returns(
-                init_cash=pf.init_cash, value=pf.value(),
+                init_value=pf.init_value, value=pf.value(),
                 call_seq=pf.call_seq, wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_grouped.returns(),
             pf_grouped.__class__.returns(
-                init_cash=pf_grouped.init_cash, value=pf_grouped.value(),
+                init_value=pf_grouped.init_value, value=pf_grouped.value(),
                 call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_shared.returns(group_by=False, in_sim_order=True),
             pf_shared.__class__.returns(
                 group_by=False, in_sim_order=True,
-                init_cash=pf_shared.init_cash, value=pf_shared.value(group_by=False, in_sim_order=True),
+                init_value=pf_shared.init_value, value=pf_shared.value(group_by=False, in_sim_order=True),
                 call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
         )
         pd.testing.assert_frame_equal(
@@ -7794,13 +7872,13 @@ class TestPortfolio:
             pf.market_value(),
             pf.__class__.market_value(
                 close=pf.filled_close,
-                init_cash=pf.init_cash, wrapper=pf.wrapper)
+                init_value=pf.get_init_value(group_by=False), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_grouped.market_value(),
             pf_grouped.__class__.market_value(
                 close=pf_grouped.filled_close,
-                init_cash=pf_grouped.init_cash, wrapper=pf_grouped.wrapper)
+                init_value=pf.get_init_value(group_by=False), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf.market_value(nb_parallel=True),
@@ -7869,12 +7947,12 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf.market_returns(),
             pf.__class__.market_returns(
-                init_cash=pf.init_cash, market_value=pf.market_value(), wrapper=pf.wrapper)
+                init_value=pf.init_value, market_value=pf.market_value(), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_grouped.market_returns(),
             pf_grouped.__class__.market_returns(
-                init_cash=pf_grouped.init_cash, market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
+                init_value=pf_grouped.init_value, market_value=pf_grouped.market_value(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf.market_returns(nb_parallel=True),

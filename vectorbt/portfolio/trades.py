@@ -484,7 +484,7 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.base.reshaping import to_2d_array
+from vectorbt.base.reshaping import to_1d_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.ch_registry import ch_registry
 from vectorbt.generic.ranges import Ranges
@@ -1529,6 +1529,7 @@ class EntryTrades(Trades):
     def from_orders(cls: tp.Type[EntryTradesT],
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
+                    init_position: tp.ArrayLike = 0.,
                     attach_close: bool = True,
                     nb_parallel: tp.Optional[bool] = None,
                     chunked: tp.ChunkedOption = None,
@@ -1538,7 +1539,12 @@ class EntryTrades(Trades):
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
+        trade_records_arr = func(
+            orders.values,
+            to_2d_array(close),
+            orders.col_mapper.col_map,
+            init_position=to_1d_array(init_position)
+        )
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
 
@@ -1575,6 +1581,7 @@ class ExitTrades(Trades):
     def from_orders(cls: tp.Type[ExitTradesT],
                     orders: Orders,
                     close: tp.Optional[tp.ArrayLike] = None,
+                    init_position: tp.ArrayLike = 0.,
                     attach_close: bool = True,
                     nb_parallel: tp.Optional[bool] = None,
                     chunked: tp.ChunkedOption = None,
@@ -1584,7 +1591,12 @@ class ExitTrades(Trades):
             close = orders.close
         func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        trade_records_arr = func(orders.values, to_2d_array(close), orders.col_mapper.col_map)
+        trade_records_arr = func(
+            orders.values,
+            to_2d_array(close),
+            orders.col_mapper.col_map,
+            init_position=to_1d_array(init_position)
+        )
         return cls(orders.wrapper, trade_records_arr, close=close if attach_close else None, **kwargs)
 
 

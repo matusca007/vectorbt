@@ -9,7 +9,7 @@ all pandas objects have the same index and columns by aligning them.
 
 ## Downloading
 
-Data can be downloaded by overriding the `Data.fetch_symbol` class method. What `Data` does
+Data can be fetched by overriding the `Data.fetch_symbol` class method. What `Data` does
 under the hood is iterating over all symbols and calling this method.
 
 Let's create a simple data class `RandomSNData` that generates price based on
@@ -89,9 +89,12 @@ symbol         RANDNX1     RANDNX2
 
 ## Updating
 
+Updating can be used to either update existing data points or to add new ones. It requires a
+starting timestamp or row, and assumes that all data points before this timestamp or row remain unchanged.
+
 Updating can be implemented by overriding the `Data.update_symbol` instance method, which mostly
 just prepares the arguments and calls `Data.fetch_symbol`. In contrast to the fetch method, the update
-method is an instance method and can access the data downloaded earlier. It can also access the
+method is an instance method and can access the data fetched earlier. It can also access the
 keyword arguments initially passed to the fetch method, accessible under `Data.fetch_kwargs`.
 Those arguments can be used as default arguments and overriden by arguments passed directly
 to the update method, using `vectorbt.utils.config.merge_dicts`. Any instance of `Data` also

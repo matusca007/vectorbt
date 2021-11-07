@@ -170,7 +170,9 @@ numba = dict(
         dict()
     ),
     override_options=Config(  # flex
-        dict()
+        dict(
+            cache=False
+        )
     )
 )
 """_"""
@@ -889,6 +891,7 @@ _settings['logs'] = logs
 portfolio = dict(
     call_seq='default',
     init_cash=100.,
+    init_position=0.,
     size=np.inf,
     size_type='amount',
     fees=0.,

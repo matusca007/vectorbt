@@ -670,12 +670,12 @@ class ProcessOrderState(tp.NamedTuple):
 
 
 __pdoc__['ProcessOrderState'] = "State before or after order processing."
-__pdoc__['ProcessOrderState.cash'] = "Cash in the current column or group with cash sharing."
+__pdoc__['ProcessOrderState.cash'] = "Cash in the current column (or group with cash sharing)."
 __pdoc__['ProcessOrderState.position'] = "Position in the current column."
 __pdoc__['ProcessOrderState.debt'] = "Debt from shorting in the current column."
-__pdoc__['ProcessOrderState.free_cash'] = "Free cash in the current column or group with cash sharing."
+__pdoc__['ProcessOrderState.free_cash'] = "Free cash in the current column (or group with cash sharing)."
 __pdoc__['ProcessOrderState.val_price'] = "Valuation price in the current column."
-__pdoc__['ProcessOrderState.value'] = "Value in the current column or group with cash sharing."
+__pdoc__['ProcessOrderState.value'] = "Value in the current column (or group with cash sharing)."
 
 
 class ExecuteOrderState(tp.NamedTuple):
@@ -705,9 +705,10 @@ __pdoc__['SimulationOutput.log_records'] = "Log records (flattened)."
 class SimulationContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -727,7 +728,6 @@ class SimulationContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -757,16 +757,6 @@ Even if columns are not grouped, `group_lens` contains ones - one column per gro
 In pairs trading, `group_lens` would be `np.array([2])`, while three independent
 columns would be represented by `group_lens` of `np.array([1, 1, 1])`.
 """
-__pdoc__['SimulationContext.init_cash'] = """Initial capital per column or group with cash sharing.
-
-If `SimulationContext.cash_sharing`, has shape `(group_lens.shape[0],)`, otherwise has shape `(target_shape[1],)`.
-
-## Example
-
-Consider three columns, each having $100 of starting capital. If we built one group of two columns
-with cash sharing and one (imaginary) group with the last column, the `init_cash` would be 
-`np.array([200, 100])`. Without cash sharing, the `init_cash` would be `np.array([100, 100, 100])`.
-"""
 __pdoc__['SimulationContext.cash_sharing'] = "Whether cash sharing is enabled."
 __pdoc__['SimulationContext.call_seq'] = """Default sequence of calls per segment.
 
@@ -791,6 +781,26 @@ np.array([
 ])
 ```
 """
+__pdoc__['SimulationContext.init_cash'] = """Initial capital per column (or per group with cash sharing).
+
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d=True`, 
+so it can be passed as 1-dim array per column, or as a scalar. 
+
+Broadcasts to shape `(group_lens.shape[0],)` with cash sharing, otherwise `(target_shape[1],)`.
+
+## Example
+
+Consider three columns, each having $100 of starting capital. If we built one group of two columns
+and one group of one column, the `init_cash` would be `np.array([200, 100])` with cash sharing
+and `np.array([100, 100, 100])` without cash sharing.
+"""
+__pdoc__['SimulationContext.init_position'] = """Initial position per column.
+
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d=True`, 
+so it can be passed as 1-dim array per column, or as a scalar. 
+
+Broadcasts to shape `(target_shape[1],)`.
+"""
 __pdoc__['SimulationContext.segment_mask'] = """Mask of whether a particular segment should be executed.
 
 A segment is simply a sequence of `order_func_nb` calls under the same group and row.
@@ -807,7 +817,7 @@ so it can be passed as
 * 1-dim array per row (requires `flex_2d=False`), and
 * a scalar. 
 
-Broadcasts to the shape `(target_shape[0], group_lens.shape[0])`.
+Broadcasts to shape `(target_shape[0], group_lens.shape[0])`.
 
 !!! note
     To modify the array in place, make sure to build an array of the full shape.
@@ -854,7 +864,7 @@ so it can be passed as
 * 1-dim array per row (requires `flex_2d=False`), and
 * a scalar. 
 
-Broadcasts to the shape `SimulationContext.target_shape`.
+Broadcasts to shape `SimulationContext.target_shape`.
 
 !!! note
     To modify the array in place, make sure to build an array of the full shape.
@@ -909,13 +919,15 @@ np.array([(0, 0, 1, 50., 1., 0., 1)]
 __pdoc__['SimulationContext.log_records'] = """Log records per column.
 
 Similar to `SimulationContext.order_records` but of type `log_dt` and index `SimulationContext.last_lidx`."""
-__pdoc__['SimulationContext.last_cash'] = """Latest cash per column or group with cash sharing.
+__pdoc__['SimulationContext.last_cash'] = """Latest cash per column (or per group with cash sharing).
 
-Has the same shape as `SimulationContext.init_cash`.
+At the very first timestamp, contains initial capital.
 
 Gets updated right after `order_func_nb`.
 """
 __pdoc__['SimulationContext.last_position'] = """Latest position per column.
+
+At the very first timestamp, contains initial position.
 
 Has shape `(target_shape[1],)`.
 
@@ -929,7 +941,7 @@ Has shape `(target_shape[1],)`.
 
 Gets updated right after `order_func_nb`.
 """
-__pdoc__['SimulationContext.last_free_cash'] = """Latest free cash per column or group with cash sharing.
+__pdoc__['SimulationContext.last_free_cash'] = """Latest free cash per column (or per group with cash sharing).
 
 Free cash never goes above the initial level, because an operation always costs money.
 
@@ -945,57 +957,46 @@ Enables `SizeType.Value`, `SizeType.TargetValue`, and `SizeType.TargetPercent`.
 
 Gets multiplied by the current position to get the value of the column (see `SimulationContext.last_value`).
 
-Defaults to the `SimulationContext.close` before `post_segment_func_nb`.
-If `SimulationContext.ffill_val_price`, gets updated only if `SimulationContext.close` is not NaN.
+Gets updated right before `pre_segment_func_nb` using `SimulationContext.open`.
+Then, gets updated right after `pre_segment_func_nb` - you can use `pre_segment_func_nb` to
+override `last_val_price` in-place, such that `order_func_nb` can use the new group value. 
+If `SimulationContext.update_value`, gets also updated right after `order_func_nb` using 
+filled order price as the latest known price. Finally, gets updated right before 
+`post_segment_func_nb` using `SimulationContext.close`.
+
+If `SimulationContext.ffill_val_price`, gets updated only if the value is not NaN.
 For example, close of `[1, 2, np.nan, np.nan, 5]` yields valuation price of `[1, 2, 2, 2, 5]`.
 
-Also gets updated right after `pre_segment_func_nb` - you can use `pre_segment_func_nb` to
-override `last_val_price` in-place, such that `order_func_nb` can use the new group value. 
-You are not allowed to use `-np.inf` or `np.inf` - only finite values.
-If `SimulationContext.update_value`, gets also updated right after `order_func_nb` using 
-filled order price as the latest known price.
 
 !!! note
-    Since the previous `SimulationContext.close` is NaN in the first row, the first `last_val_price` is also NaN.
+    You are not allowed to use `-np.inf` or `np.inf` - only finite values.
     
-    Overriding `last_val_price` with NaN won't apply `SimulationContext.ffill_val_price`,
-    so your entire group will become NaN.
+    If `SimulationContext.open` is NaN in the first row, the `last_val_price` is also NaN.
 
 ## Example
 
-Consider 10 units in column 1 and 20 units in column 2. The previous close of them is
+Consider 10 units in column 1 and 20 units in column 2. The current opening price of them is 
 $40 and $50 respectively, which is also the default valuation price in the current row,
 available as `last_val_price` in `pre_segment_func_nb`. If both columns are in the same group 
 with cash sharing, the group is valued at $1400 before any `order_func_nb` is called, and can 
 be later accessed via `OrderContext.value_now`.
 
 """
-__pdoc__['SimulationContext.last_value'] = """Latest value per column or group with cash sharing.
-
-Has the same shape as `SimulationContext.init_cash`.
+__pdoc__['SimulationContext.last_value'] = """Latest value per column (or per group with cash sharing).
 
 Calculated by multiplying valuation price by the current position.
 The value of each column in a group with cash sharing is summed to get the value of the entire group.
 
-Gets updated using `SimulationContext.last_val_price` after `pre_segment_func_nb` and 
-before `post_segment_func_nb`. If `SimulationContext.update_value`, gets also updated right after 
-`order_func_nb` using filled order price as the latest known price (the difference will be minimal, 
-only affected by costs).
+Gets updated right before `pre_segment_func_nb`. Then, gets updated right after `pre_segment_func_nb`.
+If `SimulationContext.update_value`, gets also updated right after `order_func_nb` using 
+filled order price as the latest known price (the difference will be minimal, 
+only affected by costs). Finally, gets updated right before `post_segment_func_nb`.
 """
-__pdoc__['SimulationContext.second_last_value'] = """Second-latest value per column or group with cash sharing.
+__pdoc__['SimulationContext.last_return'] = """Latest return per column (or per group with cash sharing).
 
 Has the same shape as `SimulationContext.last_value`.
 
-Contains the latest known value two rows before (`i - 2`) to be compared either with the latest known value 
-one row before (`i - 1`) or now (`i`).
-
-Gets updated at the end of each segment/row. 
-"""
-__pdoc__['SimulationContext.last_return'] = """Latest return per column or group with cash sharing.
-
-Has the same shape as `SimulationContext.last_value`.
-
-Calculated by comparing `SimulationContext.last_value` to `SimulationContext.second_last_value`.
+Calculated by comparing the current `SimulationContext.last_value` to the last one of the previous row.
 
 Gets updated each time `SimulationContext.last_value` is updated.
 """
@@ -1022,19 +1023,21 @@ Has shape `(target_shape[1],)`.
 The array is initialized with empty records first (they contain random data)
 and the field `id` is set to -1. Once the first position is entered in a column,
 the `id` becomes 0 and the record materializes. Once the position is closed, the record
-fixes its identifier and other data until the next position is entered. 
+fixates its identifier and other data until the next position is entered. 
+
+If `SimulationContext.init_positions` is not zero in a column, that column's position record
+is automatically filled before the simulation with `entry_price` of NaN and `entry_idx` of -1.
+Once a non-NaN price such as the opening price is discovered, the entry price gets substituted by this price.
 
 The fields `entry_price` and `exit_price` are average entry and exit price respectively.
-The fields `pnl` and `return` contain statistics as if the position has been closed and are 
-re-calculated using `SimulationContext.last_val_price` after `pre_segment_func_nb` 
-(in case `SimulationContext.last_val_price` has been overridden) and before `post_segment_func_nb`.
+The average exit price does **not** contain open statistics, as opposed to `vectorbt.portfolio.trades.Positions`.
+On the other hand, fields `pnl` and `return` contain statistics as if the position has been closed and are 
+re-calculated using `SimulationContext.last_val_price` right before and after `pre_segment_func_nb`, 
+right after `order_func_nb`, and right before `post_segment_func_nb`.
 
 !!! note
     In an open position record, the field `exit_price` doesn't reflect the latest valuation price,
     but keeps the average price at which the position has been reduced.
-
-The position record is updated after successfully filling an order (after `order_func_nb` and
-before `post_order_func_nb`).
 
 ## Example
 
@@ -1080,9 +1083,10 @@ Here's order info from `order_func_nb` and the updated position info from `post_
 class GroupContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1102,7 +1106,6 @@ class GroupContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -1161,9 +1164,10 @@ If columns are not grouped, equals to `from_col + 1`.
 class RowContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1183,7 +1187,6 @@ class RowContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -1211,9 +1214,10 @@ Has range `[0, target_shape[0])`.
 class SegmentContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1233,7 +1237,6 @@ class SegmentContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -1281,9 +1284,10 @@ You can use `pre_segment_func_nb` to override `call_seq_now`.
 class OrderContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1303,7 +1307,6 @@ class OrderContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -1362,9 +1365,10 @@ __pdoc__['OrderContext.pos_record_now'] = "`SimulationContext.last_pos_record` f
 class PostOrderContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1384,7 +1388,6 @@ class PostOrderContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d
@@ -1461,9 +1464,10 @@ __pdoc__['PostOrderContext.pos_record_now'] = "`OrderContext.pos_record_now` aft
 class FlexOrderContext(tp.NamedTuple):
     target_shape: tp.Shape
     group_lens: tp.Array1d
-    init_cash: tp.Array1d
     cash_sharing: bool
     call_seq: tp.Optional[tp.Array2d]
+    init_cash: tp.FlexArray
+    init_position: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1483,7 +1487,6 @@ class FlexOrderContext(tp.NamedTuple):
     last_free_cash: tp.Array1d
     last_val_price: tp.Array1d
     last_value: tp.Array1d
-    second_last_value: tp.Array1d
     last_return: tp.Array1d
     last_oidx: tp.Array1d
     last_lidx: tp.Array1d

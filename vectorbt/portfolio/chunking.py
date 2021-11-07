@@ -12,8 +12,11 @@ from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
 from vectorbt.utils.config import Config
 from vectorbt.utils.template import Rep
 
+flex_1d_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper, flex_2d=True)
+"""Flexible 1-dim array slicer along the column axis based on group lengths."""
+
 flex_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper)
-"""Flexible slicer along the column axis based on group lengths."""
+"""Flexible 2-dim array slicer along the column axis based on group lengths."""
 
 
 def get_init_cash_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
@@ -21,7 +24,7 @@ def get_init_cash_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
     cash_sharing = ann_args['cash_sharing']['value']
     if cash_sharing:
         return ArraySlicer(0)
-    return ArraySlicer(0, mapper=group_lens_mapper)
+    return flex_1d_array_gl_slicer
 
 
 def merge_sim_outs(results: tp.List[SimulationOutput],

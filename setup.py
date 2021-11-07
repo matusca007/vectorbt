@@ -62,7 +62,8 @@ setup(
             'ipywidgets>=7.0.0'
         ],
         'stats': [
-            'quantstats'
+            'quantstats',
+            'PyPortfolioOpt'
         ],
         'misc': [
             'python-telegram-bot>=13.4',  # LGPLv3
