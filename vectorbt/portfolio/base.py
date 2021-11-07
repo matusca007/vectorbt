@@ -4732,29 +4732,18 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     # ############# Performance ############# #
 
     @class_or_instancemethod
-    def get_init_value(cls_or_self,
-                       group_by: tp.GroupByLike = None,
-                       fillna_close: tp.Optional[bool] = None,
-                       close: tp.Optional[tp.SeriesFrame] = None,
-                       init_cash: tp.Optional[tp.ArrayLike] = None,
-                       split_shared: bool = False,
-                       init_position: tp.Optional[tp.ArrayLike] = None,
-                       nb_parallel: tp.Optional[bool] = None,
-                       chunked: tp.ChunkedOption = None,
-                       wrapper: tp.Optional[ArrayWrapper] = None,
-                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get initial value per column/group."""
+    def get_init_position_value(cls_or_self,
+                                close: tp.Optional[tp.SeriesFrame] = None,
+                                init_position: tp.Optional[tp.ArrayLike] = None,
+                                wrapper: tp.Optional[ArrayWrapper] = None,
+                                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get initial position value per column/group."""
         if not isinstance(cls_or_self, type):
-            if fillna_close is None:
-                fillna_close = cls_or_self.fillna_close
             if close is None:
-                if fillna_close:
+                if cls_or_self.fillna_close:
                     close = cls_or_self.filled_close
                 else:
                     close = cls_or_self.close
-            if init_cash is None:
-                init_cash = cls_or_self.get_init_cash(
-                    group_by=group_by, split_shared=split_shared, nb_parallel=nb_parallel, chunked=chunked)
             if init_position is None:
                 init_position = cls_or_self.init_position
             if wrapper is None:
@@ -4765,19 +4754,51 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = ArrayWrapper.from_obj(close)
 
+        init_position_value = nb.init_position_value_nb(
+            to_2d_array(close),
+            to_1d_array(init_position)
+        )
+        wrap_kwargs = merge_dicts(dict(name_or_index='init_position_value'), wrap_kwargs)
+        return wrapper.wrap_reduced(init_position_value, group_by=False, **wrap_kwargs)
+
+    @cached_property
+    def init_position_value(self) -> tp.MaybeSeries:
+        """`Portfolio.get_init_position_value` with default arguments."""
+        return self.get_init_position_value()
+
+    @class_or_instancemethod
+    def get_init_value(cls_or_self,
+                       group_by: tp.GroupByLike = None,
+                       init_position_value: tp.Optional[tp.MaybeSeries] = None,
+                       init_cash: tp.Optional[tp.MaybeSeries] = None,
+                       split_shared: bool = False,
+                       nb_parallel: tp.Optional[bool] = None,
+                       chunked: tp.ChunkedOption = None,
+                       wrapper: tp.Optional[ArrayWrapper] = None,
+                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get initial value per column/group."""
+        if not isinstance(cls_or_self, type):
+            if init_position_value is None:
+                init_position_value = cls_or_self.init_position_value
+            if init_cash is None:
+                init_cash = cls_or_self.get_init_cash(
+                    group_by=group_by, split_shared=split_shared, nb_parallel=nb_parallel, chunked=chunked)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        elif wrapper is None:
+            wrapper = ArrayWrapper.from_obj(close)
+
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
             init_value = nb.init_value_grouped_nb(
-                to_2d_array(close),
                 group_lens,
-                to_1d_array(init_cash),
-                to_1d_array(init_position)
+                to_1d_array(init_position_value),
+                to_1d_array(init_cash)
             )
         else:
             init_value = nb.init_value_nb(
-                to_2d_array(close),
-                to_1d_array(init_cash),
-                to_1d_array(init_position)
+                to_1d_array(init_position_value),
+                to_1d_array(init_cash)
             )
         wrap_kwargs = merge_dicts(dict(name_or_index='init_value'), wrap_kwargs)
         return wrapper.wrap_reduced(init_value, group_by=group_by, **wrap_kwargs)
@@ -4791,7 +4812,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def asset_value(cls_or_self,
                     direction: str = 'both',
                     group_by: tp.GroupByLike = None,
-                    fillna_close: tp.Optional[bool] = None,
                     close: tp.Optional[tp.SeriesFrame] = None,
                     assets: tp.Optional[tp.SeriesFrame] = None,
                     nb_parallel: tp.Optional[bool] = None,
@@ -4800,10 +4820,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset value series per column/group."""
         if not isinstance(cls_or_self, type):
-            if fillna_close is None:
-                fillna_close = cls_or_self.fillna_close
             if close is None:
-                if fillna_close:
+                if cls_or_self.fillna_close:
                     close = cls_or_self.filled_close
                 else:
                     close = cls_or_self.close
@@ -4929,7 +4947,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def total_profit(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     fillna_close: tp.Optional[bool] = None,
                      close: tp.Optional[tp.SeriesFrame] = None,
                      orders: tp.Optional[Orders] = None,
                      init_position: tp.Optional[tp.ArrayLike] = None,
@@ -4941,10 +4958,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Calculated directly from order records (fast)."""
         if not isinstance(cls_or_self, type):
-            if fillna_close is None:
-                fillna_close = cls_or_self.fillna_close
             if close is None:
-                if fillna_close:
+                if cls_or_self.fillna_close:
                     close = cls_or_self.filled_close
                 else:
                     close = cls_or_self.close
@@ -5068,8 +5083,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def asset_returns(cls_or_self,
                       group_by: tp.GroupByLike = None,
-                      cash_flow: tp.Optional[tp.SeriesFrame] = None,
+                      init_position_value: tp.Optional[tp.MaybeSeries] = None,
                       asset_value: tp.Optional[tp.SeriesFrame] = None,
+                      cash_flow: tp.Optional[tp.SeriesFrame] = None,
                       nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
@@ -5081,10 +5097,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         cash currently available, even `np.inf`. The scale of returns is comparable to that of going
         all in and keeping available cash at zero."""
         if not isinstance(cls_or_self, type):
-            if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            if init_position_value is None:
+                init_position_value = cls_or_self.init_position_value
             if asset_value is None:
                 asset_value = cls_or_self.asset_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            if cash_flow is None:
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5092,13 +5110,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         func = nb_registry.redecorate_parallel(nb.asset_returns_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
-        asset_returns = func(to_2d_array(cash_flow), to_2d_array(asset_value))
+        asset_returns = func(
+            to_1d_array(init_position_value),
+            to_2d_array(asset_value),
+            to_2d_array(cash_flow)
+        )
         return wrapper.wrap(asset_returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def market_value(cls_or_self,
                      group_by: tp.GroupByLike = None,
-                     fillna_close: tp.Optional[bool] = None,
                      close: tp.Optional[tp.SeriesFrame] = None,
                      init_value: tp.Optional[tp.MaybeSeries] = None,
                      nb_parallel: tp.Optional[bool] = None,
@@ -5112,10 +5133,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         !!! note
             Does not take into account fees and slippage. For this, create a separate portfolio."""
         if not isinstance(cls_or_self, type):
-            if fillna_close is None:
-                fillna_close = cls_or_self.fillna_close
             if close is None:
-                if fillna_close:
+                if cls_or_self.fillna_close:
                     close = cls_or_self.filled_close
                 else:
                     close = cls_or_self.close

@@ -1234,7 +1234,7 @@ class Trades(Ranges):
             size = self_col.get_field_arr('size')
             size_title = self_col.get_field_title('size')
 
-            entry_idx = self_col.get_map_field_to_index('entry_idx')
+            entry_idx = self_col.get_map_field_to_index('entry_idx', minus_one_to_zero=True)
             entry_idx_title = self_col.get_field_title('entry_idx')
 
             entry_price = self_col.get_field_arr('entry_price')

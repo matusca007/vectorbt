@@ -753,8 +753,17 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             mapping = to_mapping(mapping)
         return self.replace(mapped_arr=apply_mapping(self.values, mapping), **kwargs)
 
-    def to_index(self) -> tp.Index:
-        """Convert to index."""
+    def to_index(self, minus_one_to_zero: bool = False) -> tp.Index:
+        """Convert to index.
+
+        If `minus_one_to_zero` is True, index -1 will automatically become 0.
+        Otherwise, will throw an error."""
+        if -1 in self.values:
+            if not minus_one_to_zero:
+                raise ValueError("Cannot get index at position -1")
+            values = self.values.copy()
+            values[-1] = 0
+            return self.wrapper.index[values]
         return self.wrapper.index[self.values]
 
     @class_or_instancemethod

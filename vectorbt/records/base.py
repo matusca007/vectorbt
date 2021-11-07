@@ -687,9 +687,9 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         """Get the mapped array on the field, with mapping applied. Uses `Records.field_config`."""
         return self.get_map_field(field, **kwargs).apply_mapping().values
 
-    def get_map_field_to_index(self, field: str, **kwargs) -> tp.Index:
+    def get_map_field_to_index(self, field: str, minus_one_to_zero: bool = False, **kwargs) -> tp.Index:
         """Get the mapped array on the field, with index applied. Uses `Records.field_config`."""
-        return self.get_map_field(field, **kwargs).to_index()
+        return self.get_map_field(field, **kwargs).to_index(minus_one_to_zero=minus_one_to_zero)
 
     @property
     def id_arr(self) -> tp.Array1d:

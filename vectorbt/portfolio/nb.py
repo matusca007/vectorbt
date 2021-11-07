@@ -1252,8 +1252,7 @@ def prepare_last_cash_nb(target_shape: tp.Shape,
 
 
 @register_jit(cache=True)
-def prepare_last_position_nb(target_shape: tp.Shape,
-                             init_position: tp.FlexArray) -> tp.Array1d:
+def prepare_last_position_nb(target_shape: tp.Shape, init_position: tp.FlexArray) -> tp.Array1d:
     """Prepare `last_position`."""
     last_position = np.empty(target_shape[1], dtype=np.float_)
     for col in range(target_shape[1]):
@@ -4037,6 +4036,15 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
                     last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
 
+            # Update open position stats
+            if fill_pos_record:
+                for col in range(from_col, to_col):
+                    update_open_pos_stats_nb(
+                        last_pos_record[col],
+                        last_position[col],
+                        last_val_price[col]
+                    )
+
             # Is this segment active?
             if call_pre_segment or segment_mask[i, group]:
                 # Call function before the segment
@@ -4846,6 +4854,15 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
                     last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
 
+            # Update open position stats
+            if fill_pos_record:
+                for col in range(from_col, to_col):
+                    update_open_pos_stats_nb(
+                        last_pos_record[col],
+                        last_position[col],
+                        last_val_price[col]
+                    )
+
             # Is this segment active?
             if call_pre_segment or segment_mask[i, group]:
                 # Call function before the segment
@@ -5477,6 +5494,15 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
                     last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+
+            # Update open position stats
+            if fill_pos_record:
+                for col in range(from_col, to_col):
+                    update_open_pos_stats_nb(
+                        last_pos_record[col],
+                        last_position[col],
+                        last_val_price[col]
+                    )
 
             # Is this segment active?
             if call_pre_segment or segment_mask[i, group]:
@@ -6839,7 +6865,21 @@ def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
 )
 @register_jit(cache=True, tags={'can_parallel'})
 def fbfill_close_nb(close: tp.Array2d) -> tp.Array2d:
-    """Forward and backward fill NaN values in close."""
+    """Forward and backward fill NaN values in `close`.
+
+    !!! note
+        If there are no NaN values, will return `close`."""
+    need_fbfill = False
+    for col in range(close.shape[1]):
+        for i in range(close.shape[0]):
+            if np.isnan(close[i, col]):
+                need_fbfill = True
+                break
+        if need_fbfill:
+            break
+    if not need_fbfill:
+        return close
+
     out = np.empty_like(close)
     for col in prange(close.shape[1]):
         last_valid = np.nan
@@ -7410,25 +7450,30 @@ def total_profit_nb(target_shape: tp.Shape,
 
 
 @register_jit(cache=True)
-def init_value_nb(close: tp.Array2d,
-                  init_cash: tp.FlexArray,
-                  init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
-    """Get initial value per column."""
+def init_position_value_nb(close: tp.Array2d, init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
+    """Get initial position value per column."""
     out = np.empty(close.shape[1], dtype=np.float_)
     for col in range(close.shape[1]):
-        _init_cash = flex_select_auto_nb(init_cash, 0, col, True)
-        _init_position = flex_select_auto_nb(init_position, 0, col, True)
-        out[col] = _init_cash + close[0, col] * _init_position
+        out[col] = close[0, col] * flex_select_auto_nb(init_position, 0, col, True)
     return out
 
 
 @register_jit(cache=True)
-def init_value_grouped_nb(close: tp.Array2d,
-                          group_lens: tp.Array1d,
-                          init_cash_grouped: tp.FlexArray,
-                          init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
+def init_value_nb(init_position_value: tp.Array1d, init_cash: tp.FlexArray) -> tp.Array1d:
+    """Get initial value per column."""
+    out = np.empty(len(init_position_value), dtype=np.float_)
+    for col in range(len(init_position_value)):
+        _init_cash = flex_select_auto_nb(init_cash, 0, col, True)
+        out[col] = _init_cash + init_position_value[col]
+    return out
+
+
+@register_jit(cache=True)
+def init_value_grouped_nb(group_lens: tp.Array1d,
+                          init_position_value: tp.Array1d,
+                          init_cash_grouped: tp.FlexArray) -> tp.Array1d:
     """Get initial value per group."""
-    check_group_lens_nb(group_lens, close.shape[1])
+    check_group_lens_nb(group_lens, len(init_position_value))
     out = np.empty(len(group_lens), dtype=np.float_)
 
     from_col = 0
@@ -7436,8 +7481,7 @@ def init_value_grouped_nb(close: tp.Array2d,
         to_col = from_col + group_lens[group]
         group_value = flex_select_auto_nb(init_cash_grouped, 0, group, True)
         for col in range(from_col, to_col):
-            _init_position = flex_select_auto_nb(init_position, 0, col, True)
-            group_value += _init_position * close[0, col]
+            group_value += init_position_value[col]
         out[group] = group_value
         from_col = to_col
     return out
@@ -7517,24 +7561,27 @@ def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cas
 
 
 @register_chunkable(
-    size=ch.ArraySizer('cash_flow', 1),
+    size=ch.ArraySizer('init_position_value', 0),
     arg_take_spec=dict(
-        cash_flow=ch.ArraySlicer(1),
-        asset_value=ch.ArraySlicer(1)
+        init_position_value=ch.ArraySlicer(0),
+        asset_value=ch.ArraySlicer(1),
+        cash_flow=ch.ArraySlicer(1)
     ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
-def asset_returns_nb(cash_flow: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
+def asset_returns_nb(init_position_value: tp.Array1d, asset_value: tp.Array2d, cash_flow: tp.Array2d) -> tp.Array2d:
     """Get asset return series per column/group."""
     out = np.empty_like(cash_flow)
     for col in prange(cash_flow.shape[1]):
         for i in range(cash_flow.shape[0]):
-            out[i, col] = get_asset_return_nb(
-                0. if i == 0 else asset_value[i - 1, col],
-                asset_value[i, col],
-                cash_flow[i, col]
-            )
+            if i == 0:
+                input_asset_value = 0.
+                _cash_flow = cash_flow[i, col] - init_position_value[col]
+            else:
+                input_asset_value = asset_value[i - 1, col]
+                _cash_flow = cash_flow[i, col]
+            out[i, col] = get_asset_return_nb(input_asset_value, asset_value[i, col], _cash_flow)
     return out
 
 
