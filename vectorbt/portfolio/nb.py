@@ -59,7 +59,7 @@ from vectorbt.nb_registry import register_jit
 from vectorbt.portfolio import chunking as portfolio_ch
 from vectorbt.portfolio.enums import *
 from vectorbt.records import chunking as records_ch
-from vectorbt.returns import nb as returns_nb
+from vectorbt.returns import nb as returns_nb_
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.array_ import insert_argsort_nb
 from vectorbt.utils.math_ import (
@@ -1486,6 +1486,7 @@ def update_pos_record_nb(record: tp.Record,
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         init_cash=ch.ArraySlicer(0),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=base_ch.FlexArraySlicer(1),
         size=portfolio_ch.flex_array_gl_slicer,
         price=portfolio_ch.flex_array_gl_slicer,
         size_type=portfolio_ch.flex_array_gl_slicer,
@@ -1522,6 +1523,7 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
                             call_seq: tp.Array2d,
                             init_cash: tp.FlexArray = np.asarray(100.),
                             init_position: tp.FlexArray = np.asarray(0.),
+                            cash_deposits: tp.FlexArray = np.asarray(0.),
                             size: tp.FlexArray = np.asarray(np.inf),
                             price: tp.FlexArray = np.asarray(np.inf),
                             size_type: tp.FlexArray = np.asarray(SizeType.Amount),
@@ -1610,6 +1612,11 @@ def simulate_from_orders_nb(target_shape: tp.Shape,
         free_cash_now = cash_now
 
         for i in range(target_shape[0]):
+            # Add cash
+            _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+            cash_now += _cash_deposits
+            free_cash_now += _cash_deposits
+
             for k in range(group_len):
                 col = from_col + k
 
@@ -2081,6 +2088,7 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         init_cash=ch.ArraySlicer(0),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=base_ch.FlexArraySlicer(1),
         signal_func_nb=None,
         signal_args=ch.ArgsTaker(),
         size=portfolio_ch.flex_array_gl_slicer,
@@ -2135,6 +2143,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  call_seq: tp.Array2d,
                                  init_cash: tp.FlexArray = np.asarray(100.),
                                  init_position: tp.FlexArray = np.asarray(0.),
+                                 cash_deposits: tp.FlexArray = np.asarray(0.),
                                  signal_func_nb: SignalFuncT = no_signal_func_nb,
                                  signal_args: tp.ArgsLike = (),
                                  size: tp.FlexArray = np.asarray(np.inf),
@@ -2283,6 +2292,11 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
         free_cash_now = cash_now
 
         for i in range(target_shape[0]):
+            # Add cash
+            _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+            cash_now += _cash_deposits
+            free_cash_now += _cash_deposits
+
             for k in range(group_len):
                 col = from_col + k
 
@@ -2758,6 +2772,7 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         segment_mask=base_ch.FlexArraySlicer(1),
         call_pre_segment=None,
         call_post_segment=None,
@@ -2797,6 +2812,7 @@ def simulate_nb(target_shape: tp.Shape,
                 call_seq: tp.Array2d,
                 init_cash: tp.FlexArray = np.asarray(100.),
                 init_position: tp.FlexArray = np.asarray(0.),
+                cash_deposits: tp.FlexArray = np.asarray(0.),
                 segment_mask: tp.FlexArray = np.asarray(True),
                 call_pre_segment: bool = False,
                 call_post_segment: bool = False,
@@ -2842,8 +2858,9 @@ def simulate_nb(target_shape: tp.Shape,
         group_lens (array_like of int): See `vectorbt.portfolio.enums.SimulationContext.group_lens`.
         cash_sharing (bool): See `vectorbt.portfolio.enums.SimulationContext.cash_sharing`.
         call_seq (array_like of int): See `vectorbt.portfolio.enums.SimulationContext.call_seq`.
-        init_cash (array_like of float): Initial capital per column, or per group with cash sharing.
-        init_position (array_like of float): Initial position per column.
+        init_cash (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.init_cash`.
+        init_position (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.init_position`.
+        cash_deposits (array_like of float): See `vectorbt.portfolio.enums.SimulationContext.cash_deposits`.
         segment_mask (array_like of bool): See `vectorbt.portfolio.enums.SimulationContext.segment_mask`.
         call_pre_segment (bool): See `vectorbt.portfolio.enums.SimulationContext.call_pre_segment`.
         call_post_segment (bool): See `vectorbt.portfolio.enums.SimulationContext.call_post_segment`.
@@ -3187,6 +3204,7 @@ def simulate_nb(target_shape: tp.Shape,
     last_value = prepare_last_value_nb(target_shape, group_lens, cash_sharing, init_cash, init_position)
     last_pos_record = prepare_last_pos_record_nb(target_shape, init_position, fill_pos_record)
 
+    last_cash_deposits = np.full_like(last_cash, 0.)
     last_val_price = np.full_like(last_position, np.nan)
     last_debt = np.full_like(last_position, 0.)
     last_free_cash = last_cash.copy()
@@ -3206,6 +3224,7 @@ def simulate_nb(target_shape: tp.Shape,
         call_seq=call_seq,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -3245,6 +3264,7 @@ def simulate_nb(target_shape: tp.Shape,
             call_seq=call_seq,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -3293,14 +3313,14 @@ def simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
 
             # Update open position stats
             if fill_pos_record:
@@ -3312,7 +3332,8 @@ def simulate_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_pre_segment or segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if call_pre_segment or is_segment_active:
                 # Call function before the segment
                 pre_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -3321,6 +3342,7 @@ def simulate_nb(target_shape: tp.Shape,
                     call_seq=call_seq,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -3353,6 +3375,19 @@ def simulate_nb(target_shape: tp.Shape,
                 )
                 pre_segment_out = pre_segment_func_nb(pre_seg_ctx, *pre_group_out, *pre_segment_args)
 
+            # Add cash
+            if cash_sharing:
+                _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+                last_cash[group] += _cash_deposits
+                last_free_cash[group] += _cash_deposits
+                last_cash_deposits[group] = _cash_deposits
+            else:
+                for col in range(from_col, to_col):
+                    _cash_deposits = flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+                    last_cash[col] += _cash_deposits
+                    last_free_cash[col] += _cash_deposits
+                    last_cash_deposits[col] = _cash_deposits
+
             # Update value and return
             if cash_sharing:
                 last_value[group] = get_group_value_nb(
@@ -3362,14 +3397,20 @@ def simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group],
+                    last_value[group] - last_cash_deposits[group]
+                )
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col],
+                        last_value[col] - last_cash_deposits[col]
+                    )
 
             # Update open position stats
             if fill_pos_record:
@@ -3381,7 +3422,7 @@ def simulate_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if segment_mask[i, group]:
+            if is_segment_active:
 
                 for k in range(group_len):
                     col_i = call_seq_now[k]
@@ -3399,11 +3440,13 @@ def simulate_nb(target_shape: tp.Shape,
                         free_cash_now = last_free_cash[group]
                         value_now = last_value[group]
                         return_now = last_return[group]
+                        cash_deposits_now = last_cash_deposits[group]
                     else:
                         cash_now = last_cash[col]
                         free_cash_now = last_free_cash[col]
                         value_now = last_value[col]
                         return_now = last_return[col]
+                        cash_deposits_now = last_cash_deposits[col]
 
                     # Generate the next order
                     order_ctx = OrderContext(
@@ -3413,6 +3456,7 @@ def simulate_nb(target_shape: tp.Shape,
                         call_seq=call_seq,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -3492,9 +3536,15 @@ def simulate_nb(target_shape: tp.Shape,
                     val_price_now = new_state.val_price
                     value_now = new_state.value
                     if cash_sharing:
-                        return_now = returns_nb.get_return_nb(prev_close_value[group], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[group],
+                            value_now - cash_deposits_now
+                        )
                     else:
-                        return_now = returns_nb.get_return_nb(prev_close_value[col], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            value_now - cash_deposits_now
+                        )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -3529,6 +3579,7 @@ def simulate_nb(target_shape: tp.Shape,
                         call_seq=call_seq,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -3594,7 +3645,10 @@ def simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group],
+                    last_value[group] - last_cash_deposits[group]
+                )
                 prev_close_value[group] = last_value[group]
             else:
                 for col in range(from_col, to_col):
@@ -3602,7 +3656,10 @@ def simulate_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col],
+                        last_value[col] - last_cash_deposits[col]
+                    )
                     prev_close_value[col] = last_value[col]
 
             # Update open position stats
@@ -3615,7 +3672,7 @@ def simulate_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_post_segment or segment_mask[i, group]:
+            if call_post_segment or is_segment_active:
                 # Call function before the segment
                 post_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -3624,6 +3681,7 @@ def simulate_nb(target_shape: tp.Shape,
                     call_seq=call_seq,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -3664,6 +3722,7 @@ def simulate_nb(target_shape: tp.Shape,
             call_seq=call_seq,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -3702,6 +3761,7 @@ def simulate_nb(target_shape: tp.Shape,
         call_seq=call_seq,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -3740,6 +3800,7 @@ def simulate_nb(target_shape: tp.Shape,
         call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         segment_mask=base_ch.FlexArraySlicer(1),
         call_pre_segment=None,
         call_post_segment=None,
@@ -3779,6 +3840,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          call_seq: tp.Array2d,
                          init_cash: tp.FlexArray = np.asarray(100.),
                          init_position: tp.FlexArray = np.asarray(0.),
+                         cash_deposits: tp.FlexArray = np.asarray(0.),
                          segment_mask: tp.FlexArray = np.asarray(True),
                          call_pre_segment: bool = False,
                          call_post_segment: bool = False,
@@ -3924,6 +3986,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     last_value = prepare_last_value_nb(target_shape, group_lens, cash_sharing, init_cash, init_position)
     last_pos_record = prepare_last_pos_record_nb(target_shape, init_position, fill_pos_record)
 
+    last_cash_deposits = np.full_like(last_cash, 0.)
     last_val_price = np.full_like(last_position, np.nan)
     last_debt = np.full_like(last_position, 0.)
     last_free_cash = last_cash.copy()
@@ -3943,6 +4006,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         call_seq=call_seq,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -3979,6 +4043,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             call_seq=call_seq,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -4027,14 +4092,14 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
 
             # Update open position stats
             if fill_pos_record:
@@ -4046,7 +4111,8 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_pre_segment or segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if call_pre_segment or is_segment_active:
                 # Call function before the segment
                 pre_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -4055,6 +4121,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     call_seq=call_seq,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4087,6 +4154,19 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                 )
                 pre_segment_out = pre_segment_func_nb(pre_seg_ctx, *pre_row_out, *pre_segment_args)
 
+            # Add cash
+            if cash_sharing:
+                _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+                last_cash[group] += _cash_deposits
+                last_free_cash[group] += _cash_deposits
+                last_cash_deposits[group] = _cash_deposits
+            else:
+                for col in range(from_col, to_col):
+                    _cash_deposits = flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+                    last_cash[col] += _cash_deposits
+                    last_free_cash[col] += _cash_deposits
+                    last_cash_deposits[col] = _cash_deposits
+
             # Update open position stats
             if fill_pos_record:
                 for col in range(from_col, to_col):
@@ -4105,17 +4185,23 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
 
             # Is this segment active?
-            if segment_mask[i, group]:
+            if is_segment_active:
 
                 for k in range(group_len):
                     col_i = call_seq_now[k]
@@ -4133,11 +4219,13 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         free_cash_now = last_free_cash[group]
                         value_now = last_value[group]
                         return_now = last_return[group]
+                        cash_deposits_now = last_cash_deposits[group]
                     else:
                         cash_now = last_cash[col]
                         free_cash_now = last_free_cash[col]
                         value_now = last_value[col]
                         return_now = last_return[col]
+                        cash_deposits_now = last_cash_deposits[col]
 
                     # Generate the next order
                     order_ctx = OrderContext(
@@ -4147,6 +4235,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         call_seq=call_seq,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -4226,9 +4315,15 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     val_price_now = new_state.val_price
                     value_now = new_state.value
                     if cash_sharing:
-                        return_now = returns_nb.get_return_nb(prev_close_value[group], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[group],
+                            value_now - cash_deposits_now
+                        )
                     else:
-                        return_now = returns_nb.get_return_nb(prev_close_value[col], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            value_now - cash_deposits_now
+                        )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -4263,6 +4358,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         call_seq=call_seq,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -4328,7 +4424,10 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
                 prev_close_value[group] = last_value[group]
             else:
                 for col in range(from_col, to_col):
@@ -4336,7 +4435,10 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
                     prev_close_value[col] = last_value[col]
 
             # Update open position stats
@@ -4349,7 +4451,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_post_segment or segment_mask[i, group]:
+            if call_post_segment or is_segment_active:
                 # Call function after the segment
                 post_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -4358,6 +4460,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     call_seq=call_seq,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4398,6 +4501,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             call_seq=call_seq,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -4433,6 +4537,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         call_seq=call_seq,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -4479,6 +4584,7 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
         cash_sharing=None,
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         segment_mask=base_ch.FlexArraySlicer(1),
         call_pre_segment=None,
         call_post_segment=None,
@@ -4517,6 +4623,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      cash_sharing: bool,
                      init_cash: tp.FlexArray = np.asarray(100.),
                      init_position: tp.FlexArray = np.asarray(0.),
+                     cash_deposits: tp.FlexArray = np.asarray(0.),
                      segment_mask: tp.FlexArray = np.asarray(True),
                      call_pre_segment: bool = False,
                      call_post_segment: bool = False,
@@ -4740,6 +4847,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     last_value = prepare_last_value_nb(target_shape, group_lens, cash_sharing, init_cash, init_position)
     last_pos_record = prepare_last_pos_record_nb(target_shape, init_position, fill_pos_record)
 
+    last_cash_deposits = np.full_like(last_cash, 0.)
     last_val_price = np.full_like(last_position, np.nan)
     last_debt = np.full_like(last_position, 0.)
     last_free_cash = last_cash.copy()
@@ -4759,6 +4867,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         call_seq=None,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -4798,6 +4907,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
             call_seq=None,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -4845,14 +4955,14 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
 
             # Update open position stats
             if fill_pos_record:
@@ -4864,7 +4974,8 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_pre_segment or segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if call_pre_segment or is_segment_active:
                 # Call function before the segment
                 pre_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -4873,6 +4984,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     call_seq=None,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4905,6 +5017,19 @@ def flex_simulate_nb(target_shape: tp.Shape,
                 )
                 pre_segment_out = pre_segment_func_nb(pre_seg_ctx, *pre_group_out, *pre_segment_args)
 
+            # Add cash
+            if cash_sharing:
+                _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+                last_cash[group] += _cash_deposits
+                last_free_cash[group] += _cash_deposits
+                last_cash_deposits[group] = _cash_deposits
+            else:
+                for col in range(from_col, to_col):
+                    _cash_deposits = flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+                    last_cash[col] += _cash_deposits
+                    last_free_cash[col] += _cash_deposits
+                    last_cash_deposits[col] = _cash_deposits
+
             # Update open position stats
             if fill_pos_record:
                 for col in range(from_col, to_col):
@@ -4923,17 +5048,24 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
 
             # Is this segment active?
-            if segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if is_segment_active:
 
                 call_idx = -1
                 while True:
@@ -4947,6 +5079,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         call_seq=None,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -4995,11 +5128,13 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         free_cash_now = last_free_cash[group]
                         value_now = last_value[group]
                         return_now = last_return[group]
+                        cash_deposits_now = last_cash_deposits[group]
                     else:
                         cash_now = last_cash[col]
                         free_cash_now = last_free_cash[col]
                         value_now = last_value[col]
                         return_now = last_return[col]
+                        cash_deposits_now = last_cash_deposits[col]
 
                     # Process the order
                     price_area = PriceArea(
@@ -5038,9 +5173,15 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     val_price_now = new_state.val_price
                     value_now = new_state.value
                     if cash_sharing:
-                        return_now = returns_nb.get_return_nb(prev_close_value[group], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[group],
+                            value_now - cash_deposits_now
+                        )
                     else:
-                        return_now = returns_nb.get_return_nb(prev_close_value[col], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            value_now - cash_deposits_now
+                        )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -5075,6 +5216,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         call_seq=None,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -5140,7 +5282,10 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
                 prev_close_value[group] = last_value[group]
             else:
                 for col in range(from_col, to_col):
@@ -5148,7 +5293,10 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
                     prev_close_value[col] = last_value[col]
 
             # Update open position stats
@@ -5161,7 +5309,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_post_segment or segment_mask[i, group]:
+            if call_post_segment or is_segment_active:
                 # Call function before the segment
                 post_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -5170,6 +5318,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     call_seq=None,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -5210,6 +5359,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
             call_seq=None,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -5248,6 +5398,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         call_seq=None,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -5285,6 +5436,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         cash_sharing=None,
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         segment_mask=base_ch.FlexArraySlicer(1),
         call_pre_segment=None,
         call_post_segment=None,
@@ -5323,6 +5475,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               cash_sharing: bool,
                               init_cash: tp.FlexArray = np.asarray(100.),
                               init_position: tp.FlexArray = np.asarray(0.),
+                              cash_deposits: tp.FlexArray = np.asarray(0.),
                               segment_mask: tp.FlexArray = np.asarray(True),
                               call_pre_segment: bool = False,
                               call_post_segment: bool = False,
@@ -5384,6 +5537,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
     last_value = prepare_last_value_nb(target_shape, group_lens, cash_sharing, init_cash, init_position)
     last_pos_record = prepare_last_pos_record_nb(target_shape, init_position, fill_pos_record)
 
+    last_cash_deposits = np.full_like(last_cash, 0.)
     last_val_price = np.full_like(last_position, np.nan)
     last_debt = np.full_like(last_position, 0.)
     last_free_cash = last_cash.copy()
@@ -5403,6 +5557,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         call_seq=None,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -5439,6 +5594,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             call_seq=None,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -5486,14 +5642,14 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
 
             # Update open position stats
             if fill_pos_record:
@@ -5505,7 +5661,8 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_pre_segment or segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if call_pre_segment or is_segment_active:
                 # Call function before the segment
                 pre_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -5514,6 +5671,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     call_seq=None,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -5546,6 +5704,19 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                 )
                 pre_segment_out = pre_segment_func_nb(pre_seg_ctx, *pre_row_out, *pre_segment_args)
 
+            # Add cash
+            if cash_sharing:
+                _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+                last_cash[group] += _cash_deposits
+                last_free_cash[group] += _cash_deposits
+                last_cash_deposits[group] = _cash_deposits
+            else:
+                for col in range(from_col, to_col):
+                    _cash_deposits = flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+                    last_cash[col] += _cash_deposits
+                    last_free_cash[col] += _cash_deposits
+                    last_cash_deposits[col] = _cash_deposits
+
             # Update open position stats
             if fill_pos_record:
                 for col in range(from_col, to_col):
@@ -5564,17 +5735,24 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
             else:
                 for col in range(from_col, to_col):
                     if last_position[col] == 0:
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
 
             # Is this segment active?
-            if segment_mask[i, group]:
+            is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
+            if is_segment_active:
 
                 call_idx = -1
                 while True:
@@ -5588,6 +5766,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         call_seq=None,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -5636,11 +5815,13 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         free_cash_now = last_free_cash[group]
                         value_now = last_value[group]
                         return_now = last_return[group]
+                        cash_deposits_now = last_cash_deposits[group]
                     else:
                         cash_now = last_cash[col]
                         free_cash_now = last_free_cash[col]
                         value_now = last_value[col]
                         return_now = last_return[col]
+                        cash_deposits_now = last_cash_deposits[col]
 
                     # Process the order
                     price_area = PriceArea(
@@ -5679,9 +5860,15 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     val_price_now = new_state.val_price
                     value_now = new_state.value
                     if cash_sharing:
-                        return_now = returns_nb.get_return_nb(prev_close_value[group], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[group],
+                            value_now - cash_deposits_now
+                        )
                     else:
-                        return_now = returns_nb.get_return_nb(prev_close_value[col], value_now)
+                        return_now = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            value_now - cash_deposits_now
+                        )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -5716,6 +5903,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         call_seq=None,
                         init_cash=init_cash,
                         init_position=init_position,
+                        cash_deposits=cash_deposits,
                         segment_mask=segment_mask,
                         call_pre_segment=call_pre_segment,
                         call_post_segment=call_post_segment,
@@ -5781,7 +5969,10 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     last_position,
                     last_val_price
                 )
-                last_return[group] = returns_nb.get_return_nb(prev_close_value[group], last_value[group])
+                last_return[group] = returns_nb_.get_return_nb(
+                    prev_close_value[group], 
+                    last_value[group] - last_cash_deposits[group]
+                )
                 prev_close_value[group] = last_value[group]
             else:
                 for col in range(from_col, to_col):
@@ -5789,7 +5980,10 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         last_value[col] = last_cash[col]
                     else:
                         last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb.get_return_nb(prev_close_value[col], last_value[col])
+                    last_return[col] = returns_nb_.get_return_nb(
+                        prev_close_value[col], 
+                        last_value[col] - last_cash_deposits[col]
+                    )
                     prev_close_value[col] = last_value[col]
 
             # Update open position stats
@@ -5802,7 +5996,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     )
 
             # Is this segment active?
-            if call_post_segment or segment_mask[i, group]:
+            if call_post_segment or is_segment_active:
                 # Call function after the segment
                 post_seg_ctx = SegmentContext(
                     target_shape=target_shape,
@@ -5811,6 +6005,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     call_seq=None,
                     init_cash=init_cash,
                     init_position=init_position,
+                    cash_deposits=cash_deposits,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -5851,6 +6046,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             call_seq=None,
             init_cash=init_cash,
             init_position=init_position,
+            cash_deposits=cash_deposits,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -5886,6 +6082,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         call_seq=None,
         init_cash=init_cash,
         init_position=init_position,
+        cash_deposits=cash_deposits,
         segment_mask=segment_mask,
         call_pre_segment=call_pre_segment,
         call_post_segment=call_post_segment,
@@ -6160,7 +6357,12 @@ def get_entry_trades_nb(order_records: tp.RecordArray,
             else:
                 direction = TradeDirection.Short
             entry_size_sum = abs(_init_position)
-            entry_gross_sum = abs(_init_position) * close[0, col]
+            init_price = np.nan
+            for i in range(close.shape[0]):
+                if not np.isnan(close[i, col]):
+                    init_price = close[i, col]
+                    break
+            entry_gross_sum = abs(_init_position) * init_price
             entry_fees_sum = 0.
             exit_size_sum = 0.
             exit_gross_sum = 0.
@@ -6432,7 +6634,12 @@ def get_exit_trades_nb(order_records: tp.RecordArray,
             else:
                 direction = TradeDirection.Short
             entry_size_sum = abs(_init_position)
-            entry_gross_sum = abs(_init_position) * close[0, col]
+            init_price = np.nan
+            for i in range(close.shape[0]):
+                if not np.isnan(close[i, col]):
+                    init_price = close[i, col]
+                    break
+            entry_gross_sum = abs(_init_position) * init_price
             entry_fees_sum = 0.
         else:
             in_position = False
@@ -6933,6 +7140,7 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
         target_shape=ch.ShapeSlicer(1),
         order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
+        init_position=base_ch.FlexArraySlicer(1, flex_2d=True),
         direction=None
     ),
     merge_func=base_ch.column_stack
@@ -6941,6 +7149,7 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
 def asset_flow_nb(target_shape: tp.Shape,
                   order_records: tp.RecordArray,
                   col_map: tp.ColMap,
+                  init_position: tp.FlexArray = np.asarray(0.),
                   direction: int = Direction.Both) -> tp.Array2d:
     """Get asset flow series per column.
 
@@ -6954,7 +7163,7 @@ def asset_flow_nb(target_shape: tp.Shape,
         if col_len == 0:
             continue
         last_id = -1
-        position_now = 0.
+        position_now = flex_select_auto_nb(init_position, 0, col, True)
 
         for c in range(col_len):
             order_record = order_records[col_idxs[col_start_idxs[col] + c]]
@@ -7230,15 +7439,97 @@ def init_cash_nb(init_cash: tp.FlexArray, group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('cash_flow', 1),
+    size=ch.ArraySizer('group_lens', 0),
     arg_take_spec=dict(
-        cash_flow=ch.ArraySlicer(1),
-        init_cash=base_ch.FlexArraySlicer(1, flex_2d=True)
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
+        group_lens=ch.ArraySlicer(0),
+        cash_sharing=None,
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
-def cash_nb(cash_flow: tp.Array2d, init_cash: tp.FlexArray) -> tp.Array2d:
+def cash_deposits_grouped_nb(target_shape: tp.Shape,
+                             cash_deposits: tp.FlexArray,
+                             group_lens: tp.Array1d,
+                             cash_sharing: bool,
+                             flex_2d: bool = False) -> tp.Array2d:
+    """Get cash deposit series per group."""
+    out = np.empty((target_shape[0], len(group_lens)), dtype=np.float_)
+    if cash_sharing:
+        for group in prange(len(group_lens)):
+            for i in range(target_shape[0]):
+                out[i, group] = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+    else:
+        from_col = 0
+        for group in prange(len(group_lens)):
+            to_col = from_col + group_lens[group]
+            for i in range(target_shape[0]):
+                cash_sum = 0.
+                for col in range(from_col, to_col):
+                    cash_sum += flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+                out[i, group] = cash_sum
+            from_col = to_col
+    return out
+
+
+@register_chunkable(
+    size=ch.ArraySizer('group_lens', 0),
+    arg_take_spec=dict(
+        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
+        group_lens=ch.ArraySlicer(0),
+        cash_sharing=None,
+        split_shared=None,
+        flex_2d=None
+    ),
+    merge_func=base_ch.column_stack
+)
+@register_jit(cache=True, tags={'can_parallel'})
+def cash_deposits_nb(target_shape: tp.Shape,
+                     cash_deposits: tp.FlexArray,
+                     group_lens: tp.Array1d,
+                     cash_sharing: bool,
+                     split_shared: bool = False,
+                     flex_2d: bool = False) -> tp.Array2d:
+    """Get cash deposit series per column."""
+    out = np.empty(target_shape, dtype=np.float_)
+    if not cash_sharing:
+        for col in prange(target_shape[1]):
+            for i in range(target_shape[0]):
+                out[i, col] = flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+    else:
+        from_col = 0
+        for group in prange(len(group_lens)):
+            to_col = from_col + group_lens[group]
+            group_len = to_col - from_col
+            for i in range(target_shape[0]):
+                _cash_deposits = flex_select_auto_nb(cash_deposits, i, group, flex_2d)
+                for col in range(from_col, to_col):
+                    if split_shared:
+                        out[i, col] = _cash_deposits / group_len
+                    else:
+                        out[i, col] = _cash_deposits
+            from_col = to_col
+    return out
+
+
+@register_chunkable(
+    size=ch.ArraySizer('cash_flow', 1),
+    arg_take_spec=dict(
+        cash_flow=ch.ArraySlicer(1),
+        init_cash=base_ch.FlexArraySlicer(1, flex_2d=True),
+        cash_deposits=base_ch.FlexArraySlicer(1),
+        flex_2d=None
+    ),
+    merge_func=base_ch.column_stack
+)
+@register_jit(cache=True, tags={'can_parallel'})
+def cash_nb(cash_flow: tp.Array2d,
+            init_cash: tp.FlexArray,
+            cash_deposits: tp.FlexArray = np.asarray(0.),
+            flex_2d: bool = False) -> tp.Array2d:
     """Get cash series per column."""
     out = np.empty_like(cash_flow)
     for col in prange(cash_flow.shape[1]):
@@ -7247,7 +7538,9 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.FlexArray) -> tp.Array2d:
                 cash_now = flex_select_auto_nb(init_cash, 0, col, True)
             else:
                 cash_now = out[i - 1, col]
-            out[i, col] = add_nb(cash_now, cash_flow[i, col])
+            cash_now = add_nb(cash_now, flex_select_auto_nb(cash_deposits, i, col, flex_2d))
+            cash_now = add_nb(cash_now, cash_flow[i, col])
+            out[i, col] = cash_now
     return out
 
 
@@ -7257,7 +7550,9 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.FlexArray) -> tp.Array2d:
         cash_flow=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
         init_cash_grouped=base_ch.FlexArraySlicer(1, flex_2d=True),
-        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        cash_deposits_grouped=base_ch.FlexArraySlicer(1),
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
@@ -7265,7 +7560,9 @@ def cash_nb(cash_flow: tp.Array2d, init_cash: tp.FlexArray) -> tp.Array2d:
 def cash_in_sim_order_nb(cash_flow: tp.Array2d,
                          group_lens: tp.Array1d,
                          init_cash_grouped: tp.FlexArray,
-                         call_seq: tp.Array2d) -> tp.Array2d:
+                         call_seq: tp.Array2d,
+                         cash_deposits_grouped: tp.FlexArray = np.asarray(0.),
+                         flex_2d: bool = False) -> tp.Array2d:
     """Get cash series in simulation order."""
     check_group_lens_nb(group_lens, cash_flow.shape[1])
     out = np.empty_like(cash_flow)
@@ -7277,6 +7574,7 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
         to_col = group_end_idxs[group]
         cash_now = flex_select_auto_nb(init_cash_grouped, 0, group, True)
         for i in range(cash_flow.shape[0]):
+            cash_now = add_nb(cash_now, flex_select_auto_nb(cash_deposits_grouped, i, group, flex_2d))
             for k in range(to_col - from_col):
                 col = from_col + call_seq[i, from_col + k]
                 cash_now = add_nb(cash_now, cash_flow[i, col])
@@ -7290,7 +7588,9 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
         target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
         cash_flow_grouped=ch.ArraySlicer(1),
         group_lens=ch.ArraySlicer(0),
-        init_cash_grouped=base_ch.FlexArraySlicer(1, flex_2d=True)
+        init_cash_grouped=base_ch.FlexArraySlicer(1, flex_2d=True),
+        cash_deposits_grouped=base_ch.FlexArraySlicer(1),
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
@@ -7298,7 +7598,9 @@ def cash_in_sim_order_nb(cash_flow: tp.Array2d,
 def cash_grouped_nb(target_shape: tp.Shape,
                     cash_flow_grouped: tp.Array2d,
                     group_lens: tp.Array1d,
-                    init_cash_grouped: tp.FlexArray) -> tp.Array2d:
+                    init_cash_grouped: tp.FlexArray,
+                    cash_deposits_grouped: tp.FlexArray = np.asarray(0.),
+                    flex_2d: bool = False) -> tp.Array2d:
     """Get cash series per group."""
     check_group_lens_nb(group_lens, target_shape[1])
     out = np.empty_like(cash_flow_grouped)
@@ -7307,12 +7609,51 @@ def cash_grouped_nb(target_shape: tp.Shape,
         cash_now = flex_select_auto_nb(init_cash_grouped, 0, group, True)
         for i in range(cash_flow_grouped.shape[0]):
             flow_value = cash_flow_grouped[i, group]
+            cash_now = add_nb(cash_now, flex_select_auto_nb(cash_deposits_grouped, i, group, flex_2d))
             cash_now = add_nb(cash_now, flow_value)
             out[i, group] = cash_now
     return out
 
 
 # ############# Performance ############# #
+
+
+@register_jit(cache=True)
+def init_position_value_nb(close: tp.Array2d, init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
+    """Get initial position value per column."""
+    out = np.empty(close.shape[1], dtype=np.float_)
+    for col in range(close.shape[1]):
+        out[col] = close[0, col] * flex_select_auto_nb(init_position, 0, col, True)
+    return out
+
+
+@register_jit(cache=True)
+def init_value_nb(init_position_value: tp.Array1d, init_cash: tp.FlexArray) -> tp.Array1d:
+    """Get initial value per column."""
+    out = np.empty(len(init_position_value), dtype=np.float_)
+    for col in range(len(init_position_value)):
+        _init_cash = flex_select_auto_nb(init_cash, 0, col, True)
+        out[col] = _init_cash + init_position_value[col]
+    return out
+
+
+@register_jit(cache=True)
+def init_value_grouped_nb(group_lens: tp.Array1d,
+                          init_position_value: tp.Array1d,
+                          init_cash_grouped: tp.FlexArray) -> tp.Array1d:
+    """Get initial value per group."""
+    check_group_lens_nb(group_lens, len(init_position_value))
+    out = np.empty(len(group_lens), dtype=np.float_)
+
+    from_col = 0
+    for group in range(len(group_lens)):
+        to_col = from_col + group_lens[group]
+        group_value = flex_select_auto_nb(init_cash_grouped, 0, group, True)
+        for col in range(from_col, to_col):
+            group_value += init_position_value[col]
+        out[group] = group_value
+        from_col = to_col
+    return out
 
 
 @register_jit(cache=True)
@@ -7325,6 +7666,29 @@ def asset_value_nb(close: tp.Array2d, assets: tp.Array2d) -> tp.Array2d:
 def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get asset value series per group."""
     return sum_grouped_nb(asset_value, group_lens)
+
+
+@register_chunkable(
+    size=ch.ArraySizer('asset_value', 1),
+    arg_take_spec=dict(
+        asset_value=ch.ArraySlicer(1),
+        cash=ch.ArraySlicer(1)
+    ),
+    merge_func=base_ch.column_stack
+)
+@register_jit(cache=True, tags={'can_parallel'})
+def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
+    """Get gross exposure per column/group."""
+    out = np.empty(asset_value.shape, dtype=np.float_)
+    for col in prange(asset_value.shape[1]):
+        for i in range(asset_value.shape[0]):
+            denom = add_nb(asset_value[i, col], cash[i, col])
+            if denom == 0:
+                out[i, col] = 0.
+            else:
+                out[i, col] = asset_value[i, col] / denom
+    return out
+
 
 
 @register_chunkable(
@@ -7450,44 +7814,6 @@ def total_profit_nb(target_shape: tp.Shape,
 
 
 @register_jit(cache=True)
-def init_position_value_nb(close: tp.Array2d, init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
-    """Get initial position value per column."""
-    out = np.empty(close.shape[1], dtype=np.float_)
-    for col in range(close.shape[1]):
-        out[col] = close[0, col] * flex_select_auto_nb(init_position, 0, col, True)
-    return out
-
-
-@register_jit(cache=True)
-def init_value_nb(init_position_value: tp.Array1d, init_cash: tp.FlexArray) -> tp.Array1d:
-    """Get initial value per column."""
-    out = np.empty(len(init_position_value), dtype=np.float_)
-    for col in range(len(init_position_value)):
-        _init_cash = flex_select_auto_nb(init_cash, 0, col, True)
-        out[col] = _init_cash + init_position_value[col]
-    return out
-
-
-@register_jit(cache=True)
-def init_value_grouped_nb(group_lens: tp.Array1d,
-                          init_position_value: tp.Array1d,
-                          init_cash_grouped: tp.FlexArray) -> tp.Array1d:
-    """Get initial value per group."""
-    check_group_lens_nb(group_lens, len(init_position_value))
-    out = np.empty(len(group_lens), dtype=np.float_)
-
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
-        group_value = flex_select_auto_nb(init_cash_grouped, 0, group, True)
-        for col in range(from_col, to_col):
-            group_value += init_position_value[col]
-        out[group] = group_value
-        from_col = to_col
-    return out
-
-
-@register_jit(cache=True)
 def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) -> tp.Array1d:
     """Get total profit per group."""
     check_group_lens_nb(group_lens, total_profit.shape[0])
@@ -7501,49 +7827,29 @@ def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) ->
     return out
 
 
-@register_jit(cache=True)
-def final_value_nb(total_profit: tp.Array1d, init_value: tp.Array1d) -> tp.Array1d:
-    """Get total profit per column/group."""
-    return total_profit + init_value
-
-
-@register_jit(cache=True)
-def total_return_nb(total_profit: tp.Array1d, init_value: tp.Array1d) -> tp.Array1d:
-    """Get total return per column/group."""
-    return total_profit / init_value
-
-
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer('value', 1),
     arg_take_spec=dict(
-        value_iso=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
-        init_value_grouped=ch.ArraySlicer(0),
-        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper)
+        value=ch.ArraySlicer(1),
+        init_value=ch.ArraySlicer(0),
+        cash_deposits=base_ch.FlexArraySlicer(1),
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
-def returns_in_sim_order_nb(value_iso: tp.Array2d,
-                            group_lens: tp.Array1d,
-                            init_value_grouped: tp.Array1d,
-                            call_seq: tp.Array2d) -> tp.Array2d:
-    """Get portfolio return series in simulation order."""
-    check_group_lens_nb(group_lens, value_iso.shape[1])
-    out = np.empty_like(value_iso)
-    group_end_idxs = np.cumsum(group_lens)
-    group_start_idxs = group_end_idxs - group_lens
-
-    for group in prange(len(group_lens)):
-        from_col = group_start_idxs[group]
-        to_col = group_end_idxs[group]
-        group_len = to_col - from_col
-        input_value = init_value_grouped[group]
-        for j in range(value_iso.shape[0] * group_len):
-            i = j // group_len
-            col = from_col + call_seq[i, from_col + j % group_len]
-            output_value = value_iso[i, col]
-            out[i, col] = returns_nb.get_return_nb(input_value, output_value)
+def returns_nb(value: tp.Array2d,
+               init_value: tp.Array1d,
+               cash_deposits: tp.FlexArray = np.asarray(0.),
+               flex_2d: bool = False) -> tp.Array2d:
+    """Get return series per column/group."""
+    out = np.empty(value.shape, dtype=np.float_)
+    for col in prange(value.shape[1]):
+        input_value = init_value[col]
+        for i in range(value.shape[0]):
+            output_value = value[i, col]
+            adj_output_value = output_value - flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+            out[i, col] = returns_nb_.get_return_nb(input_value, adj_output_value)
             input_value = output_value
     return out
 
@@ -7552,12 +7858,12 @@ def returns_in_sim_order_nb(value_iso: tp.Array2d,
 def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cash_flow: float) -> float:
     """Get asset return from the input and output asset value, and the cash flow."""
     if is_close_nb(input_asset_value, 0):
-        return returns_nb.get_return_nb(-output_asset_value, cash_flow)
+        return returns_nb_.get_return_nb(-output_asset_value, cash_flow)
     if is_close_nb(output_asset_value, 0):
-        return returns_nb.get_return_nb(input_asset_value, cash_flow)
+        return returns_nb_.get_return_nb(input_asset_value, cash_flow)
     if np.sign(input_asset_value) != np.sign(output_asset_value):
-        return returns_nb.get_return_nb(input_asset_value - output_asset_value, cash_flow)
-    return returns_nb.get_return_nb(input_asset_value, output_asset_value + cash_flow)
+        return returns_nb_.get_return_nb(input_asset_value - output_asset_value, cash_flow)
+    return returns_nb_.get_return_nb(input_asset_value, output_asset_value + cash_flow)
 
 
 @register_chunkable(
@@ -7589,17 +7895,26 @@ def asset_returns_nb(init_position_value: tp.Array1d, asset_value: tp.Array2d, c
     size=ch.ArraySizer('close', 1),
     arg_take_spec=dict(
         close=ch.ArraySlicer(1),
-        init_value=base_ch.ArraySlicer(0)
+        init_value=base_ch.ArraySlicer(0),
+        cash_deposits=base_ch.FlexArraySlicer(1),
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
-def market_value_nb(close: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
+def market_value_nb(close: tp.Array2d,
+                    init_value: tp.Array1d,
+                    cash_deposits: tp.FlexArray = np.asarray(0.),
+                    flex_2d: bool = False) -> tp.Array2d:
     """Get market value per column."""
     out = np.empty_like(close)
     for col in prange(close.shape[1]):
+        curr_value = init_value[col]
         for i in range(close.shape[0]):
-            out[i, col] = close[i, col] / close[0, col] * init_value[col]
+            if i > 0:
+                curr_value *= close[i, col] / close[i - 1, col]
+            curr_value += flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+            out[i, col] = curr_value
     return out
 
 
@@ -7608,65 +7923,35 @@ def market_value_nb(close: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
     arg_take_spec=dict(
         close=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
         group_lens=ch.ArraySlicer(0),
-        init_value=ch.ArraySlicer(0, mapper=base_ch.group_lens_mapper)
+        init_value=ch.ArraySlicer(0, mapper=base_ch.group_lens_mapper),
+        cash_deposits=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        flex_2d=None
     ),
     merge_func=base_ch.column_stack
 )
 @register_jit(cache=True, tags={'can_parallel'})
 def market_value_grouped_nb(close: tp.Array2d,
                             group_lens: tp.Array1d,
-                            init_value: tp.Array1d) -> tp.Array2d:
+                            init_value: tp.Array1d,
+                            cash_deposits: tp.FlexArray = np.asarray(0.),
+                            flex_2d: bool = False) -> tp.Array2d:
     """Get market value per group."""
     check_group_lens_nb(group_lens, close.shape[1])
     out = np.empty((close.shape[0], len(group_lens)), dtype=np.float_)
+    temp = np.empty(close.shape[1], dtype=np.float_)
     group_end_idxs = np.cumsum(group_lens)
     group_start_idxs = group_end_idxs - group_lens
 
     for group in prange(len(group_lens)):
         from_col = group_start_idxs[group]
         to_col = group_end_idxs[group]
+
         for i in range(close.shape[0]):
-            close_norm_sum = 0.
             for col in range(from_col, to_col):
-                _init_value = flex_select_auto_nb(init_value, 0, col, True)
-                close_norm_sum += close[i, col] / close[0, col] * _init_value
-            out[i, group] = close_norm_sum
-    return out
-
-
-@register_chunkable(
-    size=ch.ArraySizer('market_value', 1),
-    arg_take_spec=dict(
-        market_value=ch.ArraySlicer(1)
-    ),
-    merge_func=base_ch.concat
-)
-@register_jit(cache=True, tags={'can_parallel'})
-def total_market_return_nb(market_value: tp.Array2d) -> tp.Array1d:
-    """Get total market return per column/group."""
-    out = np.empty(market_value.shape[1], dtype=np.float_)
-    for col in prange(market_value.shape[1]):
-        out[col] = returns_nb.get_return_nb(market_value[0, col], market_value[-1, col])
-    return out
-
-
-@register_chunkable(
-    size=ch.ArraySizer('asset_value', 1),
-    arg_take_spec=dict(
-        asset_value=ch.ArraySlicer(1),
-        cash=ch.ArraySlicer(1)
-    ),
-    merge_func=base_ch.column_stack
-)
-@register_jit(cache=True, tags={'can_parallel'})
-def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
-    """Get gross exposure per column/group."""
-    out = np.empty(asset_value.shape, dtype=np.float_)
-    for col in prange(out.shape[1]):
-        for i in range(out.shape[0]):
-            denom = add_nb(asset_value[i, col], cash[i, col])
-            if denom == 0:
-                out[i, col] = 0.
-            else:
-                out[i, col] = asset_value[i, col] / denom
+                if i == 0:
+                    temp[col] = init_value[col]
+                else:
+                    temp[col] *= close[i, col] / close[i - 1, col]
+                temp[col] += flex_select_auto_nb(cash_deposits, i, col, flex_2d)
+            out[i, group] = np.sum(temp[from_col:to_col])
     return out

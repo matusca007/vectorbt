@@ -170,7 +170,9 @@ numba = dict(
         dict()
     ),
     override_options=Config(  # flex
-        dict()
+        dict(
+            cache=False
+        )
     )
 )
 """_"""
@@ -891,6 +893,7 @@ portfolio = dict(
     call_seq='default',
     init_cash=100.,
     init_position=0.,
+    cash_deposits=0.,
     size=np.inf,
     size_type='amount',
     fees=0.,
@@ -933,6 +936,18 @@ portfolio = dict(
     flexible=False,
     use_numba=True,
     seed=None,
+    group_by=None,
+    broadcast_kwargs=Config(  # flex
+        dict(
+            require_kwargs=dict(
+                requirements='W'
+            )
+        )
+    ),
+    template_mapping=Config(  # flex
+        dict()
+    ),
+    keep_inout_raw=True,
     freq=None,
     attach_call_seq=False,
     holding_base_method='from_signals',

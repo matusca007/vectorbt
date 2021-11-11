@@ -97,8 +97,10 @@ def tile_index(index: tp.IndexLike, n: int, ignore_default: tp.Optional[bool] = 
     return pd.Index(np.tile(index, n), name=index.name)
 
 
-def stack_indexes(indexes: tp.Sequence[tp.IndexLike], drop_duplicates: tp.Optional[bool] = None,
-                  keep: tp.Optional[str] = None, drop_redundant: tp.Optional[bool] = None) -> tp.Index:
+def stack_indexes(indexes: tp.Sequence[tp.IndexLike],
+                  drop_duplicates: tp.Optional[bool] = None,
+                  keep: tp.Optional[str] = None,
+                  drop_redundant: tp.Optional[bool] = None) -> tp.Index:
     """Stack each index in `indexes` on top of each other, from top to bottom.
 
     Set `drop_duplicates`, `keep`, or `drop_redundant` to None to use the default."""

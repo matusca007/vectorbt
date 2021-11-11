@@ -156,7 +156,7 @@ class ArrayWrapper(Configured, PandasIndexer):
                 grouper_kwargs[k] = kwargs.pop(k)
         if grouper is None:
             grouper = Grouper(columns, **grouper_kwargs)
-        elif not pd.Index.equals(columns, grouper.index) or len(grouper_kwargs) > 0:
+        elif not checks.is_index_equal(columns, grouper.index) or len(grouper_kwargs) > 0:
             grouper = grouper.replace(index=columns, **grouper_kwargs)
 
         PandasIndexer.__init__(self)

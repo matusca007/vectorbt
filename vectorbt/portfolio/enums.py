@@ -709,6 +709,7 @@ class SimulationContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -752,6 +753,9 @@ __pdoc__['SimulationContext.group_lens'] = """Number of columns in each group.
 
 Even if columns are not grouped, `group_lens` contains ones - one column per group.
 
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
+
 ## Example
 
 In pairs trading, `group_lens` would be `np.array([2])`, while three independent
@@ -788,6 +792,9 @@ so it can be passed as 1-dim array per column, or as a scalar.
 
 Broadcasts to shape `(group_lens.shape[0],)` with cash sharing, otherwise `(target_shape[1],)`.
 
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
+
 ## Example
 
 Consider three columns, each having $100 of starting capital. If we built one group of two columns
@@ -800,6 +807,28 @@ Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` an
 so it can be passed as 1-dim array per column, or as a scalar. 
 
 Broadcasts to shape `(target_shape[1],)`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
+"""
+__pdoc__['SimulationContext.cash_deposits'] = """Cash to be deposited/withdrawn per column 
+(or per group with cash sharing).
+
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d`, 
+so it can be passed as 
+
+* 2-dim array, 
+* 1-dim array per column (requires `flex_2d=True`), 
+* 1-dim array per row (requires `flex_2d=False`), and
+* a scalar. 
+
+Broadcasts to shape `(target_shape[0], group_lens.shape[0])`.
+
+Cash is deposited/withdrawn right after `pre_segment_func_nb` - you can use `pre_segment_func_nb` to
+override `cash_deposits` in-place.
+
+!!! note
+    To modify the array in place, make sure to build an array of the full shape.
 """
 __pdoc__['SimulationContext.segment_mask'] = """Mask of whether a particular segment should be executed.
 
@@ -924,6 +953,9 @@ __pdoc__['SimulationContext.last_cash'] = """Latest cash per column (or per grou
 At the very first timestamp, contains initial capital.
 
 Gets updated right after `order_func_nb`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_position'] = """Latest position per column.
 
@@ -932,6 +964,9 @@ At the very first timestamp, contains initial position.
 Has shape `(target_shape[1],)`.
 
 Gets updated right after `order_func_nb`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_debt'] = """Latest debt from shorting per column.
 
@@ -940,6 +975,9 @@ Debt is the total value from shorting that hasn't been covered yet. Used to upda
 Has shape `(target_shape[1],)`. 
 
 Gets updated right after `order_func_nb`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_free_cash'] = """Latest free cash per column (or per group with cash sharing).
 
@@ -948,6 +986,9 @@ Free cash never goes above the initial level, because an operation always costs 
 Has shape `(target_shape[1],)`. 
 
 Gets updated right after `order_func_nb`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_val_price'] = """Latest valuation price per column.
 
@@ -991,6 +1032,9 @@ Gets updated right before `pre_segment_func_nb`. Then, gets updated right after 
 If `SimulationContext.update_value`, gets also updated right after `order_func_nb` using 
 filled order price as the latest known price (the difference will be minimal, 
 only affected by costs). Finally, gets updated right before `post_segment_func_nb`.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_return'] = """Latest return per column (or per group with cash sharing).
 
@@ -999,6 +1043,9 @@ Has the same shape as `SimulationContext.last_value`.
 Calculated by comparing the current `SimulationContext.last_value` to the last one of the previous row.
 
 Gets updated each time `SimulationContext.last_value` is updated.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_oidx'] = """Index of the latest order record of each column.
 
@@ -1009,10 +1056,16 @@ Points to `SimulationContext.order_records` and has shape `(target_shape[1],)`.
 `last_oidx` of `np.array([1, 100, -1])` means the latest filled order is `order_records[1, 0]` for the
 first column, `order_records[100, 1]` for the second column, and no orders have been filled yet
 for the third column (`order_records[0, 2]` is empty).
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_lidx'] = """Index of the latest log record of each column.
 
 Similar to `SimulationContext.last_oidx` but for log records.
+
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 """
 __pdoc__['SimulationContext.last_pos_record'] = """Latest position record of each column.
 
@@ -1038,6 +1091,9 @@ right after `order_func_nb`, and right before `post_segment_func_nb`.
 !!! note
     In an open position record, the field `exit_price` doesn't reflect the latest valuation price,
     but keeps the average price at which the position has been reduced.
+    
+!!! note
+    Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
 
 ## Example
 
@@ -1087,6 +1143,7 @@ class GroupContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1168,6 +1225,7 @@ class RowContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1218,6 +1276,7 @@ class SegmentContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1288,6 +1347,7 @@ class OrderContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1369,6 +1429,7 @@ class PostOrderContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1468,6 +1529,7 @@ class FlexOrderContext(tp.NamedTuple):
     call_seq: tp.Optional[tp.Array2d]
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
+    cash_deposits: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool

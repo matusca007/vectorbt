@@ -23,8 +23,16 @@ def get_init_cash_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
     """Get slicer for `init_cash` based on cash sharing."""
     cash_sharing = ann_args['cash_sharing']['value']
     if cash_sharing:
-        return ArraySlicer(0)
+        return FlexArraySlicer(0, flex_2d=True)
     return flex_1d_array_gl_slicer
+
+
+def get_cash_deposits_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
+    """Get slicer for `cash_deposits` based on cash sharing."""
+    cash_sharing = ann_args['cash_sharing']['value']
+    if cash_sharing:
+        return FlexArraySlicer(1)
+    return flex_array_gl_slicer
 
 
 def merge_sim_outs(results: tp.List[SimulationOutput],
