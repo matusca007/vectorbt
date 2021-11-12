@@ -3491,6 +3491,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         ffill_val_price: tp.Optional[bool] = None,
                         update_value: tp.Optional[bool] = None,
                         fill_pos_record: tp.Optional[bool] = None,
+                        track_value: tp.Optional[bool] = None,
                         row_wise: tp.Optional[bool] = None,
                         use_numba: tp.Optional[bool] = None,
                         max_orders: tp.Optional[int] = None,
@@ -3604,7 +3605,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             update_value (bool): Whether to update group value after each filled order.
             fill_pos_record (bool): Whether to fill position record.
 
-                Disable this to make simulation a bit faster for simple use cases.
+                Disable this to make simulation faster for simple use cases.
+            track_value (bool): Whether to track value metrics such as
+                the current valuation price, value, and return.
+
+                Disable this to make simulation faster for simple use cases.
             row_wise (bool): Whether to iterate over rows rather than columns/groups.
             use_numba (bool): Whether to run the main simulation function using Numba.
 
@@ -4011,6 +4016,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             update_value = portfolio_cfg['update_value']
         if fill_pos_record is None:
             fill_pos_record = portfolio_cfg['fill_pos_record']
+        if track_value is None:
+            track_value = portfolio_cfg['track_value']
         if row_wise is None:
             row_wise = portfolio_cfg['row_wise']
         if use_numba is None:
@@ -4126,6 +4133,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             max_orders=max_orders,
             max_logs=max_logs,
             flex_2d=flex_2d,
@@ -4195,6 +4203,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     max_orders=max_orders,
                     max_logs=max_logs,
                     flex_2d=flex_2d
@@ -4238,6 +4247,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     max_orders=max_orders,
                     max_logs=max_logs,
                     flex_2d=flex_2d
@@ -4283,6 +4293,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     max_orders=max_orders,
                     max_logs=max_logs,
                     flex_2d=flex_2d
@@ -4328,6 +4339,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     max_orders=max_orders,
                     max_logs=max_logs,
                     flex_2d=flex_2d

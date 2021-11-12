@@ -2799,6 +2799,7 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
         ffill_val_price=None,
         update_value=None,
         fill_pos_record=None,
+        track_value=None,
         max_orders=None,
         max_logs=None,
         flex_2d=None
@@ -2839,6 +2840,7 @@ def simulate_nb(target_shape: tp.Shape,
                 ffill_val_price: bool = True,
                 update_value: bool = False,
                 fill_pos_record: bool = True,
+                track_value: bool = True,
                 max_orders: tp.Optional[int] = None,
                 max_logs: tp.Optional[int] = 0,
                 flex_2d: bool = True) -> SimulationOutput:
@@ -2948,6 +2950,7 @@ def simulate_nb(target_shape: tp.Shape,
         ffill_val_price (bool): See `vectorbt.portfolio.enums.SimulationContext.ffill_val_price`.
         update_value (bool): See `vectorbt.portfolio.enums.SimulationContext.update_value`.
         fill_pos_record (bool): See `vectorbt.portfolio.enums.SimulationContext.fill_pos_record`.
+        track_value (bool): See `vectorbt.portfolio.enums.SimulationContext.track_value`.
         max_orders (int): The max number of order records expected to be filled at each column.
         max_logs (int): The max number of log records expected to be filled at each column.
         flex_2d (bool): See `vectorbt.portfolio.enums.SimulationContext.flex_2d`.
@@ -3235,6 +3238,7 @@ def simulate_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -3275,6 +3279,7 @@ def simulate_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -3298,38 +3303,39 @@ def simulate_nb(target_shape: tp.Shape,
         for i in range(target_shape[0]):
             call_seq_now = call_seq[i, from_col:to_col]
 
-            # Update valuation price using current open
-            for col in range(from_col, to_col):
-                _open = flex_select_auto_nb(open, i, col, flex_2d)
-                if not np.isnan(_open) or not ffill_val_price:
-                    last_val_price[col] = _open
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
-            else:
+            if track_value:
+                # Update valuation price using current open
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+                    _open = flex_select_auto_nb(open, i, col, flex_2d)
+                    if not np.isnan(_open) or not ffill_val_price:
+                        last_val_price[col] = _open
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -3353,6 +3359,7 @@ def simulate_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -3388,38 +3395,39 @@ def simulate_nb(target_shape: tp.Shape,
                     last_free_cash[col] += _cash_deposits
                     last_cash_deposits[col] = _cash_deposits
 
-            # Update value and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group],
-                    last_value[group] - last_cash_deposits[group]
-                )
-            else:
-                for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col],
-                        last_value[col] - last_cash_deposits[col]
+            if track_value:
+                # Update value and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
-                    )
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if is_segment_active:
@@ -3467,6 +3475,7 @@ def simulate_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -3498,6 +3507,12 @@ def simulate_nb(target_shape: tp.Shape,
                         pos_record_now=pos_record_now
                     )
                     order = order_func_nb(order_ctx, *pre_segment_out, *order_args)
+
+                    if not track_value:
+                        if order.size_type == SizeType.Value \
+                                or order.size_type == SizeType.TargetValue \
+                                or order.size_type == SizeType.TargetPercent:
+                            raise ValueError("Cannot use size type that depends on not tracked value")
 
                     # Process the order
                     price_area = PriceArea(
@@ -3533,34 +3548,40 @@ def simulate_nb(target_shape: tp.Shape,
                     position_now = new_state.position
                     debt_now = new_state.debt
                     free_cash_now = new_state.free_cash
-                    val_price_now = new_state.val_price
-                    value_now = new_state.value
-                    if cash_sharing:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[group],
-                            value_now - cash_deposits_now
-                        )
-                    else:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[col],
-                            value_now - cash_deposits_now
-                        )
+
+                    if track_value:
+                        val_price_now = new_state.val_price
+                        value_now = new_state.value
+                        if cash_sharing:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[group],
+                                value_now - cash_deposits_now
+                            )
+                        else:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[col],
+                                value_now - cash_deposits_now
+                            )
 
                     # Now becomes last
                     last_position[col] = position_now
                     last_debt[col] = debt_now
-                    if not np.isnan(val_price_now) or not ffill_val_price:
-                        last_val_price[col] = val_price_now
                     if cash_sharing:
                         last_cash[group] = cash_now
                         last_free_cash[group] = free_cash_now
-                        last_value[group] = value_now
-                        last_return[group] = return_now
                     else:
                         last_cash[col] = cash_now
                         last_free_cash[col] = free_cash_now
-                        last_value[col] = value_now
-                        last_return[col] = return_now
+
+                    if track_value:
+                        if not np.isnan(val_price_now) or not ffill_val_price:
+                            last_val_price[col] = val_price_now
+                        if cash_sharing:
+                            last_value[group] = value_now
+                            last_return[group] = return_now
+                        else:
+                            last_value[col] = value_now
+                            last_return[col] = return_now
 
                     # Update position record
                     if fill_pos_record:
@@ -3590,6 +3611,7 @@ def simulate_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -3630,46 +3652,47 @@ def simulate_nb(target_shape: tp.Shape,
                     post_order_func_nb(post_order_ctx, *pre_segment_out, *post_order_args)
 
             # NOTE: Regardless of segment_mask, we still need to update stats to be accessed by future rows
-            # Update valuation price using current close
-            for col in range(from_col, to_col):
-                _close = flex_select_auto_nb(close, i, col, flex_2d)
-                if not np.isnan(_close) or not ffill_val_price:
-                    last_val_price[col] = _close
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group],
-                    last_value[group] - last_cash_deposits[group]
-                )
-                prev_close_value[group] = last_value[group]
-            else:
+            if track_value:
+                # Update valuation price using current close
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col],
-                        last_value[col] - last_cash_deposits[col]
-                    )
-                    prev_close_value[col] = last_value[col]
+                    _close = flex_select_auto_nb(close, i, col, flex_2d)
+                    if not np.isnan(_close) or not ffill_val_price:
+                        last_val_price[col] = _close
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                    prev_close_value[group] = last_value[group]
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
+                        prev_close_value[col] = last_value[col]
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if call_post_segment or is_segment_active:
@@ -3692,6 +3715,7 @@ def simulate_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -3733,6 +3757,7 @@ def simulate_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -3772,6 +3797,7 @@ def simulate_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -3827,6 +3853,7 @@ def simulate_nb(target_shape: tp.Shape,
         ffill_val_price=None,
         update_value=None,
         fill_pos_record=None,
+        track_value=None,
         max_orders=None,
         max_logs=None,
         flex_2d=None
@@ -3867,6 +3894,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                          ffill_val_price: bool = True,
                          update_value: bool = False,
                          fill_pos_record: bool = True,
+                         track_value: bool = True,
                          max_orders: tp.Optional[int] = None,
                          max_logs: tp.Optional[int] = 0,
                          flex_2d: bool = True) -> SimulationOutput:
@@ -4017,6 +4045,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -4054,6 +4083,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -4077,38 +4107,39 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             group_len = to_col - from_col
             call_seq_now = call_seq[i, from_col:to_col]
 
-            # Update valuation price using current open
-            for col in range(from_col, to_col):
-                _open = flex_select_auto_nb(open, i, col, flex_2d)
-                if not np.isnan(_open) or not ffill_val_price:
-                    last_val_price[col] = _open
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
-            else:
+            if track_value:
+                # Update valuation price using current open
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+                    _open = flex_select_auto_nb(open, i, col, flex_2d)
+                    if not np.isnan(_open) or not ffill_val_price:
+                        last_val_price[col] = _open
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -4132,6 +4163,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -4167,38 +4199,39 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     last_free_cash[col] += _cash_deposits
                     last_cash_deposits[col] = _cash_deposits
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+            if track_value:
+                # Update value and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
 
-            # Update value and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-            else:
-                for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if is_segment_active:
@@ -4246,6 +4279,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -4277,6 +4311,12 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         pos_record_now=pos_record_now
                     )
                     order = order_func_nb(order_ctx, *pre_segment_out, *order_args)
+
+                    if not track_value:
+                        if order.size_type == SizeType.Value \
+                                or order.size_type == SizeType.TargetValue \
+                                or order.size_type == SizeType.TargetPercent:
+                            raise ValueError("Cannot use size type that depends on not tracked value")
 
                     # Process the order
                     price_area = PriceArea(
@@ -4312,34 +4352,40 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     position_now = new_state.position
                     debt_now = new_state.debt
                     free_cash_now = new_state.free_cash
-                    val_price_now = new_state.val_price
-                    value_now = new_state.value
-                    if cash_sharing:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[group],
-                            value_now - cash_deposits_now
-                        )
-                    else:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[col],
-                            value_now - cash_deposits_now
-                        )
+
+                    if track_value:
+                        val_price_now = new_state.val_price
+                        value_now = new_state.value
+                        if cash_sharing:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[group],
+                                value_now - cash_deposits_now
+                            )
+                        else:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[col],
+                                value_now - cash_deposits_now
+                            )
 
                     # Now becomes last
                     last_position[col] = position_now
                     last_debt[col] = debt_now
-                    if not np.isnan(val_price_now) or not ffill_val_price:
-                        last_val_price[col] = val_price_now
                     if cash_sharing:
                         last_cash[group] = cash_now
                         last_free_cash[group] = free_cash_now
-                        last_value[group] = value_now
-                        last_return[group] = return_now
                     else:
                         last_cash[col] = cash_now
                         last_free_cash[col] = free_cash_now
-                        last_value[col] = value_now
-                        last_return[col] = return_now
+
+                    if track_value:
+                        if not np.isnan(val_price_now) or not ffill_val_price:
+                            last_val_price[col] = val_price_now
+                        if cash_sharing:
+                            last_value[group] = value_now
+                            last_return[group] = return_now
+                        else:
+                            last_value[col] = value_now
+                            last_return[col] = return_now
 
                     # Update position record
                     if fill_pos_record:
@@ -4369,6 +4415,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -4409,46 +4456,47 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     post_order_func_nb(post_order_ctx, *pre_segment_out, *post_order_args)
 
             # NOTE: Regardless of segment_mask, we still need to update stats to be accessed by future rows
-            # Update valuation price using current close
-            for col in range(from_col, to_col):
-                _close = flex_select_auto_nb(close, i, col, flex_2d)
-                if not np.isnan(_close) or not ffill_val_price:
-                    last_val_price[col] = _close
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-                prev_close_value[group] = last_value[group]
-            else:
+            if track_value:
+                # Update valuation price using current close
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
-                    prev_close_value[col] = last_value[col]
+                    _close = flex_select_auto_nb(close, i, col, flex_2d)
+                    if not np.isnan(_close) or not ffill_val_price:
+                        last_val_price[col] = _close
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                    prev_close_value[group] = last_value[group]
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
+                        prev_close_value[col] = last_value[col]
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if call_post_segment or is_segment_active:
@@ -4471,6 +4519,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -4512,6 +4561,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -4548,6 +4598,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -4611,6 +4662,7 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
         ffill_val_price=None,
         update_value=None,
         fill_pos_record=None,
+        track_value=None,
         max_orders=None,
         max_logs=None,
         flex_2d=None
@@ -4650,6 +4702,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                      ffill_val_price: bool = True,
                      update_value: bool = False,
                      fill_pos_record: bool = True,
+                     track_value: bool = True,
                      max_orders: tp.Optional[int] = None,
                      max_logs: tp.Optional[int] = 0,
                      flex_2d: bool = True) -> SimulationOutput:
@@ -4878,6 +4931,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -4918,6 +4972,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -4940,38 +4995,39 @@ def flex_simulate_nb(target_shape: tp.Shape,
 
         for i in range(target_shape[0]):
 
-            # Update valuation price using current open
-            for col in range(from_col, to_col):
-                _open = flex_select_auto_nb(open, i, col, flex_2d)
-                if not np.isnan(_open) or not ffill_val_price:
-                    last_val_price[col] = _open
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
-            else:
+            if track_value:
+                # Update valuation price using current open
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+                    _open = flex_select_auto_nb(open, i, col, flex_2d)
+                    if not np.isnan(_open) or not ffill_val_price:
+                        last_val_price[col] = _open
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -4995,6 +5051,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -5030,38 +5087,39 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     last_free_cash[col] += _cash_deposits
                     last_cash_deposits[col] = _cash_deposits
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+            if track_value:
+                # Update value and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
 
-            # Update value and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-            else:
-                for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -5090,6 +5148,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -5117,6 +5176,11 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         break
                     if col < from_col or col >= to_col:
                         raise ValueError("Column out of bounds of the group")
+                    if not track_value:
+                        if order.size_type == SizeType.Value \
+                                or order.size_type == SizeType.TargetValue \
+                                or order.size_type == SizeType.TargetPercent:
+                            raise ValueError("Cannot use size type that depends on not tracked value")
 
                     # Get current values
                     position_now = last_position[col]
@@ -5170,18 +5234,20 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     position_now = new_state.position
                     debt_now = new_state.debt
                     free_cash_now = new_state.free_cash
-                    val_price_now = new_state.val_price
-                    value_now = new_state.value
-                    if cash_sharing:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[group],
-                            value_now - cash_deposits_now
-                        )
-                    else:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[col],
-                            value_now - cash_deposits_now
-                        )
+
+                    if track_value:
+                        val_price_now = new_state.val_price
+                        value_now = new_state.value
+                        if cash_sharing:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[group],
+                                value_now - cash_deposits_now
+                            )
+                        else:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[col],
+                                value_now - cash_deposits_now
+                            )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -5198,6 +5264,16 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
+
+                    if track_value:
+                        if not np.isnan(val_price_now) or not ffill_val_price:
+                            last_val_price[col] = val_price_now
+                        if cash_sharing:
+                            last_value[group] = value_now
+                            last_return[group] = return_now
+                        else:
+                            last_value[col] = value_now
+                            last_return[col] = return_now
 
                     # Update position record
                     if fill_pos_record:
@@ -5227,6 +5303,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -5267,46 +5344,47 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     post_order_func_nb(post_order_ctx, *pre_segment_out, *post_order_args)
 
             # NOTE: Regardless of segment_mask, we still need to update stats to be accessed by future rows
-            # Update valuation price using current close
-            for col in range(from_col, to_col):
-                _close = flex_select_auto_nb(close, i, col, flex_2d)
-                if not np.isnan(_close) or not ffill_val_price:
-                    last_val_price[col] = _close
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-                prev_close_value[group] = last_value[group]
-            else:
+            if track_value:
+                # Update valuation price using current close
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
-                    prev_close_value[col] = last_value[col]
+                    _close = flex_select_auto_nb(close, i, col, flex_2d)
+                    if not np.isnan(_close) or not ffill_val_price:
+                        last_val_price[col] = _close
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                    prev_close_value[group] = last_value[group]
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
+                        prev_close_value[col] = last_value[col]
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if call_post_segment or is_segment_active:
@@ -5329,6 +5407,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -5370,6 +5449,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -5409,6 +5489,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -5463,6 +5544,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
         ffill_val_price=None,
         update_value=None,
         fill_pos_record=None,
+        track_value=None,
         max_orders=None,
         max_logs=None,
         flex_2d=None
@@ -5502,6 +5584,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               ffill_val_price: bool = True,
                               update_value: bool = False,
                               fill_pos_record: bool = True,
+                              track_value: bool = True,
                               max_orders: tp.Optional[int] = None,
                               max_logs: tp.Optional[int] = 0,
                               flex_2d: bool = True) -> SimulationOutput:
@@ -5568,6 +5651,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -5605,6 +5689,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -5627,38 +5712,39 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             to_col = group_end_idxs[group]
             group_len = to_col - from_col
 
-            # Update valuation price using current open
-            for col in range(from_col, to_col):
-                _open = flex_select_auto_nb(open, i, col, flex_2d)
-                if not np.isnan(_open) or not ffill_val_price:
-                    last_val_price[col] = _open
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
-            else:
+            if track_value:
+                # Update valuation price using current open
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+                    _open = flex_select_auto_nb(open, i, col, flex_2d)
+                    if not np.isnan(_open) or not ffill_val_price:
+                        last_val_price[col] = _open
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(prev_close_value[group], last_value[group])
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(prev_close_value[col], last_value[col])
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -5682,6 +5768,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -5717,38 +5804,39 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     last_free_cash[col] += _cash_deposits
                     last_cash_deposits[col] = _cash_deposits
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+            if track_value:
+                # Update value and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
 
-            # Update value and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-            else:
-                for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             is_segment_active = flex_select_auto_nb(segment_mask, i, group, flex_2d)
@@ -5777,6 +5865,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -5804,6 +5893,11 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         break
                     if col < from_col or col >= to_col:
                         raise ValueError("Column out of bounds of the group")
+                    if not track_value:
+                        if order.size_type == SizeType.Value \
+                                or order.size_type == SizeType.TargetValue \
+                                or order.size_type == SizeType.TargetPercent:
+                            raise ValueError("Cannot use size type that depends on not tracked value")
 
                     # Get current values
                     position_now = last_position[col]
@@ -5857,18 +5951,20 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     position_now = new_state.position
                     debt_now = new_state.debt
                     free_cash_now = new_state.free_cash
-                    val_price_now = new_state.val_price
-                    value_now = new_state.value
-                    if cash_sharing:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[group],
-                            value_now - cash_deposits_now
-                        )
-                    else:
-                        return_now = returns_nb_.get_return_nb(
-                            prev_close_value[col],
-                            value_now - cash_deposits_now
-                        )
+
+                    if track_value:
+                        val_price_now = new_state.val_price
+                        value_now = new_state.value
+                        if cash_sharing:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[group],
+                                value_now - cash_deposits_now
+                            )
+                        else:
+                            return_now = returns_nb_.get_return_nb(
+                                prev_close_value[col],
+                                value_now - cash_deposits_now
+                            )
 
                     # Now becomes last
                     last_position[col] = position_now
@@ -5885,6 +5981,16 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         last_free_cash[col] = free_cash_now
                         last_value[col] = value_now
                         last_return[col] = return_now
+
+                    if track_value:
+                        if not np.isnan(val_price_now) or not ffill_val_price:
+                            last_val_price[col] = val_price_now
+                        if cash_sharing:
+                            last_value[group] = value_now
+                            last_return[group] = return_now
+                        else:
+                            last_value[col] = value_now
+                            last_return[col] = return_now
 
                     # Update position record
                     if fill_pos_record:
@@ -5914,6 +6020,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                         ffill_val_price=ffill_val_price,
                         update_value=update_value,
                         fill_pos_record=fill_pos_record,
+                        track_value=track_value,
                         flex_2d=flex_2d,
                         order_records=order_records,
                         log_records=log_records,
@@ -5954,46 +6061,47 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     post_order_func_nb(post_order_ctx, *pre_segment_out, *post_order_args)
 
             # NOTE: Regardless of segment_mask, we still need to update stats to be accessed by future rows
-            # Update valuation price using current close
-            for col in range(from_col, to_col):
-                _close = flex_select_auto_nb(close, i, col, flex_2d)
-                if not np.isnan(_close) or not ffill_val_price:
-                    last_val_price[col] = _close
-
-            # Update previous value, current value, and return
-            if cash_sharing:
-                last_value[group] = get_group_value_nb(
-                    from_col,
-                    to_col,
-                    last_cash[group],
-                    last_position,
-                    last_val_price
-                )
-                last_return[group] = returns_nb_.get_return_nb(
-                    prev_close_value[group], 
-                    last_value[group] - last_cash_deposits[group]
-                )
-                prev_close_value[group] = last_value[group]
-            else:
+            if track_value:
+                # Update valuation price using current close
                 for col in range(from_col, to_col):
-                    if last_position[col] == 0:
-                        last_value[col] = last_cash[col]
-                    else:
-                        last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
-                    last_return[col] = returns_nb_.get_return_nb(
-                        prev_close_value[col], 
-                        last_value[col] - last_cash_deposits[col]
-                    )
-                    prev_close_value[col] = last_value[col]
+                    _close = flex_select_auto_nb(close, i, col, flex_2d)
+                    if not np.isnan(_close) or not ffill_val_price:
+                        last_val_price[col] = _close
 
-            # Update open position stats
-            if fill_pos_record:
-                for col in range(from_col, to_col):
-                    update_open_pos_stats_nb(
-                        last_pos_record[col],
-                        last_position[col],
-                        last_val_price[col]
+                # Update previous value, current value, and return
+                if cash_sharing:
+                    last_value[group] = get_group_value_nb(
+                        from_col,
+                        to_col,
+                        last_cash[group],
+                        last_position,
+                        last_val_price
                     )
+                    last_return[group] = returns_nb_.get_return_nb(
+                        prev_close_value[group],
+                        last_value[group] - last_cash_deposits[group]
+                    )
+                    prev_close_value[group] = last_value[group]
+                else:
+                    for col in range(from_col, to_col):
+                        if last_position[col] == 0:
+                            last_value[col] = last_cash[col]
+                        else:
+                            last_value[col] = last_cash[col] + last_position[col] * last_val_price[col]
+                        last_return[col] = returns_nb_.get_return_nb(
+                            prev_close_value[col],
+                            last_value[col] - last_cash_deposits[col]
+                        )
+                        prev_close_value[col] = last_value[col]
+
+                # Update open position stats
+                if fill_pos_record:
+                    for col in range(from_col, to_col):
+                        update_open_pos_stats_nb(
+                            last_pos_record[col],
+                            last_position[col],
+                            last_val_price[col]
+                        )
 
             # Is this segment active?
             if call_post_segment or is_segment_active:
@@ -6016,6 +6124,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                     ffill_val_price=ffill_val_price,
                     update_value=update_value,
                     fill_pos_record=fill_pos_record,
+                    track_value=track_value,
                     flex_2d=flex_2d,
                     order_records=order_records,
                     log_records=log_records,
@@ -6057,6 +6166,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
             ffill_val_price=ffill_val_price,
             update_value=update_value,
             fill_pos_record=fill_pos_record,
+            track_value=track_value,
             flex_2d=flex_2d,
             order_records=order_records,
             log_records=log_records,
@@ -6093,6 +6203,7 @@ def flex_simulate_row_wise_nb(target_shape: tp.Shape,
         ffill_val_price=ffill_val_price,
         update_value=update_value,
         fill_pos_record=fill_pos_record,
+        track_value=track_value,
         flex_2d=flex_2d,
         order_records=order_records,
         log_records=log_records,
@@ -7688,7 +7799,6 @@ def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
             else:
                 out[i, col] = asset_value[i, col] / denom
     return out
-
 
 
 @register_chunkable(

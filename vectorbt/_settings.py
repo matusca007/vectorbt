@@ -932,6 +932,7 @@ portfolio = dict(
     ffill_val_price=True,
     update_value=False,
     fill_pos_record=True,
+    track_value=True,
     row_wise=False,
     flexible=False,
     use_numba=True,

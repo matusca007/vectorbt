@@ -720,6 +720,7 @@ class SimulationContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -909,7 +910,15 @@ only once, before executing any order).
 The change is marginal and mostly driven by transaction costs and slippage."""
 __pdoc__['SimulationContext.fill_pos_record'] = """Whether to fill position record.
 
-Disable this to make simulation a bit faster for simple use cases."""
+Disable this to make simulation faster for simple use cases."""
+__pdoc__['SimulationContext.track_value'] = """Whether to track value metrics such as 
+the current valuation price, value, and return.
+
+If False, 'SimulationContext.last_val_price', 'SimulationContext.last_value', and 
+'SimulationContext.last_return' will stay NaN and the statistics of any open position won't be updated.
+You won't be able to use `SizeType.Value`, `SizeType.TargetValue`, and `SizeType.TargetPercent`.
+
+Disable this to make simulation faster for simple use cases."""
 __pdoc__['SimulationContext.flex_2d'] = """Whether the elements in a 1-dim array should be treated per
 column rather than per row.
 
@@ -1154,6 +1163,7 @@ class GroupContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -1236,6 +1246,7 @@ class RowContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -1287,6 +1298,7 @@ class SegmentContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -1358,6 +1370,7 @@ class OrderContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -1440,6 +1453,7 @@ class PostOrderContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
@@ -1540,6 +1554,7 @@ class FlexOrderContext(tp.NamedTuple):
     ffill_val_price: bool
     update_value: bool
     fill_pos_record: bool
+    track_value: bool
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
