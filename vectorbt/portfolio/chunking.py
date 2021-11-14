@@ -45,9 +45,20 @@ def merge_sim_outs(results: tp.List[SimulationOutput],
         results[_chunk_meta.idx].order_records['col'] += _mapped_chunk_meta.start
         results[_chunk_meta.idx].log_records['col'] += _mapped_chunk_meta.start
         results[_chunk_meta.idx].log_records['group'] += _chunk_meta.start
+    target_shape = ann_args['target_shape']['value']
+    if results[0].cash_earnings.shape == target_shape:
+        cash_earnings = np.column_stack([r.cash_earnings for r in results])
+    else:
+        cash_earnings = results[0].cash_earnings
+    if results[0].call_seq is not None:
+        call_seq = np.column_stack([r.call_seq for r in results])
+    else:
+        call_seq = None
     return SimulationOutput(
         order_records=np.concatenate([r.order_records for r in results]),
         log_records=np.concatenate([r.log_records for r in results]),
+        cash_earnings=cash_earnings,
+        call_seq=call_seq
     )
 
 

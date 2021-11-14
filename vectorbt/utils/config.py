@@ -793,7 +793,7 @@ class Configured(Cacheable, Pickleable, Documented):
         configured_cfg = settings['configured']
 
         expected_keys = self.get_expected_keys()
-        if len(expected_keys) > 0:
+        if expected_keys is not None:
             for k in config:
                 if k not in expected_keys:
                     raise TypeError(f"{self.__class__.__name__}.__init__() got an unexpected keyword argument '{k}'")
@@ -814,6 +814,8 @@ class Configured(Cacheable, Pickleable, Documented):
             cls = cls_or_self
         else:
             cls = cls_or_self.__class__
+        if cls_or_self._expected_keys is None:
+            return None
         expected_keys = set()
         for cls in inspect.getmro(cls):
             if issubclass(cls, Configured) and cls._expected_keys is not None:

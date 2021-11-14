@@ -695,11 +695,15 @@ __pdoc__['ExecuteOrderState.free_cash'] = "See `ProcessOrderState.free_cash`."
 class SimulationOutput(tp.NamedTuple):
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    cash_earnings: tp.Array2d
+    call_seq: tp.Optional[tp.Array2d]
 
 
 __pdoc__['SimulationOutput'] = "A named tuple representing the output of a simulation."
 __pdoc__['SimulationOutput.order_records'] = "Order records (flattened)."
 __pdoc__['SimulationOutput.log_records'] = "Log records (flattened)."
+__pdoc__['SimulationOutput.cash_earnings'] = "Earnings added at each timestamp."
+__pdoc__['SimulationOutput.call_seq'] = "Call sequence."
 
 
 class SimulationContext(tp.NamedTuple):
@@ -710,6 +714,7 @@ class SimulationContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -791,7 +796,7 @@ __pdoc__['SimulationContext.init_cash'] = """Initial capital per column (or per 
 Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d=True`, 
 so it can be passed as 1-dim array per column, or as a scalar. 
 
-Broadcasts to shape `(group_lens.shape[0],)` with cash sharing, otherwise `(target_shape[1],)`.
+Must broadcast to shape `(group_lens.shape[0],)` with cash sharing, otherwise `(target_shape[1],)`.
 
 !!! note
     Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
@@ -807,7 +812,7 @@ __pdoc__['SimulationContext.init_position'] = """Initial position per column.
 Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d=True`, 
 so it can be passed as 1-dim array per column, or as a scalar. 
 
-Broadcasts to shape `(target_shape[1],)`.
+Must broadcast to shape `(target_shape[1],)`.
 
 !!! note
     Changing this array may produce results inconsistent with those of `vectorbt.portfolio.base.Portfolio`.
@@ -823,10 +828,28 @@ so it can be passed as
 * 1-dim array per row (requires `flex_2d=False`), and
 * a scalar. 
 
-Broadcasts to shape `(target_shape[0], group_lens.shape[0])`.
+Must broadcast to shape `(target_shape[0], group_lens.shape[0])`.
 
-Cash is deposited/withdrawn right after `pre_segment_func_nb` - you can use `pre_segment_func_nb` to
-override `cash_deposits` in-place.
+Cash is deposited/withdrawn right after `pre_segment_func_nb`.
+You can modify this array in `pre_segment_func_nb`.
+
+!!! note
+    To modify the array in place, make sure to build an array of the full shape.
+"""
+__pdoc__['SimulationContext.cash_earnings'] = """Earnings to be added per column.
+
+Utilizes flexible indexing using `vectorbt.base.indexing.flex_select_auto_nb` and `flex_2d`, 
+so it can be passed as 
+
+* 2-dim array, 
+* 1-dim array per column (requires `flex_2d=True`), 
+* 1-dim array per row (requires `flex_2d=False`), and
+* a scalar. 
+
+Must broadcast to shape `SimulationContext.target_shape`.
+
+Earnings are added right before `post_segment_func_nb` and are already included 
+in the value of each group. You can modify this array in `pre_segment_func_nb` or `post_order_func_nb`.
 
 !!! note
     To modify the array in place, make sure to build an array of the full shape.
@@ -847,7 +870,7 @@ so it can be passed as
 * 1-dim array per row (requires `flex_2d=False`), and
 * a scalar. 
 
-Broadcasts to shape `(target_shape[0], group_lens.shape[0])`.
+Must broadcast to shape `(target_shape[0], group_lens.shape[0])`.
 
 !!! note
     To modify the array in place, make sure to build an array of the full shape.
@@ -894,7 +917,7 @@ so it can be passed as
 * 1-dim array per row (requires `flex_2d=False`), and
 * a scalar. 
 
-Broadcasts to shape `SimulationContext.target_shape`.
+Must broadcast to shape `SimulationContext.target_shape`.
 
 !!! note
     To modify the array in place, make sure to build an array of the full shape.
@@ -1153,6 +1176,7 @@ class GroupContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1236,6 +1260,7 @@ class RowContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1288,6 +1313,7 @@ class SegmentContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1360,6 +1386,7 @@ class OrderContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1443,6 +1470,7 @@ class PostOrderContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool
@@ -1544,6 +1572,7 @@ class FlexOrderContext(tp.NamedTuple):
     init_cash: tp.FlexArray
     init_position: tp.FlexArray
     cash_deposits: tp.FlexArray
+    cash_earnings: tp.FlexArray
     segment_mask: tp.Array
     call_pre_segment: bool
     call_post_segment: bool

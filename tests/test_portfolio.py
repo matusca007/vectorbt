@@ -1133,20 +1133,6 @@ class TestFromOrders:
                 [143.12812469365747, 0.0]
             ])
         )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True).values,
-            np.array([
-                [123.5025, 147.005],
-                [0.0, 0.0]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True, free=True).values,
-            np.array([
-                [74.0025, 48.004999999999995],
-                [-49.5, -49.5]
-            ])
-        )
         pf = vbt.Portfolio.from_orders(
             pd.Series([1, 1]),
             pd.DataFrame([[-25, -25], [np.inf, np.inf]]),
@@ -1157,20 +1143,6 @@ class TestFromOrders:
             np.array([
                 [-25.0, -25.0],
                 [94.6034702480149, 47.54435839623566]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True).values,
-            np.array([
-                [123.5025, 147.005],
-                [49.5, 0.0]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True, free=True).values,
-            np.array([
-                [74.0025, 48.004999999999995],
-                [0.0, 0.0]
             ])
         )
         pf = vbt.Portfolio.from_orders(
@@ -1185,20 +1157,6 @@ class TestFromOrders:
                 [1.4312812469365748, 0.0]
             ])
         )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True).values,
-            np.array([
-                [123.5025, 147.005],
-                [0.0, 0.0]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True, free=True).values,
-            np.array([
-                [74.0025, 48.004999999999995],
-                [-96.16606313106556, -96.16606313106556]
-            ])
-        )
         pf = vbt.Portfolio.from_orders(
             pd.Series([1, 100]),
             pd.DataFrame([[-25, -25], [np.inf, np.inf]]),
@@ -1209,20 +1167,6 @@ class TestFromOrders:
             np.array([
                 [-25.0, -25.0],
                 [0.4699090272918124, 0.0]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True).values,
-            np.array([
-                [123.5025, 147.005],
-                [98.06958012596222, 98.06958012596222]
-            ])
-        )
-        np.testing.assert_array_equal(
-            pf.cash(group_by=False, in_sim_order=True, free=True).values,
-            np.array([
-                [74.0025, 48.004999999999995],
-                [0.0, 0.0]
             ])
         )
         pf = from_orders_both(size=order_size_one * 1000, lock_cash=[[False, True]])
@@ -1881,6 +1825,32 @@ class TestFromOrders:
             pf.order_records,
             np.array([
                 (0, 0, 0, 1.0, 1.0, 0.0, 1)
+            ], dtype=order_dt)
+        )
+
+    def test_cash_earnings(self):
+        pf = vbt.Portfolio.from_orders(1, cash_earnings=[0, 1, 2, 3])
+        pd.testing.assert_series_equal(
+            pf.cash_earnings,
+            pd.Series([0., 1., 2., 3.])
+        )
+        record_arrays_close(
+            pf.order_records,
+            np.array([
+                (0, 0, 0, 100., 1., 0., 0), (1, 0, 2, 1., 1., 0., 0), (2, 0, 3, 2., 1., 0., 0)
+            ], dtype=order_dt)
+        )
+
+    def test_cash_dividends(self):
+        pf = vbt.Portfolio.from_orders(1, size=np.inf, cash_dividends=[0, 1, 2, 3])
+        pd.testing.assert_series_equal(
+            pf.cash_earnings,
+            pd.Series([0., 100.0, 400.0, 1800.0])
+        )
+        record_arrays_close(
+            pf.order_records,
+            np.array([
+                (0, 0, 0, 100., 1., 0., 0), (1, 0, 2, 100., 1., 0., 0), (2, 0, 3, 400., 1., 0., 0)
             ], dtype=order_dt)
         )
 
@@ -3817,6 +3787,32 @@ class TestFromSignals:
             pf2.log_records
         )
 
+    def test_cash_earnings(self):
+        pf = vbt.Portfolio.from_signals(1, cash_earnings=[0, 1, 2, 3], accumulate=True)
+        pd.testing.assert_series_equal(
+            pf.cash_earnings,
+            pd.Series([0., 1., 2., 3.])
+        )
+        record_arrays_close(
+            pf.order_records,
+            np.array([
+                (0, 0, 0, 100., 1., 0., 0), (1, 0, 2, 1., 1., 0., 0), (2, 0, 3, 2., 1., 0., 0)
+            ], dtype=order_dt)
+        )
+
+    def test_cash_dividends(self):
+        pf = vbt.Portfolio.from_signals(1, size=np.inf, cash_dividends=[0, 1, 2, 3], accumulate=True)
+        pd.testing.assert_series_equal(
+            pf.cash_earnings,
+            pd.Series([0., 100.0, 400.0, 1800.0])
+        )
+        record_arrays_close(
+            pf.order_records,
+            np.array([
+                (0, 0, 0, 100., 1., 0., 0), (1, 0, 2, 100., 1., 0., 0), (2, 0, 3, 400., 1., 0., 0)
+            ], dtype=order_dt)
+        )
+
 
 # ############# from_holding ############# #
 
@@ -4437,6 +4433,13 @@ class TestFromOrderFunc:
             [100., 0.],
             [0., 0.]
         ])
+        cash_earnings = np.array([
+            [0., 0., 0.],
+            [0., 0., 0.],
+            [0., 0., 0.],
+            [1., 0., 0.],
+            [0., 1., 0.]
+        ])
         close = np.array([
             [1, 1, 1],
             [np.nan, 2, 2],
@@ -4503,6 +4506,7 @@ class TestFromOrderFunc:
             group_by=[0, 0, 1],
             cash_sharing=True,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
             row_wise=test_row_wise,
             flexible=test_flexible
         )
@@ -4514,7 +4518,7 @@ class TestFromOrderFunc:
                 [98.9, 99.9],
                 [99.9, 99.0],
                 [100.8, 98.0],
-                [199.0, 99.9]
+                [200.0, 99.9]
             ])
         )
         np.testing.assert_array_equal(
@@ -4524,7 +4528,7 @@ class TestFromOrderFunc:
                 [99.9, 99.9, 100.4],
                 [100.4, 99.0, 99.0],
                 [201.8, 200.0, 98.5],
-                [199.0, 197.6, 100.4]
+                [200.0, 198.6, 100.4]
             ])
         )
         np.testing.assert_array_equal(
@@ -4534,7 +4538,7 @@ class TestFromOrderFunc:
                 [99.9, 98.5, 99.0],
                 [99.0, 99.0, 98.0],
                 [200.0, 199.0, 98.5],
-                [197.6, 197.0, 99.0]
+                [198.6, 198.0, 99.0]
             ])
         )
         np.testing.assert_array_equal(
@@ -4554,7 +4558,7 @@ class TestFromOrderFunc:
                 [0.019387755102040875, 0.019387755102040875, 0.0141414141414142],
                 [0.0192893401015229, 0.005076142131979695, 0.0],
                 [0.0282828282828284, 0.010101010101010102, 0.00510204081632653],
-                [0.0, -0.007035175879397014, 0.0192893401015229]
+                [0.0, -0.007000000000000029, 0.0192893401015229]
             ])
         )
         np.testing.assert_array_equal(
@@ -4564,7 +4568,7 @@ class TestFromOrderFunc:
                 [0.019387755102040875, 0.00510204081632653, 0.0],
                 [0.005076142131979695, 0.005076142131979695, -0.010101010101010102],
                 [0.010101010101010102, 0.0, 0.00510204081632653],
-                [-0.007035175879397014, -0.010050251256281407, 0.005076142131979695]
+                [-0.007000000000000029, -0.01, 0.005076142131979695]
             ])
         )
         record_arrays_close(
@@ -4627,13 +4631,7 @@ class TestFromOrderFunc:
         val_price_arr = np.empty(size.shape, dtype=np.float_)
         value_arr = np.empty((size.shape[0], 2), dtype=np.float_)
         return_arr = np.empty((size.shape[0], 2), dtype=np.float_)
-        sim_order_cash_arr = np.empty(size.shape, dtype=np.float_)
-        sim_order_value_arr = np.empty(size.shape, dtype=np.float_)
         pos_record_arr = np.empty(size.shape[1], dtype=trade_dt)
-
-        def post_order_func_nb(c):
-            sim_order_cash_arr[c.i, c.col] = c.cash_now
-            sim_order_value_arr[c.i, c.col] = c.value_now
 
         def post_segment_func_nb(c):
             cash_arr[c.i, c.group] = c.last_cash[c.group]
@@ -4649,7 +4647,6 @@ class TestFromOrderFunc:
         pf = vbt.Portfolio.from_order_func(
             close,
             order_func_nb,
-            post_order_func_nb=post_order_func_nb,
             post_segment_func_nb=post_segment_func_nb,
             post_sim_func_nb=post_sim_func_nb,
             use_numba=False,
@@ -4658,6 +4655,7 @@ class TestFromOrderFunc:
             group_by=[0, 0, 1],
             cash_sharing=True,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
             row_wise=test_row_wise,
             flexible=test_flexible
         )
@@ -4682,20 +4680,6 @@ class TestFromOrderFunc:
             return_arr,
             pf.returns().values
         )
-        if test_flexible:
-            with pytest.raises(Exception):
-                pf.cash(in_sim_order=True, group_by=False)
-            with pytest.raises(Exception):
-                pf.value(in_sim_order=True, group_by=False)
-        else:
-            np.testing.assert_array_equal(
-                sim_order_cash_arr,
-                pf.cash(in_sim_order=True, group_by=False).values
-            )
-            np.testing.assert_array_equal(
-                sim_order_value_arr,
-                pf.value(in_sim_order=True, group_by=False).values
-            )
 
     @pytest.mark.parametrize("test_row_wise", [False, True])
     @pytest.mark.parametrize("test_flexible", [False, True])
@@ -5136,6 +5120,37 @@ class TestFromOrderFunc:
             np.array([
                 (0, 0, 1.0, -1, 0.5, 0.0, -1, np.nan, 0.0, 0.0, 0.0, 0, 0, 0)
             ], dtype=trade_dt)
+        )
+
+    @pytest.mark.parametrize("test_row_wise", [False, True])
+    @pytest.mark.parametrize("test_flexible", [False, True])
+    def test_cash_earnings(self, test_row_wise, test_flexible):
+
+        if test_flexible:
+            def order_func_nb(c):
+                if c.call_idx < c.group_len:
+                    return c.from_col + c.call_idx, nb.order_nb()
+                return -1, nb.order_nothing_nb()
+        else:
+            def order_func_nb(c):
+                return nb.order_nb()
+
+        pf = vbt.Portfolio.from_order_func(
+            1,
+            order_func_nb,
+            cash_earnings=np.array([0, 1, 2, 3]),
+            row_wise=test_row_wise,
+            flexible=test_flexible
+        )
+        pd.testing.assert_series_equal(
+            pf.cash_earnings,
+            pd.Series([0, 1, 2, 3])
+        )
+        record_arrays_close(
+            pf.order_records,
+            np.array([
+                (0, 0, 0, 100., 1., 0., 0), (1, 0, 2, 1., 1., 0., 0), (2, 0, 3, 2., 1., 0., 0)
+            ], dtype=order_dt)
         )
 
     def test_func_calls(self):
@@ -7394,6 +7409,93 @@ class TestPortfolio:
             ])
         )
 
+    def test_cash_earnings(self):
+        result = pd.DataFrame(
+            np.array([
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0]
+            ]),
+            index=price_na.index,
+            columns=price_na.columns
+        )
+        pd.testing.assert_frame_equal(
+            pf.cash_earnings,
+            result
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.get_cash_earnings(group_by=False),
+            result
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.get_cash_earnings(group_by=False),
+            result
+        )
+        result = pd.DataFrame(
+            np.array([
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0],
+                [0.0, 0.0]
+            ]),
+            index=price_na.index,
+            columns=pd.Index(['first', 'second'], dtype='object', name='group')
+        )
+        pd.testing.assert_frame_equal(
+            pf.get_cash_earnings(group_by=group_by),
+            result
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.cash_earnings,
+            result
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.cash_earnings,
+            result
+        )
+        pd.testing.assert_frame_equal(
+            pf.get_cash_earnings(),
+            vbt.Portfolio.get_cash_earnings(
+                cash_earnings_raw=pf._cash_earnings, wrapper=pf.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.get_cash_earnings(),
+            vbt.Portfolio.get_cash_earnings(
+                cash_earnings_raw=pf_grouped._cash_earnings, wrapper=pf_grouped.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_shared.get_cash_earnings(),
+            vbt.Portfolio.get_cash_earnings(
+                cash_earnings_raw=pf_shared._cash_earnings, wrapper=pf_shared.wrapper)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.get_cash_earnings(nb_parallel=True),
+            pf_grouped.get_cash_earnings(nb_parallel=False)
+        )
+        pd.testing.assert_frame_equal(
+            pf_grouped.get_cash_earnings(chunked=True),
+            pf_grouped.get_cash_earnings(chunked=False)
+        )
+        np.testing.assert_array_equal(
+            vbt.Portfolio.get_cash_earnings(
+                cash_earnings_raw=1, keep_raw=True, wrapper=pf.wrapper),
+            np.array([[1]])
+        )
+        np.testing.assert_array_equal(
+            vbt.Portfolio.get_cash_earnings(
+                cash_earnings_raw=1, keep_raw=True, wrapper=pf_grouped.wrapper),
+            np.array([
+                [2., 1.],
+                [2., 1.],
+                [2., 1.],
+                [2., 1.],
+                [2., 1.]
+            ])
+        )
+
     def test_cash(self):
         pd.testing.assert_frame_equal(
             pf.cash(free=True),
@@ -7442,20 +7544,6 @@ class TestPortfolio:
                 columns=price_na.columns
             )
         )
-        pd.testing.assert_frame_equal(
-            pf_shared.cash(group_by=False, in_sim_order=True),
-            pd.DataFrame(
-                np.array([
-                    [200.0, 200.0, 98.8799],
-                    [199.792, 200.09602, 98.57588000000001],
-                    [402.63230000000004, 399.79200000000003, 101.41618000000001],
-                    [402.41630000000004, 402.12426000000005, 101.70822000000001],
-                    [402.01630000000006, 407.21680000000003, 101.70822000000001]
-                ]),
-                index=price_na.index,
-                columns=price_na.columns
-            )
-        )
         result = pd.DataFrame(
             np.array([
                 [200.0, 98.8799],
@@ -7483,23 +7571,13 @@ class TestPortfolio:
             pf.cash(),
             vbt.Portfolio.cash(
                 init_cash=pf.init_cash, cash_deposits=pf.cash_deposits,
-                cash_sharing=pf.cash_sharing, cash_flow=pf.cash_flow(),
-                call_seq=pf.call_seq, wrapper=pf.wrapper)
+                cash_sharing=pf.cash_sharing, cash_flow=pf.cash_flow(), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_grouped.cash(),
             vbt.Portfolio.cash(
                 init_cash=pf_grouped.init_cash, cash_deposits=pf_grouped.cash_deposits,
-                cash_sharing=pf_grouped.cash_sharing, cash_flow=pf_grouped.cash_flow(),
-                call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
-        )
-        pd.testing.assert_frame_equal(
-            pf_shared.cash(group_by=False, in_sim_order=True),
-            vbt.Portfolio.cash(
-                group_by=False, in_sim_order=True,
-                init_cash=pf_shared.init_cash, cash_deposits=pf_shared.cash_deposits,
-                cash_sharing=pf_shared.cash_sharing, cash_flow=pf_shared.cash_flow(group_by=False),
-                call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
+                cash_sharing=pf_grouped.cash_sharing, cash_flow=pf_grouped.cash_flow(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf.cash(nb_parallel=True),
@@ -7516,14 +7594,6 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf_grouped.cash(chunked=True),
             pf_grouped.cash(chunked=False)
-        )
-        pd.testing.assert_frame_equal(
-            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=True),
-            pf_shared.cash(group_by=False, in_sim_order=True, nb_parallel=False)
-        )
-        pd.testing.assert_frame_equal(
-            pf_shared.cash(group_by=False, in_sim_order=True, chunked=True),
-            pf_shared.cash(group_by=False, in_sim_order=True, chunked=False)
         )
 
     def test_init_position_value(self):
@@ -8012,20 +8082,6 @@ class TestPortfolio:
                 columns=price_na.columns
             )
         )
-        pd.testing.assert_frame_equal(
-            pf_shared.value(group_by=False, in_sim_order=True),
-            pd.DataFrame(
-                np.array([
-                    [201.0, 199.0, 99.8799],
-                    [199.792, 199.89602000000002, 100.77588000000002],
-                    [400.73230000000007, 399.79200000000003, 101.71618000000001],
-                    [398.41630000000004, 398.42426000000006, 101.70822000000001],
-                    [397.01630000000006, 397.21680000000003, 101.70822000000001]
-                ]),
-                index=price_na.index,
-                columns=price_na.columns
-            )
-        )
         result = pd.DataFrame(
             np.array([
                 [201.0, 99.8799],
@@ -8052,30 +8108,20 @@ class TestPortfolio:
         pd.testing.assert_frame_equal(
             pf.value(),
             vbt.Portfolio.value(
-                cash=pf.cash(), asset_value=pf.asset_value(),
-                call_seq=pf.call_seq, wrapper=pf.wrapper)
+                cash=pf.cash(), asset_value=pf.asset_value(), wrapper=pf.wrapper)
         )
         pd.testing.assert_frame_equal(
             pf_grouped.value(),
             vbt.Portfolio.value(
-                cash=pf_grouped.cash(), asset_value=pf_grouped.asset_value(),
-                call_seq=pf_grouped.call_seq, wrapper=pf_grouped.wrapper)
+                cash=pf_grouped.cash(), asset_value=pf_grouped.asset_value(), wrapper=pf_grouped.wrapper)
         )
         pd.testing.assert_frame_equal(
-            pf_shared.value(group_by=False, in_sim_order=True),
-            vbt.Portfolio.value(
-                group_by=False, in_sim_order=True,
-                cash=pf_shared.cash(group_by=False, in_sim_order=True),
-                asset_value=pf_shared.asset_value(group_by=False),
-                call_seq=pf_shared.call_seq, wrapper=pf_shared.wrapper)
+            pf.value(nb_parallel=True),
+            pf.value(nb_parallel=False)
         )
         pd.testing.assert_frame_equal(
-            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=True),
-            pf_shared.value(group_by=False, in_sim_order=True, nb_parallel=False)
-        )
-        pd.testing.assert_frame_equal(
-            pf_shared.value(group_by=False, in_sim_order=True, chunked=True),
-            pf_shared.value(group_by=False, in_sim_order=True, chunked=False)
+            pf.value(chunked=True),
+            pf.value(chunked=False)
         )
 
     def test_total_profit(self):

@@ -1652,7 +1652,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         init_position (array_like of float): Initial position.
 
             Can be provided in a format suitable for flexible indexing.
-        cash_deposits (array_like of float): Cash deposited/withdrawn at each timestamp. Defaults to None.
+        cash_deposits (array_like of float): Cash deposited/withdrawn at each timestamp.
+
+            Can be provided in a format suitable for flexible indexing with `flex_2d=False`
+            (that is, 1-dim array means an element per row rather than column).
+        cash_earnings (array_like of float): Earnings added at each timestamp.
 
             Can be provided in a format suitable for flexible indexing with `flex_2d=False`
             (that is, 1-dim array means an element per row rather than column).
@@ -1683,6 +1687,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         'init_cash',
         'init_position',
         'cash_deposits',
+        'cash_earnings',
         'call_seq',
         'fillna_close',
         'trades_type'
@@ -1697,6 +1702,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                  init_cash: tp.Union[int, tp.FlexArray],
                  init_position: tp.FlexArray = np.asarray(0.),
                  cash_deposits: tp.FlexArray = np.asarray(0.),
+                 cash_earnings: tp.FlexArray = np.asarray(0.),
                  call_seq: tp.Optional[tp.Array2d] = None,
                  fillna_close: tp.Optional[bool] = None,
                  trades_type: tp.Optional[tp.Union[int, str]] = None,
@@ -1725,6 +1731,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=init_cash,
             init_position=init_position,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
             call_seq=call_seq,
             fillna_close=fillna_close,
             trades_type=trades_type,
@@ -1740,6 +1747,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         self._init_cash = init_cash
         self._init_position = init_position
         self._cash_deposits = cash_deposits
+        self._cash_earnings = cash_earnings
         self._call_seq = call_seq
         self._fillna_close = fillna_close
         self._trades_type = trades_type
@@ -1769,11 +1777,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 new_cash_deposits = new_cash_deposits[:, group_idxs]
             else:
                 new_cash_deposits = new_cash_deposits[:, col_idxs]
+        new_cash_earnings = to_2d_array(self._cash_earnings)
+        if new_cash_earnings.shape[1] > 1:
+            new_cash_earnings = new_cash_earnings[:, col_idxs]
         if self._call_seq is not None:
             call_seq = to_2d_array(self._call_seq)
             new_call_seq = call_seq[:, col_idxs]
         else:
             new_call_seq = None
+
 
         return self.replace(
             wrapper=new_wrapper,
@@ -1783,6 +1795,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=new_init_cash,
             init_position=new_init_position,
             cash_deposits=new_cash_deposits,
+            cash_earnings=new_cash_earnings,
             call_seq=new_call_seq
         )
 
@@ -1814,8 +1827,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash: tp.Optional[tp.ArrayLike] = None,
                     init_position: tp.Optional[tp.ArrayLike] = None,
                     cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                    cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                    cash_dividends: tp.Optional[tp.ArrayLike] = None,
                     cash_sharing: tp.Optional[bool] = None,
                     call_seq: tp.Optional[tp.ArrayLike] = None,
+                    attach_call_seq: tp.Optional[bool] = None,
                     ffill_val_price: tp.Optional[bool] = None,
                     update_value: tp.Optional[bool] = None,
                     max_orders: tp.Optional[int] = None,
@@ -1827,7 +1843,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     chunked: tp.ChunkedOption = None,
                     wrapper_kwargs: tp.KwargsLike = None,
                     freq: tp.Optional[tp.FrequencyLike] = None,
-                    attach_call_seq: tp.Optional[bool] = None,
                     **kwargs) -> PortfolioT:
         """Simulate portfolio from orders - size, price, fees, and other information.
 
@@ -1928,7 +1943,19 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 By default, will broadcast to the final number of columns.
             cash_deposits (float or array_like): Cash to be deposited/withdrawn at each timestamp.
+                Will broadcast to the final shape. Must have the same number of columns as `init_cash`.
+
+                Applied at the beginning of each timestamp.
+            cash_earnings (float or array_like): Earnings in cash to be added at each timestamp.
                 Will broadcast to the final shape.
+
+                Applied at the end of each timestamp.
+            cash_dividends (float or array_like): Dividends in cash to be added at each timestamp.
+                Will broadcast to the final shape.
+
+                Gets multiplied by the position and saved into `cash_earnings`.
+
+                Applied at the end of each timestamp.
             cash_sharing (bool): Whether to share cash within the same group.
 
                 If `group_by` is None and `cash_sharing` is True, `group_by` becomes True to form a single
@@ -1968,6 +1995,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         leave them without required funds.
 
                     For more control, use `Portfolio.from_order_func`.
+            attach_call_seq (bool): Whether to attach `call_seq` to the instance.
+
+                Makes sense if you want to analyze the simulation order. Otherwise, just takes memory.
             ffill_val_price (bool): Whether to track valuation price only if it's known.
 
                 Otherwise, unknown `close` will lead to NaN in valuation price at the next timestamp.
@@ -1990,10 +2020,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
-            attach_call_seq (bool): Whether to pass `call_seq` to the constructor.
-
-                Makes sense if you want to analyze some metrics in the simulation order.
-                Otherwise, just takes memory.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         All broadcastable arguments will broadcast using `vectorbt.base.reshaping.broadcast`
@@ -2140,12 +2166,18 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_position = portfolio_cfg['init_position']
         if cash_deposits is None:
             cash_deposits = portfolio_cfg['cash_deposits']
+        if cash_earnings is None:
+            cash_earnings = portfolio_cfg['cash_earnings']
+        if cash_dividends is None:
+            cash_dividends = portfolio_cfg['cash_dividends']
         if cash_sharing is None:
             cash_sharing = portfolio_cfg['cash_sharing']
         if cash_sharing and group_by is None:
             group_by = True
         if call_seq is None:
             call_seq = portfolio_cfg['call_seq']
+        if attach_call_seq is None:
+            attach_call_seq = portfolio_cfg['attach_call_seq']
         auto_call_seq = False
         if isinstance(call_seq, str):
             call_seq = map_enum_fields(call_seq, CallSeqType)
@@ -2165,8 +2197,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by = portfolio_cfg['group_by']
         if freq is None:
             freq = portfolio_cfg['freq']
-        if attach_call_seq is None:
-            attach_call_seq = portfolio_cfg['attach_call_seq']
         broadcast_kwargs = merge_dicts(portfolio_cfg['broadcast_kwargs'], broadcast_kwargs)
         require_kwargs = broadcast_kwargs.get('require_kwargs', {})
         if wrapper_kwargs is None:
@@ -2177,6 +2207,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         # Prepare the simulation
         # Only close is broadcast, others can remain unchanged thanks to flexible indexing
         broadcastable_args = dict(
+            cash_earnings=cash_earnings,
+            cash_dividends=cash_dividends,
             size=size,
             price=price,
             size_type=size_type,
@@ -2204,6 +2236,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
         broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
         broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        cash_earnings = broadcasted_args.pop('cash_earnings')
+        cash_dividends = broadcasted_args.pop('cash_dividends')
         close = broadcasted_args['close']
         if not checks.is_pandas(close):
             close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
@@ -2216,7 +2250,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         init_cash = np.require(np.broadcast_to(init_cash, (len(cs_group_lens),)), dtype=np.float_)
         init_position = np.require(np.broadcast_to(init_position, (target_shape_2d[1],)), dtype=np.float_)
         cash_deposits = broadcast(
-            cash_deposits,
+            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
             to_shape=(target_shape_2d[0], len(cs_group_lens)),
             to_pd=False,
             keep_raw=True,
@@ -2240,6 +2274,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=init_cash,
             init_position=init_position,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
+            cash_dividends=cash_dividends,
             **broadcasted_args,
             auto_call_seq=auto_call_seq,
             ffill_val_price=ffill_val_price,
@@ -2257,8 +2293,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             sim_out.log_records,
             cash_sharing,
             init_cash if init_cash_mode is None else init_cash_mode,
-            init_position,
-            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
+            init_position=init_position,
+            cash_deposits=cash_deposits,
+            cash_earnings=sim_out.cash_earnings,
             call_seq=call_seq if attach_call_seq else None,
             **kwargs
         )
@@ -2313,8 +2350,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      init_cash: tp.Optional[tp.ArrayLike] = None,
                      init_position: tp.Optional[tp.ArrayLike] = None,
                      cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                     cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                     cash_dividends: tp.Optional[tp.ArrayLike] = None,
                      cash_sharing: tp.Optional[bool] = None,
                      call_seq: tp.Optional[tp.ArrayLike] = None,
+                     attach_call_seq: tp.Optional[bool] = None,
                      ffill_val_price: tp.Optional[bool] = None,
                      update_value: tp.Optional[bool] = None,
                      max_orders: tp.Optional[int] = None,
@@ -2328,7 +2368,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      chunked: tp.ChunkedOption = None,
                      wrapper_kwargs: tp.KwargsLike = None,
                      freq: tp.Optional[tp.FrequencyLike] = None,
-                     attach_call_seq: tp.Optional[bool] = None,
                      **kwargs) -> PortfolioT:
         """Simulate portfolio from entry and exit signals.
 
@@ -2505,8 +2544,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash (InitCashMode, float or array_like): See `Portfolio.from_orders`.
             init_position (float or array_like): See `Portfolio.from_orders`.
             cash_deposits (float or array_like): See `Portfolio.from_orders`.
+            cash_earnings (float or array_like): See `Portfolio.from_orders`.
+            cash_dividends (float or array_like): See `Portfolio.from_orders`.
             cash_sharing (bool): See `Portfolio.from_orders`.
             call_seq (CallSeqType or array_like): See `Portfolio.from_orders`.
+            attach_call_seq (bool): See `Portfolio.from_orders`.
             ffill_val_price (bool): See `Portfolio.from_orders`.
             update_value (bool): See `Portfolio.from_orders`.
             max_orders (int): See `Portfolio.from_orders`.
@@ -2523,7 +2565,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             chunked (any): See `Portfolio.from_orders`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
-            attach_call_seq (bool): See `Portfolio.from_orders`.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         All broadcastable arguments will broadcast using `vectorbt.base.reshaping.broadcast`
@@ -3075,12 +3116,18 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_position = portfolio_cfg['init_position']
         if cash_deposits is None:
             cash_deposits = portfolio_cfg['cash_deposits']
+        if cash_earnings is None:
+            cash_earnings = portfolio_cfg['cash_earnings']
+        if cash_dividends is None:
+            cash_dividends = portfolio_cfg['cash_dividends']
         if cash_sharing is None:
             cash_sharing = portfolio_cfg['cash_sharing']
         if cash_sharing and group_by is None:
             group_by = True
         if call_seq is None:
             call_seq = portfolio_cfg['call_seq']
+        if attach_call_seq is None:
+            attach_call_seq = portfolio_cfg['attach_call_seq']
         auto_call_seq = False
         if isinstance(call_seq, str):
             call_seq = map_enum_fields(call_seq, CallSeqType)
@@ -3100,8 +3147,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by = portfolio_cfg['group_by']
         if freq is None:
             freq = portfolio_cfg['freq']
-        if attach_call_seq is None:
-            attach_call_seq = portfolio_cfg['attach_call_seq']
         if broadcast_named_args is None:
             broadcast_named_args = {}
         broadcast_kwargs = merge_dicts(portfolio_cfg['broadcast_kwargs'], broadcast_kwargs)
@@ -3114,6 +3159,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         # Prepare the simulation
         broadcastable_args = dict(
+            cash_earnings=cash_earnings,
+            cash_dividends=cash_dividends,
             size=size,
             price=price,
             size_type=size_type,
@@ -3166,6 +3213,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
         broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
         broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        cash_earnings = broadcasted_args.pop('cash_earnings')
+        cash_dividends = broadcasted_args.pop('cash_dividends')
         close = broadcasted_args['close']
         if not checks.is_pandas(close):
             close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
@@ -3178,7 +3227,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         init_cash = np.require(np.broadcast_to(init_cash, (len(cs_group_lens),)), dtype=np.float_)
         init_position = np.require(np.broadcast_to(init_position, (target_shape_2d[1],)), dtype=np.float_)
         cash_deposits = broadcast(
-            cash_deposits,
+            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
             to_shape=(target_shape_2d[0], len(cs_group_lens)),
             to_pd=False,
             keep_raw=True,
@@ -3198,6 +3247,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=init_cash,
             init_position=init_position,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
+            cash_dividends=cash_dividends,
             adjust_sl_func_nb=adjust_sl_func_nb,
             adjust_sl_args=adjust_sl_args,
             adjust_tp_func_nb=adjust_tp_func_nb,
@@ -3266,6 +3317,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=init_cash,
             init_position=init_position,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
+            cash_dividends=cash_dividends,
             signal_func_nb=signal_func_nb,
             signal_args=signal_args,
             **broadcasted_args,
@@ -3290,8 +3343,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             sim_out.log_records,
             cash_sharing,
             init_cash if init_cash_mode is None else init_cash_mode,
-            init_position,
-            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
+            init_position=init_position,
+            cash_deposits=cash_deposits,
+            cash_earnings=sim_out.cash_earnings,
             call_seq=call_seq if attach_call_seq else None,
             **kwargs
         )
@@ -3462,8 +3516,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         init_cash: tp.Optional[tp.ArrayLike] = None,
                         init_position: tp.Optional[tp.ArrayLike] = None,
                         cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                        cash_earnings: tp.Optional[tp.ArrayLike] = None,
                         cash_sharing: tp.Optional[bool] = None,
                         call_seq: tp.Optional[tp.ArrayLike] = None,
+                        attach_call_seq: tp.Optional[bool] = None,
                         segment_mask: tp.Optional[tp.ArrayLike] = None,
                         call_pre_segment: tp.Optional[bool] = None,
                         call_post_segment: tp.Optional[bool] = None,
@@ -3506,7 +3562,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         chunked: tp.ChunkedOption = None,
                         wrapper_kwargs: tp.KwargsLike = None,
                         freq: tp.Optional[tp.FrequencyLike] = None,
-                        attach_call_seq: tp.Optional[bool] = None,
                         **kwargs) -> PortfolioT:
         """Build portfolio from a custom order function.
 
@@ -3533,6 +3588,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash (InitCashMode, float or array_like): See `Portfolio.from_orders`.
             init_position (float or array_like): See `Portfolio.from_orders`.
             cash_deposits (float or array_like): See `Portfolio.from_orders`.
+            cash_earnings (float or array_like): See `Portfolio.from_orders`.
             cash_sharing (bool): Whether to share cash within the same group.
 
                 If `group_by` is None, `group_by` becomes True to form a single group with cash sharing.
@@ -3545,6 +3601,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     CallSeqType.Auto must be implemented manually.
                     Use `vectorbt.portfolio.nb.sort_call_seq_nb` or `vectorbt.portfolio.nb.sort_call_seq_out_nb`
                     in `pre_segment_func_nb`.
+            attach_call_seq (bool): See `Portfolio.from_orders`.
             segment_mask (int or array_like of bool): Mask of whether a particular segment should be executed.
 
                 Supplying an integer will activate every n-th row.
@@ -3635,7 +3692,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             template_mapping (mapping): See `Portfolio.from_signals`.
             keep_inout_raw (bool): Whether to keep arrays that can be edited in-place raw when broadcasting.
 
-                Disable this to be able to edit `segment_mask` and `cash_deposits` during the simulation.
+                Disable this to be able to edit `segment_mask`, `cash_deposits`, and
+                `cash_earnings` during the simulation.
             nb_parallel (bool): See `Portfolio.from_orders`.
 
                 !!! warning
@@ -3643,7 +3701,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
-            attach_call_seq (bool): See `Portfolio.from_orders`.
             **kwargs: Keyword arguments passed to the `__init__` method.
 
         For defaults, see `portfolio` in `vectorbt._settings.settings`.
@@ -3992,6 +4049,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_position = portfolio_cfg['init_position']
         if cash_deposits is None:
             cash_deposits = portfolio_cfg['cash_deposits']
+        if cash_earnings is None:
+            cash_earnings = portfolio_cfg['cash_earnings']
         if cash_sharing is None:
             cash_sharing = portfolio_cfg['cash_sharing']
         if cash_sharing and group_by is None:
@@ -4004,6 +4063,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 if call_seq == CallSeqType.Auto:
                     raise ValueError("CallSeqType.Auto must be implemented manually. "
                                      "Use sort_call_seq_nb in pre_segment_func_nb.")
+        if attach_call_seq is None:
+            attach_call_seq = portfolio_cfg['attach_call_seq']
         if segment_mask is None:
             segment_mask = True
         if call_pre_segment is None:
@@ -4030,8 +4091,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by = portfolio_cfg['group_by']
         if freq is None:
             freq = portfolio_cfg['freq']
-        if attach_call_seq is None:
-            attach_call_seq = portfolio_cfg['attach_call_seq']
         if broadcast_named_args is None:
             broadcast_named_args = {}
         broadcast_kwargs = merge_dicts(portfolio_cfg['broadcast_kwargs'], broadcast_kwargs)
@@ -4048,6 +4107,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         # Prepare the simulation
         broadcastable_args = dict(
+            cash_earnings=cash_earnings,
             open=open,
             high=high,
             low=low,
@@ -4061,6 +4121,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
         broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
         broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        cash_earnings = broadcasted_args.pop('cash_earnings')
         close = broadcasted_args['close']
         if not checks.is_pandas(close):
             close = pd.Series(close) if close.ndim == 1 else pd.DataFrame(close)
@@ -4073,7 +4134,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         init_cash = np.require(np.broadcast_to(init_cash, (len(cs_group_lens),)), dtype=np.float_)
         init_position = np.require(np.broadcast_to(init_position, (target_shape_2d[1],)), dtype=np.float_)
         cash_deposits = broadcast(
-            cash_deposits,
+            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
             to_shape=(target_shape_2d[0], len(cs_group_lens)),
             to_pd=False,
             keep_raw=keep_inout_raw,
@@ -4089,7 +4150,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             segment_mask = _segment_mask
         else:
             segment_mask = broadcast(
-                segment_mask,
+                to_2d_array(segment_mask, expand_axis=int(not flex_2d)),
                 to_shape=(target_shape_2d[0], len(group_lens)),
                 to_pd=False,
                 keep_raw=keep_inout_raw,
@@ -4107,6 +4168,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             init_cash=init_cash,
             init_position=init_position,
             cash_deposits=cash_deposits,
+            cash_earnings=cash_earnings,
             segment_mask=segment_mask,
             call_pre_segment=call_pre_segment,
             call_post_segment=call_post_segment,
@@ -4177,6 +4239,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash=init_cash,
                     init_position=init_position,
                     cash_deposits=cash_deposits,
+                    cash_earnings=cash_earnings,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4221,6 +4284,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash=init_cash,
                     init_position=init_position,
                     cash_deposits=cash_deposits,
+                    cash_earnings=cash_earnings,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4267,6 +4331,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash=init_cash,
                     init_position=init_position,
                     cash_deposits=cash_deposits,
+                    cash_earnings=cash_earnings,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4313,6 +4378,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     init_cash=init_cash,
                     init_position=init_position,
                     cash_deposits=cash_deposits,
+                    cash_earnings=cash_earnings,
                     segment_mask=segment_mask,
                     call_pre_segment=call_pre_segment,
                     call_post_segment=call_post_segment,
@@ -4353,8 +4419,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             sim_out.log_records,
             cash_sharing,
             init_cash if init_cash_mode is None else init_cash_mode,
-            init_position,
-            to_2d_array(cash_deposits, expand_axis=int(not flex_2d)),
+            init_position=init_position,
+            cash_deposits=cash_deposits,
+            cash_earnings=sim_out.cash_earnings,
             call_seq=call_seq if not flexible and attach_call_seq else None,
             **kwargs
         )
@@ -4379,13 +4446,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return self._cash_sharing
 
     @property
-    def call_seq(self, wrap_kwargs: tp.KwargsLike = None) -> tp.Optional[tp.SeriesFrame]:
-        """Sequence of calls per row and group."""
-        if self._call_seq is None:
-            return None
-        return self.wrapper.wrap(self._call_seq, group_by=False, **resolve_dict(wrap_kwargs))
-
-    @property
     def fillna_close(self) -> bool:
         """Whether to forward-backward fill NaN values in `Portfolio.close`."""
         return self._fillna_close
@@ -4394,6 +4454,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def trades_type(self) -> int:
         """Default `vectorbt.portfolio.trades.Trades` to use across `Portfolio`."""
         return self._trades_type
+
+    # ############# Call sequence ############# #
+
+    @property
+    def call_seq(self, wrap_kwargs: tp.KwargsLike = None) -> tp.Optional[tp.SeriesFrame]:
+        """Sequence of calls per row and group."""
+        if self._call_seq is None:
+            return None
+        return self.wrapper.wrap(self._call_seq, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Reference price ############# #
 
@@ -4558,7 +4627,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if orders is None:
                 orders = cls_or_self.orders
             if init_position is None:
-                init_position = cls_or_self.init_position
+                init_position = cls_or_self._init_position
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -4595,7 +4664,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if asset_flow is None:
                 asset_flow = cls_or_self.asset_flow(direction='both', nb_parallel=nb_parallel, chunked=chunked)
             if init_position is None:
-                init_position = cls_or_self.init_position
+                init_position = cls_or_self._init_position
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -4668,45 +4737,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
 
     # ############# Cash ############# #
-
-    @class_or_instancemethod
-    def cash_flow(cls_or_self,
-                  group_by: tp.GroupByLike = None,
-                  free: bool = False,
-                  orders: tp.Optional[Orders] = None,
-                  nb_parallel: tp.Optional[bool] = None,
-                  chunked: tp.ChunkedOption = None,
-                  wrapper: tp.Optional[ArrayWrapper] = None,
-                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Get cash flow series per column/group.
-
-        Use `free` to return the flow of the free cash, which never goes above the initial level,
-        because an operation always costs money.
-
-        !!! note
-            This does not include cash deposits and withdrawals."""
-        if not isinstance(cls_or_self, type):
-            if orders is None:
-                orders = cls_or_self.orders
-            if wrapper is None:
-                wrapper = cls_or_self.wrapper
-        elif wrapper is None:
-            wrapper = orders.wrapper
-
-        func = nb_registry.redecorate_parallel(nb.cash_flow_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
-        cash_flow = func(
-            wrapper.shape_2d,
-            orders.values,
-            orders.col_mapper.col_map,
-            free
-        )
-        if wrapper.grouper.is_grouped(group_by=group_by):
-            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
-            cash_flow = func(cash_flow, group_lens)
-        return wrapper.wrap(cash_flow, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def get_init_cash(cls_or_self,
@@ -4819,15 +4849,104 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return self.get_cash_deposits()
 
     @class_or_instancemethod
+    def get_cash_earnings(cls_or_self,
+                          group_by: tp.GroupByLike = None,
+                          cash_earnings_raw: tp.Optional[tp.ArrayLike] = None,
+                          flex_2d: bool = False,
+                          keep_raw: bool = False,
+                          nb_parallel: tp.Optional[bool] = None,
+                          chunked: tp.ChunkedOption = None,
+                          wrapper: tp.Optional[ArrayWrapper] = None,
+                          wrap_kwargs: tp.KwargsLike = None) -> tp.ArrayLike:
+        """Get earnings in cash series per column/group.
+
+        Set `keep_raw` to True to keep format suitable for flexible indexing.
+        This consumes less memory."""
+        if not isinstance(cls_or_self, type):
+            if cash_earnings_raw is None:
+                cash_earnings_raw = cls_or_self._cash_earnings
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        else:
+            if cash_earnings_raw is None:
+                cash_earnings_raw = 0.
+
+        cash_earnings_raw = to_2d_array(cash_earnings_raw)
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            cash_earnings = np.broadcast_to(cash_earnings_raw, wrapper.shape_2d)
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
+            func = ch_registry.resolve_chunked(func, chunked)
+            cash_earnings = func(cash_earnings, group_lens)
+        else:
+            if keep_raw:
+                return cash_earnings_raw
+            cash_earnings = np.broadcast_to(cash_earnings_raw, wrapper.shape_2d)
+        if keep_raw:
+            return cash_earnings
+        return wrapper.wrap(cash_earnings, group_by=group_by, **resolve_dict(wrap_kwargs))
+
+    @cacheable_property
+    def cash_earnings(self) -> tp.ArrayLike:
+        """`Portfolio.get_cash_earnings` with default arguments."""
+        return self.get_cash_earnings()
+
+    @class_or_instancemethod
+    def cash_flow(cls_or_self,
+                  group_by: tp.GroupByLike = None,
+                  free: bool = False,
+                  orders: tp.Optional[Orders] = None,
+                  cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                  flex_2d: bool = False,
+                  nb_parallel: tp.Optional[bool] = None,
+                  chunked: tp.ChunkedOption = None,
+                  wrapper: tp.Optional[ArrayWrapper] = None,
+                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+        """Get cash flow series per column/group.
+
+        Use `free` to return the flow of the free cash, which never goes above the initial level,
+        because an operation always costs money.
+
+        !!! note
+            Does not include cash deposits, but includes earnings."""
+        if not isinstance(cls_or_self, type):
+            if orders is None:
+                orders = cls_or_self.orders
+            if cash_earnings is None:
+                cash_earnings = cls_or_self._cash_earnings
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+        else:
+            if cash_earnings is None:
+                cash_earnings = 0.
+            if wrapper is None:
+                wrapper = orders.wrapper
+
+        func = nb_registry.redecorate_parallel(nb.cash_flow_nb, nb_parallel)
+        func = ch_registry.resolve_chunked(func, chunked)
+        cash_flow = func(
+            wrapper.shape_2d,
+            orders.values,
+            orders.col_mapper.col_map,
+            free=free,
+            cash_earnings=to_2d_array(cash_earnings),
+            flex_2d=flex_2d
+        )
+        if wrapper.grouper.is_grouped(group_by=group_by):
+            group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
+            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
+            func = ch_registry.resolve_chunked(func, chunked)
+            cash_flow = func(cash_flow, group_lens)
+        return wrapper.wrap(cash_flow, group_by=group_by, **resolve_dict(wrap_kwargs))
+
+    @class_or_instancemethod
     def cash(cls_or_self,
              group_by: tp.GroupByLike = None,
-             in_sim_order: bool = False,
              free: bool = False,
              cash_sharing: tp.Optional[bool] = None,
              init_cash: tp.Optional[tp.ArrayLike] = None,
              cash_deposits: tp.Optional[tp.ArrayLike] = None,
              cash_flow: tp.Optional[tp.SeriesFrame] = None,
-             call_seq: tp.Optional[tp.SeriesFrame] = None,
              flex_2d: bool = False,
              nb_parallel: tp.Optional[bool] = None,
              chunked: tp.ChunkedOption = None,
@@ -4835,7 +4954,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get cash balance series per column/group.
 
-        See the explanation on `in_sim_order` in `Portfolio.value`.
         For `free`, see `Portfolio.cash_flow`."""
         if not isinstance(cls_or_self, type):
             if cash_sharing is None:
@@ -4843,15 +4961,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if cash_flow is None:
                 cash_flow = cls_or_self.cash_flow(
                     group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
-            if call_seq is None:
-                call_seq = cls_or_self.call_seq
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
             if cash_deposits is None:
                 cash_deposits = 0.
-        if in_sim_order and not cash_sharing:
-            raise ValueError("Cash sharing must be enabled for in_sim_order=True")
 
         if wrapper.grouper.is_grouped(group_by=group_by):
             if not isinstance(cls_or_self, type):
@@ -4873,45 +4987,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 flex_2d=flex_2d
             )
         else:
-            if wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
-                if call_seq is None:
-                    raise ValueError("No call sequence attached. "
-                                     "Pass `attach_call_seq=True` to the class method "
-                                     "(flexible simulations are not supported)")
-                if not isinstance(cls_or_self, type):
-                    if init_cash is None:
-                        init_cash = cls_or_self.get_init_cash(
-                            nb_parallel=nb_parallel, chunked=chunked)
-                    if cash_deposits is None:
-                        cash_deposits = cls_or_self.get_cash_deposits(
-                            nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
-                group_lens = wrapper.grouper.get_group_lens()
-                func = nb_registry.redecorate_parallel(nb.cash_in_sim_order_nb, nb_parallel)
-                func = ch_registry.resolve_chunked(func, chunked)
-                cash = func(
-                    to_2d_array(cash_flow),
-                    group_lens,
-                    to_1d_array(init_cash),
-                    to_2d_array(call_seq),
-                    cash_deposits_grouped=to_2d_array(cash_deposits),
-                    flex_2d=flex_2d
-                )
-            else:
-                if not isinstance(cls_or_self, type):
-                    if init_cash is None:
-                        init_cash = cls_or_self.get_init_cash(
-                            group_by=False, nb_parallel=nb_parallel, chunked=chunked)
-                    if cash_deposits is None:
-                        cash_deposits = cls_or_self.get_cash_deposits(
-                            group_by=False, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
-                func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
-                func = ch_registry.resolve_chunked(func, chunked)
-                cash = func(
-                    to_2d_array(cash_flow),
-                    to_1d_array(init_cash),
-                    cash_deposits=to_2d_array(cash_deposits),
-                    flex_2d=flex_2d
-                )
+            if not isinstance(cls_or_self, type):
+                if init_cash is None:
+                    init_cash = cls_or_self.get_init_cash(
+                        group_by=False, nb_parallel=nb_parallel, chunked=chunked)
+                if cash_deposits is None:
+                    cash_deposits = cls_or_self.get_cash_deposits(
+                        group_by=False, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
+            func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
+            func = ch_registry.resolve_chunked(func, chunked)
+            cash = func(
+                to_2d_array(cash_flow),
+                to_1d_array(init_cash),
+                cash_deposits=to_2d_array(cash_deposits),
+                flex_2d=flex_2d
+            )
         return wrapper.wrap(cash, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     # ############# Performance ############# #
@@ -4930,7 +5020,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 else:
                     close = cls_or_self.close
             if init_position is None:
-                init_position = cls_or_self.init_position
+                init_position = cls_or_self._init_position
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -5124,10 +5214,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def value(cls_or_self,
               group_by: tp.GroupByLike = None,
-              in_sim_order: bool = False,
               cash: tp.Optional[tp.SeriesFrame] = None,
               asset_value: tp.Optional[tp.SeriesFrame] = None,
-              call_seq: tp.Optional[tp.SeriesFrame] = None,
               nb_parallel: tp.Optional[bool] = None,
               chunked: tp.ChunkedOption = None,
               wrapper: tp.Optional[ArrayWrapper] = None,
@@ -5136,37 +5224,20 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         By default, will generate portfolio value for each asset based on cash flows and thus
         independent from other assets, with the initial cash balance and position being that of the
-        entire group. Useful for generating returns and comparing assets within the same group.
-
-        When `group_by` is False and `in_sim_order` is True, returns value generated in
-        simulation order (see [row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
-        This value cannot be used for generating returns as-is. Useful to analyze how value
-        evolved throughout simulation."""
+        entire group. Useful for generating returns and comparing assets within the same group."""
         if not isinstance(cls_or_self, type):
             if cash is None:
                 cash = cls_or_self.cash(
-                    group_by=group_by, in_sim_order=in_sim_order, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
             if asset_value is None:
                 asset_value = cls_or_self.asset_value(
                     group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-            if call_seq is None:
-                call_seq = cls_or_self.call_seq
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(cash)
 
-        if wrapper.grouper.is_grouping_disabled(group_by=group_by) and in_sim_order:
-            if call_seq is None:
-                raise ValueError("No call sequence attached. "
-                                 "Pass `attach_call_seq=True` to the class method "
-                                 "(flexible simulations are not supported)")
-            group_lens = wrapper.grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.value_in_sim_order_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
-            value = func(to_2d_array(cash), to_2d_array(asset_value), group_lens, to_2d_array(call_seq))
-        else:
-            value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
+        value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
         return wrapper.wrap(value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
@@ -5175,6 +5246,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      close: tp.Optional[tp.SeriesFrame] = None,
                      orders: tp.Optional[Orders] = None,
                      init_position: tp.Optional[tp.ArrayLike] = None,
+                     cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                     flex_2d: bool = False,
                      nb_parallel: tp.Optional[bool] = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
@@ -5191,7 +5264,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if orders is None:
                 orders = cls_or_self.orders
             if init_position is None:
-                init_position = cls_or_self.init_position
+                init_position = cls_or_self._init_position
+            if cash_earnings is None:
+                cash_earnings = cls_or_self._cash_earnings
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -5199,6 +5274,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 close = orders.close
             if init_position is None:
                 init_position = 0.
+            if cash_earnings is None:
+                cash_earnings = 0.
             if wrapper is None:
                 wrapper = orders.wrapper
 
@@ -5209,7 +5286,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             to_2d_array(close),
             orders.values,
             orders.col_mapper.col_map,
-            init_position=to_1d_array(init_position)
+            init_position=to_1d_array(init_position),
+            cash_earnings=to_2d_array(cash_earnings),
+            flex_2d=flex_2d
         )
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
