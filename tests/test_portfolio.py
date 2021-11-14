@@ -5127,11 +5127,13 @@ class TestFromOrderFunc:
     def test_cash_earnings(self, test_row_wise, test_flexible):
 
         if test_flexible:
+            @njit
             def order_func_nb(c):
                 if c.call_idx < c.group_len:
                     return c.from_col + c.call_idx, nb.order_nb()
                 return -1, nb.order_nothing_nb()
         else:
+            @njit
             def order_func_nb(c):
                 return nb.order_nb()
 

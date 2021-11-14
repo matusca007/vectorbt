@@ -5006,7 +5006,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             )
         return wrapper.wrap(cash, group_by=group_by, **resolve_dict(wrap_kwargs))
 
-    # ############# Performance ############# #
+    # ############# Value ############# #
 
     @class_or_instancemethod
     def get_init_position_value(cls_or_self,

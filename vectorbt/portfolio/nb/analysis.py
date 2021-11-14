@@ -470,15 +470,16 @@ def cash_deposits_grouped_nb(target_shape: tp.Shape,
             for i in range(target_shape[0]):
                 out[i, group] = flex_select_auto_nb(cash_deposits_raw, i, group, flex_2d)
     else:
-        from_col = 0
+        group_end_idxs = np.cumsum(group_lens)
+        group_start_idxs = group_end_idxs - group_lens
         for group in prange(len(group_lens)):
-            to_col = from_col + group_lens[group]
+            from_col = group_start_idxs[group]
+            to_col = group_end_idxs[group]
             for i in range(target_shape[0]):
                 cash_sum = 0.
                 for col in range(from_col, to_col):
                     cash_sum += flex_select_auto_nb(cash_deposits_raw, i, col, flex_2d)
                 out[i, group] = cash_sum
-            from_col = to_col
     return out
 
 
@@ -508,18 +509,18 @@ def cash_deposits_nb(target_shape: tp.Shape,
             for i in range(target_shape[0]):
                 out[i, col] = flex_select_auto_nb(cash_deposits_raw, i, col, flex_2d)
     else:
-        from_col = 0
+        group_end_idxs = np.cumsum(group_lens)
+        group_start_idxs = group_end_idxs - group_lens
         for group in prange(len(group_lens)):
-            to_col = from_col + group_lens[group]
-            group_len = to_col - from_col
+            from_col = group_start_idxs[group]
+            to_col = group_end_idxs[group]
             for i in range(target_shape[0]):
                 _cash_deposits = flex_select_auto_nb(cash_deposits_raw, i, group, flex_2d)
                 for col in range(from_col, to_col):
                     if split_shared:
-                        out[i, col] = _cash_deposits / group_len
+                        out[i, col] = _cash_deposits / (to_col - from_col)
                     else:
                         out[i, col] = _cash_deposits
-            from_col = to_col
     return out
 
 

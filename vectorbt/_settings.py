@@ -170,9 +170,7 @@ numba = dict(
         dict()
     ),
     override_options=Config(  # flex
-        dict(
-            cache=False
-        )
+        dict()
     )
 )
 """_"""
