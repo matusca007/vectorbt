@@ -147,7 +147,7 @@ from predefined arrays, it lets us define an arbitrary logic through callbacks. 
 kinds of callbacks, each called at some point while the simulation function traverses the shape.
 For example, apart from the main callback that returns an order (`order_func_nb`), there is a callback
 that does preprocessing on the entire group of columns at once. For more details on the general procedure
-and the callback zoo, see `vectorbt.portfolio.nb.simulate_nb`.
+and the callback zoo, see `vectorbt.portfolio.nb.from_order_func.simulate_nb`.
 
 Let's replicate our example using an order function:
 
@@ -179,8 +179,9 @@ Let's replicate our example using an order function:
 7         3      b          3   1.0    1.0  0.01   Buy
 ```
 
-There is an even more flexible version available - `vectorbt.portfolio.nb.flex_simulate_nb` (activated by
-passing `flexible=True` to `Portfolio.from_order_func`) - that allows creating multiple orders per symbol and bar.
+There is an even more flexible version available - `vectorbt.portfolio.nb.from_order_func.flex_simulate_nb`
+(activated by passing `flexible=True` to `Portfolio.from_order_func`) - that allows creating multiple
+orders per symbol and bar.
 
 This method has many advantages:
 
@@ -1846,6 +1847,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     **kwargs) -> PortfolioT:
         """Simulate portfolio from orders - size, price, fees, and other information.
 
+        See `vectorbt.portfolio.nb.from_orders.simulate_from_orders_nb`.
+
         Args:
             close (array_like): Latest asset price at each time step.
                 Will broadcast.
@@ -2086,7 +2089,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         dtype: float64
         ```
 
-        * Equal-weighted portfolio as in `vectorbt.portfolio.nb.simulate_nb` example
+        * Equal-weighted portfolio as in `vectorbt.portfolio.nb.from_order_func.simulate_nb` example
         (it's more compact but has less control over execution):
 
         ```python-repl
@@ -2371,14 +2374,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      **kwargs) -> PortfolioT:
         """Simulate portfolio from entry and exit signals.
 
-        See `vectorbt.portfolio.nb.simulate_from_signal_func_nb`.
+        See `vectorbt.portfolio.nb.from_signals.simulate_from_signal_func_nb`.
 
         You have three options to provide signals:
 
         * `entries` and `exits`: The direction of each pair of signals is taken from `direction` argument.
             Best to use when the direction doesn't change throughout time.
 
-            Uses `vectorbt.portfolio.nb.dir_enex_signal_func_nb` as `signal_func_nb`.
+            Uses `vectorbt.portfolio.nb.from_signals.dir_enex_signal_func_nb` as `signal_func_nb`.
 
             !!! hint
                 `entries` and `exits` can be easily translated to direction-aware signals:
@@ -2391,7 +2394,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             The direction is already built into the arrays. Best to use when the direction changes frequently
             (for example, if you have one indicator providing long signals and one providing short signals).
 
-            Uses `vectorbt.portfolio.nb.ls_enex_signal_func_nb` as `signal_func_nb`.
+            Uses `vectorbt.portfolio.nb.from_signals.ls_enex_signal_func_nb` as `signal_func_nb`.
 
         * `signal_func_nb` and `signal_args`: Custom signal function that returns direction-aware signals.
             Best to use when signals should be placed dynamically based on custom conditions.
@@ -2519,7 +2522,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     * between open and close (not enough information!)
                     * at close (stop signal wins)
             adjust_sl_func_nb (callable): Function to adjust stop loss.
-                Defaults to `vectorbt.portfolio.nb.no_adjust_sl_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_signals.no_adjust_sl_func_nb`.
 
                 Called for each element before each row.
 
@@ -2528,7 +2531,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             adjust_sl_args (tuple): Packed arguments passed to `adjust_sl_func_nb`.
                 Defaults to `()`.
             adjust_tp_func_nb (callable): Function to adjust take profit.
-                Defaults to `vectorbt.portfolio.nb.no_adjust_tp_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_signals.no_adjust_tp_func_nb`.
 
                 Called for each element before each row.
 
@@ -3566,14 +3569,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         """Build portfolio from a custom order function.
 
         !!! hint
-            See `vectorbt.portfolio.nb.simulate_nb` for illustrations and argument definitions.
+            See `vectorbt.portfolio.nb.from_order_func.simulate_nb` for illustrations and argument definitions.
 
         For more details on individual simulation functions:
 
-        * not `row_wise` and not `flexible`: See `vectorbt.portfolio.nb.simulate_nb`
-        * not `row_wise` and `flexible`: See `vectorbt.portfolio.nb.flex_simulate_nb`
-        * `row_wise` and not `flexible`: See `vectorbt.portfolio.nb.simulate_row_wise_nb`
-        * `row_wise` and `flexible`: See `vectorbt.portfolio.nb.flex_simulate_row_wise_nb`
+        * not `row_wise` and not `flexible`: See `vectorbt.portfolio.nb.from_order_func.simulate_nb`
+        * not `row_wise` and `flexible`: See `vectorbt.portfolio.nb.from_order_func.flex_simulate_nb`
+        * `row_wise` and not `flexible`: See `vectorbt.portfolio.nb.from_order_func.simulate_row_wise_nb`
+        * `row_wise` and `flexible`: See `vectorbt.portfolio.nb.from_order_func.flex_simulate_row_wise_nb`
 
         Args:
             close (array_like): Latest asset price at each time step.
@@ -3598,9 +3601,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 * Set to array to specify custom sequence. Will not broadcast.
 
                 !!! note
-                    CallSeqType.Auto must be implemented manually.
-                    Use `vectorbt.portfolio.nb.sort_call_seq_nb` or `vectorbt.portfolio.nb.sort_call_seq_out_nb`
-                    in `pre_segment_func_nb`.
+                    CallSeqType.Auto must be implemented manually. Use `vectorbt.portfolio.nb.core.sort_call_seq_nb`
+                    or `vectorbt.portfolio.nb.core.sort_call_seq_out_nb` in `pre_segment_func_nb`.
             attach_call_seq (bool): See `Portfolio.from_orders`.
             segment_mask (int or array_like of bool): Mask of whether a particular segment should be executed.
 
@@ -3611,43 +3613,43 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             call_pre_segment (bool): Whether to call `pre_segment_func_nb` regardless of `segment_mask`.
             call_post_segment (bool): Whether to call `post_segment_func_nb` regardless of `segment_mask`.
             pre_sim_func_nb (callable): Function called before simulation.
-                Defaults to `vectorbt.portfolio.nb.no_pre_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_pre_func_nb`.
             pre_sim_args (tuple): Packed arguments passed to `pre_sim_func_nb`.
                 Defaults to `()`.
             post_sim_func_nb (callable): Function called after simulation.
-                Defaults to `vectorbt.portfolio.nb.no_post_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_post_func_nb`.
             post_sim_args (tuple): Packed arguments passed to `post_sim_func_nb`.
                 Defaults to `()`.
             pre_group_func_nb (callable): Function called before each group.
-                Defaults to `vectorbt.portfolio.nb.no_pre_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_pre_func_nb`.
 
                 Called only if `row_wise` is False.
             pre_group_args (tuple): Packed arguments passed to `pre_group_func_nb`.
                 Defaults to `()`.
             post_group_func_nb (callable): Function called after each group.
-                Defaults to `vectorbt.portfolio.nb.no_post_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_post_func_nb`.
 
                 Called only if `row_wise` is False.
             post_group_args (tuple): Packed arguments passed to `post_group_func_nb`.
                 Defaults to `()`.
             pre_row_func_nb (callable): Function called before each row.
-                Defaults to `vectorbt.portfolio.nb.no_pre_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_pre_func_nb`.
 
                 Called only if `row_wise` is True.
             pre_row_args (tuple): Packed arguments passed to `pre_row_func_nb`.
                 Defaults to `()`.
             post_row_func_nb (callable): Function called after each row.
-                Defaults to `vectorbt.portfolio.nb.no_post_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_post_func_nb`.
 
                 Called only if `row_wise` is True.
             post_row_args (tuple): Packed arguments passed to `post_row_func_nb`.
                 Defaults to `()`.
             pre_segment_func_nb (callable): Function called before each segment.
-                Defaults to `vectorbt.portfolio.nb.no_pre_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_pre_func_nb`.
             pre_segment_args (tuple): Packed arguments passed to `pre_segment_func_nb`.
                 Defaults to `()`.
             post_segment_func_nb (callable): Function called after each segment.
-                Defaults to `vectorbt.portfolio.nb.no_post_func_nb`.
+                Defaults to `vectorbt.portfolio.nb.from_order_func.no_post_func_nb`.
             post_segment_args (tuple): Packed arguments passed to `post_segment_func_nb`.
                 Defaults to `()`.
             post_order_func_nb (callable): Callback that is called after the order has been processed.
@@ -3787,7 +3789,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         dtype: float64
         ```
 
-        * Equal-weighted portfolio as in the example under `vectorbt.portfolio.nb.simulate_nb`:
+        * Equal-weighted portfolio as in the example under `vectorbt.portfolio.nb.from_order_func.simulate_nb`:
 
         ```python-repl
         >>> @njit

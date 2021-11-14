@@ -674,7 +674,7 @@ class Trades(Ranges):
     def get_winning_streak(self, **kwargs) -> MappedArray:
         """Winning streak at each trade in the current column.
 
-        See `vectorbt.portfolio.nb.trade_winning_streak_nb`."""
+        See `vectorbt.portfolio.nb.records.trade_winning_streak_nb`."""
         return self.apply(nb.trade_winning_streak_nb, dtype=np.int_, **kwargs)
 
     @cached_property
@@ -685,7 +685,7 @@ class Trades(Ranges):
     def get_losing_streak(self, **kwargs) -> MappedArray:
         """Losing streak at each trade in the current column.
 
-        See `vectorbt.portfolio.nb.trade_losing_streak_nb`."""
+        See `vectorbt.portfolio.nb.records.trade_losing_streak_nb`."""
         return self.apply(nb.trade_losing_streak_nb, dtype=np.int_, **kwargs)
 
     @cached_property

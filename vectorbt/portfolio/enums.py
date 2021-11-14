@@ -1647,7 +1647,7 @@ __pdoc__['Order'] = """A named tuple representing an order.
 
 !!! note
     Currently, Numba has issues with using defaults when filling named tuples. 
-    Use `vectorbt.portfolio.nb.order_nb` to create an order."""
+    Use `vectorbt.portfolio.nb.core.order_nb` to create an order."""
 __pdoc__['Order.size'] = """Size in units.
 
 Behavior depends upon `Order.size_type` and `Order.direction`.
