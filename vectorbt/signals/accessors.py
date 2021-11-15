@@ -1812,45 +1812,6 @@ class SignalsAccessor(GenericAccessor):
         wrap_kwargs = merge_dicts(dict(name_or_index='partition_rate'), wrap_kwargs)
         return self.wrapper.wrap_reduced(total_partitions / total, group_by=group_by, **wrap_kwargs)
 
-    # ############# Logical operations ############# #
-
-    def AND(self, other: tp.ArrayLike, **kwargs) -> tp.SeriesFrame:
-        """Combine with `other` using logical AND.
-
-        See `vectorbt.base.accessors.BaseAccessor.combine`.
-
-        """
-        return self.combine(other, combine_func=np.logical_and, **kwargs)
-
-    def OR(self, other: tp.ArrayLike, **kwargs) -> tp.SeriesFrame:
-        """Combine with `other` using logical OR.
-
-        See `vectorbt.base.accessors.BaseAccessor.combine`.
-
-        ## Example
-
-        Perform two OR operations and concatenate them:
-
-        ```python-repl
-        >>> ts = pd.Series([1, 2, 3, 2, 1])
-        >>> mask.vbt.signals.OR([ts > 1, ts > 2], concat=True, keys=['>1', '>2'])
-                                    >1                   >2
-                        a     b      c      a      b      c
-        2020-01-01   True  True   True   True   True   True
-        2020-01-02   True  True   True  False  False   True
-        2020-01-03   True  True   True   True   True   True
-        2020-01-04   True  True   True  False  False  False
-        2020-01-05  False  True  False  False   True  False
-        ```
-        """
-        return self.combine(other, combine_func=np.logical_or, **kwargs)
-
-    def XOR(self, other: tp.ArrayLike, **kwargs) -> tp.SeriesFrame:
-        """Combine with `other` using logical XOR.
-
-        See `vectorbt.base.accessors.BaseAccessor.combine`."""
-        return self.combine(other, combine_func=np.logical_xor, **kwargs)
-
     # ############# Stats ############# #
 
     @property

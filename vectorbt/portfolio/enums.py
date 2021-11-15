@@ -1110,7 +1110,7 @@ and the field `id` is set to -1. Once the first position is entered in a column,
 the `id` becomes 0 and the record materializes. Once the position is closed, the record
 fixates its identifier and other data until the next position is entered. 
 
-If `SimulationContext.init_positions` is not zero in a column, that column's position record
+If `SimulationContext.init_position` is not zero in a column, that column's position record
 is automatically filled before the simulation with `entry_price` of NaN and `entry_idx` of -1.
 Once a non-NaN price such as the opening price is discovered, the entry price gets substituted by this price.
 

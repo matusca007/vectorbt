@@ -37,6 +37,7 @@ you can find its variations as accessor methods.
 0  1
 1  1
 2  1
+
 >>> sr.vbt.broadcast_to(df)
    0
 0  1
@@ -44,17 +45,66 @@ you can find its variations as accessor methods.
 2  1
 ```
 
-Additionally, `BaseAccessor` implements arithmetic (such as `+`), comparison (such as `>`) and
-logical operators (such as `&`) by doing 1) NumPy-like broadcasting and 2) the compuation with NumPy
-under the hood, which is mostly much faster than with pandas.
+Many methods such as `BaseAccessor.broadcast` are both class and instance methods:
 
 ```python-repl
->>> df = pd.DataFrame(np.random.uniform(size=(1000, 1000)))
+>>> from vectorbt.base.accessors import BaseAccessor
 
->>> %timeit df * 2  # pandas
-296 ms ± 27.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
->>> %timeit df.vbt * 2  # vectorbt
-5.48 ms ± 1.12 ms per loop (mean ± std. dev. of 7 runs, 100 loops each)
+>>> # Same as sr.vbt.broadcast(df)
+>>> new_sr, new_df = BaseAccessor.broadcast(sr, df)
+
+>>> new_sr
+   0
+0  1
+1  1
+2  1
+
+>>> new_df
+   0
+0  1
+1  2
+2  3
+```
+
+Instead of explicitly importing `BaseAccessor` or any other accessor, we can use 
+`vectorbt.root_accessors.pd_acc` instead:
+
+```python-repl
+>>> vbt.pd_acc.broadcast(sr, df)
+
+>>> new_sr
+   0
+0  1
+1  1
+2  1
+
+>>> new_df
+   0
+0  1
+1  2
+2  3
+```
+
+Additionally, `BaseAccessor` implements arithmetic (such as `+`), comparison (such as `>`) and
+logical operators (such as `&`) by forwarding the operation to `BaseAccessor.combine`:
+
+```python-repl
+>>> sr.vbt + df
+   0
+0  2
+1  3
+2  4
+```
+
+Many interesting use cases can be implemented this way. For example, let's compare an array
+with 10 different thresholds:
+
+```python-repl
+>>> df.vbt > pd.Index(np.arange(10), name='threshold')
+threshold     0      1      2      3      4      5      6      7      8      9
+0          True  False  False  False  False  False  False  False  False  False
+1          True   True  False  False  False  False  False  False  False  False
+2          True   True   True  False  False  False  False  False  False  False
 ```
 
 !!! note
@@ -80,8 +130,7 @@ from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_con
 BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 
 
-@attach_binary_magic_methods(
-    lambda self, other, np_func: self.combine(other, allow_multiple=False, combine_func=np_func))
+@attach_binary_magic_methods(lambda self, other, np_func: self.combine(other, combine_func=np_func))
 @attach_unary_magic_methods(lambda self, np_func: self.apply(apply_func=np_func))
 class BaseAccessor(Wrapping):
     """Accessor on top of Series and DataFrames.
@@ -614,10 +663,11 @@ class BaseAccessor(Wrapping):
                 obj: tp.MaybeTupleList[tp.Union[tp.ArrayLike, "BaseAccessor"]],
                 *args,
                 allow_multiple: bool = True,
+                index_as_multiple: bool = True,
                 combine_func: tp.Optional[tp.Callable] = None,
                 keep_pd: bool = False,
                 to_2d: bool = False,
-                concat: bool = False,
+                concat: tp.Optional[bool] = None,
                 broadcast_kwargs: tp.KwargsLike = None,
                 keys: tp.Optional[tp.IndexLike] = None,
                 wrap_kwargs: tp.KwargsLike = None,
@@ -627,9 +677,10 @@ class BaseAccessor(Wrapping):
         Args:
             obj (array_like): Object(s) to combine this array with.
             *args: Variable arguments passed to `combine_func`.
-            allow_multiple (bool): Whether a tuple/list will be considered as multiple objects in `other`.
+            allow_multiple (bool): Whether a tuple/list/Index will be considered as multiple objects in `other`.
 
                 Takes effect only when using the instance method.
+            index_as_multiple (bool): Whether index should be considered as multiple objects.
             combine_func (callable): Function to combine two arrays.
 
                 Can be Numba-compiled.
@@ -640,6 +691,7 @@ class BaseAccessor(Wrapping):
 
                 If True, see `vectorbt.base.combining.combine_and_concat`.
                 If False, see `vectorbt.base.combining.combine_multiple`.
+                If None, becomes True if there are more than two arguments to combine.
 
                 Can only concatenate using the instance method.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
@@ -661,28 +713,33 @@ class BaseAccessor(Wrapping):
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
 
         >>> # using instance method
-        >>> sr.vbt.combine(df, combine_func=lambda x, y: x + y)
+        >>> sr.vbt.combine(df, combine_func=np.add)
            a  b
         x  4  5
         y  7  8
 
-        >>> sr.vbt.combine([df, df*2], combine_func=lambda x, y: x + y)
+        >>> sr.vbt.combine([df, df*2], combine_func=np.add)
             a   b
         x  10  13
         y  17  20
 
         >>> # using class method
-        >>> vbt.pd_acc.combine([sr, df, df*2], combine_func=lambda x, y: x + y)
+        >>> vbt.pd_acc.combine([sr, df, df*2], combine_func=np.add)
             a   b
         x  10  13
         y  17  20
 
         >>> # only using instance method
-        >>> sr.vbt.combine([df, df*2], combine_func=lambda x, y: x + y, concat=True, keys=['c', 'd'])
+        >>> sr.vbt.combine([df, df*2], combine_func=np.add, concat=True, keys=['c', 'd'])
               c       d
            a  b   a   b
         x  4  5   7   9
         y  7  8  12  14
+
+        >>> sr.vbt.combine(pd.Index([1, 2], name='param'), combine_func=np.add, concat=True)
+        param  1  2
+        x      2  3
+        y      3  4
         ```
 
         To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
@@ -708,10 +765,14 @@ class BaseAccessor(Wrapping):
         if isinstance(cls_or_self, type):
             objs = obj
         else:
-            if not allow_multiple or not isinstance(obj, (tuple, list)):
-                objs = (obj,)
-            else:
+            if allow_multiple and isinstance(obj, (tuple, list)):
                 objs = obj
+            elif allow_multiple and index_as_multiple and isinstance(obj, pd.Index):
+                objs = obj
+                if keys is None:
+                    keys = obj
+            else:
+                objs = (obj,)
         objs = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, objs))
         if not isinstance(cls_or_self, type):
             objs = (cls_or_self.obj,) + objs
@@ -729,9 +790,8 @@ class BaseAccessor(Wrapping):
                 inputs = tuple(map(lambda x: np.asarray(x), objs))
             else:
                 inputs = objs
-        if len(inputs) == 2:
-            out = combine_func(inputs[0], inputs[1], *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(out, **resolve_dict(wrap_kwargs))
+        if concat is None:
+            concat = len(inputs) > 2
         if concat:
             # Concat the results horizontally
             if isinstance(cls_or_self, type):

@@ -2299,39 +2299,6 @@ class TestAccessors:
         pd.testing.assert_index_equal(stats_df.index, mask.vbt.wrapper.columns)
         pd.testing.assert_index_equal(stats_df.columns, stats_index)
 
-    @pytest.mark.parametrize(
-        "test_func,test_func_pd",
-        [
-            (lambda x, *args, **kwargs: x.AND(args, **kwargs), lambda x, y: x & y),
-            (lambda x, *args, **kwargs: x.OR(args, **kwargs), lambda x, y: x | y),
-            (lambda x, *args, **kwargs: x.XOR(args, **kwargs), lambda x, y: x ^ y)
-        ],
-    )
-    def test_logical_funcs(self, test_func, test_func_pd):
-        pd.testing.assert_series_equal(
-            test_func(mask['a'].vbt.signals, True, [True, False, False, False, False]),
-            test_func_pd(test_func_pd(mask['a'], True), [True, False, False, False, False])
-        )
-        pd.testing.assert_frame_equal(
-            test_func(mask['a'].vbt.signals, True, [True, False, False, False, False], concat=True),
-            pd.concat((
-                test_func_pd(mask['a'], True),
-                test_func_pd(mask['a'], [True, False, False, False, False])
-            ), axis=1, keys=[0, 1], names=['combine_idx'])
-        )
-        pd.testing.assert_frame_equal(
-            test_func(mask.vbt.signals, True, [[True], [False], [False], [False], [False]]),
-            test_func_pd(test_func_pd(mask, True),
-                         np.broadcast_to([[True], [False], [False], [False], [False]], (5, 3)))
-        )
-        pd.testing.assert_frame_equal(
-            test_func(mask.vbt.signals, True, [[True], [False], [False], [False], [False]], concat=True),
-            pd.concat((
-                test_func_pd(mask, True),
-                test_func_pd(mask, np.broadcast_to([[True], [False], [False], [False], [False]], (5, 3)))
-            ), axis=1, keys=[0, 1], names=['combine_idx'])
-        )
-
 
 # ############# factory.py ############# #
 

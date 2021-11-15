@@ -3316,21 +3316,21 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             sr2.vbt.combine(
                 [10, df4], 10, b=100,
-                combine_func=combine_func
+                combine_func=combine_func, concat=False
             ),
             target
         )
         pd.testing.assert_frame_equal(
             sr2.vbt.combine(
                 [10, df4], 10, 100,
-                combine_func=combine_func_nb, numba_loop=True
+                combine_func=combine_func_nb, numba_loop=True, concat=False
             ),
             target
         )
         pd.testing.assert_frame_equal(
             df4.vbt.combine(
                 [10, sr2], 10, b=100,
-                combine_func=combine_func
+                combine_func=combine_func, concat=False
             ),
             pd.DataFrame(
                 target.values,
