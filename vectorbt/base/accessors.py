@@ -66,7 +66,7 @@ Many methods such as `BaseAccessor.broadcast` are both class and instance method
 2  3
 ```
 
-Instead of explicitly importing `BaseAccessor` or any other accessor, we can use 
+Instead of explicitly importing `BaseAccessor` or any other accessor, we can use
 `vectorbt.root_accessors.pd_acc` instead:
 
 ```python-repl

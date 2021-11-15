@@ -623,6 +623,18 @@ def broadcast(*args,
         args = list(args)
         keys = list(range(len(args)))
         return_dict = False
+    if checks.is_mapping(to_pd):
+        to_pd = [to_pd.get(k, to_pd.get('_default', None)) for k in keys]
+    if checks.is_mapping(keep_raw):
+        keep_raw = [keep_raw.get(k, keep_raw.get('_default', False)) for k in keys]
+    if checks.is_mapping(min_one_dim):
+        min_one_dim = [min_one_dim.get(k, min_one_dim.get('_default', True)) for k in keys]
+    if checks.is_mapping(require_kwargs):
+        require_arg_names = get_func_arg_names(np.require)
+        if set(require_kwargs) <= set(require_arg_names):
+            pass
+        else:
+            require_kwargs = [require_kwargs.get(k, require_kwargs.get('_default', None)) for k in keys]
 
     # Convert to np.ndarray object if not numpy or pandas
     # Also check whether we broadcast to pandas and whether work on 2-dim data
@@ -650,9 +662,7 @@ def broadcast(*args,
     if to_pd is not None:
         # force either raw or pandas
         if checks.is_sequence(to_pd):
-            is_pd = any(to_pd)
-        elif checks.is_mapping(to_pd):
-            is_pd = any([to_pd.get(k, False) for k in keys])
+            is_pd = any([is_pd if x is None else x for x in to_pd])
         else:
             is_pd = to_pd
 
@@ -675,8 +685,6 @@ def broadcast(*args,
     for i, arg in enumerate(arr_args_2d):
         if checks.is_sequence(min_one_dim):
             _min_one_dim = min_one_dim[i]
-        elif checks.is_mapping(min_one_dim):
-            _min_one_dim = min_one_dim.get(keys[i], min_one_dim.get('_default', True))
         else:
             _min_one_dim = min_one_dim
         if _min_one_dim and arg.ndim == 0:
@@ -684,8 +692,6 @@ def broadcast(*args,
         bc_arg = np.broadcast_to(arg, to_shape)
         if checks.is_sequence(keep_raw):
             _keep_raw = keep_raw[i]
-        elif checks.is_mapping(keep_raw):
-            _keep_raw = keep_raw.get(keys[i], keep_raw.get('_default', False))
         else:
             _keep_raw = keep_raw
         if _keep_raw:
@@ -694,16 +700,9 @@ def broadcast(*args,
         new_args.append(bc_arg)
 
     # Force to match requirements
-    require_kwargs_per_arg = True
-    if checks.is_mapping(require_kwargs):
-        require_arg_names = get_func_arg_names(np.require)
-        if set(require_kwargs) <= set(require_arg_names):
-            require_kwargs_per_arg = False
     for i in range(len(new_args)):
         if checks.is_sequence(require_kwargs):
             _require_kwargs = require_kwargs[i]
-        elif checks.is_mapping(require_kwargs) and require_kwargs_per_arg:
-            _require_kwargs = require_kwargs.get(keys[i], require_kwargs.get('_default', None))
         else:
             _require_kwargs = require_kwargs
         new_args[i] = np.require(new_args[i], **resolve_dict(_require_kwargs))
@@ -720,17 +719,15 @@ def broadcast(*args,
     for i in range(len(new_args)):
         if checks.is_sequence(keep_raw):
             _keep_raw = keep_raw[i]
-        elif checks.is_mapping(keep_raw):
-            _keep_raw = keep_raw.get(keys[i], keep_raw.get('_default', False))
         else:
             _keep_raw = keep_raw
         if _keep_raw:
             continue
         if checks.is_sequence(to_pd):
             _is_pd = to_pd[i]
-        elif checks.is_mapping(to_pd):
-            _is_pd = to_pd.get(keys[i], is_pd)
         else:
+            _is_pd = None
+        if _is_pd is None:
             _is_pd = is_pd
         new_args[i] = wrap_broadcasted(
             arr_args[i],

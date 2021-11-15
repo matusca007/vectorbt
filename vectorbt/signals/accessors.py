@@ -210,7 +210,7 @@ from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.random_ import set_seed_nb
-from vectorbt.utils.template import RepEval
+from vectorbt.utils.template import RepEval, deep_substitute
 
 __pdoc__ = {}
 
@@ -262,11 +262,17 @@ class SignalsAccessor(GenericAccessor):
     def generate(cls,
                  shape: tp.ShapeLike,
                  place_func_nb: tp.PlaceFunc, *args,
+                 broadcast_named_args: tp.KwargsLike = None,
+                 broadcast_kwargs: tp.KwargsLike = None,
+                 template_mapping: tp.Optional[tp.Mapping] = None,
                  nb_parallel: tp.Optional[bool] = None,
                  chunked: tp.ChunkedOption = None,
                  wrapper: tp.Optional[ArrayWrapper] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_nb`.
+
+        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
+        Use templates from `vectorbt.utils.template` to substitute them in `args`.
 
         ## Example
 
@@ -294,8 +300,18 @@ class SignalsAccessor(GenericAccessor):
         ```
         """
         checks.assert_numba_func(place_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         shape_2d = cls.resolve_shape(shape)
+        if len(broadcast_named_args) > 0:
+            broadcast_named_args = reshaping.broadcast(broadcast_named_args, to_shape=shape_2d, **broadcast_kwargs)
+            template_mapping = {**broadcast_named_args, 'shape': shape, 'shape_2d': shape_2d, **template_mapping}
+            args = deep_substitute(args, template_mapping)
         func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         result = func(shape_2d, place_func_nb, *args)
@@ -317,6 +333,9 @@ class SignalsAccessor(GenericAccessor):
                       exit_wait: int = 1,
                       max_one_entry: bool = True,
                       max_one_exit: bool = True,
+                      broadcast_named_args: tp.KwargsLike = None,
+                      broadcast_kwargs: tp.KwargsLike = None,
+                      template_mapping: tp.Optional[tp.Mapping] = None,
                       nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
@@ -327,6 +346,9 @@ class SignalsAccessor(GenericAccessor):
             Make sure that both functions return one signal at most. Otherwise, set `max_one_entry` and/or
             `max_one_exit` to False. In this case, the generator will search for the last signal and proceed
             with placing opposite signals right after it. This makes generation slower.
+
+        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
+        Use templates from `vectorbt.utils.template` to substitute them in `entry_args` and `exit_args`.
 
         ## Example
 
@@ -402,7 +424,6 @@ class SignalsAccessor(GenericAccessor):
         2020-01-05  False  False  False
         ```
         """
-        shape_2d = cls.resolve_shape(shape)
         checks.assert_not_none(entry_place_func_nb)
         checks.assert_not_none(exit_place_func_nb)
         checks.assert_numba_func(entry_place_func_nb)
@@ -411,7 +432,19 @@ class SignalsAccessor(GenericAccessor):
             entry_args = ()
         if exit_args is None:
             exit_args = ()
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
+        shape_2d = cls.resolve_shape(shape)
+        if len(broadcast_named_args) > 0:
+            broadcast_named_args = reshaping.broadcast(broadcast_named_args, to_shape=shape_2d, **broadcast_kwargs)
+            template_mapping = {**broadcast_named_args, 'shape': shape, 'shape_2d': shape_2d, **template_mapping}
+            entry_args = deep_substitute(entry_args, template_mapping)
+            exit_args = deep_substitute(exit_args, template_mapping)
         func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         result1, result2 = func(
@@ -434,10 +467,16 @@ class SignalsAccessor(GenericAccessor):
                        wait: int = 1,
                        until_next: bool = True,
                        skip_until_exit: bool = False,
+                       broadcast_named_args: tp.KwargsLike = None,
+                       broadcast_kwargs: tp.KwargsLike = None,
+                       template_mapping: tp.Optional[tp.Mapping] = None,
                        nb_parallel: tp.Optional[bool] = None,
                        chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_ex_nb`.
+
+        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
+        Use templates from `vectorbt.utils.template` to substitute them in `args`.
 
         ## Example
 
@@ -458,18 +497,33 @@ class SignalsAccessor(GenericAccessor):
         ```
         """
         checks.assert_numba_func(exit_place_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
+        obj = self.obj
+        if len(broadcast_named_args) > 0:
+            broadcast_named_args = dict(broadcast_named_args)
+            broadcast_named_args['obj'] = obj
+            broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
+            broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
+            template_mapping = {**broadcast_named_args, **template_mapping}
+            args = deep_substitute(args, template_mapping)
+            obj = broadcast_named_args['obj']
         func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         exits = func(
-            self.to_2d_array(),
+            reshaping.to_2d_array(obj),
             wait,
             until_next,
             skip_until_exit,
             exit_place_func_nb,
             *args
         )
-        return self.wrapper.wrap(exits, group_by=False, **resolve_dict(wrap_kwargs))
+        return ArrayWrapper.from_obj(obj).wrap(exits, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Filtering ############# #
 
@@ -1493,8 +1547,10 @@ class SignalsAccessor(GenericAccessor):
              prepare_func: tp.Optional[tp.Callable] = None,
              reset_by: tp.Optional[tp.ArrayLike] = None,
              after_false: bool = False,
-             broadcast_kwargs: tp.KwargsLike = None,
              as_mapped: bool = False,
+             broadcast_named_args: tp.KwargsLike = None,
+             broadcast_kwargs: tp.KwargsLike = None,
+             template_mapping: tp.Optional[tp.Mapping] = None,
              nb_parallel: tp.Optional[bool] = None,
              chunked: tp.ChunkedOption = None,
              wrap_kwargs: tp.KwargsLike = None,
@@ -1503,22 +1559,36 @@ class SignalsAccessor(GenericAccessor):
 
         Will broadcast with `reset_by` using `vectorbt.base.reshaping.broadcast` and `broadcast_kwargs`.
 
+        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
+        Use templates from `vectorbt.utils.template` to substitute them in `args`.
+
         Use `prepare_func` to prepare further arguments to be passed before `*args`, such as temporary arrays.
         It must take both broadcasted arrays (`reset_by` can be None) and return a tuple.
 
         Set `as_mapped` to True to return an instance of `vectorbt.records.mapped_array.MappedArray`."""
         checks.assert_not_none(rank_func_nb)
         checks.assert_numba_func(rank_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
         if broadcast_kwargs is None:
             broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
         if wrap_kwargs is None:
             wrap_kwargs = {}
 
+        obj = self.obj
+        broadcast_named_args = dict(broadcast_named_args)
+        broadcast_named_args['obj'] = obj
         if reset_by is not None:
-            obj, reset_by = reshaping.broadcast(self.obj, reset_by, **broadcast_kwargs)
-            reset_by = reshaping.to_2d_array(reset_by)
-        else:
-            obj = self.obj
+            broadcast_named_args['reset_by'] = reset_by
+        broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
+        broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
+        template_mapping = {**broadcast_named_args, **template_mapping}
+        args = deep_substitute(args, template_mapping)
+        obj = broadcast_named_args['obj']
+        if reset_by is not None:
+            reset_by = broadcast_named_args['reset_by']
         obj_arr = reshaping.to_2d_array(obj)
         if prepare_func is not None:
             temp_arrs = prepare_func(obj_arr, reset_by)

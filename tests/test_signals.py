@@ -156,6 +156,22 @@ class TestAccessors:
             pd.DataFrame.vbt.signals.generate((5, 3), place_func_nb, 1, chunked=False)
         )
 
+        @njit
+        def place_func2_nb(out, from_i, to_i, col, temp):
+            out[temp[from_i, col]] = True
+
+        pd.testing.assert_series_equal(
+            pd.Series.vbt.signals.generate(
+                5, place_func2_nb, vbt.Rep('temp'),
+                broadcast_named_args=dict(temp=0),
+                wrap_kwargs=dict(index=mask['a'].index, columns=['a'])),
+            pd.Series(
+                np.array([True, False, False, False, False]),
+                index=mask['a'].index,
+                name='a'
+            )
+        )
+
     def test_generate_both(self):
         @njit
         def entry_place_func_nb(out, from_i, to_i, col):
@@ -335,6 +351,38 @@ class TestAccessors:
                 max_one_entry=False, max_one_exit=False, chunked=False)[1]
         )
 
+        @njit
+        def entry_place_func3_nb(out, from_i, to_i, col, temp):
+            out[temp[from_i, col]] = True
+
+        @njit
+        def exit_place_func3_nb(out, from_i, to_i, col, temp):
+            out[temp[from_i, col]] = True
+
+        en, ex = pd.Series.vbt.signals.generate_both(
+            5,
+            entry_place_func_nb=entry_place_func3_nb, entry_args=(vbt.Rep('temp'),),
+            exit_place_func_nb=exit_place_func3_nb, exit_args=(vbt.Rep('temp'),),
+            max_one_entry=True, max_one_exit=True,
+            broadcast_named_args=dict(temp=0),
+            wrap_kwargs=dict(index=mask['a'].index, columns=['a']))
+        pd.testing.assert_series_equal(
+            en,
+            pd.Series(
+                np.array([True, False, True, False, True]),
+                index=mask['a'].index,
+                name='a'
+            )
+        )
+        pd.testing.assert_series_equal(
+            ex,
+            pd.Series(
+                np.array([False, True, False, True, False]),
+                index=mask['a'].index,
+                name='a'
+            )
+        )
+
     def test_generate_exits(self):
         @njit
         def place_func_nb(out, from_i, to_i, col):
@@ -411,6 +459,21 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             mask.vbt.signals.generate_exits(place_func_nb, chunked=True),
             mask.vbt.signals.generate_exits(place_func_nb, chunked=False)
+        )
+
+        @njit
+        def place_func3_nb(out, from_i, to_i, col, temp):
+            out[temp[from_i, col]] = True
+
+        pd.testing.assert_series_equal(
+            mask['a'].vbt.signals.generate_exits(
+                place_func3_nb, vbt.RepEval('temp[:, None]'), broadcast_named_args=dict(temp=0)
+            ),
+            pd.Series(
+                np.array([False, True, False, False, True]),
+                index=mask['a'].index,
+                name='a'
+            )
         )
 
     def test_clean(self):

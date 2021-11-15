@@ -2018,7 +2018,7 @@ def combine_objs(obj: tp.SeriesFrame,
     if allow_multiple and isinstance(other, (tuple, list)):
         if keys is None:
             keys = indexes.index_from_values(other, name=level_name)
-    return obj.vbt.combine(other, *args, keys=keys, concat=True, allow_multiple=allow_multiple, **kwargs)
+    return obj.vbt.combine(other, *args, keys=keys, allow_multiple=allow_multiple, **kwargs)
 
 
 IndicatorBaseT = tp.TypeVar("IndicatorBaseT", bound="IndicatorBase")
