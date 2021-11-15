@@ -62,6 +62,7 @@ TupleList = Union[List[T], Tuple[T, ...]]
 MaybeTupleList = Union[T, List[T], Tuple[T, ...]]
 MaybeIterable = Union[T, Iterable[T]]
 MaybeSequence = Union[T, Sequence[T]]
+MaybeMappingSequence = Union[T, Mapping[str, T], Sequence[T]]
 
 
 # Arrays

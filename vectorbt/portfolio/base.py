@@ -2234,11 +2234,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             low=low,
             close=close
         )
-        keep_raw = [True] * len(broadcastable_args)
-        keep_raw[-1] = False
-        broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
-        broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
-        broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        broadcast_kwargs = merge_dicts(dict(keep_raw=dict(close=False, _default=True)), broadcast_kwargs)
+        broadcasted_args = broadcast(broadcastable_args, **broadcast_kwargs)
         cash_earnings = broadcasted_args.pop('cash_earnings')
         cash_dividends = broadcasted_args.pop('cash_dividends')
         close = broadcasted_args['close']
@@ -3210,12 +3207,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 broadcastable_args['direction'] = direction
         broadcastable_args = {**broadcastable_args, **broadcast_named_args}
         # Only close is broadcast, others can remain unchanged thanks to flexible indexing
-        close_idx = list(broadcastable_args.keys()).index('close')
-        keep_raw = [True] * len(broadcastable_args)
-        keep_raw[close_idx] = False
-        broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
-        broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
-        broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        broadcast_kwargs = merge_dicts(dict(keep_raw=dict(close=False, _default=True)), broadcast_kwargs)
+        broadcasted_args = broadcast(broadcastable_args, **broadcast_kwargs)
         cash_earnings = broadcasted_args.pop('cash_earnings')
         cash_dividends = broadcasted_args.pop('cash_dividends')
         close = broadcasted_args['close']
@@ -4117,12 +4110,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         broadcastable_args = {**broadcastable_args, **broadcast_named_args}
         # Only close is broadcast, others can remain unchanged thanks to flexible indexing
-        close_idx = list(broadcastable_args.keys()).index('close')
-        keep_raw = [True] * len(broadcastable_args)
-        keep_raw[close_idx] = False
-        broadcast_kwargs = merge_dicts(dict(keep_raw=keep_raw), broadcast_kwargs)
-        broadcasted_args = broadcast(*broadcastable_args.values(), **broadcast_kwargs)
-        broadcasted_args = dict(zip(broadcastable_args.keys(), broadcasted_args))
+        broadcast_kwargs = merge_dicts(dict(keep_raw=dict(close=False, _default=True)), broadcast_kwargs)
+        broadcasted_args = broadcast(broadcastable_args, **broadcast_kwargs)
         cash_earnings = broadcasted_args.pop('cash_earnings')
         close = broadcasted_args['close']
         if not checks.is_pandas(close):

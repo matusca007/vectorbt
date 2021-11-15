@@ -1919,6 +1919,78 @@ class TestReshapeFns:
         assert not np.isfortran(a)
         assert not np.isfortran(b)
 
+    def test_broadcast_mmapping(self):
+        result = reshaping.broadcast(dict(zero=0, a2=a2, sr2=sr2))
+        assert type(result) == dict
+        pd.testing.assert_series_equal(
+            result['zero'],
+            pd.Series([0, 0, 0], name=sr2.name, index=sr2.index)
+        )
+        pd.testing.assert_series_equal(
+            result['a2'],
+            pd.Series([1, 2, 3], name=sr2.name, index=sr2.index)
+        )
+        pd.testing.assert_series_equal(
+            result['sr2'],
+            pd.Series([1, 2, 3], name=sr2.name, index=sr2.index)
+        )
+
+    def test_broadcast_individual(self):
+        result = reshaping.broadcast(
+            dict(zero=0, a2=a2, sr2=sr2),
+            keep_raw={'_default': True, 'sr2': False},
+            min_one_dim={'a2': False},
+            require_kwargs={'_default': dict(dtype=float), 'a2': dict(dtype=int)},
+        )
+        np.testing.assert_array_equal(
+            result['zero'],
+            np.array([0.])
+        )
+        np.testing.assert_array_equal(
+            result['a2'],
+            np.array([1, 2, 3])
+        )
+        pd.testing.assert_series_equal(
+            result['sr2'],
+            pd.Series([1., 2., 3.], name=sr2.name, index=sr2.index)
+        )
+        result = reshaping.broadcast(
+            0, a2, sr2,
+            keep_raw={'_default': True, 2: False},
+            min_one_dim={1: False},
+            require_kwargs={'_default': dict(dtype=float), 1: dict(dtype=int)},
+        )
+        np.testing.assert_array_equal(
+            result[0],
+            np.array([0.])
+        )
+        np.testing.assert_array_equal(
+            result[1],
+            np.array([1, 2, 3])
+        )
+        pd.testing.assert_series_equal(
+            result[2],
+            pd.Series([1., 2., 3.], name=sr2.name, index=sr2.index)
+        )
+        result = reshaping.broadcast(
+            0, a2, sr2,
+            keep_raw=[True, True, False],
+            min_one_dim=[True, False, True],
+            require_kwargs=[dict(dtype=float), dict(dtype=int), dict(dtype=float)],
+        )
+        np.testing.assert_array_equal(
+            result[0],
+            np.array([0.])
+        )
+        np.testing.assert_array_equal(
+            result[1],
+            np.array([1, 2, 3])
+        )
+        pd.testing.assert_series_equal(
+            result[2],
+            pd.Series([1., 2., 3.], name=sr2.name, index=sr2.index)
+        )
+
     def test_broadcast_meta(self):
         _0, _a2, _sr2, _df2 = reshaping.broadcast(0, a2, sr2, df2, keep_raw=True)
         assert _0 == 0

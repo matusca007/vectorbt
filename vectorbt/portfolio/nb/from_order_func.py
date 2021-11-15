@@ -190,8 +190,8 @@ def simulate_nb(target_shape: tp.Shape,
                 To change the call sequence of a segment, access
                 `vectorbt.portfolio.enums.SegmentContext.call_seq_now` and change it in-place.
                 Make sure to not generate any new arrays as it may negatively impact performance.
-                Assigning `SegmentContext.call_seq_now` as any other context (named tuple) value
-                is not supported. See `vectorbt.portfolio.enums.SegmentContext.call_seq_now`.
+                Assigning `vectorbt.portfolio.enums.SegmentContext.call_seq_now` as any other context
+                (named tuple) value is not supported. See `vectorbt.portfolio.enums.SegmentContext.call_seq_now`.
 
             !!! note
                 You can override elements of `last_val_price` to manipulate group valuation.

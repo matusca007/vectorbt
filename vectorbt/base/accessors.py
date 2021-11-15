@@ -401,21 +401,21 @@ class BaseAccessor(Wrapping):
             **merge_dicts(dict(index=other.index, columns=other.columns), wrap_kwargs))
 
     @class_or_instancemethod
-    def broadcast(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+    def broadcast(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> tp.Any:
         """See `vectorbt.base.reshaping.broadcast`."""
         others = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, others))
         if isinstance(cls_or_self, type):
             return reshaping.broadcast(*others, **kwargs)
         return reshaping.broadcast(cls_or_self.obj, *others, **kwargs)
 
-    def broadcast_to(self, other: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+    def broadcast_to(self, other: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> tp.Any:
         """See `vectorbt.base.reshaping.broadcast_to`."""
         if isinstance(other, BaseAccessor):
             other = other.obj
         return reshaping.broadcast_to(self.obj, other, **kwargs)
 
     @class_or_instancemethod
-    def broadcast_combs(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> reshaping.BCRT:
+    def broadcast_combs(cls_or_self, *others: tp.Union[tp.ArrayLike, "BaseAccessor"], **kwargs) -> tp.Any:
         """See `vectorbt.base.reshaping.broadcast_combs`."""
         others = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, others))
         if isinstance(cls_or_self, type):
