@@ -1621,11 +1621,12 @@ def run_pipeline(
             columns_from=input_columns,
             require_kwargs=dict(requirements='W')
         ), broadcast_kwargs)
-        bc_input_list, input_shape, input_index, input_columns = reshaping.broadcast(
+        bc_input_list, wrapper = reshaping.broadcast(
             *input_list,
-            return_meta=True,
+            return_wrapper=True,
             **broadcast_kwargs
         )
+        input_shape, input_index, input_columns = wrapper.shape, wrapper.index, wrapper.columns
         if input_index is None:
             input_index = pd.RangeIndex(start=0, step=1, stop=input_shape[0])
         if input_columns is None:

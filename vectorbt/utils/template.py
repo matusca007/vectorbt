@@ -17,9 +17,15 @@ from vectorbt.utils.parsing import get_func_arg_names
 class CustomTemplate(Hashable, SafeToStr):
     """Base class for substituting templates."""
 
-    def __init__(self, template: tp.Any, mapping: tp.Optional[tp.Mapping] = None) -> None:
+    def __init__(self,
+                 template: tp.Any,
+                 mapping: tp.Optional[tp.Mapping] = None,
+                 strict: tp.Optional[bool] = None,
+                 sub_id: tp.Optional[tp.MaybeCollection[Hashable]] = None) -> None:
         self._template = template
         self._mapping = mapping
+        self._strict = strict
+        self._sub_id = sub_id
 
     @property
     def template(self) -> tp.Any:
@@ -33,7 +39,35 @@ class CustomTemplate(Hashable, SafeToStr):
             return {}
         return self._mapping
 
-    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+    @property
+    def strict(self) -> tp.Optional[bool]:
+        """Whether to raise an error if processing template fails.
+
+        If not None, overrides `strict` passed by `deep_substitute`."""
+        return self._strict
+
+    @property
+    def sub_id(self) -> tp.Optional[tp.MaybeCollection[Hashable]]:
+        """Substitution id or ids at which to evaluate this template
+
+        Checks against `sub_id` passed by `deep_substitute`."""
+        return self._sub_id
+
+    def meets_sub_id(self, sub_id: tp.Optional[Hashable] = None) -> bool:
+        """Return whether the substitution id of the template meets the global substitution id."""
+        if self.sub_id is not None and sub_id is not None:
+            if isinstance(self.sub_id, int):
+                if sub_id != self.sub_id:
+                    return False
+            else:
+                if sub_id not in self.sub_id:
+                    return False
+        return True
+
+    def substitute(self,
+                   mapping: tp.Optional[tp.Mapping] = None,
+                   strict: bool = False,
+                   sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Abstract method to substitute the template `CustomTemplate.template` using
         the mapping from merging `CustomTemplate.mapping` and `mapping`."""
         raise NotImplementedError
@@ -42,13 +76,17 @@ class CustomTemplate(Hashable, SafeToStr):
     def hash_key(self) -> tuple:
         return (
             self.template,
-            tuple(self.mapping.items()) if self.mapping is not None else None
+            tuple(self.mapping.items()) if self.mapping is not None else None,
+            self.strict,
+            self.sub_id if (self.sub_id is None or isinstance(self.sub_id, int)) else tuple(self.sub_id)
         )
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(" \
                f"template=\"{self.template}\", " \
-               f"mapping={prepare_for_doc(self.mapping)})"
+               f"mapping={prepare_for_doc(self.mapping)}, " \
+               f"strict=\"{self.strict}\", " \
+               f"sub_id={prepare_for_doc(self.sub_id)})"
 
 
 class Sub(CustomTemplate):
@@ -56,42 +94,90 @@ class Sub(CustomTemplate):
 
     Always returns a string."""
 
-    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> str:
+    def substitute(self,
+                   mapping: tp.Optional[tp.Mapping] = None,
+                   strict: bool = False,
+                   sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Substitute parts of `Sub.template` as a regular template."""
-        mapping = merge_dicts(self.mapping, mapping)
-        return Template(self.template).substitute(mapping)
+        if not self.meets_sub_id(sub_id):
+            return self
+        if self.strict is not None:
+            strict = self.strict
+        try:
+            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
+            return Template(self.template).substitute(mapping)
+        except KeyError as e:
+            if strict:
+                raise e
+        return self
 
 
 class Rep(CustomTemplate):
     """Template string to be replaced with the respective value from `mapping`."""
 
-    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+    def substitute(self,
+                   mapping: tp.Optional[tp.Mapping] = None,
+                   strict: bool = False,
+                   sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Replace `Rep.template` as a key."""
-        mapping = merge_dicts(self.mapping, mapping)
-        return mapping[self.template]
+        if not self.meets_sub_id(sub_id):
+            return self
+        if self.strict is not None:
+            strict = self.strict
+        try:
+            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
+            return mapping[self.template]
+        except KeyError as e:
+            if strict:
+                raise e
+        return self
 
 
 class RepEval(CustomTemplate):
     """Template expression to be evaluated with `mapping` used as locals."""
 
-    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+    def substitute(self,
+                   mapping: tp.Optional[tp.Mapping] = None,
+                   strict: bool = False,
+                   sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Evaluate `RepEval.template` as an expression."""
-        mapping = merge_dicts(self.mapping, mapping)
-        return eval(self.template, {}, mapping)
+        if not self.meets_sub_id(sub_id):
+            return self
+        if self.strict is not None:
+            strict = self.strict
+        try:
+            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
+            return eval(self.template, {}, mapping)
+        except NameError as e:
+            if strict:
+                raise e
+        return self
 
 
 class RepFunc(CustomTemplate):
     """Template function to be called with argument names from `mapping`."""
 
-    def substitute(self, mapping: tp.Optional[tp.Mapping] = None) -> tp.Any:
+    def substitute(self,
+                   mapping: tp.Optional[tp.Mapping] = None,
+                   strict: bool = False,
+                   sub_id: int = 0) -> tp.Any:
         """Call `RepFunc.template` as a function."""
-        mapping = merge_dicts(self.mapping, mapping)
-        func_arg_names = get_func_arg_names(self.template)
-        func_kwargs = dict()
-        for k, v in mapping.items():
-            if k in func_arg_names:
-                func_kwargs[k] = v
-        return self.template(**func_kwargs)
+        if not self.meets_sub_id(sub_id):
+            return self
+        if self.strict is not None:
+            strict = self.strict
+        try:
+            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
+            func_arg_names = get_func_arg_names(self.template)
+            func_kwargs = dict()
+            for k, v in mapping.items():
+                if k in func_arg_names:
+                    func_kwargs[k] = v
+            return self.template(**func_kwargs)
+        except TypeError as e:
+            if strict:
+                raise e
+        return self
 
 
 def has_templates(obj: tp.Any) -> tp.Any:
@@ -112,7 +198,8 @@ def has_templates(obj: tp.Any) -> tp.Any:
 def deep_substitute(obj: tp.Any,
                     mapping: tp.Optional[tp.Mapping] = None,
                     strict: bool = False,
-                    make_copy: bool = True) -> tp.Any:
+                    make_copy: bool = True,
+                    sub_id: tp.Optional[Hashable] = None) -> tp.Any:
     """Traverses the object recursively and, if any template found, substitutes it using a mapping.
 
     Traverses tuples, lists, dicts and (frozen-)sets. Does not look for templates in keys.
@@ -152,29 +239,27 @@ def deep_substitute(obj: tp.Any,
         mapping = {}
     if not has_templates(obj):
         return obj
-    try:
-        if isinstance(obj, (Template, CustomTemplate)):
-            return obj.substitute(mapping)
-        if isinstance(obj, dict):
-            if make_copy:
-                obj = copy(obj)
-            for k, v in obj.items():
-                set_dict_item(obj, k, deep_substitute(v, mapping=mapping, strict=strict), force=True)
-            return obj
-        if isinstance(obj, list):
-            if make_copy:
-                obj = copy(obj)
-            for i in range(len(obj)):
-                obj[i] = deep_substitute(obj[i], mapping=mapping, strict=strict)
-            return obj
-        if isinstance(obj, (tuple, set, frozenset)):
-            result = []
-            for o in obj:
-                result.append(deep_substitute(o, mapping=mapping, strict=strict))
-            if checks.is_namedtuple(obj):
-                return type(obj)(*result)
-            return type(obj)(result)
-    except Exception as e:
-        if strict:
-            raise e
+    if isinstance(obj, CustomTemplate):
+        return obj.substitute(mapping=mapping, strict=strict, sub_id=sub_id)
+    if isinstance(obj, Template):
+        return obj.substitute(mapping=mapping)
+    if isinstance(obj, dict):
+        if make_copy:
+            obj = copy(obj)
+        for k, v in obj.items():
+            set_dict_item(obj, k, deep_substitute(v, mapping=mapping, strict=strict, sub_id=sub_id), force=True)
+        return obj
+    if isinstance(obj, list):
+        if make_copy:
+            obj = copy(obj)
+        for i in range(len(obj)):
+            obj[i] = deep_substitute(obj[i], mapping=mapping, strict=strict, sub_id=sub_id)
+        return obj
+    if isinstance(obj, (tuple, set, frozenset)):
+        result = []
+        for o in obj:
+            result.append(deep_substitute(o, mapping=mapping, strict=strict, sub_id=sub_id))
+        if checks.is_namedtuple(obj):
+            return type(obj)(*result)
+        return type(obj)(result)
     return obj

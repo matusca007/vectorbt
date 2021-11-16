@@ -2016,10 +2016,10 @@ class TestReshapeFns:
         np.testing.assert_array_equal(_a2, a2)
         np.testing.assert_array_equal(_sr2, sr2.values[:, None])
         np.testing.assert_array_equal(_df2, df2.values)
-        _, new_shape, new_index, new_columns = reshaping.broadcast(0, a2, sr2, df2, return_meta=True)
-        assert new_shape == test_shape
-        pd.testing.assert_index_equal(new_index, test_index)
-        pd.testing.assert_index_equal(new_columns, test_columns)
+        _, wrapper = reshaping.broadcast(0, a2, sr2, df2, return_wrapper=True)
+        assert wrapper.shape == test_shape
+        pd.testing.assert_index_equal(wrapper.index, test_index)
+        pd.testing.assert_index_equal(wrapper.columns, test_columns)
 
     def test_broadcast_align(self):
         index1 = pd.Index(['a', 'b', 'c'])

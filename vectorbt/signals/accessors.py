@@ -271,9 +271,6 @@ class SignalsAccessor(GenericAccessor):
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_nb`.
 
-        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
-        Use templates from `vectorbt.utils.template` to substitute them in `args`.
-
         ## Example
 
         Generate random signals manually:
@@ -310,8 +307,12 @@ class SignalsAccessor(GenericAccessor):
         shape_2d = cls.resolve_shape(shape)
         if len(broadcast_named_args) > 0:
             broadcast_named_args = reshaping.broadcast(broadcast_named_args, to_shape=shape_2d, **broadcast_kwargs)
-            template_mapping = {**broadcast_named_args, 'shape': shape, 'shape_2d': shape_2d, **template_mapping}
-            args = deep_substitute(args, template_mapping)
+        template_mapping = merge_dicts(
+            broadcast_named_args,
+            dict(shape=shape, shape_2d=shape_2d),
+            template_mapping
+        )
+        args = deep_substitute(args, template_mapping, sub_id='args')
         func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         result = func(shape_2d, place_func_nb, *args)
@@ -346,9 +347,6 @@ class SignalsAccessor(GenericAccessor):
             Make sure that both functions return one signal at most. Otherwise, set `max_one_entry` and/or
             `max_one_exit` to False. In this case, the generator will search for the last signal and proceed
             with placing opposite signals right after it. This makes generation slower.
-
-        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
-        Use templates from `vectorbt.utils.template` to substitute them in `entry_args` and `exit_args`.
 
         ## Example
 
@@ -442,9 +440,17 @@ class SignalsAccessor(GenericAccessor):
         shape_2d = cls.resolve_shape(shape)
         if len(broadcast_named_args) > 0:
             broadcast_named_args = reshaping.broadcast(broadcast_named_args, to_shape=shape_2d, **broadcast_kwargs)
-            template_mapping = {**broadcast_named_args, 'shape': shape, 'shape_2d': shape_2d, **template_mapping}
-            entry_args = deep_substitute(entry_args, template_mapping)
-            exit_args = deep_substitute(exit_args, template_mapping)
+        template_mapping = merge_dicts(
+            broadcast_named_args,
+            dict(
+                shape=shape, shape_2d=shape_2d,
+                entry_wait=entry_wait, exit_wait=exit_wait,
+                max_one_entry=max_one_entry, max_one_exit=max_one_exit
+            ),
+            template_mapping
+        )
+        entry_args = deep_substitute(entry_args, template_mapping, sub_id='entry_args')
+        exit_args = deep_substitute(exit_args, template_mapping, sub_id='exit_args')
         func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         result1, result2 = func(
@@ -474,9 +480,6 @@ class SignalsAccessor(GenericAccessor):
                        chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_ex_nb`.
-
-        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
-        Use templates from `vectorbt.utils.template` to substitute them in `args`.
 
         ## Example
 
@@ -510,9 +513,13 @@ class SignalsAccessor(GenericAccessor):
             broadcast_named_args['obj'] = obj
             broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
             broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
-            template_mapping = {**broadcast_named_args, **template_mapping}
-            args = deep_substitute(args, template_mapping)
             obj = broadcast_named_args['obj']
+        template_mapping = merge_dicts(
+            broadcast_named_args,
+            dict(wait=wait, until_next=until_next, skip_until_exit=skip_until_exit),
+            template_mapping
+        )
+        args = deep_substitute(args, template_mapping, sub_id='args')
         func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         exits = func(
@@ -1559,9 +1566,6 @@ class SignalsAccessor(GenericAccessor):
 
         Will broadcast with `reset_by` using `vectorbt.base.reshaping.broadcast` and `broadcast_kwargs`.
 
-        Arguments listed in `broadcast_named_args` will broadcast against `shape`.
-        Use templates from `vectorbt.utils.template` to substitute them in `args`.
-
         Use `prepare_func` to prepare further arguments to be passed before `*args`, such as temporary arrays.
         It must take both broadcasted arrays (`reset_by` can be None) and return a tuple.
 
@@ -1584,8 +1588,6 @@ class SignalsAccessor(GenericAccessor):
             broadcast_named_args['reset_by'] = reset_by
         broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
         broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
-        template_mapping = {**broadcast_named_args, **template_mapping}
-        args = deep_substitute(args, template_mapping)
         obj = broadcast_named_args['obj']
         if reset_by is not None:
             reset_by = broadcast_named_args['reset_by']
@@ -1594,6 +1596,12 @@ class SignalsAccessor(GenericAccessor):
             temp_arrs = prepare_func(obj_arr, reset_by)
         else:
             temp_arrs = ()
+        template_mapping = merge_dicts(
+            broadcast_named_args,
+            dict(after_false=after_false, temp_arrs=temp_arrs),
+            template_mapping
+        )
+        args = deep_substitute(args, template_mapping, sub_id='args')
         func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         rank = func(

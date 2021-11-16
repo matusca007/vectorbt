@@ -385,7 +385,8 @@ def broadcast(*args,
               require_kwargs: tp.MaybeMappingSequence[tp.KwargsLike] = None,
               keep_raw: tp.MaybeMappingSequence[bool] = False,
               min_one_dim: tp.MaybeMappingSequence[bool] = True,
-              return_meta: bool = False,
+              return_wrapper: bool = False,
+              wrapper_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.Any:
     """Bring any array-like object in `args` to the same shape by using NumPy broadcasting.
 
@@ -429,7 +430,7 @@ def broadcast(*args,
             Defaults to True.
 
             Can be provided per argument.
-        return_meta (bool): Whether to also return new shape, index and columns.
+        return_wrapper (bool): Whether to also return the wrapper associated with the operation.
         **kwargs: Keyword arguments passed to `broadcast_index`.
 
     For defaults, see `broadcasting` in `vectorbt._settings.settings`.
@@ -742,11 +743,23 @@ def broadcast(*args,
     else:
         new_args = tuple(new_args)
     if len(new_args) > 1 or return_dict:
-        if return_meta:
-            return new_args, to_shape, new_index, new_columns
+        if return_wrapper:
+            wrapper = wrapping.ArrayWrapper.from_shape(
+                to_shape,
+                index=new_index,
+                columns=new_columns,
+                **resolve_dict(wrapper_kwargs)
+            )
+            return new_args, wrapper
         return new_args
-    if return_meta:
-        return new_args[0], to_shape, new_index, new_columns
+    if return_wrapper:
+        wrapper = wrapping.ArrayWrapper.from_shape(
+            to_shape,
+            index=new_index,
+            columns=new_columns,
+            **resolve_dict(wrapper_kwargs)
+        )
+        return new_args[0], wrapper
     return new_args[0]
 
 

@@ -237,6 +237,7 @@ from vectorbt.utils import chunking as ch
 from vectorbt.utils.config import Config, merge_dicts, resolve_dict
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.mapping import apply_mapping, to_mapping
+from vectorbt.utils.template import deep_substitute
 
 try:  # pragma: no cover
     import bottleneck as bn
@@ -459,6 +460,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     @class_or_instancemethod
     def map(cls_or_self,
             apply_func_nb: tp.Union[tp.MapFunc, tp.MapMetaFunc], *args,
+            broadcast_named_args: tp.KwargsLike = None,
+            broadcast_kwargs: tp.KwargsLike = None,
+            template_mapping: tp.Optional[tp.Mapping] = None,
             nb_parallel: tp.Optional[bool] = None,
             chunked: tp.ChunkedOption = None,
             wrapper: tp.Optional[ArrayWrapper] = None,
@@ -471,6 +475,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> prod_nb = njit(lambda a, x: a * x)
+
         >>> df.vbt.map(prod_nb, 10)
                      a   b   c
         2020-01-01  10  50  10
@@ -484,6 +489,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> diff_meta_nb = njit(lambda i, col, a, b: a[i, col] / b[i, col])
+
         >>> vbt.pd_acc.map(
         ...     diff_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -497,11 +503,54 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-04  0.600000  0.333333  0.333333
         2020-01-05  0.666667  0.000000  0.000000
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.map(
+        ...     diff_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ... )
+                      a    b         c
+        2020-01-01  1.0  0.5  0.333333
+        2020-01-02  2.0  1.0  0.666667
+        2020-01-03  3.0  1.5  1.000000
+        2020-01-04  4.0  2.0  1.333333
+        2020-01-05  5.0  2.5  1.666667
+        ```
         """
         checks.assert_numba_func(apply_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             func = nb_registry.redecorate_parallel(nb.map_meta_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
@@ -518,6 +567,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def apply_along_axis(cls_or_self,
                          apply_func_nb: tp.Union[tp.ApplyFunc, tp.ApplyMetaFunc], *args,
                          axis: int = 1,
+                         broadcast_named_args: tp.KwargsLike = None,
+                         broadcast_kwargs: tp.KwargsLike = None,
+                         template_mapping: tp.Optional[tp.Mapping] = None,
                          nb_parallel: tp.Optional[bool] = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
@@ -531,6 +583,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> power_nb = njit(lambda a: np.power(a, 2))
+
         >>> df.vbt.apply_along_axis(power_nb)
                      a   b  c
         2020-01-01   1  25  1
@@ -544,6 +597,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> ratio_meta_nb = njit(lambda col, a, b: a[:, col] / b[:, col])
+
         >>> vbt.pd_acc.apply_along_axis(
         ...     ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -557,12 +611,55 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-04  0.600000  0.333333  0.333333
         2020-01-05  0.666667  0.000000  0.000000
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.apply_along_axis(
+        ...     ratio_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ... )
+                      a    b         c
+        2020-01-01  1.0  0.5  0.333333
+        2020-01-02  2.0  1.0  0.666667
+        2020-01-03  3.0  1.5  1.000000
+        2020-01-04  4.0  2.0  1.333333
+        2020-01-05  5.0  2.5  1.666667
+        ```
         """
         checks.assert_in(axis, (0, 1))
         checks.assert_numba_func(apply_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper, axis=axis),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             if axis == 0:
                 func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, nb_parallel)
             else:
@@ -583,9 +680,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
     @class_or_instancemethod
     def rolling_apply(cls_or_self,
-                      window: int,
+                      window: tp.Optional[int],
                       apply_func_nb: tp.Union[tp.ApplyFunc, tp.RollApplyMetaFunc], *args,
                       minp: tp.Optional[int] = None,
+                      broadcast_named_args: tp.KwargsLike = None,
+                      broadcast_kwargs: tp.KwargsLike = None,
+                      template_mapping: tp.Optional[tp.Mapping] = None,
                       nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
@@ -594,10 +694,13 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         For details on the meta version, see `vectorbt.generic.nb.rolling_apply_meta_nb`.
 
+        If `window` is None, it will become an expanding window.
+
         ## Example
 
         ```python-repl
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
         >>> df.vbt.rolling_apply(3, mean_nb)
                       a    b         c
         2020-01-01  NaN  NaN       NaN
@@ -612,6 +715,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda from_i, to_i, col, a, b: \\
         ...     np.mean(a[from_i:to_i, col]) / np.mean(b[from_i:to_i, col]))
+
         >>> vbt.pd_acc.rolling_apply(
         ...     3,
         ...     mean_ratio_meta_nb,
@@ -626,15 +730,71 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-04  0.500000  0.500000  0.400000
         2020-01-05  0.600000  0.333333  0.333333
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.rolling_apply(
+        ...     2,
+        ...     mean_ratio_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ... )
+                      a     b         c
+        2020-01-01  NaN   NaN       NaN
+        2020-01-02  1.5  0.75  0.500000
+        2020-01-03  2.5  1.25  0.833333
+        2020-01-04  3.5  1.75  1.166667
+        2020-01-05  4.5  2.25  1.500000
+        ```
         """
         checks.assert_numba_func(apply_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            if minp is None and window is None:
+                minp = 1
+            if window is None:
+                window = wrapper.shape[0]
+            if minp is None:
+                minp = window
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper, window=window, minp=minp),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d, window, minp, apply_func_nb, *args)
         else:
+            if minp is None and window is None:
+                minp = 1
+            if window is None:
+                window = cls_or_self.wrapper.shape[0]
+            if minp is None:
+                minp = window
             func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(cls_or_self.to_2d_array(), window, minp, apply_func_nb, *args)
@@ -644,31 +804,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         return wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
-    def expanding_apply(cls_or_self,
-                        apply_func_nb: tp.Union[tp.ApplyFunc, tp.RollApplyMetaFunc], *args,
-                        minp: int = 1,
-                        wrapper: tp.Optional[ArrayWrapper] = None,
-                        **kwargs) -> tp.SeriesFrame:
+    def expanding_apply(cls_or_self, *args, **kwargs) -> tp.SeriesFrame:
         """`GenericAccessor.rolling_apply` but expanding."""
-        if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
-            window = wrapper.shape[0]
-        else:
-            window = cls_or_self.wrapper.shape[0]
-            if wrapper is None:
-                wrapper = cls_or_self.wrapper
-        return cls_or_self.rolling_apply(
-            window,
-            apply_func_nb, *args,
-            minp=minp,
-            wrapper=wrapper,
-            **kwargs
-        )
+        return cls_or_self.rolling_apply(None, *args, **kwargs)
 
     @class_or_instancemethod
     def groupby_apply(cls_or_self,
                       by: tp.PandasGroupByLike,
                       apply_func_nb: tp.Union[tp.ApplyFunc, tp.GroupByApplyMetaFunc], *args,
+                      broadcast_named_args: tp.KwargsLike = None,
+                      broadcast_kwargs: tp.KwargsLike = None,
+                      template_mapping: tp.Optional[tp.Mapping] = None,
                       nb_parallel: tp.Optional[bool] = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
@@ -684,6 +830,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
         >>> df.vbt.groupby_apply([1, 1, 2, 2, 3], mean_nb)
              a    b    c
         1  1.5  4.5  1.5
@@ -696,6 +843,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \\
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
+
         >>> vbt.pd_acc.groupby_apply(
         ...     [1, 1, 2, 2, 3],
         ...     mean_ratio_meta_nb,
@@ -708,14 +856,68 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2  0.555556  0.428571  0.428571
         3  0.666667  0.000000  0.000000
         ```
+
+        Using templates and broadcasting, let's split both input arrays into 2 groups of rows and
+        run the calculation function on each group:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+        >>> from vectorbt.base.grouping import group_by_evenly_nb
+
+        >>> vbt.pd_acc.groupby_apply(
+        ...     vbt.RepEval('group_by_evenly_nb(wrapper.shape[0], 2)'),
+        ...     mean_ratio_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(
+        ...         to_2d_array=to_2d_array,
+        ...         group_by_evenly_nb=group_by_evenly_nb
+        ...     )
+        ... )
+             a     b         c
+        0  2.0  1.00  0.666667
+        1  4.5  2.25  1.500000
+        ```
+
+        The advantage of the approach above is in the flexibility: we can pass two arrays of
+        broadcastable shapes and everything else is done for us.
         """
         checks.assert_numba_func(apply_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper),
+                template_mapping
+            )
+            by = deep_substitute(by, template_mapping, sub_id='by')
             pd_group_by = wrapper.dummy().groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
+            template_mapping = merge_dicts(
+                dict(by=by, grouper=grouper),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
@@ -736,6 +938,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def resample_apply(cls_or_self,
                        rule: tp.PandasFrequencyLike,
                        apply_func_nb: tp.Union[tp.ApplyFunc, tp.GroupByApplyMetaFunc], *args,
+                       broadcast_named_args: tp.KwargsLike = None,
+                       broadcast_kwargs: tp.KwargsLike = None,
+                       template_mapping: tp.Optional[tp.Mapping] = None,
                        nb_parallel: tp.Optional[bool] = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
@@ -749,6 +954,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
         >>> df.vbt.resample_apply('2d', mean_nb)
                       a    b    c
         2020-01-01  1.5  4.5  1.5
@@ -761,6 +967,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda idxs, group, col, a, b: \\
         ...     np.mean(a[idxs, col]) / np.mean(b[idxs, col]))
+
         >>> vbt.pd_acc.resample_apply(
         ...     '2d',
         ...     mean_ratio_meta_nb,
@@ -773,14 +980,61 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-03  0.555556  0.428571  0.428571
         2020-01-05  0.666667  0.000000  0.000000
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.resample_apply(
+        ...     '2d',
+        ...     mean_ratio_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ... )
+                      a     b         c
+        2020-01-01  1.5  0.75  0.500000
+        2020-01-03  3.5  1.75  1.166667
+        2020-01-05  5.0  2.50  1.666667
+        ```
         """
         checks.assert_numba_func(apply_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper),
+                template_mapping
+            )
+            rule = deep_substitute(rule, template_mapping, sub_id='rule')
             pd_group_by = wrapper.dummy().resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
+            template_mapping = merge_dicts(
+                dict(rule=rule, grouper=grouper),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
@@ -811,6 +1065,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                          reduce_func_nb: tp.Union[tp.ReduceFunc, tp.ReduceMetaFunc],
                          apply_args: tp.Optional[tuple] = None,
                          reduce_args: tp.Optional[tuple] = None,
+                         broadcast_named_args: tp.KwargsLike = None,
+                         broadcast_kwargs: tp.KwargsLike = None,
+                         template_mapping: tp.Optional[tp.Mapping] = None,
                          nb_parallel: tp.Optional[bool] = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
@@ -824,6 +1081,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> greater_nb = njit(lambda a: a[a > 2])
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
         >>> df.vbt.apply_and_reduce(greater_nb, mean_nb)
         a    4.0
         b    4.0
@@ -836,30 +1094,76 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> and_meta_nb = njit(lambda col, a, b: a[:, col] & b[:, col])
         >>> sum_meta_nb = njit(lambda col, x: np.sum(x))
-        >>> vbt.pd_acc.apply_and_reduce_meta(
-        ...     df.vbt.wrapper,
+
+        >>> vbt.pd_acc.apply_and_reduce(
         ...     and_meta_nb,
         ...     sum_meta_nb,
         ...     apply_args=(
         ...         df.vbt.to_2d_array() > 1,
         ...         df.vbt.to_2d_array() < 4
-        ...     )
+        ...     ),
+        ...     wrapper=df.vbt.wrapper
         ... )
         a    2
         b    2
         c    3
         Name: apply_and_reduce, dtype: int64
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.apply_and_reduce(
+        ...     and_meta_nb,
+        ...     sum_meta_nb,
+        ...     apply_args=(
+        ...         vbt.RepEval('to_2d_array(mask_a)'),
+        ...         vbt.RepEval('to_2d_array(mask_b)')
+        ...     ),
+        ...     broadcast_named_args=dict(
+        ...         mask_a=pd.Series([True, True, True, False, False], index=df.index),
+        ...         mask_b=pd.DataFrame([[True, True, False]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ... )
+        a    3
+        b    3
+        c    0
+        Name: apply_and_reduce, dtype: int64
+        ```
         """
         checks.assert_numba_func(apply_func_nb)
         checks.assert_numba_func(reduce_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if apply_args is None:
             apply_args = ()
         if reduce_args is None:
             reduce_args = ()
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper),
+                template_mapping
+            )
+            apply_args = deep_substitute(apply_args, template_mapping, sub_id='apply_args')
+            reduce_args = deep_substitute(reduce_args, template_mapping, sub_id='reduce_args')
             func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, nb_parallel)
             func = ch_registry.resolve_chunked(func, chunked)
             out = func(wrapper.shape_2d[1], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
@@ -890,6 +1194,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                flatten: bool = False,
                order: str = 'C',
                to_index: bool = True,
+               broadcast_named_args: tp.KwargsLike = None,
+               broadcast_kwargs: tp.KwargsLike = None,
+               template_mapping: tp.Optional[tp.Mapping] = None,
                nb_parallel: tp.Optional[bool] = None,
                chunked: tp.ChunkedOption = None,
                wrapper: tp.Optional[ArrayWrapper] = None,
@@ -926,6 +1233,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
         >>> df.vbt.reduce(mean_nb)
         a    3.0
         b    3.0
@@ -933,6 +1241,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Name: reduce, dtype: float64
 
         >>> argmax_nb = njit(lambda a: np.argmax(a))
+
         >>> df.vbt.reduce(argmax_nb, returns_idx=True)
         a   2020-01-05
         b   2020-01-01
@@ -946,6 +1255,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Name: reduce, dtype: int64
 
         >>> min_max_nb = njit(lambda a: np.array([np.nanmin(a), np.nanmax(a)]))
+
         >>> df.vbt.reduce(min_max_nb, returns_array=True, wrap_kwargs=dict(name_or_index=['min', 'max']))
              a  b  c
         min  1  1  1
@@ -963,6 +1273,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         ```python-repl
         >>> mean_meta_nb = njit(lambda col, a: np.nanmean(a[:, col]))
+
         >>> pd.Series.vbt.reduce(
         ...     mean_meta_nb,
         ...     df['a'].vbt.to_2d_array(),
@@ -981,6 +1292,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Name: reduce, dtype: float64
 
         >>> grouped_mean_meta_nb = njit(lambda from_col, to_col, group, a: np.nanmean(a[:, from_col:to_col]))
+
         >>> group_by = pd.Series(['first', 'first', 'second'], name='group')
         >>> vbt.pd_acc.reduce(
         ...     grouped_mean_meta_nb,
@@ -993,11 +1305,63 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         second    1.8
         Name: reduce, dtype: float64
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> mean_a_b_nb = njit(lambda col, a, b: \\
+        ...     np.array([np.nanmean(a[:, col]), np.nanmean(b[:, col])]))
+
+        >>> vbt.pd_acc.reduce(
+        ...     mean_a_b_nb,
+        ...     vbt.RepEval('to_2d_array(arr1)'),
+        ...     vbt.RepEval('to_2d_array(arr2)'),
+        ...     returns_array=True,
+        ...     broadcast_named_args=dict(
+        ...         arr1=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         arr2=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array),
+        ...     wrap_kwargs=dict(name_or_index=['arr1', 'arr2'])
+        ... )
+                a    b    c
+        arr1  3.0  3.0  3.0
+        arr2  1.0  2.0  3.0
+        ```
         """
         checks.assert_numba_func(reduce_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(
+                    wrapper=wrapper,
+                    group_by=group_by,
+                    returns_array=returns_array,
+                    returns_idx=returns_idx,
+                    flatten=flatten,
+                    order=order
+                ),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             if wrapper.grouper.is_grouped(group_by=group_by):
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if returns_array:
@@ -1014,8 +1378,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 func = ch_registry.resolve_chunked(func, chunked)
                 out = func(wrapper.shape_2d[1], reduce_func_nb, *args)
         else:
-            if cls_or_self.wrapper.grouper.is_grouped(group_by=group_by):
-                group_lens = cls_or_self.wrapper.grouper.get_group_lens(group_by=group_by)
+            if wrapper is None:
+                wrapper = cls_or_self.wrapper
+            if wrapper.grouper.is_grouped(group_by=group_by):
+                group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if flatten:
                     checks.assert_in(order.upper(), ['C', 'F'])
                     in_c_order = order.upper() == 'C'
@@ -1029,7 +1395,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         if in_c_order:
                             out //= group_lens  # flattened in C order
                         else:
-                            out %= cls_or_self.wrapper.shape[0]  # flattened in F order
+                            out %= wrapper.shape[0]  # flattened in F order
                 else:
                     if returns_array:
                         func = nb_registry.redecorate_parallel(nb.reduce_grouped_to_array_nb, nb_parallel)
@@ -1044,8 +1410,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     func = nb_registry.redecorate_parallel(nb.reduce_nb, nb_parallel)
                 func = ch_registry.resolve_chunked(func, chunked)
                 out = func(cls_or_self.to_2d_array(), reduce_func_nb, *args)
-            if wrapper is None:
-                wrapper = cls_or_self.wrapper
 
         wrap_kwargs = merge_dicts(dict(
             name_or_index='reduce' if not returns_array else None,
@@ -1058,6 +1422,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     @class_or_instancemethod
     def squeeze_grouped(cls_or_self,
                         squeeze_func_nb: tp.Union[tp.ReduceFunc, tp.GroupSqueezeMetaFunc], *args,
+                        broadcast_named_args: tp.KwargsLike = None,
+                        broadcast_kwargs: tp.KwargsLike = None,
+                        template_mapping: tp.Optional[tp.Mapping] = None,
                         nb_parallel: tp.Optional[bool] = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
@@ -1071,8 +1438,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ## Example
 
         ```python-repl
-        >>> group_by = pd.Series(['first', 'first', 'second'], name='group')
         >>> mean_nb = njit(lambda a: np.nanmean(a))
+
+        >>> group_by = pd.Series(['first', 'first', 'second'], name='group')
         >>> df.vbt.squeeze_grouped(mean_nb, group_by=group_by)
         group       first  second
         2020-01-01    3.0     1.0
@@ -1087,6 +1455,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```python-repl
         >>> mean_ratio_meta_nb = njit(lambda i, from_col, to_col, group, a, b: \\
         ...     np.mean(a[i, from_col:to_col]) / np.mean(b[i, from_col:to_col]))
+
         >>> vbt.pd_acc.squeeze_grouped(
         ...     mean_ratio_meta_nb,
         ...     df.vbt.to_2d_array() - 1,
@@ -1101,11 +1470,55 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-04    0.5  0.333333
         2020-01-05    0.5  0.000000
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> from vectorbt.base.reshaping import to_2d_array
+
+        >>> vbt.pd_acc.squeeze_grouped(
+        ...     mean_ratio_meta_nb,
+        ...     vbt.RepEval('to_2d_array(a)'),
+        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     broadcast_named_args=dict(
+        ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+        ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     ),
+        ...     template_mapping=dict(to_2d_array=to_2d_array),
+        ...     group_by=[0, 0, 1]
+        ... )
+                           0         1
+        2020-01-01  0.666667  0.333333
+        2020-01-02  1.333333  0.666667
+        2020-01-03  2.000000  1.000000
+        2020-01-04  2.666667  1.333333
+        2020-01-05  3.333333  1.666667
+        ```
         """
         checks.assert_numba_func(squeeze_func_nb)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
 
         if isinstance(cls_or_self, type):
-            checks.assert_not_none(wrapper)
+            if len(broadcast_named_args) > 0:
+                if wrapper is not None:
+                    broadcast_named_args = reshaping.broadcast(
+                        broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
+                else:
+                    broadcast_named_args, wrapper = reshaping.broadcast(
+                        broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+            else:
+                checks.assert_not_none(wrapper)
+            template_mapping = merge_dicts(
+                broadcast_named_args,
+                dict(wrapper=wrapper, group_by=group_by),
+                template_mapping
+            )
+            args = deep_substitute(args, template_mapping, sub_id='args')
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
@@ -2183,18 +2596,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     def to_returns(self, **kwargs) -> tp.SeriesFrame:
         """Get returns of this object."""
         return self.obj.vbt.returns.from_value(self.obj, **kwargs).obj
-
-    def expanding_std(self,
-                      minp: tp.Optional[int] = 1,
-                      ddof: int = 1,
-                      nb_parallel: tp.Optional[bool] = None,
-                      chunked: tp.ChunkedOption = None,
-                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
-        """See `vectorbt.generic.nb.expanding_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
-        out = func(self.to_2d_array(), minp=minp, ddof=ddof)
-        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Crossover ############# #
 

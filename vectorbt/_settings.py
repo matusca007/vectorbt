@@ -1088,7 +1088,7 @@ class SettingsConfig(Config):
         for k, v in __pdoc__.items():
             if k in self:
                 config_doc = self[k].stringify(**to_doc_kwargs.get(k, {}))
-                __pdoc__[k] = deep_substitute(v, mapping=dict(config_doc=config_doc))
+                __pdoc__[k] = deep_substitute(v, mapping=dict(config_doc=config_doc), sub_id='__pdoc__')
 
 
 settings = SettingsConfig(

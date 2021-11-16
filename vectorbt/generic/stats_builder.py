@@ -253,7 +253,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
 
         # Replace templates globally (not used at metric level)
         if len(template_mapping) > 0:
-            sub_settings = deep_substitute(settings, mapping=template_mapping)
+            sub_settings = deep_substitute(settings, mapping=template_mapping, sub_id='sub_settings')
         else:
             sub_settings = settings
 
@@ -334,9 +334,13 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
             )
             metric_template_mapping = merged_settings.pop('template_mapping', {})
             template_mapping_merged = merge_dicts(template_mapping, metric_template_mapping)
-            template_mapping_merged = deep_substitute(template_mapping_merged, mapping=merged_settings)
+            template_mapping_merged = deep_substitute(
+                template_mapping_merged,
+                mapping=merged_settings,
+                sub_id='template_mapping_merged'
+            )
             mapping = merge_dicts(template_mapping_merged, merged_settings)
-            merged_settings = deep_substitute(merged_settings, mapping=mapping)
+            merged_settings = deep_substitute(merged_settings, mapping=mapping, sub_id='merged_settings')
 
             # Filter by tag
             if tags is not None:
@@ -380,7 +384,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
 
             for filter_name in metric_filters:
                 filter_settings = filters[filter_name]
-                _filter_settings = deep_substitute(filter_settings, mapping=mapping)
+                _filter_settings = deep_substitute(filter_settings, mapping=mapping, sub_id='filter_settings')
                 filter_func = _filter_settings['filter_func']
                 warning_message = _filter_settings.get('warning_message', None)
                 inv_warning_message = _filter_settings.get('inv_warning_message', None)

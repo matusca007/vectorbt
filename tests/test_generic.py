@@ -552,6 +552,30 @@ class TestAccessors:
             pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, chunked=False)
         )
 
+        @njit
+        def mult_meta2_nb(i, col, x, y):
+            return x[i, col] * y[i, col]
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.map(
+                mult_meta2_nb,
+                vbt.RepEval("to_2d_array(x)"),
+                vbt.RepEval("to_2d_array(y)"),
+                broadcast_named_args=dict(
+                    x=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    y=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array)
+            ),
+            pd.DataFrame([
+                [1, 2, 3],
+                [2, 4, 6],
+                [3, 6, 9],
+                [4, 8, 12],
+                [5, 10, 15]
+            ], index=df.index, columns=df.columns)
+        )
+
     def test_apply_along_axis(self):
         @njit
         def pow_nb(x, y):
@@ -627,6 +651,30 @@ class TestAccessors:
                 pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, chunked=False),
         )
 
+        @njit
+        def pow_meta2_nb(col, x, y):
+            return x[:, col] ** y[:, col]
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.apply_along_axis(
+                pow_meta2_nb,
+                vbt.RepEval("to_2d_array(x)"),
+                vbt.RepEval("to_2d_array(y)"),
+                broadcast_named_args=dict(
+                    x=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    y=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array)
+            ),
+            pd.DataFrame([
+                [1, 1, 1],
+                [2, 4, 8],
+                [3, 9, 27],
+                [4, 16, 64],
+                [5, 25, 125]
+            ], index=df.index, columns=df.columns)
+        )
+
     @pytest.mark.parametrize("test_window", [1, 2, 3, 4, 5])
     @pytest.mark.parametrize("test_minp", [1, None])
     def test_rolling_apply(self, test_window, test_minp):
@@ -680,6 +728,31 @@ class TestAccessors:
             pd.DataFrame.vbt.rolling_apply(
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
                 minp=test_minp, wrapper=df.vbt.wrapper, chunked=False)
+        )
+
+        @njit
+        def mean_diff_meta_nb(from_i, to_i, col, x, y):
+            return np.nanmean(x[from_i:to_i, col]) / np.nanmean(y[from_i:to_i, col])
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.rolling_apply(
+                3,
+                mean_diff_meta_nb,
+                vbt.RepEval("to_2d_array(x)"),
+                vbt.RepEval("to_2d_array(y)"),
+                broadcast_named_args=dict(
+                    x=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    y=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array)
+            ),
+            pd.DataFrame([
+                [np.nan, np.nan, np.nan],
+                [np.nan, np.nan, np.nan],
+                [2.0, 1.0, 0.6666666666666666],
+                [3.0, 1.5, 1.0],
+                [4.0, 2.0, 1.3333333333333333]
+            ], index=df.index, columns=df.columns)
         )
 
     @pytest.mark.parametrize(
@@ -789,6 +862,31 @@ class TestAccessors:
                 wrapper=df.vbt.wrapper, chunked=False),
         )
 
+        @njit
+        def mean_diff_meta_nb(idxs, group, col, x, y):
+            return np.nanmean(x[idxs, col]) / np.nanmean(y[idxs, col])
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.groupby_apply(
+                vbt.RepEval('group_by_evenly_nb(wrapper.shape[0], 2)'),
+                mean_diff_meta_nb,
+                vbt.RepEval("to_2d_array(x)"),
+                vbt.RepEval("to_2d_array(y)"),
+                broadcast_named_args=dict(
+                    x=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    y=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(
+                    to_2d_array=vbt.base.reshaping.to_2d_array,
+                    group_by_evenly_nb=vbt.base.grouping.group_by_evenly_nb
+                )
+            ),
+            pd.DataFrame([
+                [2.0, 1.0, 0.6666666666666666],
+                [4.5, 2.25, 1.5]
+            ], columns=df.columns)
+        )
+
     @pytest.mark.parametrize(
         "test_freq",
         ['1h', '3d', '1w'],
@@ -839,6 +937,36 @@ class TestAccessors:
             pd.DataFrame.vbt.resample_apply(
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
                 wrapper=df.vbt.wrapper, chunked=False),
+        )
+
+        @njit
+        def mean_diff_meta_nb(idxs, group, col, x, y):
+            return np.nanmean(x[idxs, col]) / np.nanmean(y[idxs, col])
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.resample_apply(
+                '2d',
+                mean_diff_meta_nb,
+                vbt.RepEval("to_2d_array(x)"),
+                vbt.RepEval("to_2d_array(y)"),
+                broadcast_named_args=dict(
+                    x=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    y=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(
+                    to_2d_array=vbt.base.reshaping.to_2d_array,
+                    group_by_evenly_nb=vbt.base.grouping.group_by_evenly_nb
+                )
+            ),
+            pd.DataFrame([
+                [1.5, 0.75, 0.5],
+                [3.5, 1.75, 1.1666666666666667],
+                [5.0, 2.5, 1.6666666666666667]
+            ], index=pd.DatetimeIndex(
+                ['2018-01-01', '2018-01-03', '2018-01-05'],
+                dtype='datetime64[ns]',
+                freq='2D'
+            ), columns=df.columns)
         )
 
     def test_apply_and_reduce(self):
@@ -896,6 +1024,31 @@ class TestAccessors:
             pd.DataFrame.vbt.apply_and_reduce(
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
                 wrapper=df.vbt.wrapper, chunked=False),
+        )
+
+        @njit
+        def every_2nd_sum_meta_nb(col, a, b):
+            return np.nansum(a[::2, col]) + np.nansum(b[::2, col])
+
+        @njit
+        def sum_meta2_nb(col, a):
+            return np.nansum(a)
+
+        pd.testing.assert_series_equal(
+            pd.DataFrame.vbt.apply_and_reduce(
+                every_2nd_sum_meta_nb,
+                sum_meta2_nb,
+                apply_args=(
+                    vbt.RepEval("to_2d_array(a)"),
+                    vbt.RepEval("to_2d_array(b)")
+                ),
+                broadcast_named_args=dict(
+                    a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    b=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array)
+            ),
+            pd.Series([12, 15, 18], index=df.columns, name='apply_and_reduce')
         )
 
     def test_reduce(self):
@@ -974,6 +1127,43 @@ class TestAccessors:
             pd.DataFrame.vbt.reduce(
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
                 wrapper=df.vbt.wrapper, group_by=group_by, chunked=False),
+        )
+
+        @njit
+        def sum_meta2_nb(col, a, b):
+            return np.nansum(a[:, col]) + np.nansum(b[:, col])
+
+        pd.testing.assert_series_equal(
+            pd.DataFrame.vbt.reduce(
+                sum_meta2_nb,
+                vbt.RepEval("to_2d_array(a)"),
+                vbt.RepEval("to_2d_array(b)"),
+                broadcast_named_args=dict(
+                    a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    b=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array)
+            ),
+            pd.Series([20, 25, 30], index=df.columns, name='reduce')
+        )
+
+        @njit
+        def sum_grouped_meta2_nb(from_col, to_col, group, a, b):
+            return np.nansum(a[:, from_col:to_col]) + np.nansum(b[:, from_col:to_col])
+
+        pd.testing.assert_series_equal(
+            pd.DataFrame.vbt.reduce(
+                sum_grouped_meta2_nb,
+                vbt.RepEval("to_2d_array(a)"),
+                vbt.RepEval("to_2d_array(b)"),
+                broadcast_named_args=dict(
+                    a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    b=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array),
+                group_by=group_by
+            ),
+            pd.Series([45, 30], index=['g1', 'g2'], name='reduce')
         )
 
     def test_reduce_to_idx(self):
@@ -1325,6 +1515,31 @@ class TestAccessors:
             pd.DataFrame.vbt.squeeze_grouped(
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,
                 wrapper=df.vbt.wrapper, chunked=False)
+        )
+
+        @njit
+        def sum_grouped_meta_nb(i, from_col, to_col, group, a, b):
+            return np.nansum(a[i, from_col:to_col]) + np.nansum(b[i, from_col:to_col])
+
+        pd.testing.assert_frame_equal(
+            pd.DataFrame.vbt.squeeze_grouped(
+                sum_grouped_meta_nb,
+                vbt.RepEval("to_2d_array(a)"),
+                vbt.RepEval("to_2d_array(b)"),
+                broadcast_named_args=dict(
+                    a=pd.Series([1, 2, 3, 4, 5], index=df.index),
+                    b=pd.DataFrame([[1, 2, 3]], columns=df.columns)
+                ),
+                template_mapping=dict(to_2d_array=vbt.base.reshaping.to_2d_array),
+                group_by=group_by
+            ),
+            pd.DataFrame([
+                [5, 4],
+                [7, 5],
+                [9, 6],
+                [11, 7],
+                [13, 8]
+            ], index=df.index, columns=['g1', 'g2'])
         )
 
     def test_flatten_grouped(self):

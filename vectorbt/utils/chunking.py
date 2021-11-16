@@ -730,14 +730,14 @@ def yield_arg_chunks(func: tp.Callable,
 
     for _chunk_meta in chunk_meta:
         mapping = merge_dicts(dict(ann_args=ann_args, chunk_meta=_chunk_meta), template_mapping)
-        chunk_ann_args = deep_substitute(ann_args, mapping=mapping)
+        chunk_ann_args = deep_substitute(ann_args, mapping=mapping, sub_id='chunk_ann_args')
         if callable(arg_take_spec):
             chunk_args, chunk_kwargs = arg_take_spec(chunk_ann_args, _chunk_meta, **kwargs)
         else:
             chunk_arg_take_spec = arg_take_spec
             if not checks.is_mapping(chunk_arg_take_spec):
                 chunk_arg_take_spec = dict(zip(range(len(chunk_arg_take_spec)), chunk_arg_take_spec))
-            chunk_arg_take_spec = deep_substitute(chunk_arg_take_spec, mapping=mapping)
+            chunk_arg_take_spec = deep_substitute(chunk_arg_take_spec, mapping=mapping, sub_id='chunk_arg_take_spec')
             chunk_args, chunk_kwargs = take_from_args(chunk_ann_args, chunk_arg_take_spec, _chunk_meta, **kwargs)
         yield func, chunk_args, chunk_kwargs
 
@@ -1030,11 +1030,11 @@ def chunked(*args,
                 ),
                 template_mapping
             )
-            engine_kwargs = deep_substitute(engine_kwargs, mapping)
+            engine_kwargs = deep_substitute(engine_kwargs, mapping, sub_id='engine_kwargs')
             results = execute(funcs_args, engine=engine, n_calls=len(chunk_meta), **engine_kwargs)
             if merge_func is not None:
                 mapping['funcs_args'] = funcs_args
-                merge_kwargs = deep_substitute(merge_kwargs, mapping)
+                merge_kwargs = deep_substitute(merge_kwargs, mapping, sub_id='merge_kwargs')
                 return merge_func(results, **merge_kwargs)
             return results
 

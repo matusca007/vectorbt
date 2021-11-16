@@ -192,9 +192,21 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
 
         # Replace templates globally (not used at subplot level)
         if len(template_mapping) > 0:
-            sub_settings = deep_substitute(settings, mapping=template_mapping)
-            sub_make_subplots_kwargs = deep_substitute(make_subplots_kwargs, mapping=template_mapping)
-            sub_layout_kwargs = deep_substitute(layout_kwargs, mapping=template_mapping)
+            sub_settings = deep_substitute(
+                settings,
+                mapping=template_mapping,
+                sub_id='sub_settings'
+            )
+            sub_make_subplots_kwargs = deep_substitute(
+                make_subplots_kwargs,
+                mapping=template_mapping,
+                sub_id='sub_make_subplots_kwargs'
+            )
+            sub_layout_kwargs = deep_substitute(
+                layout_kwargs,
+                mapping=template_mapping,
+                sub_id='sub_layout_kwargs'
+            )
         else:
             sub_settings = settings
             sub_make_subplots_kwargs = make_subplots_kwargs
@@ -276,10 +288,14 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
             )
             subplot_template_mapping = merged_settings.pop('template_mapping', {})
             template_mapping_merged = merge_dicts(template_mapping, subplot_template_mapping)
-            template_mapping_merged = deep_substitute(template_mapping_merged, mapping=merged_settings)
+            template_mapping_merged = deep_substitute(
+                template_mapping_merged,
+                mapping=merged_settings,
+                sub_id='template_mapping_merged'
+            )
             mapping = merge_dicts(template_mapping_merged, merged_settings)
             # safe because we will use deep_substitute again once layout params are known
-            merged_settings = deep_substitute(merged_settings, mapping=mapping)
+            merged_settings = deep_substitute(merged_settings, mapping=mapping, sub_id='merged_settings')
 
             # Filter by tag
             if tags is not None:
@@ -323,7 +339,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
 
             for filter_name in subplot_filters:
                 filter_settings = filters[filter_name]
-                _filter_settings = deep_substitute(filter_settings, mapping=mapping)
+                _filter_settings = deep_substitute(filter_settings, mapping=mapping, sub_id='filter_settings')
                 filter_func = _filter_settings['filter_func']
                 warning_message = _filter_settings.get('warning_message', None)
                 inv_warning_message = _filter_settings.get('inv_warning_message', None)
@@ -488,7 +504,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                         custom_arg_names.add(k)
                 final_kwargs = merge_dicts(subplot_layout_kwargs, final_kwargs)
                 mapping = merge_dicts(subplot_layout_kwargs, mapping)
-                final_kwargs = deep_substitute(final_kwargs, mapping=mapping)
+                final_kwargs = deep_substitute(final_kwargs, mapping=mapping, sub_id='final_kwargs')
 
                 # Clean up keys
                 for k, v in list(final_kwargs.items()):

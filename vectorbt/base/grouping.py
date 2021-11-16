@@ -97,6 +97,15 @@ def get_group_lens_nb(groups: tp.Array1d) -> tp.Array1d:
     return result[:j]
 
 
+@register_jit(cache=True)
+def group_by_evenly_nb(n: int, n_splits: int) -> tp.Array1d:
+    """Get `group_by` from evenly splitting a space of values."""
+    out = np.empty(n, dtype=np.int_)
+    for i in range(n):
+        out[i] = i * n_splits // n + n_splits // (2 * n)
+    return out
+
+
 GrouperT = tp.TypeVar("GrouperT", bound="Grouper")
 
 

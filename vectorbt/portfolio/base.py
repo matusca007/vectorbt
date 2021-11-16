@@ -3258,10 +3258,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             flex_2d=flex_2d,
             wrapper=wrapper
         ), **template_mapping}
-        adjust_sl_args = deep_substitute(adjust_sl_args, template_mapping)
-        adjust_tp_args = deep_substitute(adjust_tp_args, template_mapping)
+        adjust_sl_args = deep_substitute(adjust_sl_args, template_mapping, sub_id='adjust_sl_args')
+        adjust_tp_args = deep_substitute(adjust_tp_args, template_mapping, sub_id='adjust_tp_args')
         if signal_func_mode:
-            signal_args = deep_substitute(signal_args, template_mapping)
+            signal_args = deep_substitute(signal_args, template_mapping, sub_id='signal_args')
         else:
             if ls_mode:
                 signal_args = (
@@ -4192,16 +4192,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             flex_2d=flex_2d,
             wrapper=wrapper
         ), **template_mapping}
-        pre_sim_args = deep_substitute(pre_sim_args, template_mapping)
-        post_sim_args = deep_substitute(post_sim_args, template_mapping)
-        pre_group_args = deep_substitute(pre_group_args, template_mapping)
-        post_group_args = deep_substitute(post_group_args, template_mapping)
-        pre_row_args = deep_substitute(pre_row_args, template_mapping)
-        post_row_args = deep_substitute(post_row_args, template_mapping)
-        pre_segment_args = deep_substitute(pre_segment_args, template_mapping)
-        post_segment_args = deep_substitute(post_segment_args, template_mapping)
-        order_args = deep_substitute(order_args, template_mapping)
-        post_order_args = deep_substitute(post_order_args, template_mapping)
+        pre_sim_args = deep_substitute(pre_sim_args, template_mapping, sub_id='pre_sim_args')
+        post_sim_args = deep_substitute(post_sim_args, template_mapping, sub_id='post_sim_args')
+        pre_group_args = deep_substitute(pre_group_args, template_mapping, sub_id='pre_group_args')
+        post_group_args = deep_substitute(post_group_args, template_mapping, sub_id='post_group_args')
+        pre_row_args = deep_substitute(pre_row_args, template_mapping, sub_id='pre_row_args')
+        post_row_args = deep_substitute(post_row_args, template_mapping, sub_id='post_row_args')
+        pre_segment_args = deep_substitute(pre_segment_args, template_mapping, sub_id='pre_segment_args')
+        post_segment_args = deep_substitute(post_segment_args, template_mapping, sub_id='post_segment_args')
+        order_args = deep_substitute(order_args, template_mapping, sub_id='order_args')
+        post_order_args = deep_substitute(post_order_args, template_mapping, sub_id='post_order_args')
         for k in broadcast_named_args:
             broadcasted_args.pop(k)
         if use_numba:
