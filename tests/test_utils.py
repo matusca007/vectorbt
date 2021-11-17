@@ -2116,12 +2116,12 @@ class TestTemplate:
 
     def test_deep_substitute(self):
         assert template.deep_substitute(template.Rep('hello'), {'hello': 100}) == 100
-        assert isinstance(template.deep_substitute(template.Rep('hello2'), {'hello': 100}), template.Rep)
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Rep('hello2'), {'hello': 100}, strict=True)
+            _ = template.deep_substitute(template.Rep('hello2'), {'hello': 100})
+        assert isinstance(template.deep_substitute(template.Rep('hello2'), {'hello': 100}, strict=False), template.Rep)
         assert template.deep_substitute(template.Sub('$hello'), {'hello': 100}) == '100'
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Sub('$hello2'), {'hello': 100}, strict=True)
+            _ = template.deep_substitute(template.Sub('$hello2'), {'hello': 100})
         assert template.deep_substitute([template.Rep('hello')], {'hello': 100}) == [100]
         assert template.deep_substitute((template.Rep('hello'),), {'hello': 100}) == (100,)
         assert template.deep_substitute({'test': template.Rep('hello')}, {'hello': 100}) == {'test': 100}

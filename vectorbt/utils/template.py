@@ -197,7 +197,7 @@ def has_templates(obj: tp.Any) -> tp.Any:
 
 def deep_substitute(obj: tp.Any,
                     mapping: tp.Optional[tp.Mapping] = None,
-                    strict: bool = False,
+                    strict: tp.Optional[bool] = None,
                     make_copy: bool = True,
                     sub_id: tp.Optional[Hashable] = None) -> tp.Any:
     """Traverses the object recursively and, if any template found, substitutes it using a mapping.
@@ -235,10 +235,17 @@ def deep_substitute(obj: tp.Any,
     >>> vbt.deep_substitute(vbt.RepEval('key == 100', strict=False))
     <vectorbt.utils.template.RepEval at 0x7fe3ad2ab668>
     ```"""
+    from vectorbt._settings import settings
+    template_cfg = settings['template']
+
+    if strict is None:
+        strict = template_cfg['strict']
     if mapping is None:
         mapping = {}
+
     if not has_templates(obj):
         return obj
+
     if isinstance(obj, CustomTemplate):
         return obj.substitute(mapping=mapping, strict=strict, sub_id=sub_id)
     if isinstance(obj, Template):

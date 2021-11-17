@@ -385,6 +385,7 @@ def broadcast(*args,
               require_kwargs: tp.MaybeMappingSequence[tp.KwargsLike] = None,
               keep_raw: tp.MaybeMappingSequence[bool] = False,
               min_one_dim: tp.MaybeMappingSequence[bool] = True,
+              return_2d_array: tp.MaybeMappingSequence[bool] = False,
               return_wrapper: bool = False,
               wrapper_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.Any:
@@ -430,6 +431,10 @@ def broadcast(*args,
             Defaults to True.
 
             Can be provided per argument.
+        return_2d_array (bool, sequence or dict): Whether to convert wrapped arrays into 2-dim NumPy arrays.
+            Defaults to False.
+
+            Can be provided per argument. Applied only when `keep_raw` is False.
         return_wrapper (bool): Whether to also return the wrapper associated with the operation.
         wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
         **kwargs: Keyword arguments passed to `broadcast_index`.
@@ -637,6 +642,8 @@ def broadcast(*args,
             pass
         else:
             require_kwargs = [require_kwargs.get(k, require_kwargs.get('_default', None)) for k in keys]
+    if checks.is_mapping(return_2d_array):
+        return_2d_array = [return_2d_array.get(k, return_2d_array.get('_default', False)) for k in keys]
 
     # Convert to np.ndarray object if not numpy or pandas
     # Also check whether we broadcast to pandas and whether work on 2-dim data
@@ -664,9 +671,9 @@ def broadcast(*args,
     if to_pd is not None:
         # force either raw or pandas
         if checks.is_sequence(to_pd):
-            is_pd = any([is_pd if x is None else x for x in to_pd])
+            is_pd = any([is_pd if x is None else x for x in to_pd]) or (return_wrapper and is_pd)
         else:
-            is_pd = to_pd
+            is_pd = to_pd or (return_wrapper and is_pd)
 
     # Align pandas arrays
     arr_args = align_pd_arrays(arr_args, align_index=align_index, align_columns=align_columns)
@@ -731,28 +738,25 @@ def broadcast(*args,
             _is_pd = None
         if _is_pd is None:
             _is_pd = is_pd
-        new_args[i] = wrap_broadcasted(
+        wrapped_arr = wrap_broadcasted(
             arr_args[i],
             new_args[i],
             is_pd=_is_pd,
             new_index=new_index,
             new_columns=new_columns
         )
+        if checks.is_sequence(return_2d_array):
+            _return_2d_array = return_2d_array[i]
+        else:
+            _return_2d_array = return_2d_array
+        if _return_2d_array:
+            wrapped_arr = to_2d_array(wrapped_arr)
+        new_args[i] = wrapped_arr
 
     if return_dict:
         new_args = dict(zip(keys, new_args))
     else:
         new_args = tuple(new_args)
-    if len(new_args) > 1 or return_dict:
-        if return_wrapper:
-            wrapper = wrapping.ArrayWrapper.from_shape(
-                to_shape,
-                index=new_index,
-                columns=new_columns,
-                **resolve_dict(wrapper_kwargs)
-            )
-            return new_args, wrapper
-        return new_args
     if return_wrapper:
         wrapper = wrapping.ArrayWrapper.from_shape(
             to_shape,
@@ -760,6 +764,11 @@ def broadcast(*args,
             columns=new_columns,
             **resolve_dict(wrapper_kwargs)
         )
+    if len(new_args) > 1 or return_dict:
+        if return_wrapper:
+            return new_args, wrapper
+        return new_args
+    if return_wrapper:
         return new_args[0], wrapper
     return new_args[0]
 

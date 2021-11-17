@@ -253,7 +253,12 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
 
         # Replace templates globally (not used at metric level)
         if len(template_mapping) > 0:
-            sub_settings = deep_substitute(settings, mapping=template_mapping, sub_id='sub_settings')
+            sub_settings = deep_substitute(
+                settings,
+                mapping=template_mapping,
+                sub_id='sub_settings',
+                strict=False
+            )
         else:
             sub_settings = settings
 

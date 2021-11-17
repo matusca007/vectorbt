@@ -507,17 +507,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.map(
         ...     diff_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
-        ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ...     )
         ... )
                       a    b         c
         2020-01-01  1.0  0.5  0.333333
@@ -537,6 +534,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -615,17 +613,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.apply_along_axis(
         ...     ratio_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
-        ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ...     )
         ... )
                       a    b         c
         2020-01-01  1.0  0.5  0.333333
@@ -646,6 +641,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -734,18 +730,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.rolling_apply(
         ...     2,
         ...     mean_ratio_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
-        ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ...     )
         ... )
                       a     b         c
         2020-01-01  NaN   NaN       NaN
@@ -765,6 +758,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -861,22 +855,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         run the calculation function on each group:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
         >>> from vectorbt.base.grouping import group_by_evenly_nb
 
         >>> vbt.pd_acc.groupby_apply(
         ...     vbt.RepEval('group_by_evenly_nb(wrapper.shape[0], 2)'),
         ...     mean_ratio_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
         ...     ),
-        ...     template_mapping=dict(
-        ...         to_2d_array=to_2d_array,
-        ...         group_by_evenly_nb=group_by_evenly_nb
-        ...     )
+        ...     template_mapping=dict(group_by_evenly_nb=group_by_evenly_nb)
         ... )
              a     b         c
         0  2.0  1.00  0.666667
@@ -884,7 +874,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
 
         The advantage of the approach above is in the flexibility: we can pass two arrays of
-        broadcastable shapes and everything else is done for us.
+        any broadcastable shapes and everything else is done for us.
         """
         checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
@@ -896,6 +886,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -984,18 +975,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.resample_apply(
         ...     '2d',
         ...     mean_ratio_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
-        ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ...     )
         ... )
                       a     b         c
         2020-01-01  1.5  0.75  0.500000
@@ -1013,6 +1001,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1113,20 +1102,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.apply_and_reduce(
         ...     and_meta_nb,
         ...     sum_meta_nb,
         ...     apply_args=(
-        ...         vbt.RepEval('to_2d_array(mask_a)'),
-        ...         vbt.RepEval('to_2d_array(mask_b)')
+        ...         vbt.Rep('mask_a'),
+        ...         vbt.Rep('mask_b')
         ...     ),
         ...     broadcast_named_args=dict(
         ...         mask_a=pd.Series([True, True, True, False, False], index=df.index),
         ...         mask_b=pd.DataFrame([[True, True, False]], columns=['a', 'b', 'c'])
-        ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array)
+        ...     )
         ... )
         a    3
         b    3
@@ -1149,6 +1135,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             reduce_args = ()
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1309,21 +1296,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> mean_a_b_nb = njit(lambda col, a, b: \\
         ...     np.array([np.nanmean(a[:, col]), np.nanmean(b[:, col])]))
 
         >>> vbt.pd_acc.reduce(
         ...     mean_a_b_nb,
-        ...     vbt.RepEval('to_2d_array(arr1)'),
-        ...     vbt.RepEval('to_2d_array(arr2)'),
+        ...     vbt.Rep('arr1'),
+        ...     vbt.Rep('arr2'),
         ...     returns_array=True,
         ...     broadcast_named_args=dict(
         ...         arr1=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         arr2=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
         ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array),
         ...     wrap_kwargs=dict(name_or_index=['arr1', 'arr2'])
         ... )
                 a    b    c
@@ -1341,6 +1325,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1474,17 +1459,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Using templates and broadcasting:
 
         ```python-repl
-        >>> from vectorbt.base.reshaping import to_2d_array
-
         >>> vbt.pd_acc.squeeze_grouped(
         ...     mean_ratio_meta_nb,
-        ...     vbt.RepEval('to_2d_array(a)'),
-        ...     vbt.RepEval('to_2d_array(b)'),
+        ...     vbt.Rep('a'),
+        ...     vbt.Rep('b'),
         ...     broadcast_named_args=dict(
         ...         a=pd.Series([1, 2, 3, 4, 5], index=df.index),
         ...         b=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
         ...     ),
-        ...     template_mapping=dict(to_2d_array=to_2d_array),
         ...     group_by=[0, 0, 1]
         ... )
                            0         1
@@ -1505,6 +1487,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)

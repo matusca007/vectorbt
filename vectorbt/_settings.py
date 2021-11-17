@@ -262,6 +262,19 @@ ${config_doc}
 
 _settings['chunking'] = chunking
 
+template = dict(
+    strict=True
+)
+"""_"""
+
+__pdoc__['template'] = Sub("""Sub-config with settings applied across `vectorbt.utils.template`.
+
+```json
+${config_doc}
+```""")
+
+_settings['template'] = template
+
 config = Config(  # flex
     dict()
 )

@@ -6,6 +6,7 @@
 from vectorbt.base.chunking import GroupLensMapper, FlexArraySelector, FlexArraySlicer
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
+from vectorbt.base.reshaping import broadcast, broadcast_to
 
 __all__ = [
     'ArrayWrapper',
@@ -13,7 +14,9 @@ __all__ = [
     'Grouper',
     'GroupLensMapper',
     'FlexArraySelector',
-    'FlexArraySlicer'
+    'FlexArraySlicer',
+    'broadcast',
+    'broadcast_to'
 ]
 
 __pdoc__ = {k: False for k in __all__}

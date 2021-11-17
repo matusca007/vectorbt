@@ -510,9 +510,13 @@ class SignalsAccessor(GenericAccessor):
         obj = self.obj
         if len(broadcast_named_args) > 0:
             broadcast_named_args = {'obj': obj, **broadcast_named_args}
-            broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
-            broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
+            broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+            broadcast_named_args, wrapper = reshaping.broadcast(
+                broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
             obj = broadcast_named_args['obj']
+        else:
+            wrapper = self.wrapper
+            obj = reshaping.to_2d_array(obj)
         template_mapping = merge_dicts(
             broadcast_named_args,
             dict(wait=wait, until_next=until_next, skip_until_exit=skip_until_exit),
@@ -522,14 +526,14 @@ class SignalsAccessor(GenericAccessor):
         func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         exits = func(
-            reshaping.to_2d_array(obj),
+            obj,
             wait,
             until_next,
             skip_until_exit,
             exit_place_func_nb,
             *args
         )
-        return ArrayWrapper.from_obj(obj).wrap(exits, group_by=False, **resolve_dict(wrap_kwargs))
+        return wrapper.wrap(exits, group_by=False, **resolve_dict(wrap_kwargs))
 
     # ############# Filtering ############# #
 
@@ -1585,14 +1589,16 @@ class SignalsAccessor(GenericAccessor):
         else:
             broadcast_named_args = {'obj': self.obj, **broadcast_named_args}
         if len(broadcast_named_args) > 1:
-            broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
-            broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
-        obj = broadcast_named_args['obj']
+            broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+            broadcast_named_args, wrapper = reshaping.broadcast(
+                broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
+        else:
+            wrapper = self.wrapper
+        obj = reshaping.to_2d_array(broadcast_named_args['obj'])
         if reset_by is not None:
-            reset_by = broadcast_named_args['reset_by']
-        obj_arr = reshaping.to_2d_array(obj)
+            reset_by = reshaping.to_2d_array(broadcast_named_args['reset_by'])
         if prepare_func is not None:
-            temp_arrs = prepare_func(obj_arr, reset_by)
+            temp_arrs = prepare_func(obj, reset_by)
         else:
             temp_arrs = ()
         template_mapping = merge_dicts(
@@ -1604,14 +1610,14 @@ class SignalsAccessor(GenericAccessor):
         func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
         func = ch_registry.resolve_chunked(func, chunked)
         rank = func(
-            obj_arr,
+            obj,
             reset_by,
             after_false,
             rank_func_nb,
             *temp_arrs,
             *args
         )
-        rank_wrapped = ArrayWrapper.from_obj(obj).wrap(rank, group_by=False, **wrap_kwargs)
+        rank_wrapped = wrapper.wrap(rank, group_by=False, **wrap_kwargs)
         if as_mapped:
             rank_wrapped = rank_wrapped.replace(-1, np.nan)
             return rank_wrapped.vbt.to_mapped(

@@ -195,7 +195,8 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
             sub_settings = deep_substitute(
                 settings,
                 mapping=template_mapping,
-                sub_id='sub_settings'
+                sub_id='sub_settings',
+                strict=False
             )
             sub_make_subplots_kwargs = deep_substitute(
                 make_subplots_kwargs,
