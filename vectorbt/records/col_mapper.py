@@ -14,8 +14,6 @@ class ColumnMapper(Wrapping):
     """Used by `vectorbt.records.base.Records` and `vectorbt.records.mapped_array.MappedArray`
     classes to make use of column and group metadata."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'col_arr'}
-
     def __init__(self, wrapper: ArrayWrapper, col_arr: tp.Array1d, **kwargs) -> None:
         Wrapping.__init__(
             self,

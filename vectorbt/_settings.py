@@ -289,6 +289,7 @@ ${config_doc}
 _settings['config'] = config
 
 configured = dict(
+    check_expected_keys=True,
     config=Config(  # flex
         dict(
             readonly=True

@@ -498,15 +498,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             Useful if any subclass wants to extend the config.
     """
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'mapped_arr',
-        'col_arr',
-        'id_arr',
-        'idx_arr',
-        'mapping',
-        'col_mapper'
-    }
-
     def __init__(self,
                  wrapper: ArrayWrapper,
                  mapped_arr: tp.ArrayLike,

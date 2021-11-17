@@ -96,11 +96,6 @@ class DataUpdater(Configured):
     ```
     """
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'data',
-        'schedule_manager'
-    }
-
     def __init__(self, data: Data, schedule_manager: tp.Optional[ScheduleManager] = None, **kwargs) -> None:
         self._data = data
         if schedule_manager is None:

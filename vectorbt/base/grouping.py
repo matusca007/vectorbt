@@ -132,14 +132,6 @@ class Grouper(Configured):
     !!! note
         This class is meant to be immutable. To change any attribute, use `Grouper.replace`."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'index',
-        'group_by',
-        'allow_enable',
-        'allow_disable',
-        'allow_modify'
-    }
-
     def __init__(self,
                  index: tp.Index,
                  group_by: tp.GroupByLike = None,

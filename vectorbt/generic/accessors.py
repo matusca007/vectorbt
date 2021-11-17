@@ -368,9 +368,7 @@ __pdoc__['transform_config'] = f"""Config of transform methods to be added to `G
 class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaGenericAccessor):
     """Accessor on top of data of any type. For both, Series and DataFrames.
 
-    Accessible through `pd.Series.vbt` and `pd.DataFrame.vbt`."""
-
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'mapping'}
+    Accessible via `pd.Series.vbt` and `pd.DataFrame.vbt`."""
 
     def __init__(self, obj: tp.SeriesFrame, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> None:
         BaseAccessor.__init__(self, obj, mapping=mapping, **kwargs)
@@ -2978,7 +2976,7 @@ GenericAccessor.override_subplots_doc(__pdoc__)
 class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
     """Accessor on top of data of any type. For Series only.
 
-    Accessible through `pd.Series.vbt`."""
+    Accessible via `pd.Series.vbt`."""
 
     def __init__(self, obj: tp.Series, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> None:
         BaseSRAccessor.__init__(self, obj, **kwargs)
@@ -3548,7 +3546,7 @@ class GenericSRAccessor(GenericAccessor, BaseSRAccessor):
 class GenericDFAccessor(GenericAccessor, BaseDFAccessor):
     """Accessor on top of data of any type. For DataFrames only.
 
-    Accessible through `pd.DataFrame.vbt`."""
+    Accessible via `pd.DataFrame.vbt`."""
 
     def __init__(self, obj: tp.Frame, mapping: tp.Optional[tp.MappingLike] = None, **kwargs) -> None:
         BaseDFAccessor.__init__(self, obj, **kwargs)

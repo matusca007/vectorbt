@@ -1680,20 +1680,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     !!! note
         This class is meant to be immutable. To change any attribute, use `Portfolio.replace`."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'close',
-        'order_records',
-        'log_records',
-        'cash_sharing',
-        'init_cash',
-        'init_position',
-        'cash_deposits',
-        'cash_earnings',
-        'call_seq',
-        'fillna_close',
-        'trades_type'
-    }
-
     def __init__(self,
                  wrapper: ArrayWrapper,
                  close: tp.ArrayLike,

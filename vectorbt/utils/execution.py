@@ -82,6 +82,8 @@ class DaskEngine(ExecutionEngine):
         Use multi-threading mainly on numeric code that releases the GIL
         (like NumPy, Pandas, Scikit-Learn, Numba)."""
 
+    _check_expected_keys: tp.ClassVar[tp.Optional[bool]] = False
+
     def __init__(self, **compute_kwargs) -> None:
         from vectorbt._settings import settings
         execution_dask_cfg = settings['execution']['dask']
@@ -154,7 +156,7 @@ class RayEngine(ExecutionEngine):
             self,
             restart=restart,
             reuse_refs=reuse_refs,
-            del_ref=del_refs,
+            del_refs=del_refs,
             shutdown=shutdown,
             init_kwargs=init_kwargs,
             remote_kwargs=remote_kwargs

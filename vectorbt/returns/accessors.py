@@ -163,7 +163,7 @@ ReturnsAccessorT = tp.TypeVar("ReturnsAccessorT", bound="ReturnsAccessor")
 class ReturnsAccessor(GenericAccessor):
     """Accessor on top of return series. For both, Series and DataFrames.
 
-    Accessible through `pd.Series.vbt.returns` and `pd.DataFrame.vbt.returns`.
+    Accessible via `pd.Series.vbt.returns` and `pd.DataFrame.vbt.returns`.
 
     Args:
         obj (pd.Series or pd.DataFrame): Pandas object representing returns.
@@ -171,12 +171,6 @@ class ReturnsAccessor(GenericAccessor):
         year_freq (any): Year frequency for annualization purposes.
         defaults (dict): Defaults that override `returns.defaults` in `vectorbt._settings.settings`.
         **kwargs: Keyword arguments that are passed down to `vectorbt.generic.accessors.GenericAccessor`."""
-
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'benchmark_rets',
-        'year_freq',
-        'defaults'
-    }
 
     def __init__(self,
                  obj: tp.SeriesFrame,
@@ -1433,7 +1427,7 @@ ReturnsAccessor.override_subplots_doc(__pdoc__)
 class ReturnsSRAccessor(ReturnsAccessor, GenericSRAccessor):
     """Accessor on top of return series. For Series only.
 
-    Accessible through `pd.Series.vbt.returns`."""
+    Accessible via `pd.Series.vbt.returns`."""
 
     def __init__(self,
                  obj: tp.Series,
@@ -1564,7 +1558,7 @@ class ReturnsSRAccessor(ReturnsAccessor, GenericSRAccessor):
 class ReturnsDFAccessor(ReturnsAccessor, GenericDFAccessor):
     """Accessor on top of return series. For DataFrames only.
 
-    Accessible through `pd.DataFrame.vbt.returns`."""
+    Accessible via `pd.DataFrame.vbt.returns`."""
 
     def __init__(self,
                  obj: tp.Frame,

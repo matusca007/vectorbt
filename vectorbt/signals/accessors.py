@@ -219,7 +219,7 @@ __pdoc__ = {}
 class SignalsAccessor(GenericAccessor):
     """Accessor on top of signal series. For both, Series and DataFrames.
 
-    Accessible through `pd.Series.vbt.signals` and `pd.DataFrame.vbt.signals`."""
+    Accessible via `pd.Series.vbt.signals` and `pd.DataFrame.vbt.signals`."""
 
     def __init__(self, obj: tp.SeriesFrame, **kwargs) -> None:
         checks.assert_dtype(obj, np.bool_)
@@ -2086,7 +2086,7 @@ SignalsAccessor.override_subplots_doc(__pdoc__)
 class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
     """Accessor on top of signal series. For Series only.
 
-    Accessible through `pd.Series.vbt.signals`."""
+    Accessible via `pd.Series.vbt.signals`."""
 
     def __init__(self, obj: tp.Series, **kwargs) -> None:
         GenericSRAccessor.__init__(self, obj, **kwargs)
@@ -2184,7 +2184,7 @@ class SignalsSRAccessor(SignalsAccessor, GenericSRAccessor):
 class SignalsDFAccessor(SignalsAccessor, GenericDFAccessor):
     """Accessor on top of signal series. For DataFrames only.
 
-    Accessible through `pd.DataFrame.vbt.signals`."""
+    Accessible via `pd.DataFrame.vbt.signals`."""
 
     def __init__(self, obj: tp.Frame, **kwargs) -> None:
         GenericDFAccessor.__init__(self, obj, **kwargs)

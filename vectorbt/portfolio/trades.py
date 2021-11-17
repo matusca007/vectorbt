@@ -608,8 +608,6 @@ class Trades(Ranges):
     """Extends `vectorbt.generic.ranges.Ranges` for working with trade-like records, such as
     entry trades, exit trades, and positions."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'close'}
-
     @property
     def field_config(self) -> Config:
         return self._field_config

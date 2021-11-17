@@ -104,9 +104,7 @@ __pdoc__ = {}
 class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
     """Accessor on top of OHLCV data. For DataFrames only.
 
-    Accessible through `pd.DataFrame.vbt.ohlcv`."""
-
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'column_names'}
+    Accessible via `pd.DataFrame.vbt.ohlcv`."""
 
     def __init__(self, obj: tp.Frame, column_names: tp.KwargsLike = None, **kwargs) -> None:
         self._column_names = column_names

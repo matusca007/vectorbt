@@ -2037,17 +2037,6 @@ class IndicatorBase(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Me
 
     Properties should be set before instantiation."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'input_list',
-        'input_mapper',
-        'in_output_list',
-        'output_list',
-        'param_list',
-        'mapper_list',
-        'short_name',
-        'level_names'
-    }
-
     _short_name: str
     _level_names: tp.Tuple[str, ...]
     _input_names: tp.Tuple[str, ...]

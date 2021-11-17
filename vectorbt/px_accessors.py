@@ -74,7 +74,7 @@ def attach_px_methods(cls: tp.Type[tp.T]) -> tp.Type[tp.T]:
 class PXAccessor(BaseAccessor):
     """Accessor for running Plotly Express functions.
 
-    Accessible through `pd.Series.vbt.px` and `pd.DataFrame.vbt.px`.
+    Accessible via `pd.Series.vbt.px` and `pd.DataFrame.vbt.px`.
 
     ## Example
 
@@ -98,7 +98,7 @@ class PXAccessor(BaseAccessor):
 class PXSRAccessor(PXAccessor, BaseSRAccessor):
     """Accessor for running Plotly Express functions. For Series only.
 
-    Accessible through `pd.Series.vbt.px`."""
+    Accessible via `pd.Series.vbt.px`."""
 
     def __init__(self, obj: tp.Series, **kwargs) -> None:
         BaseSRAccessor.__init__(self, obj, **kwargs)
@@ -109,7 +109,7 @@ class PXSRAccessor(PXAccessor, BaseSRAccessor):
 class PXDFAccessor(PXAccessor, BaseDFAccessor):
     """Accessor for running Plotly Express functions. For DataFrames only.
 
-    Accessible through `pd.DataFrame.vbt.px`."""
+    Accessible via `pd.DataFrame.vbt.px`."""
 
     def __init__(self, obj: tp.Frame, **kwargs) -> None:
         BaseDFAccessor.__init__(self, obj, **kwargs)

@@ -22,7 +22,6 @@ Additionally, some accessors subclass other accessors building the following inh
 ```plaintext
 vbt.base.accessors.BaseSR/DFAccessor
     -> vbt.generic.accessors.GenericSR/DFAccessor
-        -> vbt.cat_accessors.CatSR/DFAccessor
         -> vbt.signals.accessors.SignalsSR/DFAccessor
         -> vbt.returns.accessors.ReturnsSR/DFAccessor
         -> vbt.ohlcv_accessors.OHLCVDFAccessor
@@ -42,7 +41,8 @@ Class methods of any accessor can be conveniently accessed using `pd_acc`, `sr_a
 ```
 
 !!! note
-    Accessors in vectorbt are not cached, so querying `df.vbt` twice will also call `Vbt_DFAccessor` twice."""
+    Accessors in vectorbt are not cached, so querying `df.vbt` twice will also call `Vbt_DFAccessor` twice.
+    You can change this in global settings."""
 
 import warnings
 

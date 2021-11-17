@@ -136,15 +136,13 @@ BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 class BaseAccessor(Wrapping):
     """Accessor on top of Series and DataFrames.
 
-    Accessible through `pd.Series.vbt` and `pd.DataFrame.vbt`, and all child accessors.
+    Accessible via `pd.Series.vbt` and `pd.DataFrame.vbt`, and all child accessors.
 
     Series is just a DataFrame with one column, hence to avoid defining methods exclusively for 1-dim data,
     we will convert any Series to a DataFrame and perform matrix computation on it. Afterwards,
     by using `BaseAccessor.wrapper`, we will convert the 2-dim output back to a Series.
 
     `**kwargs` will be passed to `vectorbt.base.wrapping.ArrayWrapper`."""
-
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'obj'}
 
     def __init__(self, obj: tp.SeriesFrame, wrapper: tp.Optional[ArrayWrapper] = None, **kwargs) -> None:
         checks.assert_instance_of(obj, (pd.Series, pd.DataFrame))
@@ -1005,7 +1003,7 @@ class BaseAccessor(Wrapping):
 class BaseSRAccessor(BaseAccessor):
     """Accessor on top of Series.
 
-    Accessible through `pd.Series.vbt` and all child accessors."""
+    Accessible via `pd.Series.vbt` and all child accessors."""
 
     def __init__(self, obj: tp.Series, **kwargs) -> None:
         checks.assert_instance_of(obj, pd.Series)
@@ -1028,7 +1026,7 @@ class BaseSRAccessor(BaseAccessor):
 class BaseDFAccessor(BaseAccessor):
     """Accessor on top of DataFrames.
 
-    Accessible through `pd.DataFrame.vbt` and all child accessors."""
+    Accessible via `pd.DataFrame.vbt` and all child accessors."""
 
     def __init__(self, obj: tp.Frame, **kwargs) -> None:
         checks.assert_instance_of(obj, pd.DataFrame)

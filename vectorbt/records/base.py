@@ -488,11 +488,6 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             Useful if any subclass wants to extend the config.
     """
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'records_arr',
-        'col_mapper'
-    }
-
     _field_config: tp.ClassVar[Config] = Config(
         dict(
             dtype=None,

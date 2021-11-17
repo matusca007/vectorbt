@@ -119,17 +119,6 @@ class ArrayWrapper(Configured, PandasIndexer):
 
         Use methods that begin with `get_` to get group-aware results."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'index',
-        'columns',
-        'ndim',
-        'freq',
-        'column_only_select',
-        'group_select',
-        'grouped_ndim',
-        'grouper'
-    }
-
     def __init__(self,
                  index: tp.IndexLike,
                  columns: tp.IndexLike,
@@ -740,8 +729,6 @@ WrappingT = tp.TypeVar("WrappingT", bound="Wrapping")
 
 class Wrapping(Configured, PandasIndexer, AttrResolver):
     """Class that uses `ArrayWrapper` globally."""
-
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'wrapper'}
 
     def __init__(self, wrapper: ArrayWrapper, **kwargs) -> None:
         checks.assert_instance_of(wrapper, ArrayWrapper)

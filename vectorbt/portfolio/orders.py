@@ -178,8 +178,6 @@ OrdersT = tp.TypeVar("OrdersT", bound="Orders")
 class Orders(Records):
     """Extends `Records` for working with order records."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'close'}
-
     @property
     def field_config(self) -> Config:
         return self._field_config

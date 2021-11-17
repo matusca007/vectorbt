@@ -308,18 +308,6 @@ DataT = tp.TypeVar("DataT", bound="Data")
 class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
     """Class that downloads, updates, and manages data coming from a data source."""
 
-    _expected_keys: tp.ClassVar[tp.Optional[tp.Set[str]]] = {
-        'data',
-        'single_symbol',
-        'tz_localize',
-        'tz_convert',
-        'missing_index',
-        'missing_columns',
-        'fetch_kwargs',
-        'last_index',
-        'returned_kwargs'
-    }
-
     def __init__(self,
                  wrapper: ArrayWrapper,
                  data: tp.DataDict,
