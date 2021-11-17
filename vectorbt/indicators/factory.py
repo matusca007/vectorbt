@@ -2005,6 +2005,7 @@ def run_pipeline(
 
 def combine_objs(obj: tp.SeriesFrame,
                  other: tp.MaybeTupleList[tp.Union[tp.ArrayLike, BaseAccessor]],
+                 combine_func: tp.Callable,
                  *args, level_name: tp.Optional[str] = None,
                  keys: tp.Optional[tp.IndexLike] = None,
                  allow_multiple: bool = True,
@@ -2019,7 +2020,7 @@ def combine_objs(obj: tp.SeriesFrame,
     if allow_multiple and isinstance(other, (tuple, list)):
         if keys is None:
             keys = indexes.index_from_values(other, name=level_name)
-    return obj.vbt.combine(other, *args, keys=keys, allow_multiple=allow_multiple, **kwargs)
+    return obj.vbt.combine(other, combine_func, *args, keys=keys, allow_multiple=allow_multiple, **kwargs)
 
 
 IndicatorBaseT = tp.TypeVar("IndicatorBaseT", bound="IndicatorBase")
@@ -2486,7 +2487,7 @@ class IndicatorFactory:
                 out = combine_objs(
                     getattr(self, attr_name),
                     other,
-                    combine_func=combine_func,
+                    combine_func,
                     level_name=level_name,
                     allow_multiple=allow_multiple,
                     **merge_dicts(def_kwargs, kwargs)

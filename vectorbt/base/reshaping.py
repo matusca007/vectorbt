@@ -431,6 +431,7 @@ def broadcast(*args,
 
             Can be provided per argument.
         return_wrapper (bool): Whether to also return the wrapper associated with the operation.
+        wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
         **kwargs: Keyword arguments passed to `broadcast_index`.
 
     For defaults, see `broadcasting` in `vectorbt._settings.settings`.

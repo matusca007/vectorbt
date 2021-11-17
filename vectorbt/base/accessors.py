@@ -126,6 +126,7 @@ from vectorbt.utils.config import merge_dicts, resolve_dict
 from vectorbt.utils.decorators import class_or_instanceproperty, class_or_instancemethod
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.parsing import get_func_arg_names, get_ex_var_names, get_context_vars
+from vectorbt.utils.template import deep_substitute
 
 BaseAccessorT = tp.TypeVar("BaseAccessorT", bound="BaseAccessor")
 
@@ -490,23 +491,21 @@ class BaseAccessor(Wrapping):
     # ############# Combining ############# #
 
     def apply(self,
-              *args,
-              apply_func: tp.Optional[tp.Callable] = None,
+              apply_func: tp.Callable, *args,
               keep_pd: bool = False,
               to_2d: bool = False,
+              broadcast_named_args: tp.KwargsLike = None,
+              broadcast_kwargs: tp.KwargsLike = None,
+              template_mapping: tp.Optional[tp.Mapping] = None,
               wrap_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.SeriesFrame:
         """Apply a function `apply_func`.
 
-        Args:
-            *args: Variable arguments passed to `apply_func`.
-            apply_func (callable): Apply function.
+        Set `keep_pd` to True to keep inputs as pandas objects, otherwise convert to NumPy arrays.
 
-                Can be Numba-compiled.
-            keep_pd (bool): Whether to keep inputs as pandas objects, otherwise convert to NumPy arrays.
-            to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
-            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
-            **kwargs: Keyword arguments passed to `combine_func`.
+        Set `to_2d` to True to reshape inputs to 2-dim arrays, otherwise keep as-is.
+
+        `*args` and `**kwargs` are passed to `apply_func`.
 
         !!! note
             The resulted array must have the same shape as the original array.
@@ -515,25 +514,59 @@ class BaseAccessor(Wrapping):
 
         ```python-repl
         >>> sr = pd.Series([1, 2], index=['x', 'y'])
-        >>> sr2.vbt.apply(apply_func=lambda x: x ** 2)
-        i2
-        x2    1
-        y2    4
-        z2    9
-        Name: a2, dtype: int64
+        >>> sr.vbt.apply(lambda x: x ** 2)
+        x    1
+        y    4
+        dtype: int64
+        ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> sr.vbt.apply(
+        ...     lambda x, y: x + y,
+        ...     vbt.Rep('y'),
+        ...     broadcast_named_args=dict(
+        ...         y=pd.DataFrame([[3, 4]], columns=['a', 'b'])
+        ...     )
+        ... )
+           a  b
+        x  4  5
+        y  5  6
         ```
         """
-        checks.assert_not_none(apply_func)
-        # Optionally cast to 2d array
-        if to_2d:
-            obj = reshaping.to_2d(self.obj, raw=not keep_pd)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
+
+        broadcast_named_args = {'obj': self.obj, **broadcast_named_args}
+        if len(broadcast_named_args) > 1:
+            broadcast_named_args, wrapper = reshaping.broadcast(
+                broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
         else:
-            if not keep_pd:
-                obj = np.asarray(self.obj)
-            else:
-                obj = self.obj
-        out = apply_func(obj, *args, **kwargs)
-        return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
+            wrapper = self.wrapper
+        if to_2d:
+            broadcast_named_args = {
+                k: reshaping.to_2d(v, raw=not keep_pd)
+                for k, v in broadcast_named_args.items()
+            }
+        elif not keep_pd:
+            broadcast_named_args = {
+                k: np.asarray(v)
+                for k, v in broadcast_named_args.items()
+            }
+        template_mapping = merge_dicts(broadcast_named_args, template_mapping)
+        args = deep_substitute(args, template_mapping, sub_id='args')
+        kwargs = deep_substitute(kwargs, template_mapping, sub_id='kwargs')
+        out = apply_func(
+            broadcast_named_args['obj'],
+            *args,
+            **kwargs
+        )
+        return wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
     def concat(cls_or_self,
@@ -541,11 +574,6 @@ class BaseAccessor(Wrapping):
                broadcast_kwargs: tp.KwargsLike = None,
                keys: tp.Optional[tp.IndexLike] = None) -> tp.Frame:
         """Concatenate with `others` along columns.
-
-        Args:
-            *others (array_like): List of objects to be concatenated with this array.
-            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
-            keys (index_like): Outermost column level.
 
         ## Example
 
@@ -575,33 +603,23 @@ class BaseAccessor(Wrapping):
 
     def apply_and_concat(self,
                          ntimes: int,
+                         apply_func: tp.Callable,
                          *args,
-                         apply_func: tp.Optional[tp.Callable] = None,
-                         n_outputs: tp.Optional[int] = None,
                          keep_pd: bool = False,
                          to_2d: bool = False,
                          keys: tp.Optional[tp.IndexLike] = None,
+                         broadcast_named_args: tp.KwargsLike = None,
+                         broadcast_kwargs: tp.KwargsLike = None,
+                         template_mapping: tp.Optional[tp.Mapping] = None,
                          wrap_kwargs: tp.KwargsLike = None,
                          **kwargs) -> tp.MaybeTuple[tp.Frame]:
         """Apply `apply_func` `ntimes` times and concatenate the results along columns.
 
         See `vectorbt.base.combining.apply_and_concat`.
 
-        Args:
-            ntimes (int): Number of times to call `apply_func`.
-            *args: Variable arguments passed to `apply_func`.
-            apply_func (callable): Apply function.
+        `ntimes` is the number of times to call `apply_func`, while `n_outputs` is the number of outputs to expect.
 
-                Can be Numba-compiled.
-            n_outputs (int): The number of outputs to expect.
-
-                Required for Numba.
-            keep_pd (bool): Whether to keep inputs as pandas objects, otherwise convert to NumPy arrays.
-            to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
-            keys (index_like): Outermost column level.
-            wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
-            **kwargs: Keyword arguments passed to `vectorbt.base.combining.apply_and_concat`
-                and then to `combine_func`.
+        `*args` and `**kwargs` are passed to `vectorbt.base.combining.apply_and_concat`.
 
         !!! note
             The resulted arrays to be concatenated must have the same shape as broadcast input arrays.
@@ -611,12 +629,34 @@ class BaseAccessor(Wrapping):
         ```python-repl
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
         >>> df.vbt.apply_and_concat(
-        ...     3, [1, 2, 3], keys=['c', 'd', 'e'],
-        ...     apply_func=lambda i, a, b: a * b[i])
+        ...     3,
+        ...     lambda i, a, b: a * b[i],
+        ...     [1, 2, 3],
+        ...     keys=['c', 'd', 'e']
+        ... )
               c       d       e
            a  b   a   b   a   b
         x  3  4   6   8   9  12
         y  5  6  10  12  15  18
+        ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> sr = pd.Series([1, 2, 3], index=['x', 'y', 'z'])
+        >>> sr.vbt.apply_and_concat(
+        ...     3,
+        ...     lambda i, a, b: a * b + i,
+        ...     vbt.Rep('df'),
+        ...     broadcast_named_args=dict(
+        ...         df=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     )
+        ... )
+        apply_idx        0         1         2
+                   a  b  c  a  b   c  a  b   c
+        x          1  2  3  2  3   4  3  4   5
+        y          2  4  6  3  5   7  4  6   8
+        z          3  6  9  4  7  10  5  8  11
         ```
 
         To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
@@ -630,60 +670,91 @@ class BaseAccessor(Wrapping):
 
         >>> sr = pd.Series([1, 2, 3])
 
-        >>> %timeit sr.vbt.apply_and_concat(3, apply_func=apply_func)
+        >>> %timeit sr.vbt.apply_and_concat(3, apply_func)
         3.02 s ± 3.76 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-        >>> %timeit sr.vbt.apply_and_concat(3, apply_func=apply_func, execute_kwargs=dict(engine='dask'))
+        >>> %timeit sr.vbt.apply_and_concat(3, apply_func, execute_kwargs=dict(engine='dask'))
         1.02 s ± 927 µs per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
         checks.assert_not_none(apply_func)
-        if to_2d:
-            obj = reshaping.to_2d(self.obj, raw=not keep_pd)
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
+
+        broadcast_named_args = {'obj': self.obj, **broadcast_named_args}
+        if len(broadcast_named_args) > 1:
+            broadcast_named_args, wrapper = reshaping.broadcast(
+                broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
         else:
-            if not keep_pd:
-                obj = np.asarray(self.obj)
-            else:
-                obj = self.obj
-        out = combining.apply_and_concat(ntimes, apply_func, obj, *args, n_outputs=n_outputs, **kwargs)
+            wrapper = self.wrapper
+        if to_2d:
+            broadcast_named_args = {
+                k: reshaping.to_2d(v, raw=not keep_pd)
+                for k, v in broadcast_named_args.items()
+            }
+        elif not keep_pd:
+            broadcast_named_args = {
+                k: np.asarray(v)
+                for k, v in broadcast_named_args.items()
+            }
+        template_mapping = merge_dicts(
+            broadcast_named_args,
+            dict(ntimes=ntimes),
+            template_mapping
+        )
+        args = deep_substitute(args, template_mapping, sub_id='args')
+        kwargs = deep_substitute(kwargs, template_mapping, sub_id='kwargs')
+        out = combining.apply_and_concat(
+            ntimes,
+            apply_func,
+            broadcast_named_args['obj'],
+            *args,
+            **kwargs
+        )
         if keys is not None:
-            new_columns = indexes.combine_indexes([keys, self.wrapper.columns])
+            new_columns = indexes.combine_indexes([keys, wrapper.columns])
         else:
             top_columns = pd.Index(np.arange(ntimes), name='apply_idx')
-            new_columns = indexes.combine_indexes([top_columns, self.wrapper.columns])
+            new_columns = indexes.combine_indexes([top_columns, wrapper.columns])
         if out is None:
             return None
         wrap_kwargs = merge_dicts(dict(columns=new_columns), wrap_kwargs)
         if isinstance(out, list):
-            return tuple(map(lambda x: self.wrapper.wrap(x, group_by=False, **wrap_kwargs), out))
-        return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
+            return tuple(map(lambda x: wrapper.wrap(x, group_by=False, **wrap_kwargs), out))
+        return wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     @class_or_instancemethod
     def combine(cls_or_self,
                 obj: tp.MaybeTupleList[tp.Union[tp.ArrayLike, "BaseAccessor"]],
+                combine_func: tp.Callable,
                 *args,
                 allow_multiple: bool = True,
                 index_as_multiple: bool = True,
-                combine_func: tp.Optional[tp.Callable] = None,
                 keep_pd: bool = False,
                 to_2d: bool = False,
                 concat: tp.Optional[bool] = None,
-                broadcast_kwargs: tp.KwargsLike = None,
                 keys: tp.Optional[tp.IndexLike] = None,
+                broadcast_named_args: tp.KwargsLike = None,
+                broadcast_kwargs: tp.KwargsLike = None,
+                template_mapping: tp.Optional[tp.Mapping] = None,
                 wrap_kwargs: tp.KwargsLike = None,
                 **kwargs) -> tp.SeriesFrame:
         """Combine with `other` using `combine_func`.
 
         Args:
             obj (array_like): Object(s) to combine this array with.
+            combine_func (callable): Function to combine two arrays.
+
+                Can be Numba-compiled.
             *args: Variable arguments passed to `combine_func`.
             allow_multiple (bool): Whether a tuple/list/Index will be considered as multiple objects in `other`.
 
                 Takes effect only when using the instance method.
             index_as_multiple (bool): Whether index should be considered as multiple objects.
-            combine_func (callable): Function to combine two arrays.
-
-                Can be Numba-compiled.
             keep_pd (bool): Whether to keep inputs as pandas objects, otherwise convert to NumPy arrays.
             to_2d (bool): Whether to reshape inputs to 2-dim arrays, otherwise keep as-is.
             concat (bool): Whether to concatenate the results along the column axis.
@@ -694,8 +765,10 @@ class BaseAccessor(Wrapping):
                 If None, becomes True if there are more than two arguments to combine.
 
                 Can only concatenate using the instance method.
-            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
             keys (index_like): Outermost column level.
+            broadcast_named_args (dict): Dictionary with arguments to broadcast against each other.
+            broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
+            template_mapping (dict): Mapping used to substitute templates in `args` and `kwargs`.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
             **kwargs: Keyword arguments passed to `combine_func`.
 
@@ -713,34 +786,58 @@ class BaseAccessor(Wrapping):
         >>> df = pd.DataFrame([[3, 4], [5, 6]], index=['x', 'y'], columns=['a', 'b'])
 
         >>> # using instance method
-        >>> sr.vbt.combine(df, combine_func=np.add)
+        >>> sr.vbt.combine(df, np.add)
            a  b
         x  4  5
         y  7  8
 
-        >>> sr.vbt.combine([df, df*2], combine_func=np.add)
+        >>> sr.vbt.combine([df, df * 2], np.add, concat=False)
             a   b
         x  10  13
         y  17  20
 
-        >>> # using class method
-        >>> vbt.pd_acc.combine([sr, df, df*2], combine_func=np.add)
-            a   b
-        x  10  13
-        y  17  20
+        >>> sr.vbt.combine([df, df * 2], np.add)
+        combine_idx     0       1
+                     a  b   a   b
+        x            4  5   7   9
+        y            7  8  12  14
 
-        >>> # only using instance method
-        >>> sr.vbt.combine([df, df*2], combine_func=np.add, concat=True, keys=['c', 'd'])
+        >>> sr.vbt.combine([df, df * 2], np.add, keys=['c', 'd'])
               c       d
            a  b   a   b
         x  4  5   7   9
         y  7  8  12  14
 
-        >>> sr.vbt.combine(pd.Index([1, 2], name='param'), combine_func=np.add, concat=True)
+        >>> sr.vbt.combine(pd.Index([1, 2], name='param'), np.add)
         param  1  2
         x      2  3
         y      3  4
+
+        >>> # using class method
+        >>> sr.vbt.combine([df, df * 2], np.add, concat=False)
+            a   b
+        x  10  13
+        y  17  20
         ```
+
+        Using templates and broadcasting:
+
+        ```python-repl
+        >>> sr = pd.Series([1, 2, 3], index=['x', 'y', 'z'])
+        >>> sr.vbt.combine(
+        ...     [1, 2, 3],
+        ...     lambda x, y, z: x + y + z,
+        ...     vbt.Rep('df'),
+        ...     broadcast_named_args=dict(
+        ...         df=pd.DataFrame([[1, 2, 3]], columns=['a', 'b', 'c'])
+        ...     )
+        ... )
+        ```
+        combine_idx        0        1        2
+                     a  b  c  a  b  c  a  b  c
+        x            3  4  5  4  5  6  5  6  7
+        y            4  5  6  5  6  7  6  7  8
+        z            5  6  7  6  7  8  7  8  9
 
         To change the execution engine or specify other engine-related arguments, use `execute_kwargs`:
 
@@ -753,15 +850,20 @@ class BaseAccessor(Wrapping):
 
         >>> sr = pd.Series([1, 2, 3])
 
-        >>> %timeit sr.vbt.combine([1, 1, 1], combine_func=combine_func)
+        >>> %timeit sr.vbt.combine([1, 1, 1], combine_func)
         3.01 s ± 2.98 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-        >>> %timeit sr.vbt.combine( \
-        ...     [1, 1, 1], combine_func=combine_func, concat=True, \
-        ...     execute_kwargs=dict(engine='dask'))
+        >>> %timeit sr.vbt.combine([1, 1, 1], combine_func, execute_kwargs=dict(engine='dask'))
         1.02 s ± 2.18 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
         ```
         """
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        if broadcast_kwargs is None:
+            broadcast_kwargs = {}
+        if template_mapping is None:
+            template_mapping = {}
+
         if isinstance(cls_or_self, type):
             objs = obj
         else:
@@ -776,20 +878,26 @@ class BaseAccessor(Wrapping):
         objs = tuple(map(lambda x: x.obj if isinstance(x, BaseAccessor) else x, objs))
         if not isinstance(cls_or_self, type):
             objs = (cls_or_self.obj,) + objs
-        checks.assert_not_none(combine_func)
-        if broadcast_kwargs is None:
-            broadcast_kwargs = {}
         if checks.is_numba_func(combine_func):
             # Numba requires writeable arrays and in the same order
             broadcast_kwargs = merge_dicts(dict(require_kwargs=dict(requirements=['W', 'C'])), broadcast_kwargs)
-        objs = reshaping.broadcast(*objs, **broadcast_kwargs)
+
+        # Broadcast and substitute templates
+        broadcast_named_args = {
+            **{'obj_' + str(i): obj for i, obj in enumerate(objs)},
+            **broadcast_named_args
+        }
+        broadcast_named_args, wrapper = reshaping.broadcast(
+            broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
         if to_2d:
-            inputs = tuple(map(lambda x: reshaping.to_2d(x, raw=not keep_pd), objs))
-        else:
-            if not keep_pd:
-                inputs = tuple(map(lambda x: np.asarray(x), objs))
-            else:
-                inputs = objs
+            broadcast_named_args = {k: reshaping.to_2d(v, raw=not keep_pd) for k, v in broadcast_named_args.items()}
+        elif not keep_pd:
+            broadcast_named_args = {k: np.asarray(v) for k, v in broadcast_named_args.items()}
+        template_mapping = merge_dicts(broadcast_named_args, template_mapping)
+        args = deep_substitute(args, template_mapping, sub_id='args')
+        kwargs = deep_substitute(kwargs, template_mapping, sub_id='kwargs')
+        inputs = [broadcast_named_args['obj_' + str(i)] for i in range(len(objs))]
+
         if concat is None:
             concat = len(inputs) > 2
         if concat:
@@ -797,17 +905,16 @@ class BaseAccessor(Wrapping):
             if isinstance(cls_or_self, type):
                 raise TypeError("Use instance method to concatenate")
             out = combining.combine_and_concat(inputs[0], inputs[1:], combine_func, *args, **kwargs)
-            columns = ArrayWrapper.from_obj(objs[0]).columns
             if keys is not None:
-                new_columns = indexes.combine_indexes([keys, columns])
+                new_columns = indexes.combine_indexes([keys, wrapper.columns])
             else:
                 top_columns = pd.Index(np.arange(len(objs) - 1), name='combine_idx')
-                new_columns = indexes.combine_indexes([top_columns, columns])
-            return ArrayWrapper.from_obj(objs[0]).wrap(out, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
+                new_columns = indexes.combine_indexes([top_columns, wrapper.columns])
+            return wrapper.wrap(out, **merge_dicts(dict(columns=new_columns), wrap_kwargs))
         else:
             # Combine arguments pairwise into one object
             out = combining.combine_multiple(inputs, combine_func, *args, **kwargs)
-            return ArrayWrapper.from_obj(objs[0]).wrap(out, **resolve_dict(wrap_kwargs))
+            return wrapper.wrap(out, **resolve_dict(wrap_kwargs))
 
     @classmethod
     def eval(cls,

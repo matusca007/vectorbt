@@ -509,8 +509,7 @@ class SignalsAccessor(GenericAccessor):
 
         obj = self.obj
         if len(broadcast_named_args) > 0:
-            broadcast_named_args = dict(broadcast_named_args)
-            broadcast_named_args['obj'] = obj
+            broadcast_named_args = {'obj': obj, **broadcast_named_args}
             broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
             broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
             obj = broadcast_named_args['obj']
@@ -1581,13 +1580,13 @@ class SignalsAccessor(GenericAccessor):
         if wrap_kwargs is None:
             wrap_kwargs = {}
 
-        obj = self.obj
-        broadcast_named_args = dict(broadcast_named_args)
-        broadcast_named_args['obj'] = obj
         if reset_by is not None:
-            broadcast_named_args['reset_by'] = reset_by
-        broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
-        broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
+            broadcast_named_args = {'obj': self.obj, 'reset_by': reset_by, **broadcast_named_args}
+        else:
+            broadcast_named_args = {'obj': self.obj, **broadcast_named_args}
+        if len(broadcast_named_args) > 1:
+            broadcast_kwargs = merge_dicts(dict(to_pd=dict(obj=True, _default=False)), broadcast_kwargs)
+            broadcast_named_args = reshaping.broadcast(broadcast_named_args, **broadcast_kwargs)
         obj = broadcast_named_args['obj']
         if reset_by is not None:
             reset_by = broadcast_named_args['reset_by']
