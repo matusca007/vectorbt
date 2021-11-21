@@ -8,7 +8,7 @@ import numpy as np
 from vectorbt import _typing as tp
 from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.generic import nb as generic_nb
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.portfolio.enums import *
 from vectorbt.utils.array_ import insert_argsort_nb
 from vectorbt.utils.math_ import (
@@ -19,7 +19,7 @@ from vectorbt.utils.math_ import (
 )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def order_not_filled_nb(status: int, status_info: int) -> OrderResult:
     """Return `OrderResult` for order that hasn't been filled."""
     return OrderResult(
@@ -32,7 +32,7 @@ def order_not_filled_nb(status: int, status_info: int) -> OrderResult:
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def check_adj_price_nb(adj_price: float,
                        price_area: PriceArea,
                        is_closing_price: bool,
@@ -58,7 +58,7 @@ def check_adj_price_nb(adj_price: float,
     return adj_price
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def buy_nb(exec_state: ExecuteOrderState,
            size: float,
            price: float,
@@ -216,7 +216,7 @@ def buy_nb(exec_state: ExecuteOrderState,
     return new_exec_state, order_result
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sell_nb(exec_state: ExecuteOrderState,
             size: float,
             price: float,
@@ -358,7 +358,7 @@ def sell_nb(exec_state: ExecuteOrderState,
     return new_exec_state, order_result
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def execute_order_nb(state: ProcessOrderState,
                      order: Order,
                      price_area: PriceArea = NoPriceArea) -> tp.Tuple[ExecuteOrderState, OrderResult]:
@@ -558,7 +558,7 @@ def execute_order_nb(state: ProcessOrderState,
     return new_exec_state, order_result
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_log_record_nb(records: tp.RecordArray2d,
                        r: int,
                        group: int,
@@ -617,7 +617,7 @@ def fill_log_record_nb(records: tp.RecordArray2d,
     records['order_id'][r, col] = order_id
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_order_record_nb(records: tp.RecordArray2d,
                          r: int,
                          col: int,
@@ -634,7 +634,7 @@ def fill_order_record_nb(records: tp.RecordArray2d,
     records['side'][r, col] = order_result.side
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def raise_rejected_order_nb(order_result: OrderResult) -> None:
     """Raise an `vectorbt.portfolio.enums.RejectedOrderError`."""
 
@@ -669,7 +669,7 @@ def raise_rejected_order_nb(order_result: OrderResult) -> None:
     raise RejectedOrderError
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def update_value_nb(cash_before: float,
                     cash_now: float,
                     position_before: float,
@@ -693,7 +693,7 @@ def update_value_nb(cash_before: float,
     return val_price_now, value_now
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def process_order_nb(group: int,
                      col: int,
                      i: int,
@@ -780,7 +780,7 @@ def process_order_nb(group: int,
     return order_result, new_state
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def order_nb(size: float = np.inf,
              price: float = np.inf,
              size_type: int = SizeType.Amount,
@@ -821,7 +821,7 @@ def order_nb(size: float = np.inf,
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def close_position_nb(price: float = np.inf,
                       fees: float = 0.,
                       fixed_fees: float = 0.,
@@ -857,80 +857,26 @@ def close_position_nb(price: float = np.inf,
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def order_nothing_nb() -> Order:
     """Convenience function to order nothing."""
     return NoOrder
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def check_group_lens_nb(group_lens: tp.Array1d, n_cols: int) -> None:
     """Check `group_lens`."""
     if np.sum(group_lens) != n_cols:
         raise ValueError("group_lens has incorrect total number of columns")
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_grouped_nb(group_lens: tp.Array1d) -> bool:
     """Check if columm,ns are grouped, that is, more than one column per group."""
     return np.any(group_lens > 1)
 
 
-@register_jit(cache=True)
-def shuffle_call_seq_nb(call_seq: tp.Array2d, group_lens: tp.Array1d) -> None:
-    """Shuffle the call sequence array."""
-    from_col = 0
-    for group in range(len(group_lens)):
-        to_col = from_col + group_lens[group]
-        for i in range(call_seq.shape[0]):
-            np.random.shuffle(call_seq[i, from_col:to_col])
-        from_col = to_col
-
-
-@register_jit(cache=True)
-def build_call_seq_nb(target_shape: tp.Shape,
-                      group_lens: tp.Array1d,
-                      call_seq_type: int = CallSeqType.Default) -> tp.Array2d:
-    """Build a new call sequence array."""
-    if call_seq_type == CallSeqType.Reversed:
-        out = np.full(target_shape[1], 1, dtype=np.int_)
-        out[np.cumsum(group_lens)[1:] - group_lens[1:] - 1] -= group_lens[1:]
-        out = np.cumsum(out[::-1])[::-1] - 1
-        out = out * np.ones((target_shape[0], 1), dtype=np.int_)
-        return out
-    out = np.full(target_shape[1], 1, dtype=np.int_)
-    out[np.cumsum(group_lens)[:-1]] -= group_lens[:-1]
-    out = np.cumsum(out) - 1
-    out = out * np.ones((target_shape[0], 1), dtype=np.int_)
-    if call_seq_type == CallSeqType.Random:
-        shuffle_call_seq_nb(out, group_lens)
-    return out
-
-
-def require_call_seq(call_seq: tp.Array2d) -> tp.Array2d:
-    """Force the call sequence array to pass our requirements."""
-    return np.require(call_seq, dtype=np.int_, requirements=['A', 'O', 'W', 'F'])
-
-
-def build_call_seq(target_shape: tp.Shape,
-                   group_lens: tp.Array1d,
-                   call_seq_type: int = CallSeqType.Default) -> tp.Array2d:
-    """Not compiled but faster version of `build_call_seq_nb`."""
-    call_seq = np.full(target_shape[1], 1, dtype=np.int_)
-    if call_seq_type == CallSeqType.Reversed:
-        call_seq[np.cumsum(group_lens)[1:] - group_lens[1:] - 1] -= group_lens[1:]
-        call_seq = np.cumsum(call_seq[::-1])[::-1] - 1
-    else:
-        call_seq[np.cumsum(group_lens[:-1])] -= group_lens[:-1]
-        call_seq = np.cumsum(call_seq) - 1
-    call_seq = np.broadcast_to(call_seq, target_shape)
-    if call_seq_type == CallSeqType.Random:
-        call_seq = require_call_seq(call_seq)
-        shuffle_call_seq_nb(call_seq, group_lens)
-    return require_call_seq(call_seq)
-
-
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_elem_nb(ctx: tp.Union[
     OrderContext,
     PostOrderContext,
@@ -940,7 +886,7 @@ def get_elem_nb(ctx: tp.Union[
     return flex_select_auto_nb(arr, ctx.i, ctx.col, ctx.flex_2d)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_grouped_elem_nb(ctx: tp.Union[
     SegmentContext,
     OrderContext,
@@ -951,7 +897,7 @@ def get_grouped_elem_nb(ctx: tp.Union[
     return flex_select_auto_nb(arr, ctx.i, ctx.group, ctx.flex_2d)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_col_elem_nb(ctx: tp.Union[
     RowContext,
     SegmentContext,
@@ -964,7 +910,7 @@ def get_col_elem_nb(ctx: tp.Union[
     return flex_select_auto_nb(arr, ctx.i, col_or_group, ctx.flex_2d)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_group_value_nb(from_col: int,
                        to_col: int,
                        cash_now: float,
@@ -980,7 +926,7 @@ def get_group_value_nb(from_col: int,
     return group_value
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_group_value_ctx_nb(seg_ctx: SegmentContext) -> float:
     """Get group value from context.
 
@@ -1002,7 +948,7 @@ def get_group_value_ctx_nb(seg_ctx: SegmentContext) -> float:
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def approx_order_value_nb(size: float,
                           size_type: int,
                           direction: int,
@@ -1035,7 +981,7 @@ def approx_order_value_nb(size: float,
     return np.nan
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sort_call_seq_out_nb(ctx: SegmentContext,
                          size: tp.FlexArray,
                          size_type: tp.FlexArray,
@@ -1102,7 +1048,7 @@ def sort_call_seq_out_nb(ctx: SegmentContext,
     insert_argsort_nb(order_value_out, call_seq_out)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sort_call_seq_nb(ctx: SegmentContext,
                      size: tp.FlexArray,
                      size_type: tp.FlexArray,
@@ -1128,7 +1074,7 @@ def sort_call_seq_nb(ctx: SegmentContext,
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState, OrderResult]:
     """Execute an order without persistence."""
     state = ProcessOrderState(
@@ -1152,7 +1098,7 @@ def try_order_nb(ctx: OrderContext, order: Order) -> tp.Tuple[ExecuteOrderState,
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_records_nb(target_shape: tp.Shape,
                        max_orders: tp.Optional[int] = None,
                        max_logs: tp.Optional[int] = 0) -> tp.Tuple[tp.RecordArray2d, tp.RecordArray2d]:
@@ -1168,7 +1114,7 @@ def prepare_records_nb(target_shape: tp.Shape,
     return order_records, log_records
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_last_cash_nb(target_shape: tp.Shape,
                          group_lens: tp.Array1d,
                          cash_sharing: bool,
@@ -1185,7 +1131,7 @@ def prepare_last_cash_nb(target_shape: tp.Shape,
     return last_cash
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_last_position_nb(target_shape: tp.Shape, init_position: tp.FlexArray) -> tp.Array1d:
     """Prepare `last_position`."""
     last_position = np.empty(target_shape[1], dtype=np.float_)
@@ -1194,7 +1140,7 @@ def prepare_last_position_nb(target_shape: tp.Shape, init_position: tp.FlexArray
     return last_position
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_last_value_nb(target_shape: tp.Shape,
                           group_lens: tp.Array1d,
                           cash_sharing: bool,
@@ -1226,7 +1172,7 @@ def prepare_last_value_nb(target_shape: tp.Shape,
     return last_value
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_last_pos_record_nb(target_shape: tp.Shape,
                                init_position: tp.FlexArray,
                                fill_pos_record: bool) -> tp.RecordArray:
@@ -1241,7 +1187,7 @@ def prepare_last_pos_record_nb(target_shape: tp.Shape,
     return last_pos_record
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def prepare_simout_nb(order_records: tp.RecordArray2d,
                       last_oidx: tp.Array1d,
                       log_records: tp.RecordArray2d,
@@ -1265,7 +1211,7 @@ def prepare_simout_nb(order_records: tp.RecordArray2d,
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_trade_stats_nb(size: float,
                        entry_price: float,
                        entry_fees: float,
@@ -1283,7 +1229,7 @@ def get_trade_stats_nb(size: float,
     return pnl, ret
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def update_open_pos_stats_nb(record: tp.Record, position_now: float, price: float) -> None:
     """Update statistics of an open position record using custom price."""
     if record['id'] >= 0 and record['status'] == TradeStatus.Open:
@@ -1308,7 +1254,7 @@ def update_open_pos_stats_nb(record: tp.Record, position_now: float, price: floa
         record['return'] = ret
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_init_pos_record_nb(record: tp.Record, col: int, position_now: float) -> None:
     """Fill position record for an initial position."""
     record['id'] = 0
@@ -1335,7 +1281,7 @@ def fill_init_pos_record_nb(record: tp.Record, col: int, position_now: float) ->
     )
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def update_pos_record_nb(record: tp.Record,
                          i: int,
                          col: int,

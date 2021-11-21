@@ -90,8 +90,8 @@ class TestAccessors:
         pd.testing.assert_series_equal(pd.Series.vbt.returns.from_value(ts['a']).obj, ts['a'].pct_change())
         pd.testing.assert_frame_equal(pd.DataFrame.vbt.returns.from_value(ts).obj, ts.pct_change())
         pd.testing.assert_frame_equal(
-            pd.DataFrame.vbt.returns.from_value(ts, nb_parallel=True).obj,
-            pd.DataFrame.vbt.returns.from_value(ts, nb_parallel=False).obj
+            pd.DataFrame.vbt.returns.from_value(ts, jitted=dict(parallel=True)).obj,
+            pd.DataFrame.vbt.returns.from_value(ts, jitted=dict(parallel=False)).obj
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.returns.from_value(ts, chunked=True).obj,
@@ -141,8 +141,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_12h.vbt.returns.daily(nb_parallel=True),
-            ret_12h.vbt.returns.daily(nb_parallel=False)
+            ret_12h.vbt.returns.daily(jitted=dict(parallel=True)),
+            ret_12h.vbt.returns.daily(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_12h.vbt.returns.daily(chunked=True),
@@ -167,8 +167,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.annual(nb_parallel=True),
-            ret_acc.annual(nb_parallel=False)
+            ret_acc.annual(jitted=dict(parallel=True)),
+            ret_acc.annual(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.annual(chunked=True),
@@ -199,8 +199,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.cumulative(nb_parallel=True),
-            ret_acc.cumulative(nb_parallel=False)
+            ret_acc.cumulative(jitted=dict(parallel=True)),
+            ret_acc.cumulative(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.cumulative(chunked=True),
@@ -218,8 +218,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.total(nb_parallel=True),
-            ret_acc.total(nb_parallel=False)
+            ret_acc.total(jitted=dict(parallel=True)),
+            ret_acc.total(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.total(chunked=True),
@@ -240,8 +240,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_total(nb_parallel=True),
-            ret_acc.rolling_total(nb_parallel=False)
+            ret_acc.rolling_total(jitted=dict(parallel=True)),
+            ret_acc.rolling_total(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_total(chunked=True),
@@ -259,8 +259,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.annualized(nb_parallel=True),
-            ret_acc.annualized(nb_parallel=False)
+            ret_acc.annualized(jitted=dict(parallel=True)),
+            ret_acc.annualized(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.annualized(chunked=True),
@@ -281,8 +281,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_annualized(nb_parallel=True),
-            ret_acc.rolling_annualized(nb_parallel=False)
+            ret_acc.rolling_annualized(jitted=dict(parallel=True)),
+            ret_acc.rolling_annualized(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_annualized(chunked=True),
@@ -300,8 +300,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.annualized_volatility(nb_parallel=True),
-            ret_acc.annualized_volatility(nb_parallel=False)
+            ret_acc.annualized_volatility(jitted=dict(parallel=True)),
+            ret_acc.annualized_volatility(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.annualized_volatility(chunked=True),
@@ -322,8 +322,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_annualized_volatility(nb_parallel=True),
-            ret_acc.rolling_annualized_volatility(nb_parallel=False)
+            ret_acc.rolling_annualized_volatility(jitted=dict(parallel=True)),
+            ret_acc.rolling_annualized_volatility(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_annualized_volatility(chunked=True),
@@ -341,8 +341,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.calmar_ratio(nb_parallel=True),
-            ret_acc.calmar_ratio(nb_parallel=False)
+            ret_acc.calmar_ratio(jitted=dict(parallel=True)),
+            ret_acc.calmar_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.calmar_ratio(chunked=True),
@@ -363,8 +363,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_calmar_ratio(nb_parallel=True),
-            ret_acc.rolling_calmar_ratio(nb_parallel=False)
+            ret_acc.rolling_calmar_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_calmar_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_calmar_ratio(chunked=True),
@@ -382,8 +382,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.omega_ratio(nb_parallel=True),
-            ret_acc.omega_ratio(nb_parallel=False)
+            ret_acc.omega_ratio(jitted=dict(parallel=True)),
+            ret_acc.omega_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.omega_ratio(chunked=True),
@@ -404,8 +404,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_omega_ratio(nb_parallel=True),
-            ret_acc.rolling_omega_ratio(nb_parallel=False)
+            ret_acc.rolling_omega_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_omega_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_omega_ratio(chunked=True),
@@ -423,8 +423,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.sharpe_ratio(nb_parallel=True),
-            ret_acc.sharpe_ratio(nb_parallel=False)
+            ret_acc.sharpe_ratio(jitted=dict(parallel=True)),
+            ret_acc.sharpe_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.sharpe_ratio(chunked=True),
@@ -445,8 +445,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_sharpe_ratio(nb_parallel=True),
-            ret_acc.rolling_sharpe_ratio(nb_parallel=False)
+            ret_acc.rolling_sharpe_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_sharpe_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_sharpe_ratio(chunked=True),
@@ -474,8 +474,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.downside_risk(nb_parallel=True),
-            ret_acc.downside_risk(nb_parallel=False)
+            ret_acc.downside_risk(jitted=dict(parallel=True)),
+            ret_acc.downside_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.downside_risk(chunked=True),
@@ -496,8 +496,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_downside_risk(nb_parallel=True),
-            ret_acc.rolling_downside_risk(nb_parallel=False)
+            ret_acc.rolling_downside_risk(jitted=dict(parallel=True)),
+            ret_acc.rolling_downside_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_downside_risk(chunked=True),
@@ -515,8 +515,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.sortino_ratio(nb_parallel=True),
-            ret_acc.sortino_ratio(nb_parallel=False)
+            ret_acc.sortino_ratio(jitted=dict(parallel=True)),
+            ret_acc.sortino_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.sortino_ratio(chunked=True),
@@ -537,8 +537,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_sortino_ratio(nb_parallel=True),
-            ret_acc.rolling_sortino_ratio(nb_parallel=False)
+            ret_acc.rolling_sortino_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_sortino_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_sortino_ratio(chunked=True),
@@ -556,8 +556,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.information_ratio(nb_parallel=True),
-            ret_acc.information_ratio(nb_parallel=False)
+            ret_acc.information_ratio(jitted=dict(parallel=True)),
+            ret_acc.information_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.information_ratio(chunked=True),
@@ -578,8 +578,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_information_ratio(nb_parallel=True),
-            ret_acc.rolling_information_ratio(nb_parallel=False)
+            ret_acc.rolling_information_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_information_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_information_ratio(chunked=True),
@@ -597,8 +597,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.beta(nb_parallel=True),
-            ret_acc.beta(nb_parallel=False)
+            ret_acc.beta(jitted=dict(parallel=True)),
+            ret_acc.beta(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.beta(chunked=True),
@@ -619,8 +619,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_beta(nb_parallel=True),
-            ret_acc.rolling_beta(nb_parallel=False)
+            ret_acc.rolling_beta(jitted=dict(parallel=True)),
+            ret_acc.rolling_beta(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_beta(chunked=True),
@@ -638,8 +638,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.alpha(nb_parallel=True),
-            ret_acc.alpha(nb_parallel=False)
+            ret_acc.alpha(jitted=dict(parallel=True)),
+            ret_acc.alpha(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.alpha(chunked=True),
@@ -660,8 +660,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_alpha(nb_parallel=True),
-            ret_acc.rolling_alpha(nb_parallel=False)
+            ret_acc.rolling_alpha(jitted=dict(parallel=True)),
+            ret_acc.rolling_alpha(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_alpha(chunked=True),
@@ -679,8 +679,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.tail_ratio(nb_parallel=True),
-            ret_acc.tail_ratio(nb_parallel=False)
+            ret_acc.tail_ratio(jitted=dict(parallel=True)),
+            ret_acc.tail_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.tail_ratio(chunked=True),
@@ -701,8 +701,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_tail_ratio(nb_parallel=True),
-            ret_acc.rolling_tail_ratio(nb_parallel=False)
+            ret_acc.rolling_tail_ratio(jitted=dict(parallel=True)),
+            ret_acc.rolling_tail_ratio(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_tail_ratio(chunked=True),
@@ -720,8 +720,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.value_at_risk(nb_parallel=True),
-            ret_acc.value_at_risk(nb_parallel=False)
+            ret_acc.value_at_risk(jitted=dict(parallel=True)),
+            ret_acc.value_at_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.value_at_risk(chunked=True),
@@ -742,8 +742,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_value_at_risk(nb_parallel=True),
-            ret_acc.rolling_value_at_risk(nb_parallel=False)
+            ret_acc.rolling_value_at_risk(jitted=dict(parallel=True)),
+            ret_acc.rolling_value_at_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_value_at_risk(chunked=True),
@@ -761,8 +761,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.cond_value_at_risk(nb_parallel=True),
-            ret_acc.cond_value_at_risk(nb_parallel=False)
+            ret_acc.cond_value_at_risk(jitted=dict(parallel=True)),
+            ret_acc.cond_value_at_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.cond_value_at_risk(chunked=True),
@@ -783,8 +783,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_cond_value_at_risk(nb_parallel=True),
-            ret_acc.rolling_cond_value_at_risk(nb_parallel=False)
+            ret_acc.rolling_cond_value_at_risk(jitted=dict(parallel=True)),
+            ret_acc.rolling_cond_value_at_risk(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_cond_value_at_risk(chunked=True),
@@ -802,8 +802,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.capture(nb_parallel=True),
-            ret_acc.capture(nb_parallel=False)
+            ret_acc.capture(jitted=dict(parallel=True)),
+            ret_acc.capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.capture(chunked=True),
@@ -824,8 +824,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_capture(nb_parallel=True),
-            ret_acc.rolling_capture(nb_parallel=False)
+            ret_acc.rolling_capture(jitted=dict(parallel=True)),
+            ret_acc.rolling_capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_capture(chunked=True),
@@ -843,8 +843,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.up_capture(nb_parallel=True),
-            ret_acc.up_capture(nb_parallel=False)
+            ret_acc.up_capture(jitted=dict(parallel=True)),
+            ret_acc.up_capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.up_capture(chunked=True),
@@ -865,8 +865,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_up_capture(nb_parallel=True),
-            ret_acc.rolling_up_capture(nb_parallel=False)
+            ret_acc.rolling_up_capture(jitted=dict(parallel=True)),
+            ret_acc.rolling_up_capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_up_capture(chunked=True),
@@ -884,8 +884,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            ret_acc.down_capture(nb_parallel=True),
-            ret_acc.down_capture(nb_parallel=False)
+            ret_acc.down_capture(jitted=dict(parallel=True)),
+            ret_acc.down_capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.down_capture(chunked=True),
@@ -906,8 +906,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_down_capture(nb_parallel=True),
-            ret_acc.rolling_down_capture(nb_parallel=False)
+            ret_acc.rolling_down_capture(jitted=dict(parallel=True)),
+            ret_acc.rolling_down_capture(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_down_capture(chunked=True),
@@ -944,8 +944,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.drawdown(nb_parallel=True),
-            ret_acc.drawdown(nb_parallel=False)
+            ret_acc.drawdown(jitted=dict(parallel=True)),
+            ret_acc.drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.drawdown(chunked=True),
@@ -962,8 +962,8 @@ class TestAccessors:
             ret_acc.drawdowns.max_drawdown(fill_value=0.)
         )
         pd.testing.assert_series_equal(
-            ret_acc.max_drawdown(nb_parallel=True),
-            ret_acc.max_drawdown(nb_parallel=False)
+            ret_acc.max_drawdown(jitted=dict(parallel=True)),
+            ret_acc.max_drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             ret_acc.max_drawdown(chunked=True),
@@ -984,8 +984,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            ret_acc.rolling_max_drawdown(nb_parallel=True),
-            ret_acc.rolling_max_drawdown(nb_parallel=False)
+            ret_acc.rolling_max_drawdown(jitted=dict(parallel=True)),
+            ret_acc.rolling_max_drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             ret_acc.rolling_max_drawdown(chunked=True),

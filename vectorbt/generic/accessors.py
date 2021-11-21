@@ -230,7 +230,7 @@ from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.ranges import Ranges
 from vectorbt.generic.splitters import SplitterT, RangeSplitter, RollingSplitter, ExpandingSplitter
 from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
@@ -407,24 +407,24 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     window: int,
                     minp: tp.Optional[int] = None,
                     ddof: int = 1,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.rolling_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.rolling_std_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.rolling_std_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), window, minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     def expanding_std(self,
                       minp: tp.Optional[int] = 1,
                       ddof: int = 1,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.expanding_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.expanding_std_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.expanding_std_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), minp=minp, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -432,12 +432,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                  span: int,
                  minp: tp.Optional[int] = 0,
                  adjust: bool = True,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_mean_nb`."""
-        func = nb_registry.redecorate_parallel(nb.ewm_mean_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.ewm_mean_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust)
         return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -446,12 +446,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 minp: tp.Optional[int] = 0,
                 adjust: bool = True,
                 ddof: int = 1,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:  # pragma: no cover
         """See `vectorbt.generic.nb.ewm_std_nb`."""
-        func = nb_registry.redecorate_parallel(nb.ewm_std_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.ewm_std_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), span, minp=minp, adjust=adjust, ddof=ddof)
         return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -461,7 +461,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             broadcast_named_args: tp.KwargsLike = None,
             broadcast_kwargs: tp.KwargsLike = None,
             template_mapping: tp.Optional[tp.Mapping] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             wrapper: tp.Optional[ArrayWrapper] = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -547,12 +547,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 template_mapping
             )
             args = deep_substitute(args, template_mapping, sub_id='args')
-            func = nb_registry.redecorate_parallel(nb.map_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.map_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
-            func = nb_registry.redecorate_parallel(nb.map_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.map_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -566,14 +566,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                          broadcast_named_args: tp.KwargsLike = None,
                          broadcast_kwargs: tp.KwargsLike = None,
                          template_mapping: tp.Optional[tp.Mapping] = None,
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.generic.nb.apply_nb` for `axis=1` and
         `vectorbt.generic.nb.row_apply_nb` for `axis=0`.
 
-        For details on the meta version, see `vectorbt.generic.nb.apply_meta_nb`.
+        For details on the meta version, see `vectorbt.generic.nb.apply_meta_nb`
+        for `axis=1` and `vectorbt.generic.nb.row_apply_meta_nb` for `axis=0`.
 
         ## Example
 
@@ -655,17 +656,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             )
             args = deep_substitute(args, template_mapping, sub_id='args')
             if axis == 0:
-                func = nb_registry.redecorate_parallel(nb.row_apply_meta_nb, nb_parallel)
+                func = jit_registry.resolve_option(nb.row_apply_meta_nb, jitted)
             else:
-                func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.apply_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d, apply_func_nb, *args)
         else:
             if axis == 0:
-                func = nb_registry.redecorate_parallel(nb.row_apply_nb, nb_parallel)
+                func = jit_registry.resolve_option(nb.row_apply_nb, jitted)
             else:
-                func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.apply_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -680,7 +681,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                       broadcast_named_args: tp.KwargsLike = None,
                       broadcast_kwargs: tp.KwargsLike = None,
                       template_mapping: tp.Optional[tp.Mapping] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -777,8 +778,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 template_mapping
             )
             args = deep_substitute(args, template_mapping, sub_id='args')
-            func = nb_registry.redecorate_parallel(nb.rolling_apply_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.rolling_apply_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d, window, minp, apply_func_nb, *args)
         else:
             if minp is None and window is None:
@@ -787,8 +788,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 window = cls_or_self.wrapper.shape[0]
             if minp is None:
                 minp = window
-            func = nb_registry.redecorate_parallel(nb.rolling_apply_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.rolling_apply_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), window, minp, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -807,7 +808,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                       broadcast_named_args: tp.KwargsLike = None,
                       broadcast_kwargs: tp.KwargsLike = None,
                       template_mapping: tp.Optional[tp.Mapping] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None,
@@ -907,15 +908,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 template_mapping
             )
             args = deep_substitute(args, template_mapping, sub_id='args')
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.groupby_apply_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.groupby(by, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.groupby_apply_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -930,7 +931,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                        broadcast_named_args: tp.KwargsLike = None,
                        broadcast_kwargs: tp.KwargsLike = None,
                        template_mapping: tp.Optional[tp.Mapping] = None,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None,
@@ -1022,15 +1023,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 template_mapping
             )
             args = deep_substitute(args, template_mapping, sub_id='args')
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.groupby_apply_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d[1], group_map, apply_func_nb, *args)
         else:
             pd_group_by = cls_or_self.obj.resample(rule, axis=0, **kwargs)
             grouper = Grouper.from_pd_group_by(pd_group_by)
             group_map = grouper.index.values, grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.groupby_apply_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.groupby_apply_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_map, apply_func_nb, *args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -1055,7 +1056,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                          broadcast_named_args: tp.KwargsLike = None,
                          broadcast_kwargs: tp.KwargsLike = None,
                          template_mapping: tp.Optional[tp.Mapping] = None,
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1149,12 +1150,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             )
             apply_args = deep_substitute(apply_args, template_mapping, sub_id='apply_args')
             reduce_args = deep_substitute(reduce_args, template_mapping, sub_id='reduce_args')
-            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.apply_and_reduce_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d[1], apply_func_nb, apply_args, reduce_func_nb, reduce_args)
         else:
-            func = nb_registry.redecorate_parallel(nb.apply_and_reduce_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.apply_and_reduce_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), apply_func_nb, apply_args, reduce_func_nb, reduce_args)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -1182,7 +1183,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                broadcast_named_args: tp.KwargsLike = None,
                broadcast_kwargs: tp.KwargsLike = None,
                template_mapping: tp.Optional[tp.Mapping] = None,
-               nb_parallel: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                wrapper: tp.Optional[ArrayWrapper] = None,
                group_by: tp.GroupByLike = None,
@@ -1348,17 +1349,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if wrapper.grouper.is_grouped(group_by=group_by):
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
                 if returns_array:
-                    func = nb_registry.redecorate_parallel(nb.reduce_grouped_to_array_meta_nb, nb_parallel)
+                    func = jit_registry.resolve_option(nb.reduce_grouped_to_array_meta_nb, jitted)
                 else:
-                    func = nb_registry.redecorate_parallel(nb.reduce_grouped_meta_nb, nb_parallel)
-                func = ch_registry.resolve_chunked(func, chunked)
+                    func = jit_registry.resolve_option(nb.reduce_grouped_meta_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 out = func(group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
-                    func = nb_registry.redecorate_parallel(nb.reduce_to_array_meta_nb, nb_parallel)
+                    func = jit_registry.resolve_option(nb.reduce_to_array_meta_nb, jitted)
                 else:
-                    func = nb_registry.redecorate_parallel(nb.reduce_meta_nb, nb_parallel)
-                func = ch_registry.resolve_chunked(func, chunked)
+                    func = jit_registry.resolve_option(nb.reduce_meta_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 out = func(wrapper.shape_2d[1], reduce_func_nb, *args)
         else:
             if wrapper is None:
@@ -1369,10 +1370,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                     checks.assert_in(order.upper(), ['C', 'F'])
                     in_c_order = order.upper() == 'C'
                     if returns_array:
-                        func = nb_registry.redecorate_parallel(nb.reduce_flat_grouped_to_array_nb, nb_parallel)
+                        func = jit_registry.resolve_option(nb.reduce_flat_grouped_to_array_nb, jitted)
                     else:
-                        func = nb_registry.redecorate_parallel(nb.reduce_flat_grouped_nb, nb_parallel)
-                    func = ch_registry.resolve_chunked(func, chunked)
+                        func = jit_registry.resolve_option(nb.reduce_flat_grouped_nb, jitted)
+                    func = ch_registry.resolve_option(func, chunked)
                     out = func(cls_or_self.to_2d_array(), group_lens, in_c_order, reduce_func_nb, *args)
                     if returns_idx:
                         if in_c_order:
@@ -1381,17 +1382,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                             out %= wrapper.shape[0]  # flattened in F order
                 else:
                     if returns_array:
-                        func = nb_registry.redecorate_parallel(nb.reduce_grouped_to_array_nb, nb_parallel)
+                        func = jit_registry.resolve_option(nb.reduce_grouped_to_array_nb, jitted)
                     else:
-                        func = nb_registry.redecorate_parallel(nb.reduce_grouped_nb, nb_parallel)
-                    func = ch_registry.resolve_chunked(func, chunked)
+                        func = jit_registry.resolve_option(nb.reduce_grouped_nb, jitted)
+                    func = ch_registry.resolve_option(func, chunked)
                     out = func(cls_or_self.to_2d_array(), group_lens, reduce_func_nb, *args)
             else:
                 if returns_array:
-                    func = nb_registry.redecorate_parallel(nb.reduce_to_array_nb, nb_parallel)
+                    func = jit_registry.resolve_option(nb.reduce_to_array_nb, jitted)
                 else:
-                    func = nb_registry.redecorate_parallel(nb.reduce_nb, nb_parallel)
-                func = ch_registry.resolve_chunked(func, chunked)
+                    func = jit_registry.resolve_option(nb.reduce_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 out = func(cls_or_self.to_2d_array(), reduce_func_nb, *args)
 
         wrap_kwargs = merge_dicts(dict(
@@ -1408,7 +1409,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         broadcast_named_args: tp.KwargsLike = None,
                         broadcast_kwargs: tp.KwargsLike = None,
                         template_mapping: tp.Optional[tp.Mapping] = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
                         group_by: tp.GroupByLike = None,
@@ -1503,8 +1504,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.squeeze_grouped_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(wrapper.shape_2d[0], group_lens, squeeze_func_nb, *args)
         else:
             if wrapper is None:
@@ -1512,14 +1513,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             if not wrapper.grouper.is_grouped(group_by=group_by):
                 raise ValueError("Grouping required")
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.squeeze_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.squeeze_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             out = func(cls_or_self.to_2d_array(), group_lens, squeeze_func_nb, *args)
 
         return wrapper.wrap(out, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     def flatten_grouped(self,
                         order: str = 'C',
+                        jitted: tp.JittedOption = None,
                         group_by: tp.GroupByLike = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Flatten each group of columns.
@@ -1568,9 +1570,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
         if np.all(group_lens == group_lens.item(0)):
-            func = nb.flatten_uniform_grouped_nb
+            func = jit_registry.resolve_option(nb.flatten_uniform_grouped_nb, jitted)
         else:
-            func = nb.flatten_grouped_nb
+            func = jit_registry.resolve_option(nb.flatten_grouped_nb, jitted)
         if order.upper() == 'C':
             out = func(self.to_2d_array(), group_lens, True)
             new_index = indexes.repeat_index(self.wrapper.index, np.max(group_lens))
@@ -1581,8 +1583,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         return self.wrapper.wrap(out, group_by=group_by, **wrap_kwargs)
 
     def min(self,
-            use_numba: tp.Optional[bool] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            use_jitted: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1590,9 +1592,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='min'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.min_reduce_nb,
+                jit_registry.resolve_option(nb.min_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1602,21 +1604,21 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmin_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nanmin_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmin, axis=0)
         else:
             func = partial(nanmin, axis=0)
-        func = ch_registry.resolve_chunked(nb.nanmin_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmin_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def max(self,
-            use_numba: tp.Optional[bool] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            use_jitted: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1624,9 +1626,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='max'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.max_reduce_nb,
+                jit_registry.resolve_option(nb.max_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1636,21 +1638,21 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmax_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nanmax_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmax, axis=0)
         else:
             func = partial(nanmax, axis=0)
-        func = ch_registry.resolve_chunked(nb.nanmax_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmax_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def mean(self,
-             use_numba: tp.Optional[bool] = None,
-             nb_parallel: tp.Optional[bool] = None,
+             use_jitted: tp.Optional[bool] = None,
+             jitted: tp.JittedOption = None,
              chunked: tp.ChunkedOption = None,
              group_by: tp.GroupByLike = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1658,9 +1660,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='mean'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.mean_reduce_nb,
+                jit_registry.resolve_option(nb.mean_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1670,21 +1672,21 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmean_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nanmean_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmean, axis=0)
         else:
             func = partial(nanmean, axis=0)
-        func = ch_registry.resolve_chunked(nb.nanmean_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmean_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def median(self,
-               use_numba: tp.Optional[bool] = None,
-               nb_parallel: tp.Optional[bool] = None,
+               use_jitted: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1692,9 +1694,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='median'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.median_reduce_nb,
+                jit_registry.resolve_option(nb.median_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1704,22 +1706,22 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanmedian_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nanmedian_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanmedian, axis=0)
         else:
             func = partial(nanmedian, axis=0)
-        func = ch_registry.resolve_chunked(nb.nanmedian_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmedian_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def std(self,
             ddof: int = 1,
-            use_numba: tp.Optional[bool] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            use_jitted: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1727,10 +1729,10 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='std'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.std_reduce_nb,
+                jit_registry.resolve_option(nb.std_reduce_nb, jitted),
                 ddof,
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1740,21 +1742,21 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nanstd_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nanstd_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nanstd, axis=0)
         else:
             func = partial(nanstd, axis=0)
-        func = ch_registry.resolve_chunked(nb.nanstd_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanstd_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr, ddof=ddof), group_by=False, **wrap_kwargs)
 
     def sum(self,
-            use_numba: tp.Optional[bool] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            use_jitted: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             group_by: tp.GroupByLike = None,
             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1762,9 +1764,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='sum'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.sum_reduce_nb,
+                jit_registry.resolve_option(nb.sum_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1774,21 +1776,21 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nansum_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nansum_nb, jitted)
         elif arr.dtype != int and arr.dtype != float:
             # bottleneck can't consume other than that
             func = partial(np.nansum, axis=0)
         else:
             func = partial(nansum, axis=0)
-        func = ch_registry.resolve_chunked(nb.nansum_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nansum_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def count(self,
-              use_numba: tp.Optional[bool] = None,
-              nb_parallel: tp.Optional[bool] = None,
+              use_jitted: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               group_by: tp.GroupByLike = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1796,9 +1798,9 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='count', dtype=np.int_), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.count_reduce_nb,
+                jit_registry.resolve_option(nb.count_reduce_nb, jitted),
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1808,18 +1810,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         generic_cfg = settings['generic']
 
         arr = self.to_2d_array()
-        if use_numba is None:
-            use_numba = generic_cfg['use_numba']
-        if use_numba:
-            func = nb_registry.redecorate_parallel(nb.nancnt_nb, nb_parallel)
+        if use_jitted is None:
+            use_jitted = generic_cfg['use_jitted']
+        if use_jitted:
+            func = jit_registry.resolve_option(nb.nancnt_nb, jitted)
         else:
             func = lambda a: np.sum(~np.isnan(a), axis=0)
-        func = ch_registry.resolve_chunked(nb.nancnt_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nancnt_nb, chunked, target_func=func)
         return self.wrapper.wrap_reduced(func(arr), group_by=False, **wrap_kwargs)
 
     def idxmin(self,
                order: str = 'C',
-               nb_parallel: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1827,11 +1829,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='idxmin'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.argmin_reduce_nb,
+                jit_registry.resolve_option(nb.argmin_reduce_nb, jitted),
                 returns_idx=True,
                 flatten=True,
                 order=order,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1847,13 +1849,13 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             chunked,
             arg_take_spec=dict(index=None)
         )
-        func = ch_registry.resolve_chunked(nb.nanmin_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmin_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
     def idxmax(self,
                order: str = 'C',
-               nb_parallel: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                group_by: tp.GroupByLike = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -1861,11 +1863,11 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         wrap_kwargs = merge_dicts(dict(name_or_index='idxmax'), wrap_kwargs)
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.argmax_reduce_nb,
+                jit_registry.resolve_option(nb.argmax_reduce_nb, jitted),
                 returns_idx=True,
                 flatten=True,
                 order=order,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs
@@ -1881,14 +1883,14 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             chunked,
             arg_take_spec=dict(index=None)
         )
-        func = ch_registry.resolve_chunked(nb.nanmax_nb, chunked, target_func=func)
+        func = ch_registry.resolve_option(nb.nanmax_nb, chunked, target_func=func)
         out = func(self.to_2d_array(), self.wrapper.index)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
 
     def describe(self,
                  percentiles: tp.Optional[tp.ArrayLike] = None,
                  ddof: int = 1,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  group_by: tp.GroupByLike = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -1928,18 +1930,20 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         )
         if self.wrapper.grouper.is_grouped(group_by=group_by):
             return self.reduce(
-                nb.describe_reduce_nb, percentiles, ddof,
+                jit_registry.resolve_option(nb.describe_reduce_nb, jitted),
+                percentiles, ddof,
                 returns_array=True,
                 flatten=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 group_by=group_by,
                 wrap_kwargs=wrap_kwargs)
         else:
             return self.reduce(
-                nb.describe_reduce_nb, percentiles, ddof,
+                jit_registry.resolve_option(nb.describe_reduce_nb, jitted),
+                percentiles, ddof,
                 returns_array=True,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs
             )
@@ -2011,7 +2015,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                      group_by: tp.GroupByLike = None,
                      mapping: tp.Optional[tp.MappingLike] = None,
                      incl_all_keys: bool = False,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.SeriesFrame:
@@ -2029,8 +2033,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 See `vectorbt.base.grouping.Grouper`.
             mapping (mapping_like): Mapping of values to labels.
             incl_all_keys (bool): Whether to include all mapping keys, no only those that are present in the array.
-            nb_parallel (bool): Whether to execute `vectorbt.generic.nb.value_counts_nb` in parallel.
-            chunked (bool): Whether to chunk `vectorbt.generic.nb.value_counts_nb`.
+            jitted (any): Whether to JIT-compile `vectorbt.generic.nb.value_counts_nb` or options.
+            chunked (any): Whether to chunk `vectorbt.generic.nb.value_counts_nb` or options.
 
                 See `vectorbt.utils.chunking.resolve_chunked`.
             wrap_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper.wrap`.
@@ -2114,16 +2118,17 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             mapping = to_mapping(mapping)
         codes, uniques = pd.factorize(self.obj.values.flatten(), sort=False, na_sentinel=None)
         if axis == 0:
-            func = nb_registry.redecorate_parallel(nb.value_counts_per_row_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.value_counts_per_row_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques))
         elif axis == 1:
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.value_counts_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.value_counts_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             value_counts = func(codes.reshape(self.wrapper.shape_2d), len(uniques), group_lens)
         else:
-            value_counts = nb.value_counts_1d_nb(codes, len(uniques))
+            func = jit_registry.resolve_option(nb.value_counts_1d_nb, jitted)
+            value_counts = func(codes, len(uniques))
         if incl_all_keys and mapping is not None:
             missing_keys = []
             for x in mapping:
@@ -2232,12 +2237,18 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         """Compute z-score using `sklearn.preprocessing.StandardScaler`."""
         return self.scale(with_mean=True, with_std=True, **kwargs)
 
-    def rebase(self, base: float, wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def rebase(self,
+               base: float,
+               jitted: tp.JittedOption = None,
+               chunked: tp.ChunkedOption = None,
+               wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Rebase all series to the given base.
 
         This makes comparing/plotting different series together easier.
         Will forward and backward fill NaN values."""
-        result = nb.bfill_nb(nb.ffill_nb(self.to_2d_array()))
+        func = jit_registry.resolve_option(nb.fbfill_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
+        result = func(self.to_2d_array())
         result = result / result[0] * base
         return self.wrapper.wrap(result, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -2519,12 +2530,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     # ############# Conversion ############# #
 
     def drawdown(self,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Drawdown series."""
-        func = nb_registry.redecorate_parallel(nb.drawdown_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.drawdown_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array())
         return self.wrapper.wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -2584,7 +2595,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         other: tp.SeriesFrame,
                         wait: int = 0,
                         broadcast_kwargs: tp.KwargsLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Generate crossover above another array.
@@ -2619,8 +2630,8 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         dtype: bool
         ```"""
         self_obj, other_obj = reshaping.broadcast(self.obj, other, **resolve_dict(broadcast_kwargs))
-        func = nb_registry.redecorate_parallel(nb.crossed_above_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.crossed_above_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(reshaping.to_2d_array(self_obj), reshaping.to_2d_array(other_obj), wait=wait)
         return ArrayWrapper.from_obj(self_obj).wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -2628,15 +2639,15 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                         other: tp.SeriesFrame,
                         wait: int = 0,
                         broadcast_kwargs: tp.KwargsLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Generate crossover below another array.
 
         See `vectorbt.generic.nb.crossed_above_nb` but in reversed order."""
         self_obj, other_obj = reshaping.broadcast(self.obj, other, **resolve_dict(broadcast_kwargs))
-        func = nb_registry.redecorate_parallel(nb.crossed_above_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.crossed_above_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(reshaping.to_2d_array(other_obj), reshaping.to_2d_array(self_obj), wait=wait)
         return ArrayWrapper.from_obj(self_obj).wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 

@@ -17,10 +17,10 @@ import numpy as np
 
 from vectorbt import _typing as tp
 from vectorbt.generic import nb as generic_nb
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ma_nb(a: tp.Array2d, window: int, ewm: bool, adjust: bool = False) -> tp.Array2d:
     """Compute simple or exponential moving average (`ewm=True`)."""
     if ewm:
@@ -28,7 +28,7 @@ def ma_nb(a: tp.Array2d, window: int, ewm: bool, adjust: bool = False) -> tp.Arr
     return generic_nb.rolling_mean_nb(a, window, minp=window)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mstd_nb(a: tp.Array2d, window: int, ewm: int, adjust: bool = False, ddof: int = 0) -> tp.Array2d:
     """Compute simple or exponential moving STD (`ewm=True`)."""
     if ewm:
@@ -36,7 +36,7 @@ def mstd_nb(a: tp.Array2d, window: int, ewm: int, adjust: bool = False, ddof: in
     return generic_nb.rolling_std_nb(a, window, minp=window, ddof=ddof)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ma_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool],
                 adjust: bool) -> tp.Dict[int, tp.Array2d]:
     """Caching function for `vectorbt.indicators.custom.MA`."""
@@ -48,7 +48,7 @@ def ma_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool],
     return cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ma_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool,
                 cache_dict: tp.Dict[int, tp.Array2d]) -> tp.Array2d:
     """Apply function for `vectorbt.indicators.custom.MA`."""
@@ -56,7 +56,7 @@ def ma_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool,
     return cache_dict[h]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mstd_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool], adjust: bool,
                   ddof: int) -> tp.Dict[int, tp.Array2d]:
     """Caching function for `vectorbt.indicators.custom.MSTD`."""
@@ -68,7 +68,7 @@ def mstd_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool],
     return cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mstd_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool, ddof: int,
                   cache_dict: tp.Dict[int, tp.Array2d]) -> tp.Array2d:
     """Apply function for `vectorbt.indicators.custom.MSTD`."""
@@ -76,7 +76,7 @@ def mstd_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool, ddof:
     return cache_dict[h]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def bb_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool], alphas: tp.List[float],
                 adjust: bool, ddof: int) -> tp.Tuple[tp.Dict[int, tp.Array2d], tp.Dict[int, tp.Array2d]]:
     """Caching function for `vectorbt.indicators.custom.BBANDS`."""
@@ -85,7 +85,7 @@ def bb_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool], a
     return ma_cache_dict, mstd_cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def bb_apply_nb(close: tp.Array2d, window: int, ewm: bool, alpha: float,
                 adjust: bool, ddof: int, ma_cache_dict: tp.Dict[int, tp.Array2d],
                 mstd_cache_dict: tp.Dict[int, tp.Array2d]) -> tp.Tuple[tp.Array2d, tp.Array2d, tp.Array2d]:
@@ -98,7 +98,7 @@ def bb_apply_nb(close: tp.Array2d, window: int, ewm: bool, alpha: float,
     return ma, ma + alpha * mstd, ma - alpha * mstd
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rsi_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool],
                  adjust: bool) -> tp.Dict[int, tp.Tuple[tp.Array2d, tp.Array2d]]:
     """Caching function for `vectorbt.indicators.custom.RSI`."""
@@ -118,7 +118,7 @@ def rsi_cache_nb(close: tp.Array2d, windows: tp.List[int], ewms: tp.List[bool],
     return cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rsi_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool,
                  cache_dict: tp.Dict[int, tp.Tuple[tp.Array2d, tp.Array2d]]) -> tp.Array2d:
     """Apply function for `vectorbt.indicators.custom.RSI`."""
@@ -128,7 +128,7 @@ def rsi_apply_nb(close: tp.Array2d, window: int, ewm: bool, adjust: bool,
     return 100 - 100 / (1 + rs)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def stoch_cache_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d,
                    k_windows: tp.List[int], d_windows: tp.List[int], d_ewms: tp.List[bool],
                    adjust: bool) -> tp.Dict[int, tp.Tuple[tp.Array2d, tp.Array2d]]:
@@ -143,7 +143,7 @@ def stoch_cache_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d,
     return cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def stoch_apply_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d,
                    k_window: int, d_window: int, d_ewm: bool, adjust: bool,
                    cache_dict: tp.Dict[int, tp.Tuple[tp.Array2d, tp.Array2d]]) -> tp.Tuple[tp.Array2d, tp.Array2d]:
@@ -155,7 +155,7 @@ def stoch_apply_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d,
     return percent_k, percent_d
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def macd_cache_nb(close: tp.Array2d, fast_windows: tp.List[int], slow_windows: tp.List[int],
                   signal_windows: tp.List[int], macd_ewms: tp.List[bool], signal_ewms: tp.List[bool],
                   adjust: bool) -> tp.Dict[int, tp.Array2d]:
@@ -167,7 +167,7 @@ def macd_cache_nb(close: tp.Array2d, fast_windows: tp.List[int], slow_windows: t
     return ma_cache_nb(close, windows, ewms, adjust)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def macd_apply_nb(close: tp.Array2d, fast_window: int, slow_window: int,
                   signal_window: int, macd_ewm: bool, signal_ewm: bool, adjust: bool,
                   cache_dict: tp.Dict[int, tp.Array2d]) -> tp.Tuple[tp.Array2d, tp.Array2d]:
@@ -181,7 +181,7 @@ def macd_apply_nb(close: tp.Array2d, fast_window: int, slow_window: int,
     return macd_ts, signal_ts
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def true_range_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d) -> tp.Array2d:
     """Calculate true range."""
     prev_close = generic_nb.fshift_nb(close, 1)
@@ -195,7 +195,7 @@ def true_range_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d) -> tp.Ar
     return tr
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def atr_cache_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d, windows: tp.List[int],
                  ewms: tp.List[bool], adjust: bool) -> tp.Tuple[tp.Array2d, tp.Dict[int, tp.Array2d]]:
     """Caching function for `vectorbt.indicators.custom.ATR`."""
@@ -209,7 +209,7 @@ def atr_cache_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d, windows: 
     return tr, cache_dict
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def atr_apply_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d, window: int, ewm: bool, adjust: bool,
                  tr: tp.Array2d, cache_dict: tp.Dict[int, tp.Array2d]) -> tp.Tuple[tp.Array2d, tp.Array2d]:
     """Apply function for `vectorbt.indicators.custom.ATR`."""
@@ -217,7 +217,7 @@ def atr_apply_nb(high: tp.Array2d, low: tp.Array2d, close: tp.Array2d, window: i
     return tr, cache_dict[h]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def obv_custom_nb(close: tp.Array2d, volume_ts: tp.Array2d) -> tp.Array2d:
     """Custom calculation function for `vectorbt.indicators.custom.OBV`."""
     obv = generic_nb.set_by_mask_mult_nb(volume_ts, close < generic_nb.fshift_nb(close, 1), -volume_ts)

@@ -6,14 +6,14 @@
 import numpy as np
 
 from vectorbt._settings import settings
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 _use_tol = settings['math']['use_tol']
 _rel_tol = settings['math']['rel_tol']
 _abs_tol = settings['math']['abs_tol']
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_close_nb(a: float,
                 b: float,
                 use_tol: bool = _use_tol,
@@ -29,7 +29,7 @@ def is_close_nb(a: float,
     return use_tol and abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_close_or_less_nb(a: float,
                         b: float,
                         use_tol: bool = _use_tol,
@@ -41,7 +41,7 @@ def is_close_or_less_nb(a: float,
     return a < b
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_less_nb(a: float,
                b: float,
                use_tol: bool = _use_tol,
@@ -53,7 +53,7 @@ def is_less_nb(a: float,
     return a < b
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_addition_zero_nb(a: float,
                         b: float,
                         use_tol: bool = _use_tol,
@@ -67,7 +67,7 @@ def is_addition_zero_nb(a: float,
     return a == -b
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def add_nb(a: float,
            b: float,
            use_tol: bool = _use_tol,

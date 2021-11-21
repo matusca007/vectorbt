@@ -6,7 +6,7 @@
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 
 def is_sorted(a: tp.Array1d) -> np.bool_:
@@ -14,7 +14,7 @@ def is_sorted(a: tp.Array1d) -> np.bool_:
     return np.all(a[:-1] <= a[1:])
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_sorted_nb(a: tp.Array1d) -> bool:
     """Numba-compiled version of `is_sorted`."""
     for i in range(a.size - 1):
@@ -23,7 +23,7 @@ def is_sorted_nb(a: tp.Array1d) -> bool:
     return True
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def insert_argsort_nb(A: tp.Array1d, I: tp.Array1d) -> None:
     """Perform argsort using insertion sort.
 
@@ -59,7 +59,7 @@ def get_ranges_arr(starts: tp.ArrayLike, ends: tp.ArrayLike) -> tp.Array1d:
     return id_arr.cumsum()
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def uniform_summing_to_one_nb(n: int) -> tp.Array1d:
     """Generate random floats summing to one.
 
@@ -81,8 +81,13 @@ def renormalize(a: tp.MaybeArray[float], from_range: tp.Tuple[float, float],
     return (to_delta * (a - from_range[0]) / from_delta) + to_range[0]
 
 
-renormalize_nb = register_jit(cache=True)(renormalize)
-"""Numba-compiled version of `renormalize`."""
+@register_jitted(cache=True)
+def renormalize_nb(a: tp.MaybeArray[float], from_range: tp.Tuple[float, float],
+                   to_range: tp.Tuple[float, float]) -> tp.MaybeArray[float]:
+    """Numba-compiled version of `renormalize`."""
+    from_delta = from_range[1] - from_range[0]
+    to_delta = to_range[1] - to_range[0]
+    return (to_delta * (a - from_range[0]) / from_delta) + to_range[0]
 
 
 def min_rel_rescale(a: tp.Array, to_range: tp.Tuple[float, float]) -> tp.Array:
@@ -121,7 +126,7 @@ def max_rel_rescale(a: tp.Array, to_range: tp.Tuple[float, float]) -> tp.Array:
     return renormalize(a, from_range, to_range)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rescale_float_to_int_nb(floats: tp.Array, int_range: tp.Tuple[float, float], total: float) -> tp.Array:
     """Rescale a float array into an int array."""
     ints = np.floor(renormalize_nb(floats, [0., 1.], int_range))
@@ -131,7 +136,7 @@ def rescale_float_to_int_nb(floats: tp.Array, int_range: tp.Tuple[float, float],
     return ints
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def int_digit_count_nb(number: int) -> int:
     """Get the digit count in a number."""
     out = 0
@@ -141,7 +146,7 @@ def int_digit_count_nb(number: int) -> int:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def hash_int_rows_nb(arr: tp.Array2d) -> tp.Array1d:
     """Hash rows in a 2-dim array.
 
@@ -159,7 +164,7 @@ def hash_int_rows_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def index_repeating_rows_nb(arr):
     """Index repeating rows using monotonically increasing numbers."""
     out = np.empty(arr.shape[0], dtype=np.int_)

@@ -2354,6 +2354,7 @@ class TestExecution:
         if ray_available:
             assert execution.execute(funcs_args, engine='ray') == [10, 35, 60]
 
+
 # ############# chunking.py ############# #
 
 class TestChunking:
@@ -2530,10 +2531,10 @@ class TestChunking:
             ann_args, chunk_meta=chunk_meta)), chunk_meta)
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, chunk_meta=chunking.LenChunkMeta('b'))), [
-                chunking.ChunkMeta(uuid='', idx=0, start=0, end=1, indices=None),
-                chunking.ChunkMeta(uuid='', idx=1, start=1, end=3, indices=None),
-                chunking.ChunkMeta(uuid='', idx=2, start=3, end=6, indices=None)
-            ])
+            chunking.ChunkMeta(uuid='', idx=0, start=0, end=1, indices=None),
+            chunking.ChunkMeta(uuid='', idx=1, start=1, end=3, indices=None),
+            chunking.ChunkMeta(uuid='', idx=2, start=3, end=6, indices=None)
+        ])
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, chunk_meta=lambda ann_args: chunk_meta)), chunk_meta)
 

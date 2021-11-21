@@ -272,7 +272,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, var_args=True).run(ts['a'], [0, 1], 10, 100).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True, var_args=True).run(ts['a'], [0, 1], 10, 100).out,
             target
         )
         target = pd.DataFrame(
@@ -304,7 +304,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_series_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, var_args=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True, var_args=True)
                 .run(ts['a'], 0, 10, 100).out,
             target
         )
@@ -313,7 +313,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_series_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, var_args=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True, var_args=True)
                 .run(ts['a'], 0, 10, 100, per_column=True).out,
             target
         )
@@ -349,7 +349,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run([0, 1]).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run([0, 1]).out,
             target
         )
         with pytest.raises(Exception):
@@ -374,7 +374,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_series_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, require_input_shape=True).run(5, 0).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True, require_input_shape=True).run(5, 0).out,
             target
         )
         target = pd.DataFrame(
@@ -393,7 +393,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, require_input_shape=True).run(5, [0, 1]).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True, require_input_shape=True).run(5, [0, 1]).out,
             target
         )
         target = pd.DataFrame(
@@ -420,7 +420,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, require_input_shape=True).run(
+            F.from_apply_func(apply_func_nb, jitted_loop=True, require_input_shape=True).run(
                 (5, 3), [0, 1], input_index=ts.index, input_columns=ts.columns).out,
             target
         )
@@ -445,7 +445,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, require_input_shape=True).run(
+            F.from_apply_func(apply_func_nb, jitted_loop=True, require_input_shape=True).run(
                 (5, 3), [0, 1, 2], input_index=ts.index, input_columns=ts.columns, per_column=True).out,
             target
         )
@@ -483,7 +483,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, ts, [0, 1]).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, ts, [0, 1]).out,
             target
         )
         target = pd.DataFrame(
@@ -506,7 +506,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, ts, [0, 1, 2], per_column=True).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, ts, [0, 1, 2], per_column=True).out,
             target
         )
 
@@ -525,7 +525,7 @@ class TestFactory:
             ts * 2
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts).out,
             ts * 2
         )
         pd.testing.assert_frame_equal(
@@ -533,7 +533,7 @@ class TestFactory:
             ts * 2
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, per_column=True).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, per_column=True).out,
             ts * 2
         )
 
@@ -552,7 +552,7 @@ class TestFactory:
             pd.DataFrame(np.full((3, 3), 1))
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run().out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run().out,
             pd.DataFrame(np.full((3, 3), 1))
         )
         with pytest.raises(Exception):
@@ -591,7 +591,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, np.asarray([0, 1]), 2).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, np.asarray([0, 1]), 2).out,
             target
         )
         target = pd.DataFrame(
@@ -614,7 +614,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, np.asarray([0, 1, 2]), 2, per_column=True).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, np.asarray([0, 1, 2]), 2, per_column=True).out,
             target
         )
         pd.testing.assert_frame_equal(
@@ -662,7 +662,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, np.asarray([0, 1, 2]), param_settings={'p': {
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, np.asarray([0, 1, 2]), param_settings={'p': {
                 'is_array_like': True
             }}).out,
             target
@@ -691,7 +691,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, np.asarray([0, 1, 2]), param_settings={'p': {
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, np.asarray([0, 1, 2]), param_settings={'p': {
                 'is_array_like': True,
                 'bc_to_input': 1,
                 'per_column': True
@@ -810,7 +810,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, [0, 1], [2, 3], param_product=True).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, [0, 1], [2, 3], param_product=True).out,
             target
         )
 
@@ -922,7 +922,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, [0, 1]).o1,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, [0, 1]).o1,
             target
         )
         pd.testing.assert_frame_equal(
@@ -930,7 +930,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True)
                 .run(ts.vbt.tile(2), [0, 0, 0, 1, 1, 1], per_column=True).o1,
             target
         )
@@ -950,7 +950,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, [0, 1]).o2,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, [0, 1]).o2,
             target
         )
         pd.testing.assert_frame_equal(
@@ -958,7 +958,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True)
                 .run(ts.vbt.tile(2), [0, 0, 0, 1, 1, 1], per_column=True).o2,
             target
         )
@@ -1004,7 +1004,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, in_out=-1).run(ts, [0, 1]).in_out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True, in_out=-1).run(ts, [0, 1]).in_out,
             target
         )
         pd.testing.assert_frame_equal(
@@ -1012,7 +1012,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, [0, 1], in_out=-1).in_out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, [0, 1], in_out=-1).in_out,
             target
         )
         pd.testing.assert_frame_equal(
@@ -1020,7 +1020,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True)
                 .run(ts, [0, 1], in_out=np.full(ts.shape, -1, dtype=int)).in_out,
             target
         )
@@ -1044,7 +1044,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True).run(ts, [0, 1, 2], in_out=-1, per_column=True).in_out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True).run(ts, [0, 1, 2], in_out=-1, per_column=True).in_out,
             target
         )
         pd.testing.assert_frame_equal(
@@ -1053,7 +1053,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True)
+            F.from_apply_func(apply_func_nb, jitted_loop=True)
                 .run(ts, [0, 1, 2], in_out=np.full(ts.shape, -1, dtype=int), per_column=True).in_out,
             target
         )
@@ -1094,7 +1094,7 @@ class TestFactory:
             target
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, in_output_settings=dict(in_out=dict(dtype=np.int_)))
+            F.from_apply_func(apply_func_nb, jitted_loop=True, in_output_settings=dict(in_out=dict(dtype=np.int_)))
                 .run([0, 1], input_shape=ts.shape, input_index=ts.index, input_columns=ts.columns).in_out,
             target
         )
@@ -1114,7 +1114,7 @@ class TestFactory:
             ts * 2
         )
         pd.testing.assert_frame_equal(
-            F.from_apply_func(apply_func_nb, numba_loop=True, kwargs_to_args=['kw']).run(ts, kw=2).out,
+            F.from_apply_func(apply_func_nb, jitted_loop=True, kwargs_to_args=['kw']).run(ts, kw=2).out,
             ts * 2
         )
 

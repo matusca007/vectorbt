@@ -11,7 +11,7 @@ class Hashable:
     """Hashable class."""
 
     @staticmethod
-    def get_hash(args_hash: int) -> int:
+    def get_hash(*args, **kwargs) -> int:
         """Static method to get the hash of the instance based on its arguments."""
         raise NotImplementedError
 

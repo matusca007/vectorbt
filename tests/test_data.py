@@ -743,7 +743,7 @@ class TestData:
         assert MyData.fetch(
             [0, 1], shape=(5, 3),
             index_mask=index_mask, column_mask=column_mask,
-            missing_index='drop', missing_columns='drop')\
+            missing_index='drop', missing_columns='drop') \
                    .update(n=3, index_mask=update_index_mask2).last_index == \
                {0: updated_index[4], 1: updated_index[5]}
 
@@ -1255,6 +1255,7 @@ class TestCustom:
                 columns=pd.Index([0, 1], name='symbol')
             )
         )
+
 
 # ############# updater.py ############# #
 

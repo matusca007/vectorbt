@@ -423,7 +423,7 @@ from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.ch_registry import ch_registry
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records import nb
 from vectorbt.records.col_mapper import ColumnMapper
 from vectorbt.records.mapped_array import MappedArray
@@ -570,16 +570,16 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                     kwargs['col_mapper'] = None
         return Configured.replace(self, **kwargs)
 
-    def get_by_col_idxs(self, col_idxs: tp.Array1d) -> tp.RecordArray:
+    def get_by_col_idxs(self, col_idxs: tp.Array1d, jitted: tp.JittedOption = None) -> tp.RecordArray:
         """Get records corresponding to column indices.
 
         Returns new records array."""
         if self.col_mapper.is_sorted():
-            new_records_arr = nb.record_col_lens_select_nb(
-                self.values, self.col_mapper.col_lens, to_1d_array(col_idxs))  # faster
+            func = jit_registry.resolve_option(nb.record_col_lens_select_nb, jitted)
+            new_records_arr = func(self.values, self.col_mapper.col_lens, to_1d_array(col_idxs))  # faster
         else:
-            new_records_arr = nb.record_col_map_select_nb(
-                self.values, self.col_mapper.col_map, to_1d_array(col_idxs))  # more flexible
+            func = jit_registry.resolve_option(nb.record_col_map_select_nb, jitted)
+            new_records_arr = func(self.values, self.col_mapper.col_map, to_1d_array(col_idxs))  # more flexible
         return new_records_arr
 
     def indexing_func_meta(self, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> IndexingMetaT:
@@ -707,11 +707,13 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
     # ############# Sorting ############# #
 
     @cached_method
-    def is_sorted(self, incl_id: bool = False) -> bool:
+    def is_sorted(self, incl_id: bool = False, jitted: tp.JittedOption = None) -> bool:
         """Check whether records are sorted."""
         if incl_id:
-            return nb.is_col_id_sorted_nb(self.col_arr, self.id_arr)
-        return nb.is_col_sorted_nb(self.col_arr)
+            func = jit_registry.resolve_option(nb.is_col_id_sorted_nb, jitted)
+            return func(self.col_arr, self.id_arr)
+        func = jit_registry.resolve_option(nb.is_col_sorted_nb, jitted)
+        return func(self.col_arr)
 
     def sort(self: RecordsT, incl_id: bool = False, group_by: tp.GroupByLike = None, **kwargs) -> RecordsT:
         """Sort records by columns (primary) and ids (secondary, optional).
@@ -777,7 +779,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                 tp.RecordsMapMetaFunc
             ], *args,
             dtype: tp.Optional[tp.DTypeLike] = None,
-            nb_parallel: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             col_mapper: tp.Optional[ColumnMapper] = None,
             **kwargs) -> MappedArray:
@@ -792,14 +794,14 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
 
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
-            func = nb_registry.redecorate_parallel(nb.map_records_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.map_records_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             mapped_arr = func(len(col_mapper.col_arr), map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
-            func = nb_registry.redecorate_parallel(nb.map_records_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.map_records_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             mapped_arr = func(cls_or_self.values, map_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, **kwargs)
@@ -813,7 +815,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
               group_by: tp.GroupByLike = None,
               apply_per_group: bool = False,
               dtype: tp.Optional[tp.DTypeLike] = None,
-              nb_parallel: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               col_mapper: tp.Optional[ColumnMapper] = None,
               **kwargs) -> MappedArray:
@@ -831,15 +833,15 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_meta_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.apply_meta_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             mapped_arr = func(len(col_mapper.col_arr), col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return MappedArray(col_mapper.wrapper, mapped_arr, col_mapper.col_arr, col_mapper=col_mapper, **kwargs)
         else:
             col_map = cls_or_self.col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
-            func = nb_registry.redecorate_parallel(nb.apply_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.apply_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             mapped_arr = func(cls_or_self.values, col_map, apply_func_nb, *args)
             mapped_arr = np.asarray(mapped_arr, dtype=dtype)
             return cls_or_self.map_array(mapped_arr, group_by=group_by, **kwargs)

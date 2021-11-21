@@ -1174,6 +1174,7 @@ from numba import njit
 from numba.typed import List
 
 from vectorbt import _typing as tp
+from vectorbt.jit_registry import jit_registry
 from vectorbt.base import indexes, reshaping, combining
 from vectorbt.base.indexing import build_param_indexer
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -2535,8 +2536,14 @@ class IndicatorFactory:
                     ('above', np.greater, dict()),
                     ('below', np.less, dict()),
                     ('equal', np.equal, dict()),
-                    ('crossed_above', lambda x, y, wait=0: generic_nb.crossed_above_nb(x, y, wait), dict(to_2d=True)),
-                    ('crossed_below', lambda x, y, wait=0: generic_nb.crossed_above_nb(y, x, wait), dict(to_2d=True))
+                    ('crossed_above',
+                     lambda x, y, wait=0:
+                     jit_registry.resolve(generic_nb.crossed_above_nb)(x, y, wait),
+                     dict(to_2d=True)),
+                    ('crossed_below',
+                     lambda x, y, wait=0:
+                     jit_registry.resolve(generic_nb.crossed_above_nb)(y, x, wait),
+                     dict(to_2d=True))
                 ]
                 for func_name, np_func, def_kwargs in func_info:
                     method_docstring = f"""Return True for each element where `{attr_name}` is {func_name} `other`. 
@@ -3091,7 +3098,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                         cache_func: tp.Optional[tp.Callable] = None,
                         pass_packed: bool = False,
                         kwargs_to_args: tp.Optional[tp.Sequence[str]] = None,
-                        numba_loop: bool = False,
+                        jitted_loop: bool = False,
+                        remove_kwargs: tp.Optional[bool] = None,
                         **kwargs) -> tp.Type[IndicatorBase]:
         """Build indicator class around a custom apply function.
 
@@ -3144,14 +3152,19 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
             kwargs_to_args (list of str): Keyword arguments from `kwargs` dict to pass as
                 positional arguments to the apply function.
 
-                Should be used together with `numba_loop` set to True since Numba doesn't support
+                Should be used together with `jitted_loop` set to True since Numba doesn't support
                 variable keyword arguments.
 
                 Defaults to []. Order matters.
-            numba_loop (bool): Whether to loop using Numba.
+            jitted_loop (bool): Whether to loop using a jitter.
+
+                Parameter selector will be automatically compiled using Numba.
 
                 Set to True when iterating large number of times over small input,
                 but note that Numba doesn't support variable keyword arguments.
+            remove_kwargs (bool): Whether to remove keyword arguments when selecting parameters.
+
+                If None, gets set to True if `jitted_loop` is True.
             **kwargs: Keyword arguments passed to `IndicatorFactory.from_custom_func`, all the way down
                 to `vectorbt.base.combining.apply_and_concat`.
 
@@ -3224,6 +3237,8 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
         if kwargs_to_args is None:
             kwargs_to_args = []
+        if remove_kwargs is None:
+            remove_kwargs = jitted_loop
 
         module_name = self.module_name
         output_names = self.output_names
@@ -3242,7 +3257,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         if len(param_names) > 0:
             _0 += ", param_tuples"
         _0 += ", *args"
-        if not numba_loop:
+        if not remove_kwargs:
             _0 += ", **_kwargs"
         _1 = "*args_before"
         if pass_packed:
@@ -3262,7 +3277,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
             if len(param_names) > 0:
                 _1 += ", *param_tuples[i]"
         _1 += ", *args"
-        if not numba_loop:
+        if not remove_kwargs:
             _1 += ", **_kwargs"
         func_str = "def select_params_func({0}):\n   return apply_func({1})".format(_0, _1)
         scope = {'apply_func': apply_func}
@@ -3272,7 +3287,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
         select_params_func = scope['select_params_func']
         if module_name is not None:
             select_params_func.__module__ = module_name
-        if numba_loop:
+        if jitted_loop:
             select_params_func = njit(select_params_func)
 
         def custom_func(input_list: tp.List[tp.AnyArray],
@@ -3333,14 +3348,14 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
 
             if len(in_output_names) > 0:
                 _in_output_tuples = in_output_tuples
-                if numba_loop:
+                if jitted_loop:
                     _in_output_tuples = to_typed_list(_in_output_tuples)
                 _in_output_tuples = (_in_output_tuples,)
             else:
                 _in_output_tuples = ()
             if len(param_names) > 0:
                 _param_tuples = param_tuples
-                if numba_loop:
+                if jitted_loop:
                     _param_tuples = to_typed_list(_param_tuples)
                 _param_tuples = (_param_tuples,)
             else:
@@ -3358,7 +3373,7 @@ Other keyword arguments are passed to `{0}.run`.""".format(_0, _1)
                 *cache,
                 **_kwargs,
                 n_outputs=num_ret_outputs,
-                numba_loop=numba_loop
+                jitted_loop=jitted_loop
             )
 
         return self.from_custom_func(custom_func, as_lists=True, **kwargs)

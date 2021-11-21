@@ -43,7 +43,7 @@ def prepare_for_doc(obj: tp.Any, replace: tp.DictLike = None, path: str = None) 
         ))
     if isinstance(obj, tuple) and hasattr(obj, "_asdict"):
         return prepare_for_doc(obj._asdict(), replace, path)
-    if isinstance(obj, (tuple, list)):
+    if isinstance(obj, (tuple, list, set, frozenset)):
         return [prepare_for_doc(v, replace, path) for v in obj]
     if isinstance(obj, dict):
         if replace is None:

@@ -120,7 +120,7 @@ from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb
 from vectorbt.generic.enums import RangeStatus, range_dt
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records.base import Records
 from vectorbt.records.decorators import override_field_config, attach_fields
 from vectorbt.records.mapped_array import MappedArray
@@ -231,7 +231,7 @@ class Ranges(Records):
                 ts: tp.ArrayLike,
                 gap_value: tp.Optional[tp.Scalar] = None,
                 attach_ts: bool = True,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> RangesT:
@@ -256,8 +256,8 @@ class Ranges(Records):
                 gap_value = -1
             else:
                 gap_value = np.nan
-        func = nb_registry.redecorate_parallel(nb.get_ranges_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.get_ranges_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         records_arr = func(ts_arr, gap_value)
         wrapper = ArrayWrapper.from_obj(ts_pd, **wrapper_kwargs)
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
@@ -269,15 +269,15 @@ class Ranges(Records):
 
     def to_mask(self,
                 group_by: tp.GroupByLike = None,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Convert ranges to a mask.
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
-        func = nb_registry.redecorate_parallel(nb.ranges_to_mask_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.ranges_to_mask_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         mask = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -288,12 +288,12 @@ class Ranges(Records):
         return self.wrapper.wrap(mask, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     def get_duration(self,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      **kwargs) -> MappedArray:
         """Duration of each range (in raw format)."""
-        func = nb_registry.redecorate_parallel(nb.range_duration_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.range_duration_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),
@@ -308,7 +308,7 @@ class Ranges(Records):
 
     def avg_duration(self,
                      group_by: tp.GroupByLike = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.MaybeSeries:
@@ -316,7 +316,7 @@ class Ranges(Records):
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
         return self.duration.mean(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -324,7 +324,7 @@ class Ranges(Records):
 
     def max_duration(self,
                      group_by: tp.GroupByLike = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.MaybeSeries:
@@ -332,7 +332,7 @@ class Ranges(Records):
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
         return self.duration.max(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -342,7 +342,7 @@ class Ranges(Records):
                  overlapping: bool = False,
                  normalize: bool = True,
                  group_by: tp.GroupByLike = None,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Coverage, that is, the number of steps that are covered by all ranges.
@@ -350,8 +350,8 @@ class Ranges(Records):
         See `vectorbt.generic.nb.range_coverage_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
         index_lens = self.wrapper.grouper.get_group_lens(group_by=group_by) * self.wrapper.shape[0]
-        func = nb_registry.redecorate_parallel(nb.range_coverage_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.range_coverage_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         coverage = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('end_idx'),

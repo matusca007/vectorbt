@@ -29,13 +29,13 @@ from vectorbt import _typing as tp
 from vectorbt.base import chunking as base_ch
 from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic.enums import RangeStatus, DrawdownStatus, range_dt, drawdown_dt
-from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.records import chunking as records_ch
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.template import Rep
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def shuffle_1d_nb(arr: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
     """Shuffle each column in the array.
 
@@ -53,7 +53,7 @@ def shuffle_1d_nb(arr: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def shuffle_nb(arr: tp.Array2d, seed: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `shuffle_1d_nb`."""
     if seed is not None:
@@ -65,7 +65,7 @@ def shuffle_nb(arr: tp.Array2d, seed: tp.Optional[int] = None) -> tp.Array2d:
     return out
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def set_by_mask_1d_nb(arr: tp.Array1d, mask: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     """Set each element to a value by boolean mask."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -88,7 +88,7 @@ def set_by_mask_1d_nb(arr: tp.Array1d, mask: tp.Array1d, value: tp.Scalar) -> tp
     return _set_by_mask_1d_nb
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def set_by_mask_nb(arr: tp.Array2d, mask: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
     """2-dim version of `set_by_mask_1d_nb`."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -112,7 +112,7 @@ def set_by_mask_nb(arr: tp.Array2d, mask: tp.Array2d, value: tp.Scalar) -> tp.Ar
     return _set_by_mask_nb
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def set_by_mask_mult_1d_nb(arr: tp.Array1d, mask: tp.Array1d, values: tp.Array1d) -> tp.Array1d:
     """Set each element in one array to the corresponding element in another by boolean mask.
 
@@ -137,7 +137,7 @@ def set_by_mask_mult_1d_nb(arr: tp.Array1d, mask: tp.Array1d, values: tp.Array1d
     return _set_by_mask_mult_1d_nb
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def set_by_mask_mult_nb(arr: tp.Array2d, mask: tp.Array2d, values: tp.Array2d) -> tp.Array2d:
     """2-dim version of `set_by_mask_mult_1d_nb`."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -161,7 +161,7 @@ def set_by_mask_mult_nb(arr: tp.Array2d, mask: tp.Array2d, values: tp.Array2d) -
     return _set_by_mask_mult_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fillna_1d_nb(arr: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     """Replace NaNs with value.
 
@@ -177,13 +177,57 @@ def fillna_1d_nb(arr: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fillna_nb(arr: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
     """2-dim version of `fillna_1d_nb`."""
     return set_by_mask_nb(arr, np.isnan(arr), value)
 
 
-@register_generated_jit(cache=True)
+@register_chunkable(
+    size=ch.ArraySizer('arr', 1),
+    arg_take_spec=dict(
+        arr=ch.ArraySlicer(1)
+    ),
+    merge_func=base_ch.column_stack
+)
+@register_jitted(cache=True, tags={'can_parallel'})
+def fbfill_nb(arr: tp.Array2d) -> tp.Array2d:
+    """Forward and backward fill NaN values.
+
+    !!! note
+        If there are no NaN values, will return `arr`."""
+    need_fbfill = False
+    for col in range(arr.shape[1]):
+        for i in range(arr.shape[0]):
+            if np.isnan(arr[i, col]):
+                need_fbfill = True
+                break
+        if need_fbfill:
+            break
+    if not need_fbfill:
+        return arr
+
+    out = np.empty_like(arr)
+    for col in prange(arr.shape[1]):
+        last_valid = np.nan
+        need_bfill = False
+        for i in range(arr.shape[0]):
+            if not np.isnan(arr[i, col]):
+                last_valid = arr[i, col]
+            else:
+                need_bfill = np.isnan(last_valid)
+            out[i, col] = last_valid
+        if need_bfill:
+            last_valid = np.nan
+            for i in range(arr.shape[0] - 1, -1, -1):
+                if not np.isnan(arr[i, col]):
+                    last_valid = arr[i, col]
+                if np.isnan(out[i, col]):
+                    out[i, col] = last_valid
+    return out
+
+
+@register_jitted(cache=True, is_generated_jit=True)
 def bshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
     """Shift backward by `n` positions.
 
@@ -224,7 +268,7 @@ def bshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
     ),
     merge_func=base_ch.column_stack
 )
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def bshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `bshift_1d_nb`."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -251,7 +295,7 @@ def bshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp
     return _bshift_nb
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def fshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array1d:
     """Shift forward by `n` positions.
 
@@ -289,7 +333,7 @@ def fshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
     ),
     merge_func=base_ch.column_stack
 )
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def fshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp.Array2d:
     """2-dim version of `fshift_1d_nb`."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -316,7 +360,7 @@ def fshift_nb(arr: tp.Array2d, n: int = 1, fill_value: tp.Scalar = np.nan) -> tp
     return _fshift_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def diff_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     """Return the 1-th discrete difference.
 
@@ -335,7 +379,7 @@ def diff_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def diff_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `diff_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -344,7 +388,7 @@ def diff_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def pct_change_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     """Return the percentage change.
 
@@ -363,7 +407,7 @@ def pct_change_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def pct_change_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     """2-dim version of `pct_change_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -372,7 +416,7 @@ def pct_change_nb(arr: tp.Array2d, n: int = 1) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def bfill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Fill NaNs by propagating first valid observation backward.
 
@@ -397,7 +441,7 @@ def bfill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def bfill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `bfill_1d_nb`."""
     out = np.empty_like(arr, dtype=arr.dtype)
@@ -406,7 +450,7 @@ def bfill_nb(arr: tp.Array2d) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ffill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Fill NaNs by propagating last valid observation forward.
 
@@ -428,7 +472,7 @@ def ffill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `ffill_1d_nb`."""
     out = np.empty_like(arr, dtype=arr.dtype)
@@ -444,7 +488,7 @@ def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
     ),
     merge_func=base_ch.concat
 )
-@register_generated_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, is_generated_jit=True, tags={'can_parallel'})
 def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanprod` along axis 0."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -473,7 +517,7 @@ def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_generated_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, is_generated_jit=True, tags={'can_parallel'})
 def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumsum` along axis 0."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -502,7 +546,7 @@ def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_generated_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, is_generated_jit=True, tags={'can_parallel'})
 def nancumprod_nb(arr: tp.Array2d) -> tp.Array2d:
     """Numba-equivalent of `np.nancumprod` along axis 0."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -524,7 +568,7 @@ def nancumprod_nb(arr: tp.Array2d) -> tp.Array2d:
     return _nancumprod_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nancnt_1d_nb(arr: tp.Array1d) -> int:
     """Compute count while ignoring NaNs and not allocating any arrays."""
     cnt = 0
@@ -541,7 +585,7 @@ def nancnt_1d_nb(arr: tp.Array1d) -> int:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
     """2-dim version of `nancnt_1d_nb`."""
     out = np.empty(arr.shape[1], dtype=np.int_)
@@ -557,7 +601,7 @@ def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_generated_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, is_generated_jit=True, tags={'can_parallel'})
 def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nansum` along axis 0."""
     nb_enabled = not isinstance(arr, np.ndarray)
@@ -586,7 +630,7 @@ def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmin` along axis 0."""
     out = np.empty(arr.shape[1], dtype=arr.dtype)
@@ -602,7 +646,7 @@ def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmax` along axis 0."""
     out = np.empty(arr.shape[1], dtype=arr.dtype)
@@ -618,7 +662,7 @@ def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmean` along axis 0."""
     out = np.empty(arr.shape[1], dtype=np.float_)
@@ -634,7 +678,7 @@ def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nanmedian_nb(arr: tp.Array2d) -> tp.Array1d:
     """Numba-equivalent of `np.nanmedian` along axis 0."""
     out = np.empty(arr.shape[1], dtype=np.float_)
@@ -643,7 +687,7 @@ def nanmedian_nb(arr: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nanpercentile_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     """Numba-equivalent of `np.nanpercentile` that does not allocate any arrays.
 
@@ -711,7 +755,7 @@ def nanpercentile_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     return factor * (found2 - found1) + found1
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nanpartition_mean_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     """Average of `np.partition` that ignores NaN values and does not allocate any arrays.
 
@@ -756,7 +800,7 @@ def nanpartition_mean_noarr_1d_nb(arr: tp.Array1d, q: float) -> float:
     return partition_sum / partition_cnt
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nancov_1d_nb(arr: tp.Array1d, arr2: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.cov` that ignores NaN values and does not allocate any arrays."""
     cnt = arr.shape[0]
@@ -775,7 +819,7 @@ def nancov_1d_nb(arr: tp.Array1d, arr2: tp.Array1d, ddof: int = 0) -> float:
     return out / rcount
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nanvar_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.nanvar` that does not allocate any arrays."""
     cnt = arr.shape[0]
@@ -793,7 +837,7 @@ def nanvar_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     return out / rcount
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nanstd_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     """Numba-equivalent of `np.nanstd`."""
     return np.sqrt(nanvar_1d_nb(arr, ddof=ddof))
@@ -807,7 +851,7 @@ def nanstd_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nanstd_nb(arr: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     """2-dim version of `nanstd_1d_nb`."""
     out = np.empty(arr.shape[1], dtype=np.float_)
@@ -819,7 +863,7 @@ def nanstd_nb(arr: tp.Array2d, ddof: int = 0) -> tp.Array1d:
 # ############# Rolling functions ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rolling_min_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling min.
 
@@ -854,7 +898,7 @@ def rolling_min_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def rolling_min_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_min_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -863,7 +907,7 @@ def rolling_min_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) 
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rolling_max_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling max.
 
@@ -898,7 +942,7 @@ def rolling_max_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def rolling_max_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_max_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -907,7 +951,7 @@ def rolling_max_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) 
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rolling_mean_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None) -> tp.Array1d:
     """Return rolling mean.
 
@@ -950,7 +994,7 @@ def rolling_mean_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = No
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def rolling_mean_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None) -> tp.Array2d:
     """2-dim version of `rolling_mean_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -959,7 +1003,7 @@ def rolling_mean_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None)
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rolling_std_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array1d:
     """Return rolling standard deviation.
 
@@ -1011,7 +1055,7 @@ def rolling_std_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def rolling_std_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `rolling_std_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1020,7 +1064,7 @@ def rolling_std_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int] = None, 
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ewm_mean_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array1d:
     """Return exponential weighted average.
 
@@ -1075,7 +1119,7 @@ def ewm_mean_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fal
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def ewm_mean_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False) -> tp.Array2d:
     """2-dim version of `ewm_mean_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1084,7 +1128,7 @@ def ewm_mean_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False)
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ewm_std_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array1d:
     """Return exponential weighted standard deviation.
 
@@ -1176,7 +1220,7 @@ def ewm_std_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fals
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def ewm_std_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `ewm_std_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1188,7 +1232,7 @@ def ewm_std_nb(arr: tp.Array2d, span: int, minp: int = 0, adjust: bool = False, 
 # ############# Expanding functions ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def expanding_min_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding min.
 
@@ -1216,7 +1260,7 @@ def expanding_min_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def expanding_min_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_min_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1225,7 +1269,7 @@ def expanding_min_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def expanding_max_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding max.
 
@@ -1253,7 +1297,7 @@ def expanding_max_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def expanding_max_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_max_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1262,7 +1306,7 @@ def expanding_max_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def expanding_mean_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     """Return expanding mean.
 
@@ -1278,7 +1322,7 @@ def expanding_mean_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def expanding_mean_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     """2-dim version of `expanding_mean_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1287,7 +1331,7 @@ def expanding_mean_nb(arr: tp.Array2d, minp: int = 1) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def expanding_std_1d_nb(arr: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Array1d:
     """Return expanding standard deviation.
 
@@ -1304,7 +1348,7 @@ def expanding_std_1d_nb(arr: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Arr
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def expanding_std_nb(arr: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2d:
     """2-dim version of `expanding_std_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -1316,7 +1360,7 @@ def expanding_std_nb(arr: tp.Array2d, minp: int = 1, ddof: int = 0) -> tp.Array2
 # ############# Map, apply, and reduce ############# #
 
 
-@register_jit
+@register_jitted
 def map_1d_nb(arr: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
     """Map elements element-wise using `map_func_nb`.
 
@@ -1338,7 +1382,7 @@ def map_1d_nb(arr: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def map_nb(arr: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
     """2-dim version of `map_1d_nb`."""
     col_0_out = map_1d_nb(arr[:, 0], map_func_nb, *args)
@@ -1349,7 +1393,7 @@ def map_nb(arr: tp.Array2d, map_func_nb: tp.MapFunc, *args) -> tp.Array2d:
     return out
 
 
-@register_jit
+@register_jitted
 def map_1d_meta_nb(n: int, col: int, map_func_nb: tp.MapMetaFunc, *args) -> tp.Array1d:
     """Meta version of `map_1d_nb`.
 
@@ -1372,7 +1416,7 @@ def map_1d_meta_nb(n: int, col: int, map_func_nb: tp.MapMetaFunc, *args) -> tp.A
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> tp.Array2d:
     """2-dim version of `map_1d_meta_nb`."""
     col_0_out = map_1d_meta_nb(target_shape[0], 0, map_func_nb, *args)
@@ -1392,7 +1436,7 @@ def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> t
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """Apply function on each column of an object.
 
@@ -1415,7 +1459,7 @@ def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array2d:
     """Meta version of `apply_nb` that prepends the column index to the arguments of `apply_func_nb`."""
     col_0_out = apply_func_nb(0, *args)
@@ -1435,7 +1479,7 @@ def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args
     ),
     merge_func=base_ch.row_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """`apply_nb` but applied on rows rather than columns."""
     row_0_out = apply_func_nb(arr[0, :], *args)
@@ -1455,7 +1499,7 @@ def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Arra
     ),
     merge_func=base_ch.row_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def row_apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array2d:
     """Meta version of `row_apply_nb` that prepends the row index to the arguments of `apply_func_nb`."""
     row_0_out = apply_func_nb(0, *args)
@@ -1466,7 +1510,7 @@ def row_apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *
     return out
 
 
-@register_jit
+@register_jitted
 def rolling_apply_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int],
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide rolling window calculations.
@@ -1506,7 +1550,7 @@ def rolling_apply_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int],
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def rolling_apply_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int],
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """2-dim version of `rolling_apply_1d_nb`."""
@@ -1516,7 +1560,7 @@ def rolling_apply_nb(arr: tp.Array2d, window: int, minp: tp.Optional[int],
     return out
 
 
-@register_jit
+@register_jitted
 def rolling_apply_1d_meta_nb(n: int, col: int, window: int, minp: tp.Optional[int],
                              apply_func_nb: tp.RollApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `rolling_apply_1d_nb`.
@@ -1548,7 +1592,7 @@ def rolling_apply_1d_meta_nb(n: int, col: int, window: int, minp: tp.Optional[in
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def rolling_apply_meta_nb(target_shape: tp.Shape, window: int, minp: tp.Optional[int],
                           apply_func_nb: tp.RollApplyMetaFunc, *args) -> tp.Array2d:
     """2-dim version of `rolling_apply_1d_meta_nb`."""
@@ -1558,7 +1602,7 @@ def rolling_apply_meta_nb(target_shape: tp.Shape, window: int, minp: tp.Optional
     return out
 
 
-@register_jit
+@register_jitted
 def groupby_apply_1d_nb(arr: tp.Array1d, group_map: tp.GroupMap,
                         apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Provide group-by calculations.
@@ -1589,7 +1633,7 @@ def groupby_apply_1d_nb(arr: tp.Array1d, group_map: tp.GroupMap,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def groupby_apply_nb(arr: tp.Array2d, group_map: tp.GroupMap,
                      apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
     """2-dim version of `groupby_apply_1d_nb`."""
@@ -1601,7 +1645,7 @@ def groupby_apply_nb(arr: tp.Array2d, group_map: tp.GroupMap,
     return out
 
 
-@register_jit
+@register_jitted
 def groupby_apply_1d_meta_nb(col: int, group_map: tp.GroupMap,
                              apply_func_nb: tp.GroupByApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `groupby_apply_1d_nb`.
@@ -1633,7 +1677,7 @@ def groupby_apply_1d_meta_nb(col: int, group_map: tp.GroupMap,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def groupby_apply_meta_nb(n_cols: int, group_map: tp.GroupMap,
                           apply_func_nb: tp.GroupByApplyMetaFunc, *args) -> tp.Array2d:
     """2-dim version of `groupby_apply_1d_meta_nb`."""
@@ -1645,7 +1689,7 @@ def groupby_apply_meta_nb(n_cols: int, group_map: tp.GroupMap,
     return out
 
 
-@register_jit
+@register_jitted
 def apply_and_reduce_1d_nb(arr: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
                            reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Scalar:
     """Apply `apply_func_nb` and reduce into a single value using `reduce_func_nb`.
@@ -1670,7 +1714,7 @@ def apply_and_reduce_1d_nb(arr: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_a
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_and_reduce_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, apply_args: tuple,
                         reduce_func_nb: tp.ReduceFunc, reduce_args: tuple) -> tp.Array1d:
     """2-dim version of `apply_and_reduce_1d_nb`."""
@@ -1682,7 +1726,7 @@ def apply_and_reduce_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, apply_args
     return out
 
 
-@register_jit
+@register_jitted
 def apply_and_reduce_1d_meta_nb(col: int, apply_func_nb: tp.ApplyMetaFunc, apply_args: tuple,
                                 reduce_func_nb: tp.ReduceMetaFunc, reduce_args: tuple) -> tp.Scalar:
     """Meta version of `apply_and_reduce_1d_nb`.
@@ -1707,7 +1751,7 @@ def apply_and_reduce_1d_meta_nb(col: int, apply_func_nb: tp.ApplyMetaFunc, apply
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply_args: tuple,
                              reduce_func_nb: tp.ReduceMetaFunc, reduce_args: tuple) -> tp.Array1d:
     """2-dim version of `apply_and_reduce_1d_meta_nb`."""
@@ -1728,7 +1772,7 @@ def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce each column into a single value using `reduce_func_nb`.
 
@@ -1750,7 +1794,7 @@ def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_nb`.
 
@@ -1772,7 +1816,7 @@ def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_nb` but `reduce_func_nb` must return an array."""
     col_0_out = reduce_func_nb(arr[:, 0], *args)
@@ -1792,7 +1836,7 @@ def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *a
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Same as `reduce_meta_nb` but `reduce_func_nb` must return an array."""
     col_0_out = reduce_func_nb(0, *args)
@@ -1813,7 +1857,7 @@ def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFun
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                       reduce_func_nb: tp.ReduceGroupedFunc, *args) -> tp.Array1d:
     """Reduce each group of columns into a single value using `reduce_func_nb`.
@@ -1840,7 +1884,7 @@ def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGroupedMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_grouped_nb`.
 
@@ -1865,7 +1909,7 @@ def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGrou
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
     """Flatten the array in F order."""
     out = np.empty(arr.shape[0] * arr.shape[1], dtype=arr.dtype)
@@ -1885,7 +1929,7 @@ def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                            reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array1d:
     """Same as `reduce_grouped_nb` but passes flattened array."""
@@ -1917,7 +1961,7 @@ def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: 
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                                reduce_func_nb: tp.ReduceGroupedToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_grouped_nb` but `reduce_func_nb` must return an array."""
@@ -1942,7 +1986,7 @@ def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
                                     reduce_func_nb: tp.ReduceGroupedToArrayMetaFunc, *args) -> tp.Array2d:
     """Same as `reduce_grouped_meta_nb` but `reduce_func_nb` must return an array."""
@@ -1969,7 +2013,7 @@ def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool,
                                     reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Same as `reduce_grouped_to_array_nb` but passes flattened array."""
@@ -2001,7 +2045,7 @@ def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
                        squeeze_func_nb: tp.ReduceFunc, *args) -> tp.Array2d:
     """Squeeze each group of columns into a single column using `squeeze_func_nb`.
@@ -2032,7 +2076,7 @@ def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def squeeze_grouped_meta_nb(n_rows: int, group_lens: tp.Array1d,
                             squeeze_func_nb: tp.GroupSqueezeMetaFunc, *args) -> tp.Array2d:
     """Meta version of `squeeze_grouped_nb`.
@@ -2056,7 +2100,7 @@ def squeeze_grouped_meta_nb(n_rows: int, group_lens: tp.Array1d,
 
 # ############# Flattening ############# #
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def flatten_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
     """Flatten each group of columns."""
     out = np.full((arr.shape[0] * np.max(group_lens), len(group_lens)), np.nan, dtype=np.float_)
@@ -2075,7 +2119,7 @@ def flatten_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def flatten_uniform_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: bool) -> tp.Array2d:
     """Flatten each group of columns of the same length."""
     out = np.empty((arr.shape[0] * np.max(group_lens), len(group_lens)), dtype=arr.dtype)
@@ -2097,7 +2141,7 @@ def flatten_uniform_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_ord
 # ############# Reducers ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nth_reduce_nb(arr: tp.Array1d, n: int) -> float:
     """Return n-th element."""
     if (n < 0 and abs(n) > arr.shape[0]) or n >= arr.shape[0]:
@@ -2105,7 +2149,7 @@ def nth_reduce_nb(arr: tp.Array1d, n: int) -> float:
     return arr[n]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nth_index_reduce_nb(arr: tp.Array1d, n: int) -> int:
     """Return index of n-th element."""
     if (n < 0 and abs(n) > arr.shape[0]) or n >= arr.shape[0]:
@@ -2115,61 +2159,61 @@ def nth_index_reduce_nb(arr: tp.Array1d, n: int) -> int:
     return arr.shape[0] + n
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def any_reduce_nb(arr: tp.Array1d) -> bool:
     """Return whether any of the elements are True."""
     return np.any(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def all_reduce_nb(arr: tp.Array1d) -> bool:
     """Return whether all of the elements are True."""
     return np.all(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def min_reduce_nb(arr: tp.Array1d) -> float:
     """Return min (ignores NaNs)."""
     return np.nanmin(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def max_reduce_nb(arr: tp.Array1d) -> float:
     """Return max (ignores NaNs)."""
     return np.nanmax(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mean_reduce_nb(arr: tp.Array1d) -> float:
     """Return mean (ignores NaNs)."""
     return np.nanmean(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def median_reduce_nb(arr: tp.Array1d) -> float:
     """Return median (ignores NaNs)."""
     return np.nanmedian(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def std_reduce_nb(arr: tp.Array1d, ddof) -> float:
     """Return std (ignores NaNs)."""
     return nanstd_1d_nb(arr, ddof=ddof)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sum_reduce_nb(arr: tp.Array1d) -> float:
     """Return sum (ignores NaNs)."""
     return np.nansum(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def count_reduce_nb(arr: tp.Array1d) -> int:
     """Return count (ignores NaNs)."""
     return np.sum(~np.isnan(arr))
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def argmin_reduce_nb(arr: tp.Array1d) -> int:
     """Return position of min."""
     arr = np.copy(arr)
@@ -2180,7 +2224,7 @@ def argmin_reduce_nb(arr: tp.Array1d) -> int:
     return np.argmin(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def argmax_reduce_nb(arr: tp.Array1d) -> int:
     """Return position of max."""
     arr = np.copy(arr)
@@ -2191,7 +2235,7 @@ def argmax_reduce_nb(arr: tp.Array1d) -> int:
     return np.argmax(arr)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array1d:
     """Return descriptive statistics (ignores NaNs).
 
@@ -2222,7 +2266,7 @@ def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -> tp.Array2d:
     """Return value counts per column/group."""
     out = np.full((n_uniques, group_lens.shape[0]), 0, dtype=np.int_)
@@ -2238,7 +2282,7 @@ def value_counts_nb(codes: tp.Array2d, n_uniques: int, group_lens: tp.Array1d) -
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
     """Return value counts."""
     out = np.full(n_uniques, 0, dtype=np.int_)
@@ -2256,7 +2300,7 @@ def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
     """Return value counts per row."""
     out = np.empty((n_uniques, codes.shape[0]), dtype=np.int_)
@@ -2269,7 +2313,7 @@ def value_counts_per_row_nb(codes: tp.Array2d, n_uniques: int) -> tp.Array2d:
 # ############# Repartitioning ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def repartition_nb(arr: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
     """Repartition a 2-dimensional array into a 1-dimensional by removing empty elements."""
     out = np.empty(np.sum(counts), dtype=arr.dtype)
@@ -2292,7 +2336,7 @@ def repartition_nb(arr: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     """Fill range records between gaps.
 
@@ -2383,7 +2427,7 @@ def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def range_duration_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d) -> tp.Array1d:
@@ -2410,7 +2454,7 @@ def range_duration_nb(start_idx_arr: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def range_coverage_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d,
@@ -2464,7 +2508,7 @@ def range_coverage_nb(start_idx_arr: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
                       end_idx_arr: tp.Array1d,
                       status_arr: tp.Array2d,
@@ -2492,7 +2536,7 @@ def ranges_to_mask_nb(start_idx_arr: tp.Array1d,
 
 # ############# Drawdowns ############# #
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def drawdown_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     """Return drawdown."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -2511,7 +2555,7 @@ def drawdown_1d_nb(arr: tp.Array1d) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
     """2-dim version of `drawdown_1d_nb`."""
     out = np.empty_like(arr, dtype=np.float_)
@@ -2528,7 +2572,7 @@ def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     """Fill drawdown records by analyzing a time series.
 
@@ -2641,7 +2685,7 @@ def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the drawdown of each drawdown record."""
     out = np.empty(valley_val_arr.shape[0], dtype=np.float_)
@@ -2658,7 +2702,7 @@ def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.A
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the duration of the peak-to-valley phase of each drawdown record."""
     out = np.empty(valley_idx_arr.shape[0], dtype=np.float_)
@@ -2675,7 +2719,7 @@ def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d, end_idx_arr: tp.Array1d) -> tp.Array1d:
     """Return the duration of the valley-to-recovery phase of each drawdown record."""
     out = np.empty(end_idx_arr.shape[0], dtype=np.float_)
@@ -2693,7 +2737,7 @@ def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d, end_idx_arr: tp.Array1d)
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
                                   valley_idx_arr: tp.Array1d,
                                   end_idx_arr: tp.Array1d) -> tp.Array1d:
@@ -2712,7 +2756,7 @@ def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def dd_recovery_return_nb(valley_val_arr: tp.Array1d, end_val_arr: tp.Array1d) -> tp.Array1d:
     """Return the recovery return of each drawdown record."""
     out = np.empty(end_val_arr.shape[0], dtype=np.float_)
@@ -2723,7 +2767,7 @@ def dd_recovery_return_nb(valley_val_arr: tp.Array1d, end_val_arr: tp.Array1d) -
 
 # ############# Crossover ############# #
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def crossed_above_1d_nb(arr1: tp.Array1d, arr2: tp.Array1d, wait: int = 0) -> tp.Array1d:
     """Get the crossover of the first array going above the second array."""
     out = np.empty(arr1.shape, dtype=np.bool_)
@@ -2757,7 +2801,7 @@ def crossed_above_1d_nb(arr1: tp.Array1d, arr2: tp.Array1d, wait: int = 0) -> tp
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def crossed_above_nb(arr1: tp.Array2d, arr2: tp.Array2d, wait: int = 0) -> tp.Array2d:
     """2-dim version of `crossed_above_1d_nb`."""
     out = np.empty(arr1.shape, dtype=np.bool_)

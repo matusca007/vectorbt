@@ -146,7 +146,7 @@ from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.ch_registry import ch_registry
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic.drawdowns import Drawdowns
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.returns import nb, metrics
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
@@ -233,7 +233,7 @@ class ReturnsAccessor(GenericAccessor):
                    value: tp.SeriesFrame,
                    init_value: tp.MaybeSeries = np.nan,
                    broadcast_kwargs: tp.KwargsLike = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None,
                    **kwargs) -> ReturnsAccessorT:
@@ -247,8 +247,8 @@ class ReturnsAccessor(GenericAccessor):
         value_2d = to_2d_array(value)
         init_value = broadcast(init_value, to_shape=value_2d.shape[1], **broadcast_kwargs)
 
-        func = nb_registry.redecorate_parallel(nb.returns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.returns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         returns = func(value_2d, init_value)
         returns = ArrayWrapper.from_obj(value).wrap(returns, **wrap_kwargs)
         return cls(returns, **kwargs)
@@ -296,43 +296,45 @@ class ReturnsAccessor(GenericAccessor):
             self._defaults
         )
 
-    def daily(self, **kwargs) -> tp.SeriesFrame:
+    def daily(self, jitted: tp.JittedOption = None, **kwargs) -> tp.SeriesFrame:
         """Daily returns."""
         checks.assert_instance_of(self.wrapper.index, DatetimeIndexes)
 
         if self.wrapper.freq == pd.Timedelta('1D'):
             return self.obj
-        return self.resample_apply('1D', nb.cum_returns_final_1d_nb, **kwargs)
+        func = jit_registry.resolve_option(nb.cum_returns_final_1d_nb, jitted)
+        return self.resample_apply('1D', func, jitted=jitted, **kwargs)
 
-    def annual(self, **kwargs) -> tp.SeriesFrame:
+    def annual(self, jitted: tp.JittedOption = None, **kwargs) -> tp.SeriesFrame:
         """Annual returns."""
         checks.assert_instance_of(self.obj.index, DatetimeIndexes)
 
         if self.wrapper.freq == self.year_freq:
             return self.obj
-        return self.resample_apply(self.year_freq, nb.cum_returns_final_1d_nb, **kwargs)
+        func = jit_registry.resolve_option(nb.cum_returns_final_1d_nb, jitted)
+        return self.resample_apply(self.year_freq, func, jitted=jitted, **kwargs)
 
     def cumulative(self,
                    start_value: tp.Optional[float] = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.returns.nb.cum_returns_nb`."""
         if start_value is None:
             start_value = self.defaults['start_value']
-        func = nb_registry.redecorate_parallel(nb.cum_returns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.cum_returns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         cumulative = func(self.to_2d_array(), start_value)
         wrap_kwargs = resolve_dict(wrap_kwargs)
         return self.wrapper.wrap(cumulative, group_by=False, **wrap_kwargs)
 
     def total(self,
-              nb_parallel: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.cum_returns_final_nb`."""
-        func = nb_registry.redecorate_parallel(nb.cum_returns_final_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.cum_returns_final_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), 0.)
         wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -360,12 +362,12 @@ class ReturnsAccessor(GenericAccessor):
         )
 
     def annualized(self,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.annualized_return_nb`."""
-        func = nb_registry.redecorate_parallel(nb.annualized_return_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.annualized_return_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), self.ann_factor, period=self.wrapper.dt_period)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_return'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -373,6 +375,7 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_annualized(self,
                            window: tp.Optional[int] = None,
                            minp: tp.Optional[int] = None,
+                           jitted: tp.JittedOption = None,
                            chunked: tp.ChunkedOption = None,
                            **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.annualized`."""
@@ -386,8 +389,10 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.rolling_apply(
             window,
-            nb.annualized_return_1d_nb, self.ann_factor, None,
+            jit_registry.resolve_option(nb.annualized_return_1d_nb, jitted),
+            self.ann_factor, None,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -395,7 +400,7 @@ class ReturnsAccessor(GenericAccessor):
     def annualized_volatility(self,
                               levy_alpha: tp.Optional[float] = None,
                               ddof: tp.Optional[int] = None,
-                              nb_parallel: tp.Optional[bool] = None,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.annualized_volatility_nb`."""
@@ -403,8 +408,8 @@ class ReturnsAccessor(GenericAccessor):
             levy_alpha = self.defaults['levy_alpha']
         if ddof is None:
             ddof = self.defaults['ddof']
-        func = nb_registry.redecorate_parallel(nb.annualized_volatility_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.annualized_volatility_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), self.ann_factor, levy_alpha, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='annualized_volatility'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -414,6 +419,7 @@ class ReturnsAccessor(GenericAccessor):
                                       minp: tp.Optional[int] = None,
                                       levy_alpha: tp.Optional[float] = None,
                                       ddof: tp.Optional[int] = None,
+                                      jitted: tp.JittedOption = None,
                                       chunked: tp.ChunkedOption = None,
                                       **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.annualized_volatility`."""
@@ -431,19 +437,21 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.rolling_apply(
             window,
-            nb.annualized_volatility_1d_nb, self.ann_factor, levy_alpha, ddof,
+            jit_registry.resolve_option(nb.annualized_volatility_1d_nb, jitted),
+            self.ann_factor, levy_alpha, ddof,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def calmar_ratio(self,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.calmar_ratio_nb`."""
-        func = nb_registry.redecorate_parallel(nb.calmar_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.calmar_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), self.ann_factor, period=self.wrapper.dt_period)
         wrap_kwargs = merge_dicts(dict(name_or_index='calmar_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -451,6 +459,7 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_calmar_ratio(self,
                              window: tp.Optional[int] = None,
                              minp: tp.Optional[int] = None,
+                             jitted: tp.JittedOption = None,
                              chunked: tp.ChunkedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.calmar_ratio`."""
@@ -464,8 +473,10 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.rolling_apply(
             window,
-            nb.calmar_ratio_1d_nb, self.ann_factor, None,
+            jit_registry.resolve_option(nb.calmar_ratio_1d_nb, jitted),
+            self.ann_factor, None,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -473,7 +484,7 @@ class ReturnsAccessor(GenericAccessor):
     def omega_ratio(self,
                     risk_free: tp.Optional[float] = None,
                     required_return: tp.Optional[float] = None,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.omega_ratio_nb`."""
@@ -481,9 +492,10 @@ class ReturnsAccessor(GenericAccessor):
             risk_free = self.defaults['risk_free']
         if required_return is None:
             required_return = self.defaults['required_return']
-        required_return = nb.deannualized_return_nb(required_return, self.ann_factor)
-        func = nb_registry.redecorate_parallel(nb.omega_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.deannualized_return_nb, jitted)
+        required_return = func(required_return, self.ann_factor)
+        func = jit_registry.resolve_option(nb.omega_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - risk_free - required_return)
         wrap_kwargs = merge_dicts(dict(name_or_index='omega_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -493,6 +505,7 @@ class ReturnsAccessor(GenericAccessor):
                             minp: tp.Optional[int] = None,
                             risk_free: tp.Optional[float] = None,
                             required_return: tp.Optional[float] = None,
+                            jitted: tp.JittedOption = None,
                             **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.omega_ratio`."""
         if window is None:
@@ -503,18 +516,20 @@ class ReturnsAccessor(GenericAccessor):
             risk_free = self.defaults['risk_free']
         if required_return is None:
             required_return = self.defaults['required_return']
-        required_return = nb.deannualized_return_nb(required_return, self.ann_factor)
+        func = jit_registry.resolve_option(nb.deannualized_return_nb, jitted)
+        required_return = func(required_return, self.ann_factor)
         return (self - risk_free - required_return).vbt.rolling_apply(
             window,
-            nb.omega_ratio_1d_nb,
+            jit_registry.resolve_option(nb.omega_ratio_1d_nb, jitted),
             minp=minp,
+            jitted=jitted,
             **kwargs
         )
 
     def sharpe_ratio(self,
                      risk_free: tp.Optional[float] = None,
                      ddof: tp.Optional[int] = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.sharpe_ratio_nb`."""
@@ -522,8 +537,8 @@ class ReturnsAccessor(GenericAccessor):
             risk_free = self.defaults['risk_free']
         if ddof is None:
             ddof = self.defaults['ddof']
-        func = nb_registry.redecorate_parallel(nb.sharpe_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.sharpe_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - risk_free, self.ann_factor, ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='sharpe_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -533,6 +548,7 @@ class ReturnsAccessor(GenericAccessor):
                              minp: tp.Optional[int] = None,
                              risk_free: tp.Optional[float] = None,
                              ddof: tp.Optional[int] = None,
+                             jitted: tp.JittedOption = None,
                              chunked: tp.ChunkedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.sharpe_ratio`."""
@@ -550,8 +566,10 @@ class ReturnsAccessor(GenericAccessor):
         )
         return (self - risk_free).vbt.rolling_apply(
             window,
-            nb.sharpe_ratio_1d_nb, self.ann_factor, ddof,
+            jit_registry.resolve_option(nb.sharpe_ratio_1d_nb, jitted),
+            self.ann_factor, ddof,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -596,14 +614,14 @@ class ReturnsAccessor(GenericAccessor):
 
     def downside_risk(self,
                       required_return: tp.Optional[float] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.downside_risk_nb`."""
         if required_return is None:
             required_return = self.defaults['required_return']
-        func = nb_registry.redecorate_parallel(nb.downside_risk_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.downside_risk_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='downside_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -612,6 +630,7 @@ class ReturnsAccessor(GenericAccessor):
                               window: tp.Optional[int] = None,
                               minp: tp.Optional[int] = None,
                               required_return: tp.Optional[float] = None,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.downside_risk`."""
@@ -627,22 +646,24 @@ class ReturnsAccessor(GenericAccessor):
         )
         return (self - required_return).vbt.rolling_apply(
             window,
-            nb.downside_risk_1d_nb, self.ann_factor,
+            jit_registry.resolve_option(nb.downside_risk_1d_nb, jitted),
+            self.ann_factor,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def sortino_ratio(self,
                       required_return: tp.Optional[float] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.sortino_ratio_nb`."""
         if required_return is None:
             required_return = self.defaults['required_return']
-        func = nb_registry.redecorate_parallel(nb.sortino_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.sortino_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - required_return, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='sortino_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -651,6 +672,7 @@ class ReturnsAccessor(GenericAccessor):
                               window: tp.Optional[int] = None,
                               minp: tp.Optional[int] = None,
                               required_return: tp.Optional[float] = None,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.sortino_ratio`."""
@@ -666,8 +688,10 @@ class ReturnsAccessor(GenericAccessor):
         )
         return (self - required_return).vbt.rolling_apply(
             window,
-            nb.sortino_ratio_1d_nb, self.ann_factor,
+            jit_registry.resolve_option(nb.sortino_ratio_1d_nb, jitted),
+            self.ann_factor,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -675,7 +699,7 @@ class ReturnsAccessor(GenericAccessor):
     def information_ratio(self,
                           benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                           ddof: tp.Optional[int] = None,
-                          nb_parallel: tp.Optional[bool] = None,
+                          jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.information_ratio_nb`."""
@@ -685,8 +709,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.information_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.information_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='information_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -696,6 +720,7 @@ class ReturnsAccessor(GenericAccessor):
                                   window: tp.Optional[int] = None,
                                   minp: tp.Optional[int] = None,
                                   ddof: tp.Optional[int] = None,
+                                  jitted: tp.JittedOption = None,
                                   chunked: tp.ChunkedOption = None,
                                   **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.information_ratio`."""
@@ -715,8 +740,10 @@ class ReturnsAccessor(GenericAccessor):
         )
         return (self - benchmark_rets).vbt.rolling_apply(
             window,
-            nb.information_ratio_1d_nb, ddof,
+            jit_registry.resolve_option(nb.information_ratio_1d_nb, jitted),
+            ddof,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -724,7 +751,7 @@ class ReturnsAccessor(GenericAccessor):
     def beta(self,
              benchmark_rets: tp.Optional[tp.ArrayLike] = None,
              ddof: tp.Optional[int] = None,
-             nb_parallel: tp.Optional[bool] = None,
+             jitted: tp.JittedOption = None,
              chunked: tp.ChunkedOption = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.beta_nb`."""
@@ -734,8 +761,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.beta_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.beta_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), to_2d_array(benchmark_rets), ddof)
         wrap_kwargs = merge_dicts(dict(name_or_index='beta'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -745,6 +772,7 @@ class ReturnsAccessor(GenericAccessor):
                      ddof: tp.Optional[int] = None,
                      window: tp.Optional[int] = None,
                      minp: tp.Optional[int] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.beta`."""
@@ -764,10 +792,11 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.__class__.rolling_apply(
             window,
-            nb.beta_rollmeta_nb,
+            jit_registry.resolve_option(nb.beta_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), ddof,
             minp=minp,
             wrapper=self.wrapper,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -775,7 +804,7 @@ class ReturnsAccessor(GenericAccessor):
     def alpha(self,
               benchmark_rets: tp.Optional[tp.ArrayLike] = None,
               risk_free: tp.Optional[float] = None,
-              nb_parallel: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.alpha_nb`."""
@@ -785,8 +814,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.alpha_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.alpha_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array() - risk_free, to_2d_array(benchmark_rets) - risk_free, self.ann_factor)
         wrap_kwargs = merge_dicts(dict(name_or_index='alpha'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -796,6 +825,7 @@ class ReturnsAccessor(GenericAccessor):
                       window: tp.Optional[int] = None,
                       minp: tp.Optional[int] = None,
                       risk_free: tp.Optional[float] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.alpha`."""
@@ -815,21 +845,22 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.__class__.rolling_apply(
             window,
-            nb.alpha_rollmeta_nb,
+            jit_registry.resolve_option(nb.alpha_rollmeta_nb, jitted),
             to_2d_array(self.obj) - risk_free, to_2d_array(benchmark_rets) - risk_free, self.ann_factor,
             minp=minp,
             wrapper=self.wrapper,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def tail_ratio(self,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.tail_ratio_nb`."""
-        func = nb_registry.redecorate_parallel(nb.tail_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.tail_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='tail_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -838,6 +869,7 @@ class ReturnsAccessor(GenericAccessor):
                            window: tp.Optional[int] = None,
                            minp: tp.Optional[int] = None,
                            noarr_mode: bool = True,
+                           jitted: tp.JittedOption = None,
                            **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.tail_ratio`."""
         if window is None:
@@ -845,23 +877,24 @@ class ReturnsAccessor(GenericAccessor):
         if minp is None:
             minp = self.defaults['minp']
         if noarr_mode:
-            func = nb.tail_ratio_noarr_1d_nb
+            func = jit_registry.resolve_option(nb.tail_ratio_noarr_1d_nb, jitted)
         else:
-            func = nb.tail_ratio_1d_nb
+            func = jit_registry.resolve_option(nb.tail_ratio_1d_nb, jitted)
         return self.rolling_apply(
             window,
             func,
             minp=minp,
+            jitted=jitted,
             **kwargs
         )
 
     def common_sense_ratio(self,
-                           nb_parallel: tp.Optional[bool] = None,
+                           jitted: tp.JittedOption = None,
                            chunked: tp.ChunkedOption = None,
                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Common Sense Ratio."""
-        tail_ratio = to_1d_array(self.tail_ratio(nb_parallel=nb_parallel, chunked=chunked))
-        annualized = to_1d_array(self.annualized(nb_parallel=nb_parallel, chunked=chunked))
+        tail_ratio = to_1d_array(self.tail_ratio(jitted=jitted, chunked=chunked))
+        annualized = to_1d_array(self.annualized(jitted=jitted, chunked=chunked))
         out = tail_ratio * (1 + annualized)
         wrap_kwargs = merge_dicts(dict(name_or_index='common_sense_ratio'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -869,7 +902,7 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_common_sense_ratio(self,
                                    window: tp.Optional[int] = None,
                                    minp: tp.Optional[int] = None,
-                                   nb_parallel: tp.Optional[bool] = None,
+                                   jitted: tp.JittedOption = None,
                                    chunked: tp.ChunkedOption = None,
                                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.common_sense_ratio`."""
@@ -878,23 +911,23 @@ class ReturnsAccessor(GenericAccessor):
         if minp is None:
             minp = self.defaults['minp']
         rolling_tail_ratio = to_2d_array(self.rolling_tail_ratio(
-            window, minp=minp, nb_parallel=nb_parallel, chunked=chunked))
+            window, minp=minp, jitted=jitted, chunked=chunked))
         rolling_annualized = to_2d_array(self.rolling_annualized(
-            window, minp=minp, nb_parallel=nb_parallel, chunked=chunked))
+            window, minp=minp, jitted=jitted, chunked=chunked))
         out = rolling_tail_ratio * (1 + rolling_annualized)
         wrap_kwargs = resolve_dict(wrap_kwargs)
         return self.wrapper.wrap(out, group_by=False, **wrap_kwargs)
 
     def value_at_risk(self,
                       cutoff: tp.Optional[float] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.value_at_risk_nb`."""
         if cutoff is None:
             cutoff = self.defaults['cutoff']
-        func = nb_registry.redecorate_parallel(nb.value_at_risk_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.value_at_risk_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='value_at_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -904,6 +937,7 @@ class ReturnsAccessor(GenericAccessor):
                               minp: tp.Optional[int] = None,
                               cutoff: tp.Optional[float] = None,
                               noarr_mode: bool = True,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.value_at_risk`."""
@@ -914,9 +948,9 @@ class ReturnsAccessor(GenericAccessor):
         if cutoff is None:
             cutoff = self.defaults['cutoff']
         if noarr_mode:
-            func = nb.value_at_risk_noarr_1d_nb
+            func = jit_registry.resolve_option(nb.value_at_risk_noarr_1d_nb, jitted)
         else:
-            func = nb.value_at_risk_1d_nb
+            func = jit_registry.resolve_option(nb.value_at_risk_1d_nb, jitted)
         chunked = ch.specialize_chunked_option(
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(None,))
@@ -925,20 +959,21 @@ class ReturnsAccessor(GenericAccessor):
             window,
             func, cutoff,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def cond_value_at_risk(self,
                            cutoff: tp.Optional[float] = None,
-                           nb_parallel: tp.Optional[bool] = None,
+                           jitted: tp.JittedOption = None,
                            chunked: tp.ChunkedOption = None,
                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.cond_value_at_risk_nb`."""
         if cutoff is None:
             cutoff = self.defaults['cutoff']
-        func = nb_registry.redecorate_parallel(nb.cond_value_at_risk_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.cond_value_at_risk_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array(), cutoff)
         wrap_kwargs = merge_dicts(dict(name_or_index='cond_value_at_risk'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -948,6 +983,7 @@ class ReturnsAccessor(GenericAccessor):
                                    minp: tp.Optional[int] = None,
                                    cutoff: tp.Optional[float] = None,
                                    noarr_mode: bool = True,
+                                   jitted: tp.JittedOption = None,
                                    chunked: tp.ChunkedOption = None,
                                    **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.cond_value_at_risk`."""
@@ -958,9 +994,9 @@ class ReturnsAccessor(GenericAccessor):
         if cutoff is None:
             cutoff = self.defaults['cutoff']
         if noarr_mode:
-            func = nb.cond_value_at_risk_noarr_1d_nb
+            func = jit_registry.resolve_option(nb.cond_value_at_risk_noarr_1d_nb, jitted)
         else:
-            func = nb.cond_value_at_risk_1d_nb
+            func = jit_registry.resolve_option(nb.cond_value_at_risk_1d_nb, jitted)
         chunked = ch.specialize_chunked_option(
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(None,))
@@ -969,13 +1005,14 @@ class ReturnsAccessor(GenericAccessor):
             window,
             func, cutoff,
             minp=minp,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def capture(self,
                 benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.capture_nb`."""
@@ -983,8 +1020,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.capture_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.capture_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(
             self.to_2d_array(),
             to_2d_array(benchmark_rets),
@@ -998,6 +1035,7 @@ class ReturnsAccessor(GenericAccessor):
                         benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                         window: tp.Optional[int] = None,
                         minp: tp.Optional[int] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.capture`."""
@@ -1015,17 +1053,18 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.__class__.rolling_apply(
             window,
-            nb.capture_rollmeta_nb,
+            jit_registry.resolve_option(nb.capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def up_capture(self,
                    benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.up_capture_nb`."""
@@ -1033,8 +1072,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.up_capture_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.up_capture_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(
             self.to_2d_array(),
             to_2d_array(benchmark_rets),
@@ -1048,6 +1087,7 @@ class ReturnsAccessor(GenericAccessor):
                            benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                            window: tp.Optional[int] = None,
                            minp: tp.Optional[int] = None,
+                           jitted: tp.JittedOption = None,
                            chunked: tp.ChunkedOption = None,
                            **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.up_capture`."""
@@ -1065,17 +1105,18 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.__class__.rolling_apply(
             window,
-            nb.up_capture_rollmeta_nb,
+            jit_registry.resolve_option(nb.up_capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def down_capture(self,
                      benchmark_rets: tp.Optional[tp.ArrayLike] = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.down_capture_nb`."""
@@ -1083,8 +1124,8 @@ class ReturnsAccessor(GenericAccessor):
             benchmark_rets = self.benchmark_rets
         checks.assert_not_none(benchmark_rets)
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
-        func = nb_registry.redecorate_parallel(nb.down_capture_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.down_capture_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(
             self.to_2d_array(),
             to_2d_array(benchmark_rets),
@@ -1098,6 +1139,7 @@ class ReturnsAccessor(GenericAccessor):
                              benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                              window: tp.Optional[int] = None,
                              minp: tp.Optional[int] = None,
+                             jitted: tp.JittedOption = None,
                              chunked: tp.ChunkedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.down_capture`."""
@@ -1115,38 +1157,39 @@ class ReturnsAccessor(GenericAccessor):
         )
         return self.__class__.rolling_apply(
             window,
-            nb.down_capture_rollmeta_nb,
+            jit_registry.resolve_option(nb.down_capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
             minp=minp,
             wrapper=self.wrapper,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
     def drawdown(self,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Relative decline from a peak."""
         return self.cumulative(
             start_value=1,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked
         ).vbt.drawdown(
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs
         )
 
     def max_drawdown(self,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.returns.nb.max_drawdown_nb`.
 
         Yields the same out as `max_drawdown` of `ReturnsAccessor.drawdowns`."""
-        func = nb_registry.redecorate_parallel(nb.max_drawdown_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.max_drawdown_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         out = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
         return self.wrapper.wrap_reduced(out, group_by=False, **wrap_kwargs)
@@ -1154,6 +1197,7 @@ class ReturnsAccessor(GenericAccessor):
     def rolling_max_drawdown(self,
                              window: tp.Optional[int] = None,
                              minp: tp.Optional[int] = None,
+                             jitted: tp.JittedOption = None,
                              **kwargs) -> tp.SeriesFrame:
         """Rolling version of `ReturnsAccessor.max_drawdown`."""
         if window is None:
@@ -1162,8 +1206,9 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         return self.rolling_apply(
             window,
-            nb.max_drawdown_1d_nb,
+            jit_registry.resolve_option(nb.max_drawdown_1d_nb, jitted),
             minp=minp,
+            jitted=jitted,
             **kwargs
         )
 
@@ -1173,7 +1218,7 @@ class ReturnsAccessor(GenericAccessor):
         return self.get_drawdowns()
 
     def get_drawdowns(self,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper_kwargs: tp.KwargsLike = None,
                       **kwargs) -> Drawdowns:
@@ -1182,7 +1227,7 @@ class ReturnsAccessor(GenericAccessor):
         See `vectorbt.generic.drawdowns.Drawdowns`."""
         wrapper_kwargs = merge_dicts(self.wrapper.config, wrapper_kwargs)
         return Drawdowns.from_ts(
-            self.cumulative(start_value=1., nb_parallel=nb_parallel),
+            self.cumulative(start_value=1., jitted=jitted),
             wrapper_kwargs=wrapper_kwargs,
             **kwargs
         )

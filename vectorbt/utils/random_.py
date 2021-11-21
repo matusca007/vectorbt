@@ -7,10 +7,10 @@ import random
 
 import numpy as np
 
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def set_seed_nb(seed: int) -> None:
     """Set seed in numba."""
     np.random.seed(seed)

@@ -9,7 +9,7 @@ data visualization in Jupyter Notebook and JupyterLab environments. For more det
 on using Plotly, see [Getting Started with Plotly in Python](https://plotly.com/python/getting-started/).
 
 !!! warning
-    In case of errors, it won't be visible in the notebook cell, but in the logs."""
+    Errors related to plotting in Jupyter environment usually appear in the logs, not under the cell."""
 
 from vectorbt.opt_packages import assert_can_import
 assert_can_import('plotly')

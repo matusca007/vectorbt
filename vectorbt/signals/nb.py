@@ -32,7 +32,7 @@ from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.enums import range_dt, RangeStatus
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.records import chunking as records_ch
 from vectorbt.signals.enums import StopType
 from vectorbt.utils import chunking as ch
@@ -52,7 +52,7 @@ from vectorbt.utils.template import Rep
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def generate_nb(target_shape: tp.Shape, place_func_nb: tp.PlaceFunc, *args) -> tp.Array2d:
     """Create a boolean matrix of `target_shape` and pick signals using `place_func_nb`.
 
@@ -92,7 +92,7 @@ def generate_nb(target_shape: tp.Shape, place_func_nb: tp.PlaceFunc, *args) -> t
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def generate_enex_nb(target_shape: tp.Shape,
                      entry_wait: int,
                      exit_wait: int,
@@ -195,7 +195,7 @@ def generate_enex_nb(target_shape: tp.Shape,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def generate_ex_nb(entries: tp.Array2d,
                    wait: int,
                    until_next: bool,
@@ -255,7 +255,7 @@ def generate_ex_nb(entries: tp.Array2d,
 # ############# Filtering ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def clean_enex_1d_nb(entries: tp.Array1d,
                      exits: tp.Array1d,
                      entry_first: bool) -> tp.Tuple[tp.Array1d, tp.Array1d]:
@@ -290,7 +290,7 @@ def clean_enex_1d_nb(entries: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def clean_enex_nb(entries: tp.Array2d,
                   exits: tp.Array2d,
                   entry_first: bool) -> tp.Tuple[tp.Array2d, tp.Array2d]:
@@ -306,7 +306,7 @@ def clean_enex_nb(entries: tp.Array2d,
 # ############# Random signals ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rand_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, n: tp.FlexArray) -> None:
     """`place_func_nb` to randomly pick `n` values.
 
@@ -320,7 +320,7 @@ def rand_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, n: tp.FlexA
             k += 1
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def rand_by_prob_place_nb(out: tp.Array1d,
                           from_i: int,
                           to_i: int,
@@ -348,7 +348,7 @@ def rand_by_prob_place_nb(out: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def generate_rand_enex_nb(target_shape: tp.Shape,
                           n: tp.FlexArray,
                           entry_wait: int,
@@ -454,7 +454,7 @@ def rand_enex_apply_nb(target_shape: tp.Shape,
 # ############# Stop signals ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def first_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, mask: tp.Array2d) -> None:
     """`place_func_nb` that returns the index of the first signal in `mask`."""
     for i in range(from_i, to_i):
@@ -463,7 +463,7 @@ def first_place_nb(out: tp.Array1d, from_i: int, to_i: int, col: int, mask: tp.A
             break
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def stop_place_nb(out: tp.Array1d,
                   from_i: int,
                   to_i: int,
@@ -536,7 +536,7 @@ def stop_place_nb(out: tp.Array1d,
                 max_high = curr_ts
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def ohlc_stop_place_nb(out: tp.Array1d,
                        from_i: int,
                        to_i: int,
@@ -700,7 +700,7 @@ def ohlc_stop_place_nb(out: tp.Array1d,
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def between_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two signals in `mask`."""
     new_records = np.empty(mask.shape, dtype=range_dt)
@@ -734,7 +734,7 @@ def between_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def between_two_ranges_nb(mask: tp.Array2d, other_mask: tp.Array2d, from_other: bool = False) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two
     signals in `mask` and `other_mask`.
@@ -788,7 +788,7 @@ def between_two_ranges_nb(mask: tp.Array2d, other_mask: tp.Array2d, from_other: 
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each partition of signals in `mask`."""
     new_records = np.empty(mask.shape, dtype=range_dt)
@@ -834,7 +834,7 @@ def partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def between_partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     """Create a record of type `vectorbt.generic.enums.range_dt` for each range between two partitions in `mask`."""
     new_records = np.empty(mask.shape, dtype=range_dt)
@@ -875,7 +875,7 @@ def between_partition_ranges_nb(mask: tp.Array2d) -> tp.RecordArray:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def rank_nb(mask: tp.Array2d,
             reset_by_mask: tp.Optional[tp.Array2d],
             after_false: bool,
@@ -914,7 +914,7 @@ def rank_nb(mask: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sig_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_start_i: int,
                     sig_pos_temp: tp.Array1d, allow_gaps: bool) -> int:
     """`rank_func_nb` that returns the rank of each signal by its position in the partition."""
@@ -926,7 +926,7 @@ def sig_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_s
     return sig_pos_temp[col]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def part_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_start_i: int,
                      part_pos_temp: tp.Array1d) -> int:
     """`rank_func_nb` that returns the rank of each partition by its position in the series."""
@@ -940,7 +940,7 @@ def part_pos_rank_nb(i: int, col: int, reset_i: int, prev_part_end_i: int, part_
 # ############# Index ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def nth_index_1d_nb(mask: tp.Array1d, n: int) -> int:
     """Get the index of the n-th True value.
 
@@ -971,7 +971,7 @@ def nth_index_1d_nb(mask: tp.Array1d, n: int) -> int:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def nth_index_nb(mask: tp.Array2d, n: int) -> tp.Array1d:
     """2-dim version of `nth_index_1d_nb`."""
     out = np.empty(mask.shape[1], dtype=np.int_)
@@ -980,7 +980,7 @@ def nth_index_nb(mask: tp.Array2d, n: int) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def norm_avg_index_1d_nb(mask: tp.Array1d) -> float:
     """Get mean index normalized to (-1, 1)."""
     mean_index = np.mean(np.flatnonzero(mask))
@@ -994,7 +994,7 @@ def norm_avg_index_1d_nb(mask: tp.Array1d) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def norm_avg_index_nb(mask: tp.Array2d) -> tp.Array1d:
     """2-dim version of `norm_avg_index_1d_nb`."""
     out = np.empty(mask.shape[1], dtype=np.float_)
@@ -1011,7 +1011,7 @@ def norm_avg_index_nb(mask: tp.Array2d) -> tp.Array1d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def norm_avg_index_grouped_nb(mask, group_lens):
     """Grouped version of `norm_avg_index_nb`."""
     out = np.empty(len(group_lens), dtype=np.float_)

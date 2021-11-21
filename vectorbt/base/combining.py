@@ -8,24 +8,23 @@ done upon stacking the results into one NumPy array - since vectorbt is all abou
 large spaces of hyperparameters, concatenating the results of each hyperparameter combination into
 a single DataFrame is important. All functions are available in both Python and Numba-compiled form."""
 
-import warnings
-
 import numpy as np
 from numba.typed import List
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import jit_registry
+from vectorbt.jit_registry import register_jitted
 from vectorbt.utils.execution import execute
 
 
-@register_jit
+@register_jitted
 def apply_and_concat_none_nb(ntimes: int, apply_func_nb: tp.Callable, *args) -> None:
     """Run `apply_func_nb` that returns nothing. Meant for in-place outputs."""
     for i in range(ntimes):
         apply_func_nb(i, *args)
 
 
-@register_jit
+@register_jitted
 def to_2d_one_nb(a: tp.Array) -> tp.Array2d:
     """Expand the dimensions of the array along the axis 1."""
     if a.ndim > 1:
@@ -33,7 +32,7 @@ def to_2d_one_nb(a: tp.Array) -> tp.Array2d:
     return np.expand_dims(a, axis=1)
 
 
-@register_jit
+@register_jitted
 def apply_and_concat_one_nb(ntimes: int, apply_func_nb: tp.Callable, *args) -> tp.Array2d:
     """Run `apply_func_nb` that returns one array."""
     output_0 = to_2d_one_nb(apply_func_nb(0, *args))
@@ -47,7 +46,7 @@ def apply_and_concat_one_nb(ntimes: int, apply_func_nb: tp.Callable, *args) -> t
     return output
 
 
-@register_jit
+@register_jitted
 def to_2d_multiple_nb(a: tp.Iterable[tp.Array]) -> tp.List[tp.Array2d]:
     """Expand the dimensions of each array in `a` along axis 1."""
     lst = list()
@@ -56,7 +55,7 @@ def to_2d_multiple_nb(a: tp.Iterable[tp.Array]) -> tp.List[tp.Array2d]:
     return lst
 
 
-@register_jit
+@register_jitted
 def apply_and_concat_multiple_nb(ntimes: int, apply_func_nb: tp.Callable, *args) -> tp.List[tp.Array2d]:
     """Run `apply_func_nb` that returns multiple arrays."""
     outputs = list()
@@ -76,9 +75,8 @@ def apply_and_concat_multiple_nb(ntimes: int, apply_func_nb: tp.Callable, *args)
 def apply_and_concat(ntimes: int,
                      apply_func: tp.Callable, *args,
                      n_outputs: tp.Optional[int] = None,
-                     numba_loop: bool = False,
+                     jitted_loop: bool = False,
                      execute_kwargs: tp.KwargsLike = None,
-                     silence_warnings: bool = False,
                      **kwargs) -> tp.Union[None, tp.Array2d, tp.List[tp.Array2d]]:
     """Run `apply_func` function `ntimes` times and concatenate the results depending upon how
     many array-like objects it generates.
@@ -87,28 +85,27 @@ def apply_and_concat(ntimes: int,
 
     Executes the function using `vectorbt.utils.execution.execute`.
 
-    Set `numba_loop` to True to use the Numba-compiled version.
+    Set `jitted_loop` to True to use the JIT-compiled version.
+
+    All jitted iteration functions are resolved using `vectorbt.jit_registry.JITRegistry.resolve`.
 
     !!! note
-        `n_outputs` must be set when `numba_loop` is True.
+        `n_outputs` must be set when `jitted_loop` is True.
 
         Numba doesn't support variable keyword arguments."""
     if execute_kwargs is None:
         execute_kwargs = {}
-    if numba_loop:
-        if len(kwargs) > 0 and not silence_warnings:
-            warnings.warn("Numba doesn't support **kwargs", stacklevel=2)
-        if len(execute_kwargs) > 0 and not silence_warnings:
-            warnings.warn("Numba doesn't support execute_kwargs", stacklevel=2)
 
-    if numba_loop:
+    if jitted_loop:
         if n_outputs is None:
-            raise ValueError("Iteration with Numba requires n_outputs")
-        if n_outputs == 0:
-            return apply_and_concat_none_nb(ntimes, apply_func, *args)
-        if n_outputs == 1:
-            return apply_and_concat_one_nb(ntimes, apply_func, *args)
-        return apply_and_concat_multiple_nb(ntimes, apply_func, *args)
+            raise ValueError("Jitted iteration requires n_outputs")
+        elif n_outputs == 0:
+            func = jit_registry.resolve(apply_and_concat_none_nb)
+        elif n_outputs == 1:
+            func = jit_registry.resolve(apply_and_concat_one_nb)
+        else:
+            func = jit_registry.resolve(apply_and_concat_multiple_nb)
+        return func(ntimes, apply_func, *args)
 
     funcs_args = [(apply_func, (i, *args), kwargs) for i in range(ntimes)]
     out = execute(funcs_args, **execute_kwargs)
@@ -126,7 +123,7 @@ def apply_and_concat(ntimes: int,
     return list(map(np.column_stack, zip(*out)))
 
 
-@register_jit
+@register_jitted
 def select_and_combine_nb(i: int,
                           obj: tp.Any,
                           others: tp.Sequence,
@@ -135,7 +132,7 @@ def select_and_combine_nb(i: int,
     return combine_func_nb(obj, others[i], *args)
 
 
-@register_jit
+@register_jitted
 def combine_and_concat_nb(obj: tp.Any,
                           others: tp.Sequence,
                           combine_func_nb: tp.Callable, *args) -> tp.Array2d:
@@ -154,23 +151,25 @@ def select_and_combine(i: int,
 def combine_and_concat(obj: tp.Any,
                        others: tp.Sequence,
                        combine_func: tp.Callable, *args,
-                       numba_loop: bool = False,
+                       jitted_loop: bool = False,
                        **kwargs) -> tp.Array2d:
-    """Combine `obj` with each in `others` using `combine_func` and concatenate."""
-    if numba_loop:
-        apply_func = select_and_combine_nb
+    """Combine `obj` with each in `others` using `combine_func` and concatenate.
+
+    `select_and_combine_nb` is resolved using `vectorbt.jit_registry.JITRegistry.resolve`."""
+    if jitted_loop:
+        apply_func = jit_registry.resolve(select_and_combine_nb)
     else:
         apply_func = select_and_combine
     return apply_and_concat(
         len(others),
         apply_func, obj, others, combine_func, *args,
         n_outputs=1,
-        numba_loop=numba_loop,
+        jitted_loop=jitted_loop,
         **kwargs
     )
 
 
-@register_jit
+@register_jitted
 def combine_multiple_nb(objs: tp.Sequence, combine_func_nb: tp.Callable, *args) -> tp.Any:
     """Numba-compiled version of `combine_multiple`."""
     result = objs[0]
@@ -181,19 +180,19 @@ def combine_multiple_nb(objs: tp.Sequence, combine_func_nb: tp.Callable, *args) 
 
 def combine_multiple(objs: tp.Sequence,
                      combine_func: tp.Callable, *args,
-                     numba_loop: bool = False,
-                     silence_warnings: bool = False,
+                     jitted_loop: bool = False,
                      **kwargs) -> tp.Any:
     """Combine `objs` pairwise into a single object.
 
-    Set `numba_loop` to True to use the Numba-compiled version.
+    Set `jitted_loop` to True to use the JIT-compiled version.
+
+    `combine_multiple_nb` is resolved using `vectorbt.jit_registry.JITRegistry.resolve`.
 
     !!! note
         Numba doesn't support variable keyword arguments."""
-    if numba_loop:
-        if len(kwargs) > 0 and not silence_warnings:
-            warnings.warn("Numba doesn't support variable keyword arguments", stacklevel=2)
-        return combine_multiple_nb(objs, combine_func, *args)
+    if jitted_loop:
+        func = jit_registry.resolve(combine_multiple_nb)
+        return func(objs, combine_func, *args)
     result = objs[0]
     for i in range(1, len(objs)):
         result = combine_func(result, objs[i], *args, **kwargs)

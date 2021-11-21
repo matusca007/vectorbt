@@ -32,12 +32,12 @@ from vectorbt import _typing as tp
 from vectorbt.base import chunking as base_ch
 from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.math_ import add_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_return_nb(input_value: float, output_value: float) -> float:
     """Calculate return from input and output value."""
     if input_value == 0:
@@ -50,7 +50,7 @@ def get_return_nb(input_value: float, output_value: float) -> float:
     return return_value
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def returns_1d_nb(arr: tp.Array1d, init_value: float) -> tp.Array1d:
     """Calculate returns."""
     out = np.empty(arr.shape, dtype=np.float_)
@@ -70,7 +70,7 @@ def returns_1d_nb(arr: tp.Array1d, init_value: float) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def returns_nb(arr: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
     """2-dim version of `returns_1d_nb`."""
     out = np.empty(arr.shape, dtype=np.float_)
@@ -79,7 +79,7 @@ def returns_nb(arr: tp.Array2d, init_value: tp.Array1d) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def cum_returns_1d_nb(rets: tp.Array1d, start_value: float) -> tp.Array1d:
     """Cumulative returns."""
     out = np.empty_like(rets, dtype=np.float_)
@@ -101,7 +101,7 @@ def cum_returns_1d_nb(rets: tp.Array1d, start_value: float) -> tp.Array1d:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cum_returns_nb(rets: tp.Array2d, start_value: float) -> tp.Array2d:
     """2-dim version of `cum_returns_1d_nb`."""
     out = np.empty_like(rets, dtype=np.float_)
@@ -110,7 +110,7 @@ def cum_returns_nb(rets: tp.Array2d, start_value: float) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def cum_returns_final_1d_nb(rets: tp.Array1d, start_value: float = 0.) -> float:
     """Total return."""
     out = np.nan
@@ -132,7 +132,7 @@ def cum_returns_final_1d_nb(rets: tp.Array1d, start_value: float = 0.) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cum_returns_final_nb(rets: tp.Array2d, start_value: float = 0.) -> tp.Array1d:
     """2-dim version of `cum_returns_final_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -141,7 +141,7 @@ def cum_returns_final_nb(rets: tp.Array2d, start_value: float = 0.) -> tp.Array1
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def annualized_return_1d_nb(rets: tp.Array1d, ann_factor: float, period: tp.Optional[float] = None) -> float:
     """Annualized total return.
 
@@ -161,7 +161,7 @@ def annualized_return_1d_nb(rets: tp.Array1d, ann_factor: float, period: tp.Opti
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def annualized_return_nb(rets: tp.Array2d, ann_factor: float, period: tp.Optional[float] = None) -> tp.Array1d:
     """2-dim version of `annualized_return_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -170,7 +170,7 @@ def annualized_return_nb(rets: tp.Array2d, ann_factor: float, period: tp.Optiona
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def annualized_volatility_1d_nb(rets: tp.Array1d,
                                 ann_factor: float,
                                 levy_alpha: float = 2.0,
@@ -189,7 +189,7 @@ def annualized_volatility_1d_nb(rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def annualized_volatility_nb(rets: tp.Array2d,
                              ann_factor: float,
                              levy_alpha: float = 2.0,
@@ -201,7 +201,7 @@ def annualized_volatility_nb(rets: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def max_drawdown_1d_nb(rets: tp.Array1d) -> float:
     """Total maximum drawdown (MDD)."""
     cum_ret = np.nan
@@ -230,7 +230,7 @@ def max_drawdown_1d_nb(rets: tp.Array1d) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def max_drawdown_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `max_drawdown_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -239,7 +239,7 @@ def max_drawdown_nb(rets: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def calmar_ratio_1d_nb(rets: tp.Array1d, ann_factor: float, period: tp.Optional[float] = None) -> float:
     """Calmar ratio, or drawdown ratio, of a strategy."""
     max_drawdown = max_drawdown_1d_nb(rets)
@@ -260,7 +260,7 @@ def calmar_ratio_1d_nb(rets: tp.Array1d, ann_factor: float, period: tp.Optional[
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def calmar_ratio_nb(rets: tp.Array2d, ann_factor: float, period: tp.Optional[float] = None) -> tp.Array1d:
     """2-dim version of `calmar_ratio_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -269,7 +269,7 @@ def calmar_ratio_nb(rets: tp.Array2d, ann_factor: float, period: tp.Optional[flo
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def deannualized_return_nb(ret: float, ann_factor: float) -> float:
     """Deannualized return."""
     if ann_factor == 1:
@@ -279,7 +279,7 @@ def deannualized_return_nb(ret: float, ann_factor: float) -> float:
     return (1 + ret) ** (1. / ann_factor) - 1
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def omega_ratio_1d_nb(adj_rets: tp.Array1d) -> float:
     """Omega ratio of a strategy."""
     numer = 0.
@@ -302,7 +302,7 @@ def omega_ratio_1d_nb(adj_rets: tp.Array1d) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def omega_ratio_nb(adj_rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `omega_ratio_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
@@ -311,7 +311,7 @@ def omega_ratio_nb(adj_rets: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sharpe_ratio_1d_nb(adj_rets: tp.Array1d,
                        ann_factor: float,
                        ddof: int = 0) -> float:
@@ -332,7 +332,7 @@ def sharpe_ratio_1d_nb(adj_rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def sharpe_ratio_nb(adj_rets: tp.Array2d,
                     ann_factor: float,
                     ddof: int = 0) -> tp.Array1d:
@@ -343,7 +343,7 @@ def sharpe_ratio_nb(adj_rets: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def downside_risk_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     """Downside deviation below a threshold."""
     cnt = 0
@@ -367,7 +367,7 @@ def downside_risk_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def downside_risk_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `downside_risk_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
@@ -376,7 +376,7 @@ def downside_risk_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sortino_ratio_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     """Sortino ratio of a strategy."""
     avg_annualized_return = np.nanmean(adj_rets) * ann_factor
@@ -394,7 +394,7 @@ def sortino_ratio_1d_nb(adj_rets: tp.Array1d, ann_factor: float) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def sortino_ratio_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `sortino_ratio_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
@@ -403,7 +403,7 @@ def sortino_ratio_nb(adj_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def information_ratio_1d_nb(adj_rets: tp.Array1d, ddof: int = 0) -> float:
     """Information ratio of a strategy."""
     mean = np.nanmean(adj_rets)
@@ -421,7 +421,7 @@ def information_ratio_1d_nb(adj_rets: tp.Array1d, ddof: int = 0) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def information_ratio_nb(adj_rets: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     """2-dim version of `information_ratio_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
@@ -430,7 +430,7 @@ def information_ratio_nb(adj_rets: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def beta_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 0) -> float:
     """Beta."""
     cov = generic_nb.nancov_1d_nb(rets, benchmark_rets, ddof=ddof)
@@ -449,7 +449,7 @@ def beta_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d, ddof: int = 0) -> f
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def beta_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ddof: int = 0) -> tp.Array1d:
     """2-dim version of `beta_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -458,14 +458,14 @@ def beta_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d, ddof: int = 0) -> tp.A
     return out
 
 
-@register_jit
+@register_jitted
 def beta_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                      benchmark_rets: tp.Array1d, ddof: int = 0) -> float:
     """Rolling apply meta function based on `beta_1d_nb`."""
     return beta_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ddof)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def alpha_1d_nb(adj_rets: tp.Array1d,
                 adj_benchmark_rets: tp.Array1d,
                 ann_factor: float) -> float:
@@ -483,7 +483,7 @@ def alpha_1d_nb(adj_rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def alpha_nb(adj_rets: tp.Array2d, adj_benchmark_rets: tp.Array2d, ann_factor: float) -> tp.Array1d:
     """2-dim version of `alpha_1d_nb`."""
     out = np.empty(adj_rets.shape[1], dtype=np.float_)
@@ -492,14 +492,14 @@ def alpha_nb(adj_rets: tp.Array2d, adj_benchmark_rets: tp.Array2d, ann_factor: f
     return out
 
 
-@register_jit
+@register_jitted
 def alpha_rollmeta_nb(from_i: int, to_i: int, col: int, adj_rets: tp.Array2d,
                       adj_benchmark_rets: tp.Array1d, ann_factor: float) -> float:
     """Rolling apply meta function based on `alpha_1d_nb`."""
     return alpha_1d_nb(adj_rets[from_i:to_i, col], adj_benchmark_rets[from_i:to_i, col], ann_factor)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def tail_ratio_1d_nb(rets: tp.Array1d) -> float:
     """Ratio between the right (95%) and left tail (5%)."""
     perc_95 = np.abs(np.nanpercentile(rets, 95))
@@ -509,7 +509,7 @@ def tail_ratio_1d_nb(rets: tp.Array1d) -> float:
     return perc_95 / perc_5
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def tail_ratio_noarr_1d_nb(rets: tp.Array1d) -> float:
     """`tail_ratio_1d_nb` that does not allocate any arrays."""
     perc_95 = np.abs(generic_nb.nanpercentile_noarr_1d_nb(rets, 95))
@@ -526,7 +526,7 @@ def tail_ratio_noarr_1d_nb(rets: tp.Array1d) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def tail_ratio_nb(rets: tp.Array2d) -> tp.Array1d:
     """2-dim version of `tail_ratio_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -535,13 +535,13 @@ def tail_ratio_nb(rets: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def value_at_risk_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """Value at risk (VaR) of a returns stream."""
     return np.nanpercentile(rets, 100 * cutoff)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """`value_at_risk_1d_nb` that does not allocate any arrays."""
     return generic_nb.nanpercentile_noarr_1d_nb(rets, 100 * cutoff)
@@ -555,7 +555,7 @@ def value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `value_at_risk_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -564,14 +564,14 @@ def value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def cond_value_at_risk_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """Conditional value at risk (CVaR) of a returns stream."""
     cutoff_index = int((len(rets) - 1) * cutoff)
     return np.mean(np.partition(rets, cutoff_index)[:cutoff_index + 1])
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def cond_value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> float:
     """`cond_value_at_risk_1d_nb` that does not allocate any arrays."""
     return generic_nb.nanpartition_mean_noarr_1d_nb(rets, cutoff * 100)
@@ -585,7 +585,7 @@ def cond_value_at_risk_noarr_1d_nb(rets: tp.Array1d, cutoff: float = 0.05) -> fl
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cond_value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     """2-dim version of `cond_value_at_risk_1d_nb`."""
     out = np.empty(rets.shape[1], dtype=np.float_)
@@ -594,7 +594,7 @@ def cond_value_at_risk_nb(rets: tp.Array2d, cutoff: float = 0.05) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
                   ann_factor: float, period: tp.Optional[float] = None) -> float:
     """Capture ratio."""
@@ -615,7 +615,7 @@ def capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
                ann_factor: float, period: tp.Optional[float] = None) -> tp.Array1d:
     """2-dim version of `capture_1d_nb`."""
@@ -625,7 +625,7 @@ def capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
     return out
 
 
-@register_jit
+@register_jitted
 def capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                         benchmark_rets: tp.Array1d, ann_factor: float,
                         period: tp.Optional[float] = None) -> float:
@@ -633,7 +633,7 @@ def capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
     return capture_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor, period=period)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def up_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
                      ann_factor: float, period: tp.Optional[float] = None) -> float:
     """Capture ratio for periods when the benchmark return is positive."""
@@ -671,7 +671,7 @@ def up_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def up_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
                   ann_factor: float, period: tp.Optional[float] = None) -> tp.Array1d:
     """2-dim version of `up_capture_1d_nb`."""
@@ -681,7 +681,7 @@ def up_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
     return out
 
 
-@register_jit
+@register_jitted
 def up_capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                            benchmark_rets: tp.Array1d, ann_factor: float,
                            period: tp.Optional[float] = None) -> float:
@@ -689,7 +689,7 @@ def up_capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
     return up_capture_1d_nb(rets[from_i:to_i, col], benchmark_rets[from_i:to_i, col], ann_factor, period=period)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def down_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
                        ann_factor: float, period: tp.Optional[float] = None) -> float:
     """Capture ratio for periods when the benchmark return is negative."""
@@ -727,7 +727,7 @@ def down_capture_1d_nb(rets: tp.Array1d, benchmark_rets: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def down_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
                     ann_factor: float, period: tp.Optional[float] = None) -> tp.Array1d:
     """2-dim version of `down_capture_1d_nb`."""
@@ -737,7 +737,7 @@ def down_capture_nb(rets: tp.Array2d, benchmark_rets: tp.Array2d,
     return out
 
 
-@register_jit
+@register_jitted
 def down_capture_rollmeta_nb(from_i: int, to_i: int, col: int, rets: tp.Array2d,
                              benchmark_rets: tp.Array1d, ann_factor: float,
                              period: tp.Optional[float] = None) -> float:

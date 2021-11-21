@@ -53,7 +53,7 @@ Since this is only visible when looking at the source code, the advice is to alw
     'portfolio.fillna_close' has only effect on `vectorbt.portfolio.base.Portfolio` instances created
     in the future, not the existing ones, because the value is resolved upon the object's construction.
     Last but not least, some settings are only accessed when importing the package for the first time,
-    such as 'numba.on_register'. In any case, make sure to check whether the update actually took place.
+    such as 'jitting.jit_decorator'. In any case, make sure to check whether the update actually took place.
 
 ## Saving and loading
 
@@ -82,30 +82,6 @@ The following environment variables are supported:
 * "VBT_SETTINGS_PATH": Path to the settings file. Will replace the current settings.
 * "VBT_SETTINGS_OVERRIDE_PATH": Path to the settings file. Will override the current settings.
 
-For example, let's disable caching for all Numba functions.
-First, change the settings and save them to the disk:
-
-```python-repl
->>> import vectorbt as vbt
->>> vbt.settings['numba']['override_options']['cache'] = False
->>> vbt.settings.save('my_settings')
-
->>> from vectorbt.nb_registry import nb_registry
->>> nb_registry.setups["vectorbt.generic.nb.nancumsum_nb"]['options']['cache']
-True
-```
-
-Then, restart the runtime and instruct vectorbt to load the file with settings before anything else:
-
-```python-repl
->>> import os
->>> os.environ['VBT_SETTINGS_PATH'] = "my_settings"
-
->>> from vectorbt.nb_registry import nb_registry
->>> nb_registry.setups["vectorbt.generic.nb.nancumsum_nb"]['options']['cache']
-False
-```
-
 !!! note
     The environment variable must be set before importing vectorbt.
 """
@@ -119,6 +95,8 @@ import numpy as np
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
 from vectorbt.utils.template import Sub, RepEval, deep_substitute
+from vectorbt.utils.jitting import NumPyJitter, NumbaJitter
+from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
 
 __pdoc__ = {}
 
@@ -133,7 +111,7 @@ caching = dict(
     silence_warnings=False,
     register_lazily=True,
     ignore_args=[
-        'nb_parallel',
+        'jitted',
         'chunked'
     ],
     use_cached_accessors=True
@@ -146,8 +124,7 @@ __pdoc__['caching'] = Sub("""Sub-config with settings applied across `vectorbt.c
 !!! hint
     Apply setting `register_lazily` on startup to register all unbound cacheables.
     
-    Setting `use_cached_accessors` is applied only once on startup. 
-    Changing it afterwards will have no effect.
+    Setting `use_cached_accessors` is applied only once.
 
 ```json
 ${config_doc}
@@ -155,31 +132,61 @@ ${config_doc}
 
 _settings['caching'] = caching
 
-numba = dict(
-    parallel=None,
-    silence_warnings=False,
-    check_func_type=True,
-    check_func_suffix=False,
-    options=Config(  # flex
+jitting = dict(
+    disable=False,
+    disable_wrapping=False,
+    disable_resolution=False,
+    option=True,
+    allow_new=False,
+    register_new=False,
+    jitters=Config(  # flex
         dict(
-            nopython=True,
-            nogil=True
+            np=dict(
+                cls=NumPyJitter,
+                aliases={'numpy'}
+            ),
+            nb=dict(
+                cls=NumbaJitter,
+                aliases={'numba'}
+            )
         )
     ),
-    setup_options=Config(  # flex
+    template_mapping=Config(  # flex
         dict()
     ),
-    override_options=Config(  # flex
+    task_kwargs=Config(  # flex
+        dict()
+    ),
+    jitter_kwargs=Config(  # flex
+        dict()
+    ),
+    setup_kwargs=Config(  # flex
         dict()
     )
 )
 """_"""
 
-__pdoc__['numba'] = Sub("""Sub-config with settings applied across `vectorbt.nb_registry` and Numba generally.
+__pdoc__['jitting'] = Sub("""Sub-config with settings applied across `vectorbt.jit_registry` and 
+`vectorbt.utils.jitting`.
 
 !!! note
-    Options (with `_options` suffix) are applied only once on startup. 
-    Changing them afterwards will have no effect.
+    Options (with `_options` suffix) are applied only once.
+
+```json
+${config_doc}
+```""")
+
+_settings['jitting'] = jitting
+
+numba = dict(
+    parallel=None,
+    silence_warnings=False,
+    check_func_type=True,
+    check_func_suffix=False
+)
+"""_"""
+
+__pdoc__['numba'] = Sub("""Sub-config with Numba-related settings.
 
 ```json
 ${config_doc}
@@ -197,8 +204,7 @@ math = dict(
 __pdoc__['math'] = Sub("""Sub-config with settings applied across `vectorbt.utils.math_`.
 
 !!! note
-    All math settings are applied only once on startup. 
-    Changing them afterwards will have no effect.
+    All math settings are applied only once.
 
 ```json
 ${config_doc}
@@ -207,25 +213,34 @@ ${config_doc}
 _settings['math'] = math
 
 execution = dict(
-    sequence=dict(
-        show_progress=False,
-        pbar_kwargs=Config(  # flex
-            dict()
-        )
-    ),
-    dask=Config(  # flex
-        dict()
-    ),
-    ray=dict(
-        restart=False,
-        reuse_refs=True,
-        del_refs=True,
-        shutdown=False,
-        init_kwargs=Config(  # flex
-            dict()
-        ),
-        remote_kwargs=Config(  # flex
-            dict()
+    engines=Config(  # flex
+        dict(
+            sequence=dict(
+                cls=SequenceEngine,
+                show_progress=False,
+                pbar_kwargs=Config(  # flex
+                    dict()
+                )
+            ),
+            dask=dict(
+                cls=DaskEngine,
+                compute_kwargs=Config(  # flex
+                    dict()
+                ),
+            ),
+            ray=dict(
+                cls=RayEngine,
+                restart=False,
+                reuse_refs=True,
+                del_refs=True,
+                shutdown=False,
+                init_kwargs=Config(  # flex
+                    dict()
+                ),
+                remote_kwargs=Config(  # flex
+                    dict()
+                )
+            ),
         )
     ),
 )
@@ -240,7 +255,9 @@ ${config_doc}
 _settings['execution'] = execution
 
 chunking = dict(
-    option=None,
+    disable=False,
+    disable_wrapping=False,
+    option=False,
     engine='sequence',
     n_chunks=None,
     min_size=None,
@@ -249,12 +266,24 @@ chunking = dict(
     silence_warnings=False,
     template_mapping=Config(  # flex
         dict()
+    ),
+    options=Config(  # flex
+        dict()
+    ),
+    override_setup_options=Config(  # flex
+        dict()
+    ),
+    override_options=Config(  # flex
+        dict()
     )
 )
 """_"""
 
 __pdoc__['chunking'] = Sub("""Sub-config with settings applied across `vectorbt.ch_registry` 
 and `vectorbt.utils.chunking`.
+
+!!! note
+    Options (with `_options` suffix) and setting `disable_machinery` are applied only once.
 
 ```json
 ${config_doc}
@@ -611,7 +640,7 @@ ${config_doc}
 _settings['plots_builder'] = plots_builder
 
 generic = dict(
-    use_numba=False,
+    use_jitted=False,
     stats=Config(  # flex
         dict(
             filters=dict(
@@ -949,7 +978,6 @@ portfolio = dict(
     track_value=True,
     row_wise=False,
     flexible=False,
-    use_numba=True,
     seed=None,
     group_by=None,
     broadcast_kwargs=Config(  # flex

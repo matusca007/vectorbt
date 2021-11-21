@@ -754,9 +754,10 @@ def chunked(*args,
             prepend_chunk_meta: tp.Optional[bool] = None,
             merge_func: tp.Optional[tp.Callable] = None,
             merge_kwargs: tp.KwargsLike = None,
-            engine: tp.EngineLike = None,
+            engine: tp.Optional[tp.EngineLike] = None,
             return_raw_chunks: bool = False,
             silence_warnings: tp.Optional[bool] = None,
+            disable: tp.Optional[bool] = None,
             **engine_kwargs) -> tp.Callable:
     """Decorator that chunks the function. Engine-agnostic.
     Returns a new function with the same signature as the passed one.
@@ -778,6 +779,9 @@ def chunked(*args,
 
     Each parameter can be modified in the `options` attribute of the wrapper function or
     directly passed as a keyword argument with a leading underscore.
+
+    Chunking can be disabled using `disable` argument. Additionally, the entire wrapping mechanism
+    can be disabled by using the global setting `disable_wrapping` (=> returns the wrapped function).
 
     For defaults, see `chunking` in `vectorbt._settings.settings`.
     For example, to change the engine globally:
@@ -965,6 +969,12 @@ def chunked(*args,
     def decorator(func: tp.Callable) -> tp.Callable:
         nonlocal prepend_chunk_meta
 
+        from vectorbt._settings import settings
+        chunking_cfg = settings['chunking']
+
+        if chunking_cfg['disable_wrapping']:
+            return func
+
         if prepend_chunk_meta is None:
             prepend_chunk_meta = False
             func_arg_names = get_func_arg_names(func)
@@ -974,8 +984,11 @@ def chunked(*args,
 
         @wraps(func)
         def wrapper(*args, **kwargs) -> tp.Any:
-            from vectorbt._settings import settings
-            chunking_cfg = settings['chunking']
+            disable = kwargs.pop('_disable', wrapper.options['disable'])
+            if disable is None:
+                disable = chunking_cfg['disable']
+            if disable:
+                return func(*args, **kwargs)
 
             n_chunks = kwargs.pop('_n_chunks', wrapper.options['n_chunks'])
             size = kwargs.pop('_size', wrapper.options['size'])
@@ -1053,7 +1066,8 @@ def chunked(*args,
                 merge_func=merge_func,
                 merge_kwargs=merge_kwargs,
                 return_raw_chunks=return_raw_chunks,
-                silence_warnings=silence_warnings
+                silence_warnings=silence_warnings,
+                disable=disable
             ),
             frozen_keys=True
         )
@@ -1077,7 +1091,7 @@ def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
     `option` can be:
 
     * True: Chunk using default settings
-    * False: Do not chunk
+    * None or False: Do not chunk
     * string: Use `option` as the name of an execution engine (see `vectorbt.utils.execution.execute`)
     * dict: Use `option` as keyword arguments passed to `chunked`
 
@@ -1088,8 +1102,6 @@ def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
     if option is None:
         option = chunking_cfg['option']
 
-    if option is None:
-        return None
     if isinstance(option, bool):
         if not option:
             return None
@@ -1098,11 +1110,12 @@ def resolve_chunked_option(option: tp.ChunkedOption = None) -> tp.KwargsLike:
         return option
     elif isinstance(option, str):
         return dict(engine=option)
-    raise TypeError(f"Type {type(option)} is not supported for chunking")
+    raise TypeError(f"Type {type(option)} is invalid for a chunking option")
 
 
 def specialize_chunked_option(option: tp.ChunkedOption = None, **kwargs):
-    """Resolve `option` and merge it with `kwargs` if it's not None."""
+    """Resolve `option` and merge it with `kwargs` if it's not None so the dict can be passed
+    as an option to other functions."""
     chunked_kwargs = resolve_chunked_option(option)
     if chunked_kwargs is not None:
         return merge_dicts(kwargs, chunked_kwargs)

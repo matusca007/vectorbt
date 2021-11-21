@@ -7,16 +7,17 @@ Provides an arsenal of Numba-compiled functions that are used to generate data.
 These only accept NumPy arrays and other Numba-compatible types."""
 
 import numpy as np
+from numba import prange
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True, tags={'can_parallel'})
 def generate_random_data_nb(shape: tp.Shape, start_value: float, mean: float, std: float) -> tp.Array2d:
     """Generate data using cumulative product of returns drawn from normal (Gaussian) distribution."""
     out = np.empty(shape, dtype=np.float_)
-    for col in range(shape[1]):
+    for col in prange(shape[1]):
         for i in range(shape[0]):
             if i == 0:
                 prev_value = start_value
@@ -26,11 +27,11 @@ def generate_random_data_nb(shape: tp.Shape, start_value: float, mean: float, st
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True, tags={'can_parallel'})
 def generate_gbm_data_nb(shape: tp.Shape, start_value: float, mean: float, std: float, dt: float) -> tp.Array2d:
     """Generate data using Geometric Brownian Motion (GBM)."""
     out = np.empty(shape, dtype=np.float_)
-    for col in range(shape[1]):
+    for col in prange(shape[1]):
         for i in range(shape[0]):
             if i == 0:
                 prev_value = start_value

@@ -33,17 +33,17 @@ class ExecutionEngine(Configured):
 class SequenceEngine(ExecutionEngine):
     """Class for executing functions sequentially.
 
-    For defaults, see `execution.sequence` in `vectorbt._settings.settings`."""
+    For defaults, see `execution.engines.sequence` in `vectorbt._settings.settings`."""
 
     def __init__(self,
                  show_progress: tp.Optional[bool] = None,
                  pbar_kwargs: tp.KwargsLike = None) -> None:
         from vectorbt._settings import settings
-        execution_sequence_cfg = settings['execution']['sequence']
+        sequence_cfg = settings['execution']['engines']['sequence']
 
         if show_progress is None:
-            show_progress = execution_sequence_cfg['show_progress']
-        pbar_kwargs = merge_dicts(pbar_kwargs, execution_sequence_cfg['pbar_kwargs'])
+            show_progress = sequence_cfg['show_progress']
+        pbar_kwargs = merge_dicts(pbar_kwargs, sequence_cfg['pbar_kwargs'])
 
         self._show_progress = show_progress
         self._pbar_kwargs = pbar_kwargs
@@ -76,7 +76,7 @@ class SequenceEngine(ExecutionEngine):
 class DaskEngine(ExecutionEngine):
     """Class for executing functions in parallel using Dask.
 
-    For defaults, see `execution.dask` in `vectorbt._settings.settings`.
+    For defaults, see `execution.engines.dask` in `vectorbt._settings.settings`.
 
     !!! note
         Use multi-threading mainly on numeric code that releases the GIL
@@ -86,9 +86,9 @@ class DaskEngine(ExecutionEngine):
 
     def __init__(self, **compute_kwargs) -> None:
         from vectorbt._settings import settings
-        execution_dask_cfg = settings['execution']['dask']
+        dask_cfg = settings['execution']['engines']['dask']
 
-        compute_kwargs = merge_dicts(compute_kwargs, execution_dask_cfg)
+        compute_kwargs = merge_dicts(compute_kwargs, dask_cfg['compute_kwargs'])
 
         self._compute_kwargs = compute_kwargs
 
@@ -116,7 +116,7 @@ class DaskEngine(ExecutionEngine):
 class RayEngine(ExecutionEngine):
     """Class for executing functions in parallel using Ray.
 
-    For defaults, see `execution.ray` in `vectorbt._settings.settings`.
+    For defaults, see `execution.engines.ray` in `vectorbt._settings.settings`.
 
     !!! note
         Ray spawns multiple processes as opposed to threads, so any argument and keyword argument must first
@@ -132,18 +132,18 @@ class RayEngine(ExecutionEngine):
                  init_kwargs: tp.KwargsLike = None,
                  remote_kwargs: tp.KwargsLike = None) -> None:
         from vectorbt._settings import settings
-        execution_ray_cfg = settings['execution']['ray']
+        ray_cfg = settings['execution']['engines']['ray']
 
         if restart is None:
-            restart = execution_ray_cfg['restart']
+            restart = ray_cfg['restart']
         if reuse_refs is None:
-            reuse_refs = execution_ray_cfg['reuse_refs']
+            reuse_refs = ray_cfg['reuse_refs']
         if del_refs is None:
-            del_refs = execution_ray_cfg['del_refs']
+            del_refs = ray_cfg['del_refs']
         if shutdown is None:
-            shutdown = execution_ray_cfg['shutdown']
-        init_kwargs = merge_dicts(init_kwargs, execution_ray_cfg['init_kwargs'])
-        remote_kwargs = merge_dicts(remote_kwargs, execution_ray_cfg['remote_kwargs'])
+            shutdown = ray_cfg['shutdown']
+        init_kwargs = merge_dicts(init_kwargs, ray_cfg['init_kwargs'])
+        remote_kwargs = merge_dicts(remote_kwargs, ray_cfg['remote_kwargs'])
 
         self._restart = restart
         self._reuse_refs = reuse_refs
@@ -305,21 +305,15 @@ def execute(funcs_args: tp.FuncsArgs,
     * Instance of `ExecutionEngine` - will call `ExecutionEngine.execute` with `n_calls`
     * Callable - will pass `funcs_args`, `n_calls` (if not None), and `**kwargs`
 
-    Supported engines:
+    Supported engines can be found in `execution.engines` in `vectorbt._settings.settings`."""
+    from vectorbt._settings import settings
+    engines_cfg = settings['execution']['engines']
 
-    * 'sequence' (default): See `SequenceEngine`
-    * 'dask': See `DaskEngine`
-    * 'ray': See `RayEngine`
-    """
     if isinstance(engine, str):
-        if engine.lower() == 'sequence':
-            engine = SequenceEngine
-        elif engine.lower() == 'ray':
-            engine = RayEngine
-        elif engine.lower() == 'dask':
-            engine = DaskEngine
+        if engine.lower() in engines_cfg:
+            engine = engines_cfg[engine]['cls']
         else:
-            raise ValueError(f"Engine '{type(engine)}' is not supported")
+            raise ValueError(f"Engine with name '{engine}' is unknown")
     if isinstance(engine, type) and issubclass(engine, ExecutionEngine):
         engine = engine(**kwargs)
     if isinstance(engine, ExecutionEngine):
@@ -328,4 +322,4 @@ def execute(funcs_args: tp.FuncsArgs,
         if n_calls is not None:
             kwargs['n_calls'] = n_calls
         return engine(funcs_args, **kwargs)
-    raise TypeError(f"Engine type {type(engine)} is not supported")
+    raise TypeError(f"Engine of type {type(engine)} is not supported")

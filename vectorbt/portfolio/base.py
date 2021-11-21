@@ -1562,9 +1562,10 @@ from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.drawdowns import Drawdowns
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.portfolio import chunking as portfolio_ch
 from vectorbt.portfolio import nb
+from vectorbt.portfolio.call_seq import require_call_seq, build_call_seq
 from vectorbt.portfolio.decorators import attach_returns_acc_methods
 from vectorbt.portfolio.enums import *
 from vectorbt.portfolio.logs import Logs
@@ -1773,7 +1774,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         else:
             new_call_seq = None
 
-
         return self.replace(
             wrapper=new_wrapper,
             close=new_close,
@@ -1826,7 +1826,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     seed: tp.Optional[int] = None,
                     group_by: tp.GroupByLike = None,
                     broadcast_kwargs: tp.KwargsLike = None,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     wrapper_kwargs: tp.KwargsLike = None,
                     freq: tp.Optional[tp.FrequencyLike] = None,
@@ -2003,9 +2003,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             seed (int): Seed to be set for both `call_seq` and at the beginning of the simulation.
             group_by (any): Group columns. See `vectorbt.base.grouping.Grouper`.
             broadcast_kwargs (dict): Keyword arguments passed to `vectorbt.base.reshaping.broadcast`.
-            nb_parallel (bool): Whether to turn on parallelization with Numba.
-
-                Note that a combination of chunking and multithreading is often much faster.
+            jitted (any): See `vectorbt.utils.jitting.resolve_jitted_option`.
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
             freq (any): Index frequency in case it cannot be parsed from `close`.
@@ -2244,15 +2242,15 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
         if checks.is_any_array(call_seq):
-            call_seq = nb.require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
+            call_seq = require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
         else:
-            call_seq = nb.build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
+            call_seq = build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
         if not np.any(log):
             max_logs = 0
 
         # Perform the simulation
-        func = nb_registry.redecorate_parallel(nb.simulate_from_orders_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.simulate_from_orders_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -2350,7 +2348,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      broadcast_named_args: tp.KwargsLike = None,
                      broadcast_kwargs: tp.KwargsLike = None,
                      template_mapping: tp.Optional[tp.Mapping] = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper_kwargs: tp.KwargsLike = None,
                      freq: tp.Optional[tp.FrequencyLike] = None,
@@ -2547,7 +2545,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 and this method will substitute them by their corresponding broadcasted objects.
             broadcast_kwargs (dict): See `Portfolio.from_orders`.
             template_mapping (mapping): Mapping to replace templates in arguments.
-            nb_parallel (bool): See `Portfolio.from_orders`.
+            jitted (any): See `Portfolio.from_orders`.
             chunked (any): See `Portfolio.from_orders`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
@@ -3217,33 +3215,37 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
         if checks.is_any_array(call_seq):
-            call_seq = nb.require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
+            call_seq = require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
         else:
-            call_seq = nb.build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
+            call_seq = build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
         if not np.any(log):
             max_logs = 0
-        template_mapping = {**broadcasted_args, **dict(
-            target_shape=target_shape_2d,
-            group_lens=cs_group_lens,
-            call_seq=call_seq,
-            init_cash=init_cash,
-            init_position=init_position,
-            cash_deposits=cash_deposits,
-            cash_earnings=cash_earnings,
-            cash_dividends=cash_dividends,
-            adjust_sl_func_nb=adjust_sl_func_nb,
-            adjust_sl_args=adjust_sl_args,
-            adjust_tp_func_nb=adjust_tp_func_nb,
-            adjust_tp_args=adjust_tp_args,
-            use_stops=use_stops,
-            auto_call_seq=auto_call_seq,
-            ffill_val_price=ffill_val_price,
-            update_value=update_value,
-            max_orders=max_orders,
-            max_logs=max_logs,
-            flex_2d=flex_2d,
-            wrapper=wrapper
-        ), **template_mapping}
+        template_mapping = merge_dicts(
+            broadcasted_args,
+            dict(
+                target_shape=target_shape_2d,
+                group_lens=cs_group_lens,
+                call_seq=call_seq,
+                init_cash=init_cash,
+                init_position=init_position,
+                cash_deposits=cash_deposits,
+                cash_earnings=cash_earnings,
+                cash_dividends=cash_dividends,
+                adjust_sl_func_nb=adjust_sl_func_nb,
+                adjust_sl_args=adjust_sl_args,
+                adjust_tp_func_nb=adjust_tp_func_nb,
+                adjust_tp_args=adjust_tp_args,
+                use_stops=use_stops,
+                auto_call_seq=auto_call_seq,
+                ffill_val_price=ffill_val_price,
+                update_value=update_value,
+                max_orders=max_orders,
+                max_logs=max_logs,
+                flex_2d=flex_2d,
+                wrapper=wrapper
+            ),
+            template_mapping
+        )
         adjust_sl_args = deep_substitute(adjust_sl_args, template_mapping, sub_id='adjust_sl_args')
         adjust_tp_args = deep_substitute(adjust_tp_args, template_mapping, sub_id='adjust_tp_args')
         if signal_func_mode:
@@ -3290,8 +3292,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         checks.assert_numba_func(adjust_tp_func_nb)
 
         # Perform the simulation
-        func = nb_registry.redecorate_parallel(nb.simulate_from_signal_func_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.simulate_from_signal_func_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         sim_out = func(
             target_shape=target_shape_2d,
             group_lens=cs_group_lens,  # group only if cash sharing is enabled to speed up
@@ -3531,7 +3533,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         fill_pos_record: tp.Optional[bool] = None,
                         track_value: tp.Optional[bool] = None,
                         row_wise: tp.Optional[bool] = None,
-                        use_numba: tp.Optional[bool] = None,
                         max_orders: tp.Optional[int] = None,
                         max_logs: tp.Optional[int] = None,
                         seed: tp.Optional[int] = None,
@@ -3540,7 +3541,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         broadcast_kwargs: tp.KwargsLike = None,
                         template_mapping: tp.Optional[tp.Mapping] = None,
                         keep_inout_raw: tp.Optional[bool] = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper_kwargs: tp.KwargsLike = None,
                         freq: tp.Optional[tp.FrequencyLike] = None,
@@ -3649,13 +3650,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Disable this to make simulation faster for simple use cases.
             row_wise (bool): Whether to iterate over rows rather than columns/groups.
-            use_numba (bool): Whether to run the main simulation function using Numba.
-
-                !!! note
-                    Disabling it does not disable Numba for other functions.
-                    If neccessary, you should ensure that every other function does not uses Numba as well.
-                    You can do this by using the `py_func` attribute of that function.
-                    Or, you could disable Numba globally by doing `os.environ['NUMBA_DISABLE_JIT'] = '1'`.
             max_orders (int): The max number of order records expected to be filled at each column.
                 Defaults to the number of rows in the broadcasted shape.
 
@@ -3675,10 +3669,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
                 Disable this to be able to edit `segment_mask`, `cash_deposits`, and
                 `cash_earnings` during the simulation.
-            nb_parallel (bool): See `Portfolio.from_orders`.
+            jitted (any): See `Portfolio.from_orders`.
+
+                !!! note
+                    Disabling jitting will not disable jitter (such as Numba) on other functions,
+                    only on the main (simulation) function. If neccessary, you should ensure that every other
+                    function is not compiled as well. For example, when working with Numba, you can do this
+                    by using the `py_func` attribute of that function. Or, you can disable Numba
+                    entirely by running `os.environ['NUMBA_DISABLE_JIT'] = '1'` before importing vectorbt.
 
                 !!! warning
-                    Assumes that groups are independent and there is no data flowing between them.
+                    Parallelization assumes that groups are independent and there is no data flowing between them.
             chunked (any): See `vectorbt.utils.chunking.resolve_chunked_option`.
             wrapper_kwargs (dict): See `Portfolio.from_orders`.
             freq (any): See `Portfolio.from_orders`.
@@ -4062,8 +4063,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             track_value = portfolio_cfg['track_value']
         if row_wise is None:
             row_wise = portfolio_cfg['row_wise']
-        if use_numba is None:
-            use_numba = portfolio_cfg['use_numba']
         if seed is None:
             seed = portfolio_cfg['seed']
         if seed is not None:
@@ -4135,49 +4134,53 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             )
         if not flexible:
             if checks.is_any_array(call_seq):
-                call_seq = nb.require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
+                call_seq = require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
             else:
-                call_seq = nb.build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
-        template_mapping = {**broadcasted_args, **dict(
-            target_shape=target_shape_2d,
-            group_lens=group_lens,
-            cash_sharing=cash_sharing,
-            init_cash=init_cash,
-            init_position=init_position,
-            cash_deposits=cash_deposits,
-            cash_earnings=cash_earnings,
-            segment_mask=segment_mask,
-            call_pre_segment=call_pre_segment,
-            call_post_segment=call_post_segment,
-            pre_sim_func_nb=pre_sim_func_nb,
-            pre_sim_args=pre_sim_args,
-            post_sim_func_nb=post_sim_func_nb,
-            post_sim_args=post_sim_args,
-            pre_group_func_nb=pre_group_func_nb,
-            pre_group_args=pre_group_args,
-            post_group_func_nb=post_group_func_nb,
-            post_group_args=post_group_args,
-            pre_row_func_nb=pre_row_func_nb,
-            pre_row_args=pre_row_args,
-            post_row_func_nb=post_row_func_nb,
-            post_row_args=post_row_args,
-            pre_segment_func_nb=pre_segment_func_nb,
-            pre_segment_args=pre_segment_args,
-            post_segment_func_nb=post_segment_func_nb,
-            post_segment_args=post_segment_args,
-            flex_order_func_nb=order_func_nb,
-            flex_order_args=order_args,
-            post_order_func_nb=post_order_func_nb,
-            post_order_args=post_order_args,
-            ffill_val_price=ffill_val_price,
-            update_value=update_value,
-            fill_pos_record=fill_pos_record,
-            track_value=track_value,
-            max_orders=max_orders,
-            max_logs=max_logs,
-            flex_2d=flex_2d,
-            wrapper=wrapper
-        ), **template_mapping}
+                call_seq = build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
+        template_mapping = merge_dicts(
+            broadcasted_args,
+            dict(
+                target_shape=target_shape_2d,
+                group_lens=group_lens,
+                cash_sharing=cash_sharing,
+                init_cash=init_cash,
+                init_position=init_position,
+                cash_deposits=cash_deposits,
+                cash_earnings=cash_earnings,
+                segment_mask=segment_mask,
+                call_pre_segment=call_pre_segment,
+                call_post_segment=call_post_segment,
+                pre_sim_func_nb=pre_sim_func_nb,
+                pre_sim_args=pre_sim_args,
+                post_sim_func_nb=post_sim_func_nb,
+                post_sim_args=post_sim_args,
+                pre_group_func_nb=pre_group_func_nb,
+                pre_group_args=pre_group_args,
+                post_group_func_nb=post_group_func_nb,
+                post_group_args=post_group_args,
+                pre_row_func_nb=pre_row_func_nb,
+                pre_row_args=pre_row_args,
+                post_row_func_nb=post_row_func_nb,
+                post_row_args=post_row_args,
+                pre_segment_func_nb=pre_segment_func_nb,
+                pre_segment_args=pre_segment_args,
+                post_segment_func_nb=post_segment_func_nb,
+                post_segment_args=post_segment_args,
+                flex_order_func_nb=order_func_nb,
+                flex_order_args=order_args,
+                post_order_func_nb=post_order_func_nb,
+                post_order_args=post_order_args,
+                ffill_val_price=ffill_val_price,
+                update_value=update_value,
+                fill_pos_record=fill_pos_record,
+                track_value=track_value,
+                max_orders=max_orders,
+                max_logs=max_logs,
+                flex_2d=flex_2d,
+                wrapper=wrapper
+            ),
+            template_mapping
+        )
         pre_sim_args = deep_substitute(pre_sim_args, template_mapping, sub_id='pre_sim_args')
         post_sim_args = deep_substitute(post_sim_args, template_mapping, sub_id='post_sim_args')
         pre_group_args = deep_substitute(pre_group_args, template_mapping, sub_id='pre_group_args')
@@ -4190,25 +4193,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         post_order_args = deep_substitute(post_order_args, template_mapping, sub_id='post_order_args')
         for k in broadcast_named_args:
             broadcasted_args.pop(k)
-        if use_numba:
-            checks.assert_numba_func(pre_sim_func_nb)
-            checks.assert_numba_func(post_sim_func_nb)
-            checks.assert_numba_func(pre_group_func_nb)
-            checks.assert_numba_func(post_group_func_nb)
-            checks.assert_numba_func(pre_row_func_nb)
-            checks.assert_numba_func(post_row_func_nb)
-            checks.assert_numba_func(pre_segment_func_nb)
-            checks.assert_numba_func(post_segment_func_nb)
-            checks.assert_numba_func(order_func_nb)
-            checks.assert_numba_func(post_order_func_nb)
 
         # Perform the simulation
         if row_wise:
             if flexible:
-                func = nb.flex_simulate_row_wise_nb
-                if not use_numba and hasattr(func, 'py_func'):
-                    func = func.py_func
-                func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.flex_simulate_row_wise_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
@@ -4249,10 +4239,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_2d=flex_2d
                 )
             else:
-                func = nb.simulate_row_wise_nb
-                if not use_numba and hasattr(func, 'py_func'):
-                    func = func.py_func
-                func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.simulate_row_wise_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
@@ -4295,12 +4283,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 )
         else:
             if flexible:
-                func = nb.flex_simulate_nb
-                if use_numba:
-                    func = nb_registry.redecorate_parallel(func, nb_parallel)
-                elif hasattr(func, 'py_func'):
-                    func = func.py_func
-                func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.flex_simulate_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
@@ -4341,12 +4325,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     flex_2d=flex_2d
                 )
             else:
-                func = nb.simulate_nb
-                if use_numba:
-                    func = nb_registry.redecorate_parallel(func, nb_parallel)
-                elif hasattr(func, 'py_func'):
-                    func = func.py_func
-                func = ch_registry.resolve_chunked(func, chunked)
+                func = jit_registry.resolve_option(nb.simulate_nb, jitted)
+                func = ch_registry.resolve_option(func, chunked)
                 sim_out = func(
                     target_shape=target_shape_2d,
                     group_lens=group_lens,
@@ -4451,7 +4431,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     @class_or_instancemethod
     def get_filled_close(cls_or_self,
                          close: tp.Optional[tp.SeriesFrame] = None,
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4463,8 +4443,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(close)
-        func = nb_registry.redecorate_parallel(nb.fbfill_close_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(generic_nb.fbfill_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         filled_close = func(to_2d_array(close))
         return wrapper.wrap(filled_close, group_by=False, **resolve_dict(wrap_kwargs))
 
@@ -4593,7 +4573,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                    direction: str = 'both',
                    orders: tp.Optional[Orders] = None,
                    init_position: tp.Optional[tp.ArrayLike] = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrapper: tp.Optional[ArrayWrapper] = None,
                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4614,8 +4594,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 wrapper = orders.wrapper
 
         direction = map_enum_fields(direction, Direction)
-        func = nb_registry.redecorate_parallel(nb.asset_flow_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.asset_flow_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         asset_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4630,7 +4610,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                direction: str = 'both',
                asset_flow: tp.Optional[tp.SeriesFrame] = None,
                init_position: tp.Optional[tp.ArrayLike] = None,
-               nb_parallel: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                wrapper: tp.Optional[ArrayWrapper] = None,
                wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4639,7 +4619,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         Returns the current position at each time step."""
         if not isinstance(cls_or_self, type):
             if asset_flow is None:
-                asset_flow = cls_or_self.asset_flow(direction='both', nb_parallel=nb_parallel, chunked=chunked)
+                asset_flow = cls_or_self.asset_flow(direction='both', jitted=jitted, chunked=chunked)
             if init_position is None:
                 init_position = cls_or_self._init_position
             if wrapper is None:
@@ -4651,16 +4631,18 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 wrapper = ArrayWrapper.from_obj(asset_flow)
 
         direction = map_enum_fields(direction, Direction)
-        func = nb_registry.redecorate_parallel(nb.assets_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.assets_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         assets = func(
             to_2d_array(asset_flow),
             init_position=to_1d_array(init_position)
         )
         if direction == Direction.LongOnly:
-            assets = nb.longonly_assets_nb(assets)
+            func = jit_registry.resolve_option(nb.longonly_assets_nb, jitted)
+            assets = func(assets)
         elif direction == Direction.ShortOnly:
-            assets = nb.shortonly_assets_nb(assets)
+            func = jit_registry.resolve_option(nb.shortonly_assets_nb, jitted)
+            assets = func(assets)
         return wrapper.wrap(assets, group_by=False, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
@@ -4668,7 +4650,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                       direction: str = 'both',
                       group_by: tp.GroupByLike = None,
                       assets: tp.Optional[tp.SeriesFrame] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4677,7 +4659,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         An element is True if the asset is in the market at this tick."""
         if not isinstance(cls_or_self, type):
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+                assets = cls_or_self.assets(direction=direction, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -4685,8 +4667,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         position_mask = to_2d_array(assets) != 0
         if wrapper.grouper.is_grouped(group_by=group_by):
-            position_mask = wrapper.wrap(position_mask, group_by=False).vbt(wrapper=wrapper).squeeze_grouped(
-                generic_nb.any_reduce_nb, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            position_mask = wrapper.wrap(position_mask, group_by=False) \
+                .vbt(wrapper=wrapper) \
+                .squeeze_grouped(
+                jit_registry.resolve_option(generic_nb.any_reduce_nb, jitted),
+                group_by=group_by,
+                jitted=jitted,
+                chunked=chunked
+            )
         return wrapper.wrap(position_mask, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
@@ -4694,7 +4682,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                           direction: str = 'both',
                           group_by: tp.GroupByLike = None,
                           position_mask: tp.Optional[tp.SeriesFrame] = None,
-                          nb_parallel: tp.Optional[bool] = None,
+                          jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
                           wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4702,14 +4690,20 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if position_mask is None:
                 position_mask = cls_or_self.position_mask(
-                    direction=direction, nb_parallel=nb_parallel, chunked=chunked, group_by=False)
+                    direction=direction, jitted=jitted, chunked=chunked, group_by=False)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(position_mask)
 
-        position_coverage = position_mask.vbt(wrapper=wrapper).reduce(
-            generic_nb.mean_reduce_nb, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        position_coverage = position_mask \
+            .vbt(wrapper=wrapper) \
+            .reduce(
+            jit_registry.resolve_option(generic_nb.mean_reduce_nb, jitted),
+            group_by=group_by,
+            jitted=jitted,
+            chunked=chunked
+        )
         wrap_kwargs = merge_dicts(dict(name_or_index='position_coverage'), wrap_kwargs)
         return wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
 
@@ -4722,7 +4716,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                       cash_sharing: tp.Optional[bool] = None,
                       cash_flow: tp.Optional[tp.SeriesFrame] = None,
                       split_shared: bool = False,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -4741,18 +4735,20 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if not isinstance(cls_or_self, type):
                 if cash_flow is None:
                     cash_flow = cls_or_self.cash_flow(
-                        group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-            func = nb_registry.redecorate_parallel(nb.align_init_cash_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+                        group_by=group_by, jitted=jitted, chunked=chunked)
+            func = jit_registry.resolve_option(nb.align_init_cash_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             init_cash = func(init_cash_raw, to_2d_array(cash_flow))
         else:
             init_cash_raw = to_1d_array(init_cash_raw)
             if wrapper.grouper.is_grouped(group_by=group_by):
                 group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-                init_cash = nb.init_cash_grouped_nb(init_cash_raw, group_lens, cash_sharing)
+                func = jit_registry.resolve_option(nb.init_cash_grouped_nb, jitted)
+                init_cash = func(init_cash_raw, group_lens, cash_sharing)
             else:
                 group_lens = wrapper.grouper.get_group_lens()
-                init_cash = nb.init_cash_nb(init_cash_raw, group_lens, cash_sharing, split_shared=split_shared)
+                func = jit_registry.resolve_option(nb.init_cash_nb, jitted)
+                init_cash = func(init_cash_raw, group_lens, cash_sharing, split_shared=split_shared)
         wrap_kwargs = merge_dicts(dict(name_or_index='init_cash'), wrap_kwargs)
         return wrapper.wrap_reduced(init_cash, group_by=group_by, **wrap_kwargs)
 
@@ -4769,7 +4765,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                           split_shared: bool = False,
                           flex_2d: bool = False,
                           keep_raw: bool = False,
-                          nb_parallel: tp.Optional[bool] = None,
+                          jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
                           wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.ArrayLike:
@@ -4793,8 +4789,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if keep_raw and cash_sharing:
                 return cash_deposits_raw
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.cash_deposits_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.cash_deposits_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash_deposits = func(
                 wrapper.shape_2d,
                 cash_deposits_raw,
@@ -4806,8 +4802,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if keep_raw and not cash_sharing:
                 return cash_deposits_raw
             group_lens = wrapper.grouper.get_group_lens()
-            func = nb_registry.redecorate_parallel(nb.cash_deposits_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.cash_deposits_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash_deposits = func(
                 wrapper.shape_2d,
                 cash_deposits_raw,
@@ -4831,7 +4827,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                           cash_earnings_raw: tp.Optional[tp.ArrayLike] = None,
                           flex_2d: bool = False,
                           keep_raw: bool = False,
-                          nb_parallel: tp.Optional[bool] = None,
+                          jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
                           wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.ArrayLike:
@@ -4852,8 +4848,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if wrapper.grouper.is_grouped(group_by=group_by):
             cash_earnings = np.broadcast_to(cash_earnings_raw, wrapper.shape_2d)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.sum_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash_earnings = func(cash_earnings, group_lens)
         else:
             if keep_raw:
@@ -4875,7 +4871,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                   orders: tp.Optional[Orders] = None,
                   cash_earnings: tp.Optional[tp.ArrayLike] = None,
                   flex_2d: bool = False,
-                  nb_parallel: tp.Optional[bool] = None,
+                  jitted: tp.JittedOption = None,
                   chunked: tp.ChunkedOption = None,
                   wrapper: tp.Optional[ArrayWrapper] = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4899,8 +4895,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = orders.wrapper
 
-        func = nb_registry.redecorate_parallel(nb.cash_flow_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.cash_flow_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         cash_flow = func(
             wrapper.shape_2d,
             orders.values,
@@ -4911,8 +4907,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.sum_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash_flow = func(cash_flow, group_lens)
         return wrapper.wrap(cash_flow, group_by=group_by, **resolve_dict(wrap_kwargs))
 
@@ -4925,7 +4921,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
              cash_deposits: tp.Optional[tp.ArrayLike] = None,
              cash_flow: tp.Optional[tp.SeriesFrame] = None,
              flex_2d: bool = False,
-             nb_parallel: tp.Optional[bool] = None,
+             jitted: tp.JittedOption = None,
              chunked: tp.ChunkedOption = None,
              wrapper: tp.Optional[ArrayWrapper] = None,
              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -4937,7 +4933,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 cash_sharing = cls_or_self.cash_sharing
             if cash_flow is None:
                 cash_flow = cls_or_self.cash_flow(
-                    group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, free=free, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -4948,13 +4944,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
                     init_cash = cls_or_self.get_init_cash(
-                        group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                        group_by=group_by, jitted=jitted, chunked=chunked)
                 if cash_deposits is None:
                     cash_deposits = cls_or_self.get_cash_deposits(
-                        group_by=group_by, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
+                        group_by=group_by, jitted=jitted, chunked=chunked, keep_raw=True)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.cash_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.cash_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash = func(
                 wrapper.shape_2d,
                 to_2d_array(cash_flow),
@@ -4967,12 +4963,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if not isinstance(cls_or_self, type):
                 if init_cash is None:
                     init_cash = cls_or_self.get_init_cash(
-                        group_by=False, nb_parallel=nb_parallel, chunked=chunked)
+                        group_by=False, jitted=jitted, chunked=chunked)
                 if cash_deposits is None:
                     cash_deposits = cls_or_self.get_cash_deposits(
-                        group_by=False, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
-            func = nb_registry.redecorate_parallel(nb.cash_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+                        group_by=False, jitted=jitted, chunked=chunked, keep_raw=True)
+            func = jit_registry.resolve_option(nb.cash_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             cash = func(
                 to_2d_array(cash_flow),
                 to_1d_array(init_cash),
@@ -4987,6 +4983,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def get_init_position_value(cls_or_self,
                                 close: tp.Optional[tp.SeriesFrame] = None,
                                 init_position: tp.Optional[tp.ArrayLike] = None,
+                                jitted: tp.JittedOption = None,
                                 wrapper: tp.Optional[ArrayWrapper] = None,
                                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get initial position value per column/group."""
@@ -5006,10 +5003,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = ArrayWrapper.from_obj(close)
 
-        init_position_value = nb.init_position_value_nb(
-            to_2d_array(close),
-            init_position=to_1d_array(init_position)
-        )
+        func = jit_registry.resolve_option(nb.init_position_value_nb, jitted)
+        init_position_value = func(to_2d_array(close), init_position=to_1d_array(init_position))
         wrap_kwargs = merge_dicts(dict(name_or_index='init_position_value'), wrap_kwargs)
         return wrapper.wrap_reduced(init_position_value, group_by=False, **wrap_kwargs)
 
@@ -5024,7 +5019,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                        init_position_value: tp.Optional[tp.MaybeSeries] = None,
                        init_cash: tp.Optional[tp.MaybeSeries] = None,
                        split_shared: bool = False,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -5034,19 +5029,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 init_position_value = cls_or_self.init_position_value
             if init_cash is None:
                 init_cash = cls_or_self.get_init_cash(
-                    group_by=group_by, split_shared=split_shared, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, split_shared=split_shared, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            init_value = nb.init_value_grouped_nb(
+            func = jit_registry.resolve_option(nb.init_value_grouped_nb, jitted)
+            init_value = func(
                 group_lens,
                 to_1d_array(init_position_value),
                 to_1d_array(init_cash)
             )
         else:
-            init_value = nb.init_value_nb(
+            func = jit_registry.resolve_option(nb.init_value_nb, jitted)
+            init_value = func(
                 to_1d_array(init_position_value),
                 to_1d_array(init_cash)
             )
@@ -5065,14 +5062,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         init_value: tp.Optional[tp.MaybeSeries] = None,
                         cash_deposits_raw: tp.Optional[tp.ArrayLike] = None,
                         split_shared: bool = False,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total input value per column/group."""
         if not isinstance(cls_or_self, type):
             if init_value is None:
-                init_value = cls_or_self.get_init_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                init_value = cls_or_self.get_init_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if cash_deposits_raw is None:
                 cash_deposits_raw = cls_or_self._cash_deposits
             if cash_sharing is None:
@@ -5087,10 +5084,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         cash_deposits_sum = cash_deposits_raw.sum(axis=0)
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            input_value = nb.init_cash_grouped_nb(cash_deposits_sum, group_lens, cash_sharing)
+            func = jit_registry.resolve_option(nb.init_cash_grouped_nb, jitted)
+            input_value = func(cash_deposits_sum, group_lens, cash_sharing)
         else:
             group_lens = wrapper.grouper.get_group_lens()
-            input_value = nb.init_cash_nb(cash_deposits_sum, group_lens, cash_sharing, split_shared=split_shared)
+            func = jit_registry.resolve_option(nb.init_cash_nb, jitted)
+            input_value = func(cash_deposits_sum, group_lens, cash_sharing, split_shared=split_shared)
         input_value += to_1d_array(init_value)
         wrap_kwargs = merge_dicts(dict(name_or_index='input_value'), wrap_kwargs)
         return wrapper.wrap_reduced(input_value, group_by=group_by, **wrap_kwargs)
@@ -5106,7 +5105,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     group_by: tp.GroupByLike = None,
                     close: tp.Optional[tp.SeriesFrame] = None,
                     assets: tp.Optional[tp.SeriesFrame] = None,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     wrapper: tp.Optional[ArrayWrapper] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5118,7 +5117,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 else:
                     close = cls_or_self.close
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+                assets = cls_or_self.assets(direction=direction, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5127,11 +5126,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         close = to_2d_array(close).copy()
         assets = to_2d_array(assets)
         close[assets == 0] = 0.  # for price being NaN
-        asset_value = nb.asset_value_nb(close, assets)
+        func = jit_registry.resolve_option(nb.asset_value_nb, jitted)
+        asset_value = func(close, assets)
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.sum_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.sum_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             asset_value = func(asset_value, group_lens)
         return wrapper.wrap(asset_value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
@@ -5141,7 +5141,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                        group_by: tp.GroupByLike = None,
                        asset_value: tp.Optional[tp.SeriesFrame] = None,
                        free_cash: tp.Optional[tp.SeriesFrame] = None,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5149,17 +5149,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if asset_value is None:
                 asset_value = cls_or_self.asset_value(
-                    group_by=group_by, direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, direction=direction, jitted=jitted, chunked=chunked)
             if free_cash is None:
                 free_cash = cls_or_self.cash(
-                    group_by=group_by, free=True, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, free=True, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(asset_value)
 
-        func = nb_registry.redecorate_parallel(nb.gross_exposure_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.gross_exposure_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
         return wrapper.wrap(gross_exposure, group_by=group_by, **resolve_dict(wrap_kwargs))
 
@@ -5168,7 +5168,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      group_by: tp.GroupByLike = None,
                      long_exposure: tp.Optional[tp.SeriesFrame] = None,
                      short_exposure: tp.Optional[tp.SeriesFrame] = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5176,10 +5176,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if long_exposure is None:
                 long_exposure = cls_or_self.gross_exposure(
-                    direction='longonly', group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    direction='longonly', group_by=group_by, jitted=jitted, chunked=chunked)
             if short_exposure is None:
                 short_exposure = cls_or_self.gross_exposure(
-                    direction='shortonly', group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    direction='shortonly', group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5193,7 +5193,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
               group_by: tp.GroupByLike = None,
               cash: tp.Optional[tp.SeriesFrame] = None,
               asset_value: tp.Optional[tp.SeriesFrame] = None,
-              nb_parallel: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               wrapper: tp.Optional[ArrayWrapper] = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5205,16 +5205,17 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if cash is None:
                 cash = cls_or_self.cash(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if asset_value is None:
                 asset_value = cls_or_self.asset_value(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(cash)
 
-        value = nb.value_nb(to_2d_array(cash), to_2d_array(asset_value))
+        func = jit_registry.resolve_option(nb.value_nb, jitted)
+        value = func(to_2d_array(cash), to_2d_array(asset_value))
         return wrapper.wrap(value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
     @class_or_instancemethod
@@ -5225,7 +5226,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      init_position: tp.Optional[tp.ArrayLike] = None,
                      cash_earnings: tp.Optional[tp.ArrayLike] = None,
                      flex_2d: bool = False,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
@@ -5256,8 +5257,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = orders.wrapper
 
-        func = nb_registry.redecorate_parallel(nb.total_profit_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.total_profit_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         total_profit = func(
             wrapper.shape_2d,
             to_2d_array(close),
@@ -5269,7 +5270,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         if wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            total_profit = nb.total_profit_grouped_nb(total_profit, group_lens)
+            func = jit_registry.resolve_option(nb.total_profit_grouped_nb, jitted)
+            total_profit = func(total_profit, group_lens)
         wrap_kwargs = merge_dicts(dict(name_or_index='total_profit'), wrap_kwargs)
         return wrapper.wrap_reduced(total_profit, group_by=group_by, **wrap_kwargs)
 
@@ -5278,16 +5280,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                     group_by: tp.GroupByLike = None,
                     input_value: tp.Optional[tp.MaybeSeries] = None,
                     total_profit: tp.Optional[tp.MaybeSeries] = None,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     wrapper: tp.Optional[ArrayWrapper] = None,
                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total profit per column/group."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
-                input_value = cls_or_self.get_input_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                total_profit = cls_or_self.total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -5300,16 +5302,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      group_by: tp.GroupByLike = None,
                      input_value: tp.Optional[tp.MaybeSeries] = None,
                      total_profit: tp.Optional[tp.MaybeSeries] = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total return per column/group."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
-                input_value = cls_or_self.get_input_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                total_profit = cls_or_self.total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -5324,7 +5326,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 cash_deposits: tp.Optional[tp.ArrayLike] = None,
                 value: tp.Optional[tp.SeriesFrame] = None,
                 flex_2d: bool = False,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrapper: tp.Optional[ArrayWrapper] = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5332,13 +5334,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if init_value is None:
                 init_value = cls_or_self.get_init_value(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if cash_deposits is None:
                 cash_deposits = cls_or_self.get_cash_deposits(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
+                    group_by=group_by, jitted=jitted, chunked=chunked, keep_raw=True)
             if value is None:
                 value = cls_or_self.value(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -5347,8 +5349,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = ArrayWrapper.from_obj(value)
 
-        func = nb_registry.redecorate_parallel(nb.returns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.returns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         returns = func(
             to_2d_array(value),
             to_1d_array(init_value),
@@ -5363,7 +5365,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                       init_position_value: tp.Optional[tp.MaybeSeries] = None,
                       asset_value: tp.Optional[tp.SeriesFrame] = None,
                       cash_flow: tp.Optional[tp.SeriesFrame] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5377,16 +5379,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if init_position_value is None:
                 init_position_value = cls_or_self.init_position_value
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                asset_value = cls_or_self.asset_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                cash_flow = cls_or_self.cash_flow(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
             wrapper = ArrayWrapper.from_obj(cash_flow)
 
-        func = nb_registry.redecorate_parallel(nb.asset_returns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.asset_returns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         asset_returns = func(
             to_1d_array(init_position_value),
             to_2d_array(asset_value),
@@ -5401,7 +5403,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                      init_value: tp.Optional[tp.MaybeSeries] = None,
                      cash_deposits: tp.Optional[tp.ArrayLike] = None,
                      flex_2d: bool = False,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrapper: tp.Optional[ArrayWrapper] = None,
                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5429,13 +5431,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if not isinstance(cls_or_self, type):
                 if init_value is None:
                     init_value = cls_or_self.get_init_value(
-                        group_by=False, split_shared=True, nb_parallel=nb_parallel, chunked=chunked)
+                        group_by=False, split_shared=True, jitted=jitted, chunked=chunked)
                 if cash_deposits is None:
                     cash_deposits = cls_or_self.get_cash_deposits(
-                        group_by=False, split_shared=True, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
+                        group_by=False, split_shared=True, jitted=jitted, chunked=chunked, keep_raw=True)
             group_lens = wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.market_value_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.market_value_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             market_value = func(
                 to_2d_array(close),
                 group_lens,
@@ -5447,12 +5449,12 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if not isinstance(cls_or_self, type):
                 if init_value is None:
                     init_value = cls_or_self.get_init_value(
-                        group_by=False, nb_parallel=nb_parallel, chunked=chunked)
+                        group_by=False, jitted=jitted, chunked=chunked)
                 if cash_deposits is None:
                     cash_deposits = cls_or_self.get_cash_deposits(
-                        group_by=False, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
-            func = nb_registry.redecorate_parallel(nb.market_value_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+                        group_by=False, jitted=jitted, chunked=chunked, keep_raw=True)
+            func = jit_registry.resolve_option(nb.market_value_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             market_value = func(
                 to_2d_array(close),
                 to_1d_array(init_value),
@@ -5468,7 +5470,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                        cash_deposits: tp.Optional[tp.ArrayLike] = None,
                        market_value: tp.Optional[tp.SeriesFrame] = None,
                        flex_2d: bool = False,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -5476,13 +5478,13 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if init_value is None:
                 init_value = cls_or_self.get_init_value(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if cash_deposits is None:
                 cash_deposits = cls_or_self.get_cash_deposits(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked, keep_raw=True)
+                    group_by=group_by, jitted=jitted, chunked=chunked, keep_raw=True)
             if market_value is None:
                 market_value = cls_or_self.market_value(
-                    group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                    group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         else:
@@ -5491,8 +5493,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if wrapper is None:
                 wrapper = ArrayWrapper.from_obj(market_value)
 
-        func = nb_registry.redecorate_parallel(nb.returns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.returns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         market_returns = func(
             to_2d_array(market_value),
             to_1d_array(init_value),
@@ -5508,16 +5510,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                             group_by: tp.GroupByLike = None,
                             input_value: tp.Optional[tp.MaybeSeries] = None,
                             market_value: tp.Optional[tp.SeriesFrame] = None,
-                            nb_parallel: tp.Optional[bool] = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             wrapper: tp.Optional[ArrayWrapper] = None,
                             wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total market return."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
-                input_value = cls_or_self.get_input_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if market_value is None:
-                market_value = cls_or_self.market_value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+                market_value = cls_or_self.market_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5541,7 +5543,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         year_freq: tp.Optional[tp.FrequencyLike] = None,
                         use_asset_returns: bool = False,
                         defaults: tp.KwargsLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         **kwargs) -> ReturnsAccessor:
         """Get returns accessor of type `vectorbt.returns.accessors.ReturnsAccessor`.
@@ -5551,11 +5553,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if freq is None:
             freq = self.wrapper.freq
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            returns = self.asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
-            returns = self.returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            returns = self.returns(group_by=group_by, jitted=jitted, chunked=chunked)
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            benchmark_rets = self.market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         return returns.vbt.returns(
             benchmark_rets=benchmark_rets,
             freq=freq,
@@ -5575,7 +5577,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                freq: tp.Optional[tp.FrequencyLike] = None,
                year_freq: tp.Optional[tp.FrequencyLike] = None,
                use_asset_returns: bool = False,
-               nb_parallel: tp.Optional[bool] = None,
+               jitted: tp.JittedOption = None,
                chunked: tp.ChunkedOption = None,
                **kwargs) -> QSAdapterT:
         """Get quantstats adapter of type `vectorbt.returns.qs_adapter.QSAdapter`.
@@ -5589,7 +5591,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             freq=freq,
             year_freq=year_freq,
             use_asset_returns=use_asset_returns,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked
         )
         return QSAdapter(returns_acc, **kwargs)
@@ -5892,7 +5894,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_asset_flow(self,
                         column: tp.Optional[tp.Label] = None,
                         direction: str = 'both',
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         xref: str = 'x',
                         yref: str = 'y',
@@ -5912,7 +5914,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        asset_flow = self.asset_flow(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+        asset_flow = self.asset_flow(direction=direction, jitted=jitted, chunked=chunked)
         asset_flow = self.select_one_from_obj(asset_flow, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -5942,7 +5944,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_cash_flow(self,
                        column: tp.Optional[tp.Label] = None,
                        group_by: tp.GroupByLike = None,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        free: bool = False,
                        xref: str = 'x',
@@ -5964,7 +5966,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        cash_flow = self.cash_flow(group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
+        cash_flow = self.cash_flow(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
         cash_flow = self.select_one_from_obj(cash_flow, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -5994,7 +5996,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_assets(self,
                     column: tp.Optional[tp.Label] = None,
                     direction: str = 'both',
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     xref: str = 'x',
                     yref: str = 'y',
@@ -6014,7 +6016,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        assets = self.assets(direction=direction, nb_parallel=nb_parallel, chunked=chunked)
+        assets = self.assets(direction=direction, jitted=jitted, chunked=chunked)
         assets = self.select_one_from_obj(assets, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6051,7 +6053,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_cash(self,
                   column: tp.Optional[tp.Label] = None,
                   group_by: tp.GroupByLike = None,
-                  nb_parallel: tp.Optional[bool] = None,
+                  jitted: tp.JittedOption = None,
                   chunked: tp.ChunkedOption = None,
                   free: bool = False,
                   xref: str = 'x',
@@ -6073,9 +6075,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        init_cash = self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        init_cash = self.get_init_cash(group_by=group_by, jitted=jitted, chunked=chunked)
         init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        cash = self.cash(group_by=group_by, free=free, nb_parallel=nb_parallel, chunked=chunked)
+        cash = self.cash(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
         cash = self.select_one_from_obj(cash, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6113,7 +6115,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          column: tp.Optional[tp.Label] = None,
                          group_by: tp.GroupByLike = None,
                          direction: str = 'both',
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          xref: str = 'x',
                          yref: str = 'y',
@@ -6135,7 +6137,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         asset_value = self.asset_value(
-            direction=direction, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            direction=direction, group_by=group_by, jitted=jitted, chunked=chunked)
         asset_value = self.select_one_from_obj(asset_value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6172,7 +6174,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_value(self,
                    column: tp.Optional[tp.Label] = None,
                    group_by: tp.GroupByLike = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    xref: str = 'x',
                    yref: str = 'y',
@@ -6193,9 +6195,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        init_cash = self.get_init_cash(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        init_cash = self.get_init_cash(group_by=group_by, jitted=jitted, chunked=chunked)
         init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        value = self.value(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        value = self.value(group_by=group_by, jitted=jitted, chunked=chunked)
         value = self.select_one_from_obj(value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6228,7 +6230,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          group_by: tp.GroupByLike = None,
                          benchmark_rets: tp.Optional[tp.ArrayLike] = None,
                          use_asset_returns: bool = False,
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          **kwargs) -> tp.BaseFigure:  # pragma: no cover
         """Plot one column/group of cumulative returns.
@@ -6246,14 +6248,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            benchmark_rets = self.market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
             benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         benchmark_rets = self.select_one_from_obj(benchmark_rets, self.wrapper.regroup(group_by), column=column)
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            returns = self.asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
-            returns = self.returns(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            returns = self.returns(group_by=group_by, jitted=jitted, chunked=chunked)
         returns = self.select_one_from_obj(returns, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             benchmark_rets=benchmark_rets,
@@ -6302,7 +6304,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_underwater(self,
                         column: tp.Optional[tp.Label] = None,
                         group_by: tp.GroupByLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         xref: str = 'x',
                         yref: str = 'y',
@@ -6322,7 +6324,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        drawdown = self.drawdown(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        drawdown = self.drawdown(group_by=group_by, jitted=jitted, chunked=chunked)
         drawdown = self.select_one_from_obj(drawdown, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6357,7 +6359,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                             column: tp.Optional[tp.Label] = None,
                             group_by: tp.GroupByLike = None,
                             direction: str = 'both',
-                            nb_parallel: tp.Optional[bool] = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             xref: str = 'x',
                             yref: str = 'y',
@@ -6379,7 +6381,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         gross_exposure = self.gross_exposure(
-            direction=direction, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+            direction=direction, group_by=group_by, jitted=jitted, chunked=chunked)
         gross_exposure = self.select_one_from_obj(gross_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6416,7 +6418,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def plot_net_exposure(self,
                           column: tp.Optional[tp.Label] = None,
                           group_by: tp.GroupByLike = None,
-                          nb_parallel: tp.Optional[bool] = None,
+                          jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
                           xref: str = 'x',
                           yref: str = 'y',
@@ -6436,7 +6438,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        net_exposure = self.net_exposure(group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        net_exposure = self.net_exposure(group_by=group_by, jitted=jitted, chunked=chunked)
         net_exposure = self.select_one_from_obj(net_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(

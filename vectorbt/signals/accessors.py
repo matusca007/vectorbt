@@ -200,7 +200,7 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.accessors import GenericAccessor, GenericSRAccessor, GenericDFAccessor
 from vectorbt.generic.ranges import Ranges
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.signals import nb
@@ -265,7 +265,7 @@ class SignalsAccessor(GenericAccessor):
                  broadcast_named_args: tp.KwargsLike = None,
                  broadcast_kwargs: tp.KwargsLike = None,
                  template_mapping: tp.Optional[tp.Mapping] = None,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrapper: tp.Optional[ArrayWrapper] = None,
                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
@@ -313,8 +313,8 @@ class SignalsAccessor(GenericAccessor):
             template_mapping
         )
         args = deep_substitute(args, template_mapping, sub_id='args')
-        func = nb_registry.redecorate_parallel(nb.generate_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.generate_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         result = func(shape_2d, place_func_nb, *args)
 
         if wrapper is None:
@@ -337,7 +337,7 @@ class SignalsAccessor(GenericAccessor):
                       broadcast_named_args: tp.KwargsLike = None,
                       broadcast_kwargs: tp.KwargsLike = None,
                       template_mapping: tp.Optional[tp.Mapping] = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrapper: tp.Optional[ArrayWrapper] = None,
                       wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
@@ -451,8 +451,8 @@ class SignalsAccessor(GenericAccessor):
         )
         entry_args = deep_substitute(entry_args, template_mapping, sub_id='entry_args')
         exit_args = deep_substitute(exit_args, template_mapping, sub_id='exit_args')
-        func = nb_registry.redecorate_parallel(nb.generate_enex_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.generate_enex_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         result1, result2 = func(
             shape_2d,
             entry_wait,
@@ -476,7 +476,7 @@ class SignalsAccessor(GenericAccessor):
                        broadcast_named_args: tp.KwargsLike = None,
                        broadcast_kwargs: tp.KwargsLike = None,
                        template_mapping: tp.Optional[tp.Mapping] = None,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """See `vectorbt.signals.nb.generate_ex_nb`.
@@ -523,8 +523,8 @@ class SignalsAccessor(GenericAccessor):
             template_mapping
         )
         args = deep_substitute(args, template_mapping, sub_id='args')
-        func = nb_registry.redecorate_parallel(nb.generate_ex_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.generate_ex_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         exits = func(
             obj,
             wait,
@@ -542,7 +542,7 @@ class SignalsAccessor(GenericAccessor):
               *args,
               entry_first: bool = True,
               broadcast_kwargs: tp.KwargsLike = None,
-              nb_parallel: tp.Optional[bool] = None,
+              jitted: tp.JittedOption = None,
               chunked: tp.ChunkedOption = None,
               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeTuple[tp.SeriesFrame]:
         """Clean signals.
@@ -557,13 +557,13 @@ class SignalsAccessor(GenericAccessor):
             obj = args[0]
             if not isinstance(obj, (pd.Series, pd.DataFrame)):
                 obj = ArrayWrapper.from_obj(obj).wrap(obj)
-            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, nb_parallel=nb_parallel, chunked=chunked)
+            return obj.vbt.signals.first(wrap_kwargs=wrap_kwargs, jitted=jitted, chunked=chunked)
         if len(args) == 2:
             if broadcast_kwargs is None:
                 broadcast_kwargs = {}
             entries, exits = reshaping.broadcast(*args, **broadcast_kwargs)
-            func = nb_registry.redecorate_parallel(nb.clean_enex_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.clean_enex_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             entries_out, exits_out = func(
                 reshaping.to_2d_array(entries),
                 reshaping.to_2d_array(exits),
@@ -584,6 +584,7 @@ class SignalsAccessor(GenericAccessor):
                         prob: tp.Optional[tp.ArrayLike] = None,
                         pick_first: bool = False,
                         seed: tp.Optional[int] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         **kwargs) -> tp.SeriesFrame:
         """Generate signals randomly.
@@ -656,7 +657,9 @@ class SignalsAccessor(GenericAccessor):
             )
             return cls.generate(
                 shape,
-                nb.rand_place_nb, n,
+                jit_registry.resolve_option(nb.rand_place_nb, jitted),
+                n,
+                jitted=jitted,
                 chunked=chunked,
                 **kwargs
             )
@@ -673,7 +676,9 @@ class SignalsAccessor(GenericAccessor):
             )
             return cls.generate(
                 shape,
-                nb.rand_by_prob_place_nb, prob, pick_first, flex_2d,
+                jit_registry.resolve_option(nb.rand_by_prob_place_nb, jitted),
+                prob, pick_first, flex_2d,
+                jitted=jitted,
                 chunked=chunked,
                 **kwargs
             )
@@ -690,7 +695,7 @@ class SignalsAccessor(GenericAccessor):
                              exit_wait: int = 1,
                              entry_pick_first: bool = True,
                              exit_pick_first: bool = True,
-                             nb_parallel: tp.Optional[bool] = None,
+                             jitted: tp.JittedOption = None,
                              chunked: tp.ChunkedOption = None,
                              wrapper: tp.Optional[ArrayWrapper] = None,
                              wrap_kwargs: tp.KwargsLike = None) -> tp.Tuple[tp.SeriesFrame, tp.SeriesFrame]:
@@ -767,8 +772,8 @@ class SignalsAccessor(GenericAccessor):
             set_seed_nb(seed)
         if n is not None:
             n = np.broadcast_to(n, (shape_2d[1],))
-            func = nb_registry.redecorate_parallel(nb.generate_rand_enex_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.generate_rand_enex_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             entries, exits = func(shape_2d, n, entry_wait, exit_wait)
             if wrapper is None:
                 wrapper = ArrayWrapper.from_shape(shape_2d, ndim=cls.ndim)
@@ -796,13 +801,13 @@ class SignalsAccessor(GenericAccessor):
             )
             return cls.generate_both(
                 shape,
-                entry_place_func_nb=nb.rand_by_prob_place_nb,
+                entry_place_func_nb=jit_registry.resolve_option(nb.rand_by_prob_place_nb, jitted),
                 entry_args=(
                     entry_prob,
                     entry_pick_first,
                     flex_2d
                 ),
-                exit_place_func_nb=nb.rand_by_prob_place_nb,
+                exit_place_func_nb=jit_registry.resolve_option(nb.rand_by_prob_place_nb, jitted),
                 exit_args=(
                     exit_prob,
                     exit_pick_first,
@@ -812,7 +817,7 @@ class SignalsAccessor(GenericAccessor):
                 exit_wait=exit_wait,
                 max_one_entry=entry_pick_first,
                 max_one_exit=exit_pick_first,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked,
                 wrapper=wrapper,
                 wrap_kwargs=wrap_kwargs
@@ -826,6 +831,7 @@ class SignalsAccessor(GenericAccessor):
                               until_next: bool = True,
                               skip_until_exit: bool = False,
                               broadcast_kwargs: tp.KwargsLike = None,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               wrap_kwargs: tp.KwargsLike = None,
                               **kwargs) -> tp.SeriesFrame:
@@ -880,10 +886,12 @@ class SignalsAccessor(GenericAccessor):
                 ))
             )
             return obj.vbt.signals.generate_exits(
-                nb.rand_by_prob_place_nb, prob, True, flex_2d,
+                jit_registry.resolve_option(nb.rand_by_prob_place_nb, jitted),
+                prob, True, flex_2d,
                 wait=wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
@@ -896,10 +904,12 @@ class SignalsAccessor(GenericAccessor):
             ))
         )
         return self.generate_exits(
-            nb.rand_place_nb, n,
+            jit_registry.resolve_option(nb.rand_place_nb, jitted),
+            n,
             wait=wait,
             until_next=until_next,
             skip_until_exit=skip_until_exit,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -918,6 +928,7 @@ class SignalsAccessor(GenericAccessor):
                             pick_first: bool = True,
                             chain: bool = False,
                             broadcast_kwargs: tp.KwargsLike = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             wrap_kwargs: tp.KwargsLike = None,
                             **kwargs) -> tp.MaybeTuple[tp.SeriesFrame]:
@@ -999,9 +1010,9 @@ class SignalsAccessor(GenericAccessor):
             )
             return cls.generate_both(
                 entries.shape,
-                entry_place_func_nb=nb.first_place_nb,
+                entry_place_func_nb=jit_registry.resolve_option(nb.first_place_nb, jitted),
                 entry_args=(entries_arr,),
-                exit_place_func_nb=nb.stop_place_nb,
+                exit_place_func_nb=jit_registry.resolve_option(nb.stop_place_nb, jitted),
                 exit_args=(
                     ts,
                     stop,
@@ -1015,6 +1026,7 @@ class SignalsAccessor(GenericAccessor):
                 max_one_entry=True,
                 max_one_exit=pick_first,
                 wrapper=wrapper,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
@@ -1036,7 +1048,7 @@ class SignalsAccessor(GenericAccessor):
             if skip_until_exit and until_next:
                 warnings.warn("skip_until_exit=True has only effect when until_next=False", stacklevel=2)
             return entries.vbt.signals.generate_exits(
-                nb.stop_place_nb,
+                jit_registry.resolve_option(nb.stop_place_nb, jitted),
                 ts,
                 stop,
                 trailing,
@@ -1046,6 +1058,7 @@ class SignalsAccessor(GenericAccessor):
                 wait=exit_wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
@@ -1069,6 +1082,7 @@ class SignalsAccessor(GenericAccessor):
                                  pick_first: bool = True,
                                  chain: bool = False,
                                  broadcast_kwargs: tp.KwargsLike = None,
+                                 jitted: tp.JittedOption = None,
                                  chunked: tp.ChunkedOption = None,
                                  wrap_kwargs: tp.KwargsLike = None,
                                  **kwargs) -> tp.MaybeTuple[tp.SeriesFrame]:
@@ -1307,9 +1321,9 @@ class SignalsAccessor(GenericAccessor):
             )
             new_entries, exits = cls.generate_both(
                 entries.shape,
-                entry_place_func_nb=nb.first_place_nb,
+                entry_place_func_nb=jit_registry.resolve_option(nb.first_place_nb, jitted),
                 entry_args=(entries_arr,),
-                exit_place_func_nb=nb.ohlc_stop_place_nb,
+                exit_place_func_nb=jit_registry.resolve_option(nb.ohlc_stop_place_nb, jitted),
                 exit_args=(
                     open,
                     high,
@@ -1331,6 +1345,7 @@ class SignalsAccessor(GenericAccessor):
                 max_one_entry=True,
                 max_one_exit=pick_first,
                 wrapper=wrapper,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
@@ -1363,7 +1378,7 @@ class SignalsAccessor(GenericAccessor):
                 )
             )
             exits = entries.vbt.signals.generate_exits(
-                nb.ohlc_stop_place_nb,
+                jit_registry.resolve_option(nb.ohlc_stop_place_nb, jitted),
                 open,
                 high,
                 low,
@@ -1381,6 +1396,7 @@ class SignalsAccessor(GenericAccessor):
                 wait=exit_wait,
                 until_next=until_next,
                 skip_until_exit=skip_until_exit,
+                jitted=jitted,
                 chunked=chunked,
                 wrap_kwargs=wrap_kwargs,
                 **kwargs
@@ -1398,7 +1414,7 @@ class SignalsAccessor(GenericAccessor):
                        group_by: tp.GroupByLike = None,
                        attach_ts: bool = True,
                        attach_other: bool = False,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_ranges_nb`
@@ -1467,16 +1483,16 @@ class SignalsAccessor(GenericAccessor):
 
         if other is None:
             # One input array
-            func = nb_registry.redecorate_parallel(nb.between_ranges_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.between_ranges_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             range_records = func(self.to_2d_array())
             wrapper = self.wrapper
             to_attach = self.obj
         else:
             # Two input arrays
             obj, other = reshaping.broadcast(self.obj, other, **broadcast_kwargs)
-            func = nb_registry.redecorate_parallel(nb.between_two_ranges_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.between_two_ranges_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             range_records = func(
                 reshaping.to_2d_array(obj),
                 reshaping.to_2d_array(other),
@@ -1494,7 +1510,7 @@ class SignalsAccessor(GenericAccessor):
     def partition_ranges(self,
                          group_by: tp.GroupByLike = None,
                          attach_ts: bool = True,
-                         nb_parallel: tp.Optional[bool] = None,
+                         jitted: tp.JittedOption = None,
                          chunked: tp.ChunkedOption = None,
                          **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.partition_ranges_nb`
@@ -1512,8 +1528,8 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                4              5    Open
         ```"""
-        func = nb_registry.redecorate_parallel(nb.partition_ranges_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.partition_ranges_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1525,7 +1541,7 @@ class SignalsAccessor(GenericAccessor):
     def between_partition_ranges(self,
                                  group_by: tp.GroupByLike = None,
                                  attach_ts: bool = True,
-                                 nb_parallel: tp.Optional[bool] = None,
+                                 jitted: tp.JittedOption = None,
                                  chunked: tp.ChunkedOption = None,
                                  **kwargs) -> Ranges:
         """Wrap the result of `vectorbt.signals.nb.between_partition_ranges_nb`
@@ -1540,8 +1556,8 @@ class SignalsAccessor(GenericAccessor):
         0         0       0                0              3  Closed
         1         1       0                3              5  Closed
          ```"""
-        func = nb_registry.redecorate_parallel(nb.between_partition_ranges_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.between_partition_ranges_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         range_records = func(self.to_2d_array())
         return Ranges(
             self.wrapper,
@@ -1561,7 +1577,7 @@ class SignalsAccessor(GenericAccessor):
              broadcast_named_args: tp.KwargsLike = None,
              broadcast_kwargs: tp.KwargsLike = None,
              template_mapping: tp.Optional[tp.Mapping] = None,
-             nb_parallel: tp.Optional[bool] = None,
+             jitted: tp.JittedOption = None,
              chunked: tp.ChunkedOption = None,
              wrap_kwargs: tp.KwargsLike = None,
              **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
@@ -1607,8 +1623,8 @@ class SignalsAccessor(GenericAccessor):
             template_mapping
         )
         args = deep_substitute(args, template_mapping, sub_id='args')
-        func = nb_registry.redecorate_parallel(nb.rank_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.rank_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         rank = func(
             obj,
             reset_by,
@@ -1627,7 +1643,10 @@ class SignalsAccessor(GenericAccessor):
             )
         return rank_wrapped
 
-    def pos_rank(self, chunked: tp.ChunkedOption = None, allow_gaps: bool = False,
+    def pos_rank(self,
+                 jitted: tp.JittedOption = None,
+                 chunked: tp.ChunkedOption = None,
+                 allow_gaps: bool = False,
                  **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """Get signal position ranks.
 
@@ -1677,13 +1696,17 @@ class SignalsAccessor(GenericAccessor):
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0), None))
         )
         return self.rank(
-            nb.sig_pos_rank_nb, allow_gaps,
+            jit_registry.resolve_option(nb.sig_pos_rank_nb, jitted),
+            allow_gaps,
             prepare_func=prepare_func,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
 
-    def partition_pos_rank(self, chunked: tp.ChunkedOption = None,
+    def partition_pos_rank(self,
+                           jitted: tp.JittedOption = None,
+                           chunked: tp.ChunkedOption = None,
                            **kwargs) -> tp.Union[tp.SeriesFrame, MappedArray]:
         """Get partition position ranks.
 
@@ -1725,8 +1748,9 @@ class SignalsAccessor(GenericAccessor):
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0)))
         )
         return self.rank(
-            nb.part_pos_rank_nb,
+            jit_registry.resolve_option(nb.part_pos_rank_nb, jitted),
             prepare_func=prepare_func,
+            jitted=jitted,
             chunked=chunked,
             **kwargs
         )
@@ -1763,7 +1787,7 @@ class SignalsAccessor(GenericAccessor):
     def nth_index(self,
                   n: int,
                   group_by: tp.GroupByLike = None,
-                  nb_parallel: tp.Optional[bool] = None,
+                  jitted: tp.JittedOption = None,
                   chunked: tp.ChunkedOption = None,
                   wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.nth_index_nb`.
@@ -1794,23 +1818,23 @@ class SignalsAccessor(GenericAccessor):
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             squeezed = self.squeeze_grouped(
-                generic_nb.any_reduce_nb,
+                jit_registry.resolve_option(generic_nb.any_reduce_nb, jitted),
                 group_by=group_by,
-                nb_parallel=nb_parallel,
+                jitted=jitted,
                 chunked=chunked
             )
             arr = reshaping.to_2d_array(squeezed)
         else:
             arr = self.to_2d_array()
-        func = nb_registry.redecorate_parallel(nb.nth_index_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.nth_index_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         nth_index = func(arr, n)
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index', to_index=True), wrap_kwargs)
         return self.wrapper.wrap_reduced(nth_index, group_by=group_by, **wrap_kwargs)
 
     def norm_avg_index(self,
                        group_by: tp.GroupByLike = None,
-                       nb_parallel: tp.Optional[bool] = None,
+                       jitted: tp.JittedOption = None,
                        chunked: tp.ChunkedOption = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """See `vectorbt.signals.nb.norm_avg_index_nb`.
@@ -1840,12 +1864,12 @@ class SignalsAccessor(GenericAccessor):
         ```"""
         if self.is_frame() and self.wrapper.grouper.is_grouped(group_by=group_by):
             group_lens = self.wrapper.grouper.get_group_lens(group_by=group_by)
-            func = nb_registry.redecorate_parallel(nb.norm_avg_index_grouped_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.norm_avg_index_grouped_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             norm_avg_index = func(self.to_2d_array(), group_lens)
         else:
-            func = nb_registry.redecorate_parallel(nb.norm_avg_index_nb, nb_parallel)
-            func = ch_registry.resolve_chunked(func, chunked)
+            func = jit_registry.resolve_option(nb.norm_avg_index_nb, jitted)
+            func = ch_registry.resolve_option(func, chunked)
             norm_avg_index = func(self.to_2d_array())
         wrap_kwargs = merge_dicts(dict(name_or_index='norm_avg_index'), wrap_kwargs)
         return self.wrapper.wrap_reduced(norm_avg_index, group_by=group_by, **wrap_kwargs)

@@ -174,7 +174,7 @@ from vectorbt.ch_registry import ch_registry
 from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records.decorators import override_field_config, attach_fields
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.colors import adjust_lightness
@@ -275,7 +275,7 @@ class Drawdowns(Ranges):
     def from_ts(cls: tp.Type[DrawdownsT],
                 ts: tp.ArrayLike,
                 attach_ts: bool = True,
-                nb_parallel: tp.Optional[bool] = None,
+                jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrapper_kwargs: tp.KwargsLike = None,
                 **kwargs) -> DrawdownsT:
@@ -283,8 +283,8 @@ class Drawdowns(Ranges):
 
         `**kwargs` will be passed to `Drawdowns.__init__`."""
         ts_pd = to_pd_array(ts)
-        func = nb_registry.redecorate_parallel(nb.get_drawdowns_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.get_drawdowns_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         records_arr = func(to_2d_array(ts_pd))
         wrapper = ArrayWrapper.from_obj(ts_pd, **resolve_dict(wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
@@ -297,14 +297,14 @@ class Drawdowns(Ranges):
     # ############# Drawdown ############# #
 
     def get_drawdown(self,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_drawdown_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        func = nb_registry.redecorate_parallel(nb.dd_drawdown_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.dd_drawdown_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         drawdown = func(
             self.get_field_arr('peak_val'),
             self.get_field_arr('valley_val')
@@ -318,7 +318,7 @@ class Drawdowns(Ranges):
 
     def avg_drawdown(self,
                      group_by: tp.GroupByLike = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.MaybeSeries:
@@ -328,7 +328,7 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_drawdown'), wrap_kwargs)
         return self.drawdown.mean(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -336,7 +336,7 @@ class Drawdowns(Ranges):
 
     def max_drawdown(self,
                      group_by: tp.GroupByLike = None,
-                     nb_parallel: tp.Optional[bool] = None,
+                     jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      wrap_kwargs: tp.KwargsLike = None,
                      **kwargs) -> tp.MaybeSeries:
@@ -346,7 +346,7 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
         return self.drawdown.min(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -355,14 +355,14 @@ class Drawdowns(Ranges):
     # ############# Recovery ############# #
 
     def get_recovery_return(self,
-                            nb_parallel: tp.Optional[bool] = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_return_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        func = nb_registry.redecorate_parallel(nb.dd_recovery_return_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.dd_recovery_return_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         recovery_return = func(
             self.get_field_arr('valley_val'),
             self.get_field_arr('end_val')
@@ -376,7 +376,7 @@ class Drawdowns(Ranges):
 
     def avg_recovery_return(self,
                             group_by: tp.GroupByLike = None,
-                            nb_parallel: tp.Optional[bool] = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             wrap_kwargs: tp.KwargsLike = None,
                             **kwargs) -> tp.MaybeSeries:
@@ -386,7 +386,7 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_recovery_return'), wrap_kwargs)
         return self.recovery_return.mean(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -394,7 +394,7 @@ class Drawdowns(Ranges):
 
     def max_recovery_return(self,
                             group_by: tp.GroupByLike = None,
-                            nb_parallel: tp.Optional[bool] = None,
+                            jitted: tp.JittedOption = None,
                             chunked: tp.ChunkedOption = None,
                             wrap_kwargs: tp.KwargsLike = None,
                             **kwargs) -> tp.MaybeSeries:
@@ -404,7 +404,7 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(name_or_index='max_recovery_return'), wrap_kwargs)
         return self.recovery_return.max(
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -413,14 +413,14 @@ class Drawdowns(Ranges):
     # ############# Duration ############# #
 
     def get_decline_duration(self,
-                             nb_parallel: tp.Optional[bool] = None,
+                             jitted: tp.JittedOption = None,
                              chunked: tp.ChunkedOption = None,
                              **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_decline_duration_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        func = nb_registry.redecorate_parallel(nb.dd_decline_duration_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.dd_decline_duration_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         decline_duration = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx')
@@ -433,7 +433,7 @@ class Drawdowns(Ranges):
         return self.get_decline_duration()
 
     def get_recovery_duration(self,
-                              nb_parallel: tp.Optional[bool] = None,
+                              jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
                               **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_nb`.
@@ -441,8 +441,8 @@ class Drawdowns(Ranges):
         A value higher than 1 means the recovery was slower than the decline.
 
         Takes into account both recovered and active drawdowns."""
-        func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.dd_recovery_duration_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         recovery_duration = func(
             self.get_field_arr('valley_idx'),
             self.get_field_arr('end_idx')
@@ -455,14 +455,14 @@ class Drawdowns(Ranges):
         return self.get_recovery_duration()
 
     def get_recovery_duration_ratio(self,
-                                    nb_parallel: tp.Optional[bool] = None,
+                                    jitted: tp.JittedOption = None,
                                     chunked: tp.ChunkedOption = None,
                                     **kwargs) -> MappedArray:
         """See `vectorbt.generic.nb.dd_recovery_duration_ratio_nb`.
 
         Takes into account both recovered and active drawdowns."""
-        func = nb_registry.redecorate_parallel(nb.dd_recovery_duration_ratio_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.dd_recovery_duration_ratio_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         recovery_duration_ratio = func(
             self.get_field_arr('start_idx'),
             self.get_field_arr('valley_idx'),
@@ -479,7 +479,7 @@ class Drawdowns(Ranges):
 
     def active_drawdown(self,
                         group_by: tp.GroupByLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Drawdown of the last active drawdown only.
@@ -489,14 +489,14 @@ class Drawdowns(Ranges):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(name_or_index='active_drawdown'), wrap_kwargs)
         active = self.active
-        curr_end_val = active.end_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        curr_end_val = active.end_val.nth(-1, group_by=group_by, jitted=jitted, chunked=chunked)
+        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, jitted=jitted, chunked=chunked)
         curr_drawdown = (curr_end_val - curr_peak_val) / curr_peak_val
         return self.wrapper.wrap_reduced(curr_drawdown, group_by=group_by, **wrap_kwargs)
 
     def active_duration(self,
                         group_by: tp.GroupByLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None,
                         **kwargs) -> tp.MaybeSeries:
@@ -508,7 +508,7 @@ class Drawdowns(Ranges):
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='active_duration'), wrap_kwargs)
         return self.active.duration.nth(
             -1,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             group_by=group_by,
             wrap_kwargs=wrap_kwargs,
@@ -517,7 +517,7 @@ class Drawdowns(Ranges):
 
     def active_recovery(self,
                         group_by: tp.GroupByLike = None,
-                        nb_parallel: tp.Optional[bool] = None,
+                        jitted: tp.JittedOption = None,
                         chunked: tp.ChunkedOption = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Recovery of the last active drawdown only.
@@ -527,15 +527,15 @@ class Drawdowns(Ranges):
             raise ValueError("Grouping is not supported by this method")
         wrap_kwargs = merge_dicts(dict(name_or_index='active_recovery'), wrap_kwargs)
         active = self.active
-        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-        curr_end_val = active.end_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
-        curr_valley_val = active.valley_val.nth(-1, group_by=group_by, nb_parallel=nb_parallel, chunked=chunked)
+        curr_peak_val = active.peak_val.nth(-1, group_by=group_by, jitted=jitted, chunked=chunked)
+        curr_end_val = active.end_val.nth(-1, group_by=group_by, jitted=jitted, chunked=chunked)
+        curr_valley_val = active.valley_val.nth(-1, group_by=group_by, jitted=jitted, chunked=chunked)
         curr_recovery = (curr_end_val - curr_valley_val) / (curr_peak_val - curr_valley_val)
         return self.wrapper.wrap_reduced(curr_recovery, group_by=group_by, **wrap_kwargs)
 
     def active_recovery_return(self,
                                group_by: tp.GroupByLike = None,
-                               nb_parallel: tp.Optional[bool] = None,
+                               jitted: tp.JittedOption = None,
                                chunked: tp.ChunkedOption = None,
                                wrap_kwargs: tp.KwargsLike = None,
                                **kwargs) -> tp.MaybeSeries:
@@ -548,7 +548,7 @@ class Drawdowns(Ranges):
         return self.active.recovery_return.nth(
             -1,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -556,7 +556,7 @@ class Drawdowns(Ranges):
 
     def active_recovery_duration(self,
                                  group_by: tp.GroupByLike = None,
-                                 nb_parallel: tp.Optional[bool] = None,
+                                 jitted: tp.JittedOption = None,
                                  chunked: tp.ChunkedOption = None,
                                  wrap_kwargs: tp.KwargsLike = None,
                                  **kwargs) -> tp.MaybeSeries:
@@ -569,7 +569,7 @@ class Drawdowns(Ranges):
         return self.active.recovery_duration.nth(
             -1,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs

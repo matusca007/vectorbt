@@ -23,6 +23,8 @@ class CustomTemplate(Hashable, SafeToStr):
                  strict: tp.Optional[bool] = None,
                  sub_id: tp.Optional[tp.MaybeCollection[Hashable]] = None) -> None:
         self._template = template
+        if mapping is None:
+            mapping = {}
         self._mapping = mapping
         self._strict = strict
         self._sub_id = sub_id
@@ -35,8 +37,6 @@ class CustomTemplate(Hashable, SafeToStr):
     @property
     def mapping(self) -> tp.Mapping:
         """Mapping object passed to the initializer."""
-        if self._mapping is None:
-            return {}
         return self._mapping
 
     @property
@@ -76,7 +76,7 @@ class CustomTemplate(Hashable, SafeToStr):
     def hash_key(self) -> tuple:
         return (
             self.template,
-            tuple(self.mapping.items()) if self.mapping is not None else None,
+            tuple(self.mapping.items()),
             self.strict,
             self.sub_id if (self.sub_id is None or isinstance(self.sub_id, int)) else tuple(self.sub_id)
         )
@@ -86,7 +86,7 @@ class CustomTemplate(Hashable, SafeToStr):
                f"template=\"{self.template}\", " \
                f"mapping={prepare_for_doc(self.mapping)}, " \
                f"strict=\"{self.strict}\", " \
-               f"sub_id={prepare_for_doc(self.sub_id)})"
+               f"sub_id={self.sub_id})"
 
 
 class Sub(CustomTemplate):

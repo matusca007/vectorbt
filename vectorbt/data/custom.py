@@ -19,6 +19,7 @@ from functools import wraps
 import pandas as pd
 
 from vectorbt import _typing as tp
+from vectorbt.jit_registry import jit_registry
 from vectorbt.data import nb
 from vectorbt.data.base import Data
 from vectorbt.utils.config import merge_dicts
@@ -289,7 +290,8 @@ class RandomData(SyntheticData):
                         start_value: float = 100.,
                         mean: float = 0.,
                         std: float = 0.01,
-                        seed: tp.Optional[int] = None) -> tp.SeriesFrame:
+                        seed: tp.Optional[int] = None,
+                        jitted: tp.JittedOption = None) -> tp.SeriesFrame:
         """Generate a symbol.
 
         Args:
@@ -302,11 +304,13 @@ class RandomData(SyntheticData):
             mean (float): Drift, or mean of the percentage change.
             std (float): Standard deviation of the percentage change.
             seed (int): Set seed to make output deterministic.
+            jitted (any): See `vectorbt.utils.jitting.resolve_jitted_option`.
         """
         if seed is not None:
             set_seed(seed)
 
-        out = nb.generate_random_data_nb((len(index), num_paths), start_value, mean, std)
+        func = jit_registry.resolve_option(nb.generate_random_data_nb, jitted)
+        out = func((len(index), num_paths), start_value, mean, std)
 
         if out.shape[1] == 1:
             return pd.Series(out[:, 0], index=index)
@@ -355,7 +359,8 @@ class GBMData(RandomData):
                         mean: float = 0.,
                         std: float = 0.01,
                         dt: float = 1.,
-                        seed: tp.Optional[int] = None) -> tp.SeriesFrame:
+                        seed: tp.Optional[int] = None,
+                        jitted: tp.JittedOption = None) -> tp.SeriesFrame:
         """Generate a symbol.
 
         Args:
@@ -369,11 +374,13 @@ class GBMData(RandomData):
             std (float): Standard deviation of the percentage change.
             dt (float): Time change (one period of time).
             seed (int): Set seed to make output deterministic.
+            jitted (any): See `vectorbt.utils.jitting.resolve_jitted_option`.
         """
         if seed is not None:
             set_seed(seed)
 
-        out = nb.generate_gbm_data_nb((len(index), num_paths), start_value, mean, std, dt)
+        func = jit_registry.resolve_option(nb.generate_gbm_data_nb, jitted)
+        out = func((len(index), num_paths), start_value, mean, std, dt)
 
         if out.shape[1] == 1:
             return pd.Series(out[:, 0], index=index)

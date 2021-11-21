@@ -325,7 +325,7 @@ class TestColumnGrouper:
             grouped_columns, group_by=0)
         assert grouping.Grouper(grouped_columns) != 0
         assert grouping.Grouper(grouped_columns) != grouping.Grouper(grouped_columns,
-                                                                                             group_by=0)
+                                                                     group_by=0)
         assert grouping.Grouper(grouped_columns) != grouping.Grouper(pd.Index([0]))
         assert grouping.Grouper(grouped_columns) != grouping.Grouper(
             grouped_columns, allow_enable=False)
@@ -2564,7 +2564,7 @@ class TestCombineFns:
         combining.apply_and_concat_none_nb(3, apply_func_nb, sr2_copy.values, (10, 20, 30))
         pd.testing.assert_series_equal(sr2_copy, target)
         sr2_copy = sr2.copy()
-        combining.apply_and_concat(3, apply_func_nb, sr2_copy.values, [10, 20, 30], n_outputs=0, numba_loop=True)
+        combining.apply_and_concat(3, apply_func_nb, sr2_copy.values, [10, 20, 30], n_outputs=0, jitted_loop=True)
         pd.testing.assert_series_equal(sr2_copy, target)
 
     def test_apply_and_concat_one(self):
@@ -2590,7 +2590,7 @@ class TestCombineFns:
             target
         )
         np.testing.assert_array_equal(
-            combining.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=1, numba_loop=True),
+            combining.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=1, jitted_loop=True),
             combining.apply_and_concat_one_nb(3, apply_func_nb, sr2.values, (10, 20, 30))
         )
         # 2d
@@ -2608,7 +2608,7 @@ class TestCombineFns:
             target2
         )
         np.testing.assert_array_equal(
-            combining.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=1, numba_loop=True),
+            combining.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=1, jitted_loop=True),
             combining.apply_and_concat_one_nb(3, apply_func_nb, df4.values, (10, 20, 30))
         )
 
@@ -2637,7 +2637,7 @@ class TestCombineFns:
         a, b = combining.apply_and_concat_multiple_nb(3, apply_func_nb, sr2.values, (10, 20, 30))
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
-        a, b = combining.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=2, numba_loop=True)
+        a, b = combining.apply_and_concat(3, apply_func_nb, sr2.values, [10, 20, 30], n_outputs=2, jitted_loop=True)
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
         # 2d
@@ -2657,7 +2657,7 @@ class TestCombineFns:
         a, b = combining.apply_and_concat_multiple_nb(3, apply_func_nb, df4.values, (10, 20, 30))
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
-        a, b = combining.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=2, numba_loop=True)
+        a, b = combining.apply_and_concat(3, apply_func_nb, df4.values, [10, 20, 30], n_outputs=2, jitted_loop=True)
         np.testing.assert_array_equal(a, target_a)
         np.testing.assert_array_equal(b, target_b)
 
@@ -3160,7 +3160,7 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             sr2.vbt.apply_and_concat(
-                3, apply_func_nb, np.array([1, 2, 3]), 10, 100, numba_loop=True, n_outputs=1,
+                3, apply_func_nb, np.array([1, 2, 3]), 10, 100, jitted_loop=True, n_outputs=1,
                 keys=['a', 'b', 'c']
             ),
             target
@@ -3217,7 +3217,7 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             df2.vbt.apply_and_concat(
-                3, apply_func_nb, np.array([1, 2, 3]), 10, 100, numba_loop=True, n_outputs=1,
+                3, apply_func_nb, np.array([1, 2, 3]), 10, 100, jitted_loop=True, n_outputs=1,
                 keys=['a', 'b', 'c']
             ),
             target2
@@ -3352,7 +3352,7 @@ class TestAccessors:
             target
         )
         pd.testing.assert_frame_equal(
-            sr2.vbt.combine([10, df4], combine_func_nb, 10, 100, numba_loop=True, concat=False),
+            sr2.vbt.combine([10, df4], combine_func_nb, 10, 100, jitted_loop=True, concat=False),
             target
         )
         pd.testing.assert_frame_equal(
@@ -3392,7 +3392,7 @@ class TestAccessors:
             target2
         )
         pd.testing.assert_frame_equal(
-            sr2.vbt.combine([10, df4], combine_func_nb, 10, 100, numba_loop=True, concat=True),
+            sr2.vbt.combine([10, df4], combine_func_nb, 10, 100, jitted_loop=True, concat=True),
             target2
         )
         pd.testing.assert_frame_equal(

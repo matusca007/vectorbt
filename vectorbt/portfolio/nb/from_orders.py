@@ -54,7 +54,7 @@ from vectorbt.utils.array_ import insert_argsort_nb
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def simulate_from_orders_nb(target_shape: tp.Shape,
                             group_lens: tp.Array1d,
                             call_seq: tp.Array2d,

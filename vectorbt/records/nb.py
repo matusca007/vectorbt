@@ -23,7 +23,7 @@ from vectorbt import _typing as tp
 from vectorbt.base import chunking as base_ch
 from vectorbt.ch_registry import register_chunkable
 from vectorbt.generic import nb as generic_nb
-from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.records import chunking as records_ch
 from vectorbt.utils import chunking as ch
 
@@ -31,7 +31,7 @@ from vectorbt.utils import chunking as ch
 # ############# Generation ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def generate_ids_nb(col_arr: tp.Array1d, n_cols: int) -> tp.Array1d:
     """Generate the monotonically increasing id array based on the column index array."""
     col_idxs = np.full(n_cols, 0, dtype=np.int_)
@@ -45,7 +45,7 @@ def generate_ids_nb(col_arr: tp.Array1d, n_cols: int) -> tp.Array1d:
 # ############# Indexing ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def col_lens_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColLens:
     """Get column lengths from sorted column array.
 
@@ -63,7 +63,7 @@ def col_lens_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColLens:
     return col_lens
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def col_lens_select_nb(col_lens: tp.ColLens, new_cols: tp.Array1d) -> tp.Tuple[tp.Array1d, tp.Array1d]:
     """Perform indexing on a sorted array using column lengths.
 
@@ -87,7 +87,7 @@ def col_lens_select_nb(col_lens: tp.ColLens, new_cols: tp.Array1d) -> tp.Tuple[t
     return indices_out, col_arr_out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def record_col_lens_select_nb(records: tp.RecordArray, col_lens: tp.ColLens, new_cols: tp.Array1d) -> tp.RecordArray:
     """Perform indexing on sorted records using column lengths.
 
@@ -110,7 +110,7 @@ def record_col_lens_select_nb(records: tp.RecordArray, col_lens: tp.ColLens, new
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def col_map_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColMap:
     """Build a map between columns and value indices.
 
@@ -133,7 +133,7 @@ def col_map_nb(col_arr: tp.Array1d, n_cols: int) -> tp.ColMap:
     return col_idxs_out, col_lens_out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def col_map_select_nb(col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.Tuple[tp.Array1d, tp.Array1d]:
     """Same as `col_lens_select_nb` but using column map `col_map`."""
     col_idxs, col_lens = col_map
@@ -156,7 +156,7 @@ def col_map_select_nb(col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.Tuple[tp.A
     return idxs_out, col_arr_out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def record_col_map_select_nb(records: tp.RecordArray, col_map: tp.ColMap, new_cols: tp.Array1d) -> tp.RecordArray:
     """Same as `record_col_lens_select_nb` but using column map `col_map`."""
     col_idxs, col_lens = col_map
@@ -181,7 +181,7 @@ def record_col_map_select_nb(records: tp.RecordArray, col_map: tp.ColMap, new_co
 # ############# Sorting ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_col_sorted_nb(col_arr: tp.Array1d) -> bool:
     """Check whether the column array is sorted."""
     for i in range(len(col_arr) - 1):
@@ -190,7 +190,7 @@ def is_col_sorted_nb(col_arr: tp.Array1d) -> bool:
     return True
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def is_col_id_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
     """Check whether the column and id arrays are sorted."""
     for i in range(len(col_arr) - 1):
@@ -213,7 +213,7 @@ def is_col_id_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def top_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Array1d:
     """Returns mask of top N mapped elements."""
     col_idxs, col_lens = col_map
@@ -239,7 +239,7 @@ def top_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Ar
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Array1d:
     """Returns mask of bottom N mapped elements."""
     col_idxs, col_lens = col_map
@@ -267,7 +267,7 @@ def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *args) -> tp.Array1d:
     """Map each record to a single value.
 
@@ -288,7 +288,7 @@ def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *arg
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `map_records_nb`.
 
@@ -310,7 +310,7 @@ def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *ar
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_nb(arr: tp.Array1d, col_map: tp.ColMap, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array1d:
     """Apply function on mapped array or records per column.
 
@@ -341,7 +341,7 @@ def apply_nb(arr: tp.Array1d, col_map: tp.ColMap, apply_func_nb: tp.ApplyFunc, *
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def apply_meta_nb(n_values: int, col_map: tp.ColMap, apply_func_nb: tp.ApplyMetaFunc, *args) -> tp.Array1d:
     """Meta version of `apply_nb`.
 
@@ -375,7 +375,7 @@ def apply_meta_nb(n_values: int, col_map: tp.ColMap, apply_func_nb: tp.ApplyMeta
     ),
     merge_func=base_ch.concat
 )
-@register_jit
+@register_jitted
 def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
                               idx_arr: tp.Array1d,
                               id_arr: tp.Array1d,
@@ -454,7 +454,7 @@ def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
                      reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to a single value.
@@ -488,7 +488,7 @@ def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: flo
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
                           reduce_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_mapped_nb`.
@@ -521,7 +521,7 @@ def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
                             fill_value: float, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array1d:
     """Reduce mapped array by column to an index.
@@ -556,7 +556,7 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
                                  reduce_func_nb: tp.MappedReduceMetaFunc, *args) -> tp.Array1d:
     """Meta version of `reduce_mapped_to_idx_nb`.
@@ -588,7 +588,7 @@ def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_v
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float,
                               reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an array.
@@ -630,7 +630,7 @@ def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_v
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
                                    reduce_func_nb: tp.MappedReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Meta version of `reduce_mapped_to_array_nb`.
@@ -674,7 +674,7 @@ def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr: tp.Array1d,
                                   fill_value: float, reduce_func_nb: tp.ReduceToArrayFunc, *args) -> tp.Array2d:
     """Reduce mapped array by column to an index array.
@@ -720,7 +720,7 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_value: float,
                                        reduce_func_nb: tp.MappedReduceToArrayMetaFunc, *args) -> tp.Array2d:
     """Meta version of `reduce_mapped_to_idx_array_nb`.
@@ -764,7 +764,7 @@ def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, 
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def mapped_value_counts_per_col_nb(codes: tp.Array1d, n_uniques: int, col_map: tp.ColMap) -> tp.Array2d:
     """Get value counts per column/group of an already factorized mapped array."""
     col_idxs, col_lens = col_map
@@ -781,7 +781,7 @@ def mapped_value_counts_per_col_nb(codes: tp.Array1d, n_uniques: int, col_map: t
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mapped_value_counts_per_row_nb(mapped_arr: tp.Array1d, n_uniques: int,
                                    idx_arr: tp.Array1d, n_rows: int) -> tp.Array2d:
     """Get value counts per row of an already factorized mapped array."""
@@ -792,7 +792,7 @@ def mapped_value_counts_per_row_nb(mapped_arr: tp.Array1d, n_uniques: int,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mapped_value_counts_nb(mapped_arr: tp.Array1d, n_uniques: int) -> tp.Array2d:
     """Get value counts globally of an already factorized mapped array."""
     out = np.full(n_uniques, 0, dtype=np.int_)
@@ -805,7 +805,7 @@ def mapped_value_counts_nb(mapped_arr: tp.Array1d, n_uniques: int) -> tp.Array2d
 # ############# Coverage ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mapped_has_conflicts_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> bool:
     """Check whether mapped array has positional conflicts."""
     temp = np.zeros(target_shape)
@@ -817,7 +817,7 @@ def mapped_has_conflicts_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_sha
     return False
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mapped_coverage_map_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shape: tp.Shape) -> tp.Array2d:
     """Get the coverage map of a mapped array.
 
@@ -833,7 +833,7 @@ def mapped_coverage_map_nb(col_arr: tp.Array1d, idx_arr: tp.Array1d, target_shap
 # ############# Unstacking ############# #
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def unstack_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
                       target_shape: tp.Shape, fill_value: float) -> tp.Array2d:
     """Unstack mapped array using index data."""
@@ -859,7 +859,7 @@ def unstack_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.A
     return _unstack_mapped_nb
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def ignore_unstack_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: float) -> tp.Array2d:
     """Unstack mapped array by ignoring index data."""
     nb_enabled = not isinstance(mapped_arr, np.ndarray)
@@ -892,7 +892,7 @@ def ignore_unstack_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_va
     return _ignore_unstack_mapped_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def unstack_index_nb(repeat_cnt_arr: tp.Array1d) -> tp.Array1d:
     """Unstack index using the number of times each element must repeat.
 
@@ -906,7 +906,7 @@ def unstack_index_nb(repeat_cnt_arr: tp.Array1d) -> tp.Array1d:
     return out
 
 
-@register_generated_jit(cache=True)
+@register_jitted(cache=True, is_generated_jit=True)
 def repeat_unstack_mapped_nb(mapped_arr: tp.Array1d, col_arr: tp.Array1d, idx_arr: tp.Array1d,
                              repeat_cnt_arr: tp.Array1d, n_cols: int, fill_value: float) -> tp.Array2d:
     """Unstack mapped array using repeated index data."""

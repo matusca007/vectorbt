@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import jit_registry, register_jitted
 from vectorbt.utils import checks
 
 
@@ -245,8 +245,8 @@ def drop_duplicate_levels(index: tp.Index, keep: tp.Optional[str] = None) -> tp.
     return index.droplevel(levels_to_drop)
 
 
-@register_jit(cache=True)
-def _align_index_to_nb(a: tp.Array1d, b: tp.Array1d) -> tp.Array1d:
+@register_jitted(cache=True)
+def align_arr_indices_nb(a: tp.Array1d, b: tp.Array1d) -> tp.Array1d:
     """Return indices required to align `a` to `b`."""
     idxs = np.empty(b.shape[0], dtype=np.int_)
     g = 0
@@ -259,7 +259,7 @@ def _align_index_to_nb(a: tp.Array1d, b: tp.Array1d) -> tp.Array1d:
     return idxs
 
 
-def align_index_to(index1: tp.Index, index2: tp.Index) -> pd.IndexSlice:
+def align_index_to(index1: tp.Index, index2: tp.Index, jitted: tp.JittedOption = None) -> pd.IndexSlice:
     """Align `index1` to have the same shape as `index2` if they have any levels in common.
 
     Returns index slice for the aligning."""
@@ -311,7 +311,8 @@ def align_index_to(index1: tp.Index, index2: tp.Index) -> pd.IndexSlice:
     unique_indices = np.unique(stacked, axis=0, return_inverse=True)[1]
     unique1 = unique_indices[:len(index1)]
     unique2 = unique_indices[len(index1):]
-    return pd.IndexSlice[_align_index_to_nb(unique1, unique2)]
+    func = jit_registry.resolve_option(align_arr_indices_nb, jitted)
+    return pd.IndexSlice[func(unique1, unique2)]
 
 
 def align_indexes(indexes: tp.Sequence[tp.Index]) -> tp.List[tp.Index]:

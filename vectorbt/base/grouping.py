@@ -15,7 +15,7 @@ from pandas.core.resample import Resampler as PandasResampler
 
 from vectorbt import _typing as tp
 from vectorbt.base import indexes
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import jit_registry, register_jitted
 from vectorbt.utils import checks
 from vectorbt.utils.array_ import is_sorted
 from vectorbt.utils.config import Configured
@@ -70,7 +70,7 @@ def get_groups_and_index(index: tp.Index, group_by: tp.GroupByLike) -> tp.Tuple[
     return codes, new_index
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_group_lens_nb(groups: tp.Array1d) -> tp.Array1d:
     """Return count per group."""
     result = np.empty(groups.shape[0], dtype=np.int_)
@@ -97,7 +97,7 @@ def get_group_lens_nb(groups: tp.Array1d) -> tp.Array1d:
     return result[:j]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def group_by_evenly_nb(n: int, n_splits: int) -> tp.Array1d:
     """Get `group_by` from evenly splitting a space of values."""
     out = np.empty(n, dtype=np.int_)
@@ -311,7 +311,7 @@ class Grouper(Configured):
         return is_sorted(groups)
 
     @cached_method(whitelist=True)
-    def get_group_lens(self, group_by: tp.GroupByLike = None, **kwargs) -> tp.Array1d:
+    def get_group_lens(self, group_by: tp.GroupByLike = None, jitted: tp.JittedOption = None, **kwargs) -> tp.Array1d:
         """See get_group_lens_nb."""
         if not self.is_sorted(group_by=group_by):
             raise ValueError("group_by must lead to groups that are coherent and sorted "
@@ -320,7 +320,8 @@ class Grouper(Configured):
         if group_by is None or group_by is False:  # no grouping
             return np.full(len(self.index), 1)
         groups = self.get_groups(group_by=group_by)
-        return get_group_lens_nb(groups)
+        func = jit_registry.resolve_option(get_group_lens_nb, jitted)
+        return func(groups)
 
     def get_group_count(self, **kwargs) -> int:
         """Get number of groups."""

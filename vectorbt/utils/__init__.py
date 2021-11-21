@@ -42,6 +42,7 @@ from vectorbt.utils.profiling import Timer, MemTracer
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
 from vectorbt.utils.template import Sub, Rep, RepEval, RepFunc, deep_substitute
+from vectorbt.utils.jitting import jitted
 
 __all__ = [
     'atomic_dict',
@@ -92,7 +93,8 @@ __all__ = [
     'chunked',
     'Timer',
     'MemTracer',
-    'stringify'
+    'stringify',
+    'jitted'
 ]
 
 __blacklist__ = []

@@ -417,7 +417,7 @@ from vectorbt.utils import checks
 from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.datetime_ import to_naive_datetime
 from vectorbt.utils.decorators import cacheableT, cacheable_property
-from vectorbt.utils.docs import SafeToStr
+from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.parsing import Regex, hash_args, UnhashableArgsError
 from vectorbt.utils.profiling import Timer
@@ -729,7 +729,7 @@ class CAQuery(Hashable, SafeToStr):
                f"instance={self.instance}, " \
                f"cls={self.cls}, " \
                f"base_cls={self.base_cls}, " \
-               f"options={self.options})"
+               f"options={prepare_for_doc(self.options)})"
 
     @property
     def hash_key(self) -> tuple:
@@ -1843,7 +1843,8 @@ CARunSetupT = tp.TypeVar("CARunSetupT", bound="CARunSetup")
 class CARunResult(Hashable, SafeToStr):
     """Class that represents a cached result of a run.
 
-    Hashed solely by the hash of the arguments `args_hash`."""
+    !!! note
+        Hashed solely by the hash of the arguments `args_hash`."""
 
     @staticmethod
     def get_hash(args_hash: int) -> int:

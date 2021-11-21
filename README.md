@@ -41,7 +41,7 @@ pip install vectorbt
 To also install optional dependencies:
 
 ```bash
-pip install vectorbt[full]
+pip install --upgrade "vectorbt[full]"
 ```
 
 See [License](https://github.com/polakowo/vectorbt#license) notes on optional dependencies.

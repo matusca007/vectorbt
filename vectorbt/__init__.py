@@ -18,7 +18,7 @@ pip install vectorbt
 To also install optional dependencies:
 
 ```bash
-pip install vectorbt[full]
+pip install --upgrade "vectorbt[full]"
 ```
 
 See [License](https://github.com/polakowo/vectorbt#license) notes on optional dependencies.
@@ -637,9 +637,10 @@ from vectorbt.messaging import *
 # Most important modules and objects
 from vectorbt import _typing as tp
 from vectorbt._settings import settings
-from vectorbt.nb_registry import register_jit, register_generated_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.ch_registry import register_chunkable
 from vectorbt.ca_registry import CAQuery, CAQueryDelegator
+from vectorbt.jit_registry import register_jitted
 from vectorbt.root_accessors import pd_acc, sr_acc, df_acc
 
 # Import all submodules

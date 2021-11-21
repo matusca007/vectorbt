@@ -60,57 +60,10 @@ from vectorbt.utils.math_ import is_close_nb, add_nb
 from vectorbt.utils.template import RepFunc
 
 
-# ############# Close ############# #
-
-
-@register_chunkable(
-    size=ch.ArraySizer('close', 1),
-    arg_take_spec=dict(
-        close=ch.ArraySlicer(1)
-    ),
-    merge_func=base_ch.column_stack
-)
-@register_jit(cache=True, tags={'can_parallel'})
-def fbfill_close_nb(close: tp.Array2d) -> tp.Array2d:
-    """Forward and backward fill NaN values in `close`.
-
-    !!! note
-        If there are no NaN values, will return `close`."""
-    need_fbfill = False
-    for col in range(close.shape[1]):
-        for i in range(close.shape[0]):
-            if np.isnan(close[i, col]):
-                need_fbfill = True
-                break
-        if need_fbfill:
-            break
-    if not need_fbfill:
-        return close
-
-    out = np.empty_like(close)
-    for col in prange(close.shape[1]):
-        last_valid = np.nan
-        need_bfill = False
-        for i in range(close.shape[0]):
-            if not np.isnan(close[i, col]):
-                last_valid = close[i, col]
-            else:
-                need_bfill = np.isnan(last_valid)
-            out[i, col] = last_valid
-        if need_bfill:
-            last_valid = np.nan
-            for i in range(close.shape[0] - 1, -1, -1):
-                if not np.isnan(close[i, col]):
-                    last_valid = close[i, col]
-                if np.isnan(out[i, col]):
-                    out[i, col] = last_valid
-    return out
-
-
 # ############# Assets ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_long_size_nb(position_before: float, position_now: float) -> float:
     """Get long size."""
     if position_before <= 0 and position_now <= 0:
@@ -122,7 +75,7 @@ def get_long_size_nb(position_before: float, position_now: float) -> float:
     return add_nb(position_now, -position_before)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_short_size_nb(position_before: float, position_now: float) -> float:
     """Get short size."""
     if position_before >= 0 and position_now >= 0:
@@ -145,7 +98,7 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def asset_flow_nb(target_shape: tp.Shape,
                   order_records: tp.RecordArray,
                   col_map: tp.ColMap,
@@ -198,7 +151,7 @@ def asset_flow_nb(target_shape: tp.Shape,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def assets_nb(asset_flow: tp.Array2d, init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array2d:
     """Get asset series per column.
 
@@ -213,25 +166,25 @@ def assets_nb(asset_flow: tp.Array2d, init_position: tp.FlexArray = np.asarray(0
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def longonly_assets_nb(assets: tp.Array2d) -> tp.Array2d:
     """Get long-only assets."""
     return np.where(assets > 0, assets, 0.)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def shortonly_assets_nb(assets: tp.Array2d) -> tp.Array2d:
     """Get short-only assets."""
     return np.where(assets < 0, -assets, 0.)
 
 
-@register_jit
+@register_jitted
 def position_mask_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get whether in position for each row and group."""
     return generic_nb.squeeze_grouped_nb(position_mask, group_lens, generic_nb.any_reduce_nb)
 
 
-@register_jit
+@register_jitted
 def position_coverage_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get coverage of position for each row and group."""
     return generic_nb.reduce_grouped_nb(position_mask, group_lens, generic_nb.mean_reduce_nb)
@@ -240,7 +193,7 @@ def position_coverage_grouped_nb(position_mask: tp.Array2d, group_lens: tp.Array
 # ############# Cash ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_free_cash_diff_nb(position_before: float,
                           position_now: float,
                           debt_now: float,
@@ -292,7 +245,7 @@ def get_free_cash_diff_nb(position_before: float,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cash_flow_nb(target_shape: tp.Shape,
                  order_records: tp.RecordArray,
                  col_map: tp.ColMap,
@@ -355,7 +308,7 @@ def cash_flow_nb(target_shape: tp.Shape,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def sum_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Squeeze each group of columns into a single column using sum operation."""
     check_group_lens_nb(group_lens, arr.shape[1])
@@ -370,7 +323,7 @@ def sum_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def cash_flow_grouped_nb(cash_flow: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get cash flow series per group."""
     return sum_grouped_nb(cash_flow, group_lens)
@@ -384,7 +337,7 @@ def cash_flow_grouped_nb(cash_flow: tp.Array2d, group_lens: tp.Array1d) -> tp.Ar
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def align_init_cash_nb(init_cash_raw: int, cash_flow: tp.Array2d) -> tp.Array1d:
     """Align initial cash."""
     out = np.empty(cash_flow.shape[1], dtype=np.float_)
@@ -404,7 +357,7 @@ def align_init_cash_nb(init_cash_raw: int, cash_flow: tp.Array2d) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def init_cash_grouped_nb(init_cash_raw: tp.FlexArray, group_lens: tp.Array1d, cash_sharing: bool) -> tp.Array1d:
     """Get initial cash per group."""
     out = np.empty(group_lens.shape, dtype=np.float_)
@@ -423,7 +376,7 @@ def init_cash_grouped_nb(init_cash_raw: tp.FlexArray, group_lens: tp.Array1d, ca
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def init_cash_nb(init_cash_raw: tp.FlexArray, group_lens: tp.Array1d,
                  cash_sharing: bool, split_shared: bool = False) -> tp.Array1d:
     """Get initial cash per column."""
@@ -457,7 +410,7 @@ def init_cash_nb(init_cash_raw: tp.FlexArray, group_lens: tp.Array1d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cash_deposits_grouped_nb(target_shape: tp.Shape,
                              cash_deposits_raw: tp.FlexArray,
                              group_lens: tp.Array1d,
@@ -495,7 +448,7 @@ def cash_deposits_grouped_nb(target_shape: tp.Shape,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cash_deposits_nb(target_shape: tp.Shape,
                      cash_deposits_raw: tp.FlexArray,
                      group_lens: tp.Array1d,
@@ -534,7 +487,7 @@ def cash_deposits_nb(target_shape: tp.Shape,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cash_nb(cash_flow: tp.Array2d,
             init_cash: tp.FlexArray,
             cash_deposits: tp.FlexArray = np.asarray(0.),
@@ -565,7 +518,7 @@ def cash_nb(cash_flow: tp.Array2d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def cash_grouped_nb(target_shape: tp.Shape,
                     cash_flow_grouped: tp.Array2d,
                     group_lens: tp.Array1d,
@@ -589,7 +542,7 @@ def cash_grouped_nb(target_shape: tp.Shape,
 # ############# Value ############# #
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def init_position_value_nb(close: tp.Array2d, init_position: tp.FlexArray = np.asarray(0.)) -> tp.Array1d:
     """Get initial position value per column."""
     out = np.empty(close.shape[1], dtype=np.float_)
@@ -598,7 +551,7 @@ def init_position_value_nb(close: tp.Array2d, init_position: tp.FlexArray = np.a
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def init_value_nb(init_position_value: tp.Array1d, init_cash: tp.FlexArray) -> tp.Array1d:
     """Get initial value per column."""
     out = np.empty(len(init_position_value), dtype=np.float_)
@@ -608,7 +561,7 @@ def init_value_nb(init_position_value: tp.Array1d, init_cash: tp.FlexArray) -> t
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def init_value_grouped_nb(group_lens: tp.Array1d,
                           init_position_value: tp.Array1d,
                           init_cash_grouped: tp.FlexArray) -> tp.Array1d:
@@ -627,13 +580,13 @@ def init_value_grouped_nb(group_lens: tp.Array1d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def asset_value_nb(close: tp.Array2d, assets: tp.Array2d) -> tp.Array2d:
     """Get asset value series per column."""
     return close * assets
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> tp.Array2d:
     """Get asset value series per group."""
     return sum_grouped_nb(asset_value, group_lens)
@@ -647,7 +600,7 @@ def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> t
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
     """Get gross exposure per column/group."""
     out = np.empty(asset_value.shape, dtype=np.float_)
@@ -661,7 +614,7 @@ def gross_exposure_nb(asset_value: tp.Array2d, cash: tp.Array2d) -> tp.Array2d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     """Get portfolio value series per column/group."""
     return cash + asset_value
@@ -680,7 +633,7 @@ def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def total_profit_nb(target_shape: tp.Shape,
                     close: tp.Array2d,
                     order_records: tp.RecordArray,
@@ -741,7 +694,7 @@ def total_profit_nb(target_shape: tp.Shape,
     return total_profit
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) -> tp.Array1d:
     """Get total profit per group."""
     check_group_lens_nb(group_lens, total_profit.shape[0])
@@ -765,7 +718,7 @@ def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) ->
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def returns_nb(value: tp.Array2d,
                init_value: tp.Array1d,
                cash_deposits: tp.FlexArray = np.asarray(0.),
@@ -782,7 +735,7 @@ def returns_nb(value: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cash_flow: float) -> float:
     """Get asset return from the input and output asset value, and the cash flow."""
     if is_close_nb(input_asset_value, 0):
@@ -803,7 +756,7 @@ def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cas
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def asset_returns_nb(init_position_value: tp.Array1d, asset_value: tp.Array2d, cash_flow: tp.Array2d) -> tp.Array2d:
     """Get asset return series per column/group."""
     out = np.empty_like(cash_flow)
@@ -829,7 +782,7 @@ def asset_returns_nb(init_position_value: tp.Array1d, asset_value: tp.Array2d, c
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def market_value_nb(close: tp.Array2d,
                     init_value: tp.Array1d,
                     cash_deposits: tp.FlexArray = np.asarray(0.),
@@ -857,7 +810,7 @@ def market_value_nb(close: tp.Array2d,
     ),
     merge_func=base_ch.column_stack
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def market_value_grouped_nb(close: tp.Array2d,
                             group_lens: tp.Array1d,
                             init_value: tp.Array1d,

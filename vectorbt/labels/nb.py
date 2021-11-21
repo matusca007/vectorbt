@@ -20,10 +20,10 @@ from vectorbt import _typing as tp
 from vectorbt.base.indexing import flex_select_auto_nb
 from vectorbt.generic import nb as generic_nb
 from vectorbt.labels.enums import TrendMode
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def future_mean_apply_nb(close: tp.Array2d,
                          window: int,
                          ewm: bool,
@@ -39,7 +39,7 @@ def future_mean_apply_nb(close: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def future_std_apply_nb(close: tp.Array2d,
                         window: int,
                         ewm: bool,
@@ -56,7 +56,7 @@ def future_std_apply_nb(close: tp.Array2d,
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def future_min_apply_nb(close: tp.Array2d, window: int, wait: int = 1) -> tp.Array2d:
     """Get the minimum of the next period."""
     out = generic_nb.rolling_min_nb(close[::-1], window, minp=window)[::-1]
@@ -65,7 +65,7 @@ def future_min_apply_nb(close: tp.Array2d, window: int, wait: int = 1) -> tp.Arr
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def future_max_apply_nb(close: tp.Array2d, window: int, wait: int = 1) -> tp.Array2d:
     """Get the maximum of the next period."""
     out = generic_nb.rolling_max_nb(close[::-1], window, minp=window)[::-1]
@@ -74,13 +74,13 @@ def future_max_apply_nb(close: tp.Array2d, window: int, wait: int = 1) -> tp.Arr
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fixed_labels_apply_nb(close: tp.Array2d, n: int) -> tp.Array2d:
     """Get percentage change from the current value to a future value."""
     return (generic_nb.bshift_nb(close, n) - close) / close
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def mean_labels_apply_nb(close: tp.Array2d,
                          window: int,
                          ewm: bool,
@@ -90,7 +90,7 @@ def mean_labels_apply_nb(close: tp.Array2d,
     return (future_mean_apply_nb(close, window, ewm, wait, adjust) - close) / close
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_symmetric_pos_th_nb(neg_th: tp.MaybeArray[float]) -> tp.MaybeArray[float]:
     """Compute the positive return that is symmetric to a negative one.
 
@@ -98,13 +98,13 @@ def get_symmetric_pos_th_nb(neg_th: tp.MaybeArray[float]) -> tp.MaybeArray[float
     return neg_th / (1 - neg_th)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_symmetric_neg_th_nb(pos_th: tp.MaybeArray[float]) -> tp.MaybeArray[float]:
     """Compute the negative return that is symmetric to a positive one."""
     return pos_th / (1 + pos_th)
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def local_extrema_apply_nb(close: tp.Array2d,
                            pos_th: tp.MaybeArray[float],
                            neg_th: tp.MaybeArray[float],
@@ -166,7 +166,7 @@ def local_extrema_apply_nb(close: tp.Array2d,
     return out
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def bn_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d) -> tp.Array2d:
     """Return 0 for H-L and 1 for L-H."""
     out = np.full_like(close, np.nan, dtype=np.float_)
@@ -188,7 +188,7 @@ def bn_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d) -> tp.Array
     return out
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def bn_cont_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d) -> tp.Array2d:
     """Normalize each range between two extrema between 0 (will go up) and 1 (will go down)."""
     out = np.full_like(close, np.nan, dtype=np.float_)
@@ -209,7 +209,7 @@ def bn_cont_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d) -> tp.
     return out
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def bn_cont_sat_trend_labels_nb(close: tp.Array2d,
                                 local_extrema: tp.Array2d,
                                 pos_th: tp.MaybeArray[float],
@@ -259,7 +259,7 @@ def bn_cont_sat_trend_labels_nb(close: tp.Array2d,
     return out
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def pct_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d, normalize: bool) -> tp.Array2d:
     """Compute the percentage change of the current value to the next extremum."""
     out = np.full_like(close, np.nan, dtype=np.float_)
@@ -282,7 +282,7 @@ def pct_trend_labels_nb(close: tp.Array2d, local_extrema: tp.Array2d, normalize:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def trend_labels_apply_nb(close: tp.Array2d,
                           pos_th: tp.MaybeArray[float],
                           neg_th: tp.MaybeArray[float],
@@ -303,7 +303,7 @@ def trend_labels_apply_nb(close: tp.Array2d,
     raise ValueError("Trend mode is not recognized")
 
 
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def breakout_labels_nb(close: tp.Array2d,
                        window: int,
                        pos_th: tp.MaybeArray[float],

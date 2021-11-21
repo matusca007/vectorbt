@@ -212,14 +212,16 @@ class TestAccessors:
         pd.testing.assert_series_equal(df['a'].vbt.diff(), df['a'].diff())
         np.testing.assert_array_equal(df['a'].vbt.diff().values, nb.diff_1d_nb(df['a'].values))
         pd.testing.assert_frame_equal(df.vbt.diff(), df.diff())
-        pd.testing.assert_frame_equal(df.vbt.diff(nb_parallel=True), df.vbt.diff(nb_parallel=False))
+        pd.testing.assert_frame_equal(df.vbt.diff(
+            jitted=dict(parallel=True)), df.vbt.diff(jitted=dict(parallel=False)))
         pd.testing.assert_frame_equal(df.vbt.diff(chunked=True), df.vbt.diff(chunked=False))
 
     def test_pct_change(self):
         pd.testing.assert_series_equal(df['a'].vbt.pct_change(), df['a'].pct_change(fill_method=None))
         np.testing.assert_array_equal(df['a'].vbt.pct_change().values, nb.pct_change_1d_nb(df['a'].values))
         pd.testing.assert_frame_equal(df.vbt.pct_change(), df.pct_change(fill_method=None))
-        pd.testing.assert_frame_equal(df.vbt.pct_change(nb_parallel=True), df.vbt.pct_change(nb_parallel=False))
+        pd.testing.assert_frame_equal(df.vbt.pct_change(
+            jitted=dict(parallel=True)), df.vbt.pct_change(jitted=dict(parallel=False)))
         pd.testing.assert_frame_equal(df.vbt.pct_change(chunked=True), df.vbt.pct_change(chunked=False))
 
     def test_bfill(self):
@@ -235,19 +237,22 @@ class TestAccessors:
     def test_product(self):
         assert df['a'].vbt.product() == df['a'].product()
         pd.testing.assert_series_equal(df.vbt.product(), df.product().rename('product'))
-        pd.testing.assert_series_equal(df.vbt.product(nb_parallel=True), df.vbt.product(nb_parallel=False))
+        pd.testing.assert_series_equal(df.vbt.product(
+            jitted=dict(parallel=True)), df.vbt.product(jitted=dict(parallel=False)))
         pd.testing.assert_series_equal(df.vbt.product(chunked=True), df.vbt.product(chunked=False))
 
     def test_cumsum(self):
         pd.testing.assert_series_equal(df['a'].vbt.cumsum(), df['a'].cumsum().ffill().fillna(0))
         pd.testing.assert_frame_equal(df.vbt.cumsum(), df.cumsum().ffill().fillna(0))
-        pd.testing.assert_frame_equal(df.vbt.cumsum(nb_parallel=True), df.vbt.cumsum(nb_parallel=False))
+        pd.testing.assert_frame_equal(df.vbt.cumsum(
+            jitted=dict(parallel=True)), df.vbt.cumsum(jitted=dict(parallel=False)))
         pd.testing.assert_frame_equal(df.vbt.cumsum(chunked=True), df.vbt.cumsum(chunked=False))
 
     def test_cumprod(self):
         pd.testing.assert_series_equal(df['a'].vbt.cumprod(), df['a'].cumprod().ffill().fillna(1))
         pd.testing.assert_frame_equal(df.vbt.cumprod(), df.cumprod().ffill().fillna(1))
-        pd.testing.assert_frame_equal(df.vbt.cumprod(nb_parallel=True), df.vbt.cumprod(nb_parallel=False))
+        pd.testing.assert_frame_equal(df.vbt.cumprod(
+            jitted=dict(parallel=True)), df.vbt.cumprod(jitted=dict(parallel=False)))
         pd.testing.assert_frame_equal(df.vbt.cumprod(chunked=True), df.vbt.cumprod(chunked=False))
 
     @pytest.mark.parametrize("test_window", [1, 2, 3, 4, 5])
@@ -268,8 +273,8 @@ class TestAccessors:
             df.rolling(test_window).min()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.rolling_min(test_window, nb_parallel=True),
-            df.vbt.rolling_min(test_window, nb_parallel=False)
+            df.vbt.rolling_min(test_window, jitted=dict(parallel=True)),
+            df.vbt.rolling_min(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.rolling_min(test_window, chunked=True),
@@ -294,8 +299,8 @@ class TestAccessors:
             df.rolling(test_window).max()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.rolling_max(test_window, nb_parallel=True),
-            df.vbt.rolling_max(test_window, nb_parallel=False)
+            df.vbt.rolling_max(test_window, jitted=dict(parallel=True)),
+            df.vbt.rolling_max(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.rolling_max(test_window, chunked=True),
@@ -320,8 +325,8 @@ class TestAccessors:
             df.rolling(test_window).mean()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.rolling_mean(test_window, nb_parallel=True),
-            df.vbt.rolling_mean(test_window, nb_parallel=False)
+            df.vbt.rolling_mean(test_window, jitted=dict(parallel=True)),
+            df.vbt.rolling_mean(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.rolling_mean(test_window, chunked=True),
@@ -347,8 +352,8 @@ class TestAccessors:
             df.rolling(test_window).std()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.rolling_std(test_window, nb_parallel=True),
-            df.vbt.rolling_std(test_window, nb_parallel=False)
+            df.vbt.rolling_std(test_window, jitted=dict(parallel=True)),
+            df.vbt.rolling_std(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.rolling_std(test_window, chunked=True),
@@ -374,8 +379,8 @@ class TestAccessors:
             df.ewm(span=test_window).mean()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.ewm_mean(test_window, nb_parallel=True),
-            df.vbt.ewm_mean(test_window, nb_parallel=False)
+            df.vbt.ewm_mean(test_window, jitted=dict(parallel=True)),
+            df.vbt.ewm_mean(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.ewm_mean(test_window, chunked=True),
@@ -402,8 +407,8 @@ class TestAccessors:
             df.ewm(span=test_window).std()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.ewm_std(test_window, nb_parallel=True),
-            df.vbt.ewm_std(test_window, nb_parallel=False)
+            df.vbt.ewm_std(test_window, jitted=dict(parallel=True)),
+            df.vbt.ewm_std(test_window, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.ewm_std(test_window, chunked=True),
@@ -428,8 +433,8 @@ class TestAccessors:
             df.expanding().min()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.expanding_min(nb_parallel=True),
-            df.vbt.expanding_min(nb_parallel=False)
+            df.vbt.expanding_min(jitted=dict(parallel=True)),
+            df.vbt.expanding_min(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.expanding_min(chunked=True),
@@ -454,8 +459,8 @@ class TestAccessors:
             df.expanding().max()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.expanding_max(nb_parallel=True),
-            df.vbt.expanding_max(nb_parallel=False)
+            df.vbt.expanding_max(jitted=dict(parallel=True)),
+            df.vbt.expanding_max(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.expanding_max(chunked=True),
@@ -480,8 +485,8 @@ class TestAccessors:
             df.expanding().mean()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.expanding_mean(nb_parallel=True),
-            df.vbt.expanding_mean(nb_parallel=False)
+            df.vbt.expanding_mean(jitted=dict(parallel=True)),
+            df.vbt.expanding_mean(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.expanding_mean(chunked=True),
@@ -504,8 +509,8 @@ class TestAccessors:
             df.expanding().std()
         )
         pd.testing.assert_frame_equal(
-            df.vbt.expanding_std(nb_parallel=True),
-            df.vbt.expanding_std(nb_parallel=False)
+            df.vbt.expanding_std(jitted=dict(parallel=True)),
+            df.vbt.expanding_std(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.expanding_std(chunked=True),
@@ -530,8 +535,8 @@ class TestAccessors:
             df.applymap(lambda x: x * 2)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.map(mult_nb, 2, nb_parallel=True),
-            df.vbt.map(mult_nb, 2, nb_parallel=False)
+            df.vbt.map(mult_nb, 2, jitted=dict(parallel=True)),
+            df.vbt.map(mult_nb, 2, jitted=dict(parallel=False))
         )
         chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(None)))
         pd.testing.assert_frame_equal(
@@ -543,8 +548,10 @@ class TestAccessors:
             df.vbt.map(mult_nb, 2)
         )
         pd.testing.assert_frame_equal(
-            pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, nb_parallel=True),
-            pd.DataFrame.vbt.map(mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, nb_parallel=False)
+            pd.DataFrame.vbt.map(
+                mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
+            pd.DataFrame.vbt.map(
+                mult_meta_nb, df.vbt.to_2d_array(), 2, wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
         chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), None)))
         pd.testing.assert_frame_equal(
@@ -594,8 +601,8 @@ class TestAccessors:
             df.apply(pow_nb, args=(2,), axis=0, raw=True)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.apply_along_axis(pow_nb, 2, axis=0, nb_parallel=True),
-            df.vbt.apply_along_axis(pow_nb, 2, axis=0, nb_parallel=False)
+            df.vbt.apply_along_axis(pow_nb, 2, axis=0, jitted=dict(parallel=True)),
+            df.vbt.apply_along_axis(pow_nb, 2, axis=0, jitted=dict(parallel=False))
         )
         chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(None)))
         pd.testing.assert_frame_equal(
@@ -607,8 +614,8 @@ class TestAccessors:
             df.apply(pow_nb, args=(2,), axis=1, raw=True)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.apply_along_axis(pow_nb, 2, axis=1, nb_parallel=True),
-            df.vbt.apply_along_axis(pow_nb, 2, axis=1, nb_parallel=False)
+            df.vbt.apply_along_axis(pow_nb, 2, axis=1, jitted=dict(parallel=True)),
+            df.vbt.apply_along_axis(pow_nb, 2, axis=1, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.apply_along_axis(pow_nb, 2, axis=1, chunked=chunked),
@@ -621,9 +628,11 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.apply_along_axis(
-                row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0, wrapper=df.vbt.wrapper, nb_parallel=True),
+                row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0,
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.apply_along_axis(
-                row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0, wrapper=df.vbt.wrapper, nb_parallel=False),
+                row_pow_meta_nb, df.vbt.to_2d_array(), 2, axis=0,
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0), None)))
         pd.testing.assert_frame_equal(
@@ -639,9 +648,9 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.apply_along_axis(
-                pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, nb_parallel=True),
+                pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.apply_along_axis(
-                pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, nb_parallel=False),
+                pow_meta_nb, df.vbt.to_2d_array(), 2, axis=1, wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), None)))
         pd.testing.assert_frame_equal(
@@ -697,8 +706,8 @@ class TestAccessors:
             df.rolling(test_window, min_periods=test_minp).apply(mean_nb, raw=True)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.rolling_apply(test_window, mean_nb, minp=test_minp, nb_parallel=True),
-            df.vbt.rolling_apply(test_window, mean_nb, minp=test_minp, nb_parallel=False)
+            df.vbt.rolling_apply(test_window, mean_nb, minp=test_minp, jitted=dict(parallel=True)),
+            df.vbt.rolling_apply(test_window, mean_nb, minp=test_minp, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.rolling_apply(test_window, mean_nb, minp=test_minp, chunked=True),
@@ -715,12 +724,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.rolling_apply(
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
-                minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=True),
+                minp=test_minp, wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.rolling_apply(
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
-                minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=False)
+                minp=test_minp, wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.rolling_apply(
                 test_window, mean_meta_nb, df.vbt.to_2d_array(),
@@ -777,8 +786,8 @@ class TestAccessors:
             df.expanding(min_periods=test_minp).apply(mean_nb, raw=True)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.expanding_apply(mean_nb, minp=test_minp, nb_parallel=True),
-            df.vbt.expanding_apply(mean_nb, minp=test_minp, nb_parallel=False)
+            df.vbt.expanding_apply(mean_nb, minp=test_minp, jitted=dict(parallel=True)),
+            df.vbt.expanding_apply(mean_nb, minp=test_minp, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.expanding_apply(mean_nb, minp=test_minp, chunked=True),
@@ -795,12 +804,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.expanding_apply(
                 mean_meta_nb, df.vbt.to_2d_array(),
-                minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=True),
+                minp=test_minp, wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.expanding_apply(
                 mean_meta_nb, df.vbt.to_2d_array(),
-                minp=test_minp, wrapper=df.vbt.wrapper, nb_parallel=False)
+                minp=test_minp, wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.expanding_apply(
                 mean_meta_nb, df.vbt.to_2d_array(),
@@ -832,8 +841,8 @@ class TestAccessors:
             }),  # any clean way to do column-wise grouping in pandas?
         )
         pd.testing.assert_frame_equal(
-            df.vbt.groupby_apply(np.asarray([1, 1, 2, 2, 3]), mean_nb, nb_parallel=True),
-            df.vbt.groupby_apply(np.asarray([1, 1, 2, 2, 3]), mean_nb, nb_parallel=False)
+            df.vbt.groupby_apply(np.asarray([1, 1, 2, 2, 3]), mean_nb, jitted=dict(parallel=True)),
+            df.vbt.groupby_apply(np.asarray([1, 1, 2, 2, 3]), mean_nb, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.groupby_apply(np.asarray([1, 1, 2, 2, 3]), mean_nb, chunked=True),
@@ -847,12 +856,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.groupby_apply(
                 np.asarray([1, 1, 2, 2, 3]), mean_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, nb_parallel=True),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.groupby_apply(
                 np.asarray([1, 1, 2, 2, 3]), mean_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, nb_parallel=False),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.groupby_apply(
                 np.asarray([1, 1, 2, 2, 3]), mean_meta_nb, df.vbt.to_2d_array(),
@@ -909,8 +918,8 @@ class TestAccessors:
             df.resample(test_freq).apply(lambda x: mean_nb(x.values))
         )
         pd.testing.assert_frame_equal(
-            df.vbt.resample_apply(test_freq, mean_nb, nb_parallel=True),
-            df.vbt.resample_apply(test_freq, mean_nb, nb_parallel=False)
+            df.vbt.resample_apply(test_freq, mean_nb, jitted=dict(parallel=True)),
+            df.vbt.resample_apply(test_freq, mean_nb, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.resample_apply(test_freq, mean_nb, chunked=True),
@@ -924,12 +933,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.resample_apply(
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, nb_parallel=True),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.resample_apply(
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, nb_parallel=False),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.resample_apply(
                 test_freq, mean_meta_nb, df.vbt.to_2d_array(),
@@ -993,10 +1002,12 @@ class TestAccessors:
             df.iloc[::2].sum().rename('apply_and_reduce') + 3
         )
         pd.testing.assert_series_equal(
-            df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), nb_parallel=True),
-            df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), nb_parallel=False)
+            df.vbt.apply_and_reduce(
+                every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), jitted=dict(parallel=True)),
+            df.vbt.apply_and_reduce(
+                every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(apply_args=vbt.ArgsTaker(None,), reduce_args=vbt.ArgsTaker(None,)))
+        chunked = dict(arg_take_spec=dict(apply_args=vbt.ArgsTaker(None, ), reduce_args=vbt.ArgsTaker(None, )))
         pd.testing.assert_series_equal(
             df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), chunked=chunked),
             df.vbt.apply_and_reduce(every_nth_nb, sum_nb, apply_args=(2,), reduce_args=(3,), chunked=False)
@@ -1010,13 +1021,13 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.apply_and_reduce(
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
-                wrapper=df.vbt.wrapper, nb_parallel=True),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.apply_and_reduce(
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
-                wrapper=df.vbt.wrapper, nb_parallel=False),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
-            apply_args=vbt.ArgsTaker(vbt.ArraySlicer(1), None), reduce_args=vbt.ArgsTaker(None,)))
+            apply_args=vbt.ArgsTaker(vbt.ArraySlicer(1), None), reduce_args=vbt.ArgsTaker(None, )))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.apply_and_reduce(
                 every_nth_meta_nb, sum_meta_nb, apply_args=(df.vbt.to_2d_array(), 2,), reduce_args=(3,),
@@ -1028,7 +1039,7 @@ class TestAccessors:
 
         @njit
         def every_2nd_sum_meta_nb(col, a, b):
-            return np.nansum(a[::2, col]) + np.nansum(b[::2, col])
+            return a[::2, col] + b[::2, col]
 
         @njit
         def sum_meta2_nb(col, a):
@@ -1070,8 +1081,8 @@ class TestAccessors:
             df.sum().rename('reduce')
         )
         pd.testing.assert_series_equal(
-            df.vbt.reduce(sum_nb, nb_parallel=True),
-            df.vbt.reduce(sum_nb, nb_parallel=False)
+            df.vbt.reduce(sum_nb, jitted=dict(parallel=True)),
+            df.vbt.reduce(sum_nb, jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             df.vbt.reduce(sum_nb, chunked=True),
@@ -1083,11 +1094,11 @@ class TestAccessors:
         )
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
-                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, nb_parallel=True),
+                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
-                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, nb_parallel=False),
+                sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, jitted=dict(parallel=False)),
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 sum_meta_nb, df.vbt.to_2d_array(), wrapper=df.vbt.wrapper, chunked=count_chunked),
@@ -1114,12 +1125,12 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=True),
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False),
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=False)),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)), )))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 sum_grouped_meta_nb, df.vbt.to_2d_array(),
@@ -1191,8 +1202,8 @@ class TestAccessors:
             df.idxmax().rename('reduce')
         )
         pd.testing.assert_series_equal(
-            df.vbt.reduce(argmax_nb, returns_idx=True, nb_parallel=True),
-            df.vbt.reduce(argmax_nb, returns_idx=True, nb_parallel=False)
+            df.vbt.reduce(argmax_nb, returns_idx=True, jitted=dict(parallel=True)),
+            df.vbt.reduce(argmax_nb, returns_idx=True, jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
             df.vbt.reduce(argmax_nb, returns_idx=True, chunked=True),
@@ -1204,16 +1215,20 @@ class TestAccessors:
         )
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
-                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, nb_parallel=True),
+                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
-                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, nb_parallel=False)
+                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
-                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=count_chunked),
+                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
+                wrapper=df.vbt.wrapper, chunked=count_chunked),
             pd.DataFrame.vbt.reduce(
-                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True, wrapper=df.vbt.wrapper, chunked=False)
+                argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
+                wrapper=df.vbt.wrapper, chunked=False)
         )
         pd.testing.assert_series_equal(
             df.vbt.reduce(argmax_nb, returns_idx=True, group_by=group_by, flatten=True, order='C'),
@@ -1232,12 +1247,12 @@ class TestAccessors:
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, nb_parallel=True),
+                wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, nb_parallel=False),
+                wrapper=df.vbt.wrapper, group_by=group_by, flatten=True, jitted=dict(parallel=False)),
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)), )))
         pd.testing.assert_series_equal(
             pd.DataFrame.vbt.reduce(
                 argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1282,8 +1297,8 @@ class TestAccessors:
             df.apply(lambda x: pd.Series(np.asarray([np.nanmin(x), np.nanmax(x)]), index=['min', 'max']), axis=0)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.reduce(min_and_max_nb, returns_array=True, nb_parallel=True),
-            df.vbt.reduce(min_and_max_nb, returns_array=True, nb_parallel=False)
+            df.vbt.reduce(min_and_max_nb, returns_array=True, jitted=dict(parallel=True)),
+            df.vbt.reduce(min_and_max_nb, returns_array=True, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.reduce(min_and_max_nb, returns_array=True, chunked=True),
@@ -1297,12 +1312,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
-                wrapper=df.vbt.wrapper, nb_parallel=True),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
-                wrapper=df.vbt.wrapper, nb_parallel=False)
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1334,12 +1349,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=True),
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False)
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 min_and_max_grouped_meta_nb, df.vbt.to_2d_array(), returns_array=True,
@@ -1399,8 +1414,8 @@ class TestAccessors:
             df.apply(lambda x: pd.Series(np.asarray([x.idxmin(), x.idxmax()]), index=['idxmin', 'idxmax']), axis=0)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, nb_parallel=True),
-            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, nb_parallel=False)
+            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, jitted=dict(parallel=True)),
+            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, chunked=True),
@@ -1415,12 +1430,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
-                returns_array=True, wrapper=df.vbt.wrapper, nb_parallel=True),
+                returns_array=True, wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
-                returns_array=True, wrapper=df.vbt.wrapper, nb_parallel=False)
+                returns_array=True, wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1),)))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_meta_nb, df.vbt.to_2d_array(), returns_idx=True,
@@ -1445,19 +1460,20 @@ class TestAccessors:
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
-                argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
-                wrapper=df.vbt.wrapper, group_by=group_by),
-            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True, returns_array=True, group_by=group_by, flatten=True)
+                argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(),
+                returns_idx=True, returns_array=True, wrapper=df.vbt.wrapper, group_by=group_by),
+            df.vbt.reduce(argmin_and_argmax_nb, returns_idx=True,
+                          returns_array=True, group_by=group_by, flatten=True)
         )
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=True),
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
-                wrapper=df.vbt.wrapper, group_by=group_by, nb_parallel=False)
+                wrapper=df.vbt.wrapper, group_by=group_by, jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(0)), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.reduce(
                 argmin_and_argmax_grouped_meta_nb, df.vbt.to_2d_array(), returns_idx=True, returns_array=True,
@@ -1487,8 +1503,8 @@ class TestAccessors:
             ], index=df.index, columns=['g1', 'g2'])
         )
         pd.testing.assert_frame_equal(
-            df.vbt.squeeze_grouped(mean_nb, group_by=group_by, nb_parallel=True),
-            df.vbt.squeeze_grouped(mean_nb, group_by=group_by, nb_parallel=False)
+            df.vbt.squeeze_grouped(mean_nb, group_by=group_by, jitted=dict(parallel=True)),
+            df.vbt.squeeze_grouped(mean_nb, group_by=group_by, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.squeeze_grouped(mean_nb, group_by=group_by, chunked=True),
@@ -1502,12 +1518,12 @@ class TestAccessors:
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.squeeze_grouped(
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,
-                wrapper=df.vbt.wrapper, nb_parallel=True),
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=True)),
             pd.DataFrame.vbt.squeeze_grouped(
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,
-                wrapper=df.vbt.wrapper, nb_parallel=False)
+                wrapper=df.vbt.wrapper, jitted=dict(parallel=False))
         )
-        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(1)),)))
+        chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(1, mapper=vbt.GroupLensMapper(1)), )))
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.squeeze_grouped(
                 mean_grouped_meta_nb, df.vbt.to_2d_array(), group_by=group_by,
@@ -1609,16 +1625,16 @@ class TestAccessors:
             ], index=['g1', 'g2']).rename(test_name)
         )
         pd.testing.assert_series_equal(
-            test_func(df.vbt, use_numba=True),
-            test_func(df.vbt, use_numba=False)
+            test_func(df.vbt, use_jitted=True),
+            test_func(df.vbt, use_jitted=False)
         )
         pd.testing.assert_series_equal(
-            test_func(df.vbt, use_numba=True, nb_parallel=True),
-            test_func(df.vbt, use_numba=True, nb_parallel=False)
+            test_func(df.vbt, use_jitted=True, jitted=dict(parallel=True)),
+            test_func(df.vbt, use_jitted=True, jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            test_func(df.vbt, use_numba=True, chunked=True),
-            test_func(df.vbt, use_numba=True, chunked=False)
+            test_func(df.vbt, use_jitted=True, chunked=True),
+            test_func(df.vbt, use_jitted=True, chunked=False)
         )
         pd.testing.assert_series_equal(
             test_func(df.vbt, wrap_kwargs=dict(to_timedelta=True)),
@@ -1683,16 +1699,16 @@ class TestAccessors:
             }, index=test_against.index)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.describe(nb_parallel=True),
-            df.vbt.describe(nb_parallel=False)
+            df.vbt.describe(jitted=dict(parallel=True)),
+            df.vbt.describe(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.describe(chunked=True),
             df.vbt.describe(chunked=False)
         )
         pd.testing.assert_frame_equal(
-            df.vbt.describe(group_by=group_by, nb_parallel=True),
-            df.vbt.describe(group_by=group_by, nb_parallel=False)
+            df.vbt.describe(group_by=group_by, jitted=dict(parallel=True)),
+            df.vbt.describe(group_by=group_by, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.describe(group_by=group_by, chunked=True),
@@ -1732,8 +1748,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            df.vbt.value_counts(nb_parallel=True),
-            df.vbt.value_counts(nb_parallel=False)
+            df.vbt.value_counts(jitted=dict(parallel=True)),
+            df.vbt.value_counts(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.value_counts(chunked=True),
@@ -1750,8 +1766,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_frame_equal(
-            df.vbt.value_counts(axis=0, nb_parallel=True),
-            df.vbt.value_counts(axis=0, nb_parallel=False)
+            df.vbt.value_counts(axis=0, jitted=dict(parallel=True)),
+            df.vbt.value_counts(axis=0, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.value_counts(axis=0, chunked=True),
@@ -1768,8 +1784,8 @@ class TestAccessors:
             )
         )
         pd.testing.assert_series_equal(
-            df.vbt.value_counts(axis=-1, nb_parallel=True),
-            df.vbt.value_counts(axis=-1, nb_parallel=False)
+            df.vbt.value_counts(axis=-1, jitted=dict(parallel=True)),
+            df.vbt.value_counts(axis=-1, jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.value_counts(group_by=group_by),
@@ -1865,8 +1881,8 @@ class TestAccessors:
             df / df.expanding().max() - 1
         )
         pd.testing.assert_frame_equal(
-            df.vbt.drawdown(nb_parallel=True),
-            df.vbt.drawdown(nb_parallel=False)
+            df.vbt.drawdown(jitted=dict(parallel=True)),
+            df.vbt.drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.drawdown(chunked=True),
@@ -2567,8 +2583,8 @@ class TestAccessors:
             pd.Series([False, False, False, False, False, False, False])
         )
         pd.testing.assert_frame_equal(
-            df.vbt.crossed_above(df.iloc[:, ::-1], nb_parallel=True),
-            df.vbt.crossed_above(df.iloc[:, ::-1], nb_parallel=False)
+            df.vbt.crossed_above(df.iloc[:, ::-1], jitted=dict(parallel=True)),
+            df.vbt.crossed_above(df.iloc[:, ::-1], jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.crossed_above(df.iloc[:, ::-1], chunked=True),
@@ -2597,8 +2613,8 @@ class TestAccessors:
             pd.Series([False, False, False, False, False, False, False])
         )
         pd.testing.assert_frame_equal(
-            df.vbt.crossed_below(df.iloc[:, ::-1], nb_parallel=True),
-            df.vbt.crossed_below(df.iloc[:, ::-1], nb_parallel=False)
+            df.vbt.crossed_below(df.iloc[:, ::-1], jitted=dict(parallel=True)),
+            df.vbt.crossed_below(df.iloc[:, ::-1], jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
             df.vbt.crossed_below(df.iloc[:, ::-1], chunked=True),

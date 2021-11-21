@@ -173,7 +173,7 @@ class SignalFactory(IndicatorFactory):
             entry_settings: tp.KwargsLike = None,
             exit_settings: tp.KwargsLike = None,
             cache_settings: tp.KwargsLike = None,
-            numba_loop: bool = False,
+            jitted_loop: bool = False,
             **kwargs) -> tp.Type[IndicatorBase]:
         """Build signal generator class around entry and exit placement functions.
 
@@ -203,7 +203,9 @@ class SignalFactory(IndicatorFactory):
             entry_settings (dict): Settings dict for `entry_place_func`.
             exit_settings (dict): Settings dict for `exit_place_func`.
             cache_settings (dict): Settings dict for `cache_func`.
-            numba_loop (bool): Whether to loop using Numba.
+            jitted_loop (bool): Whether to loop using a jitter.
+
+                Parameter selector will be automatically compiled using Numba.
 
                 Set to True when iterating large number of times over small input.
             **kwargs: Keyword arguments passed to `IndicatorFactory.from_custom_func`.
@@ -559,7 +561,7 @@ class SignalFactory(IndicatorFactory):
             code = compile(func_str, filename, 'single')
             exec(code, scope)
             apply_func = scope['apply_func']
-            if numba_loop:
+            if jitted_loop:
                 apply_func = njit(apply_func)
 
         elif mode == FactoryMode.Exits:
@@ -594,7 +596,7 @@ class SignalFactory(IndicatorFactory):
             code = compile(func_str, filename, 'single')
             exec(code, scope)
             apply_func = scope['apply_func']
-            if numba_loop:
+            if jitted_loop:
                 apply_func = njit(apply_func)
 
         else:
@@ -645,7 +647,7 @@ class SignalFactory(IndicatorFactory):
             code = compile(func_str, filename, 'single')
             exec(code, scope)
             apply_func = scope['apply_func']
-            if numba_loop:
+            if jitted_loop:
                 apply_func = njit(apply_func)
 
         def custom_func(input_list: tp.List[tp.AnyArray],
@@ -820,14 +822,14 @@ class SignalFactory(IndicatorFactory):
             # Apply and concatenate
             if mode == FactoryMode.Entries:
                 if len(entry_in_output_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _entry_in_output_tuples = (to_typed_list(entry_in_output_tuples),)
                     else:
                         _entry_in_output_tuples = (entry_in_output_tuples,)
                 else:
                     _entry_in_output_tuples = ()
                 if len(entry_param_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _entry_param_tuples = (to_typed_list(entry_param_tuples),)
                     else:
                         _entry_param_tuples = (entry_param_tuples,)
@@ -843,20 +845,20 @@ class SignalFactory(IndicatorFactory):
                     *_entry_param_tuples,
                     entry_args + entry_more_args + entry_cache,
                     n_outputs=1,
-                    numba_loop=numba_loop,
+                    jitted_loop=jitted_loop,
                     execute_kwargs=execute_kwargs
                 )
 
             elif mode == FactoryMode.Exits:
                 if len(exit_in_output_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _exit_in_output_tuples = (to_typed_list(exit_in_output_tuples),)
                     else:
                         _exit_in_output_tuples = (exit_in_output_tuples,)
                 else:
                     _exit_in_output_tuples = ()
                 if len(exit_param_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _exit_param_tuples = (to_typed_list(exit_param_tuples),)
                     else:
                         _exit_param_tuples = (exit_param_tuples,)
@@ -875,34 +877,34 @@ class SignalFactory(IndicatorFactory):
                     *_exit_param_tuples,
                     exit_args + exit_more_args + exit_cache,
                     n_outputs=1,
-                    numba_loop=numba_loop,
+                    jitted_loop=jitted_loop,
                     execute_kwargs=execute_kwargs
                 )
 
             else:
                 if len(entry_in_output_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _entry_in_output_tuples = (to_typed_list(entry_in_output_tuples),)
                     else:
                         _entry_in_output_tuples = (entry_in_output_tuples,)
                 else:
                     _entry_in_output_tuples = ()
                 if len(entry_param_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _entry_param_tuples = (to_typed_list(entry_param_tuples),)
                     else:
                         _entry_param_tuples = (entry_param_tuples,)
                 else:
                     _entry_param_tuples = ()
                 if len(exit_in_output_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _exit_in_output_tuples = (to_typed_list(exit_in_output_tuples),)
                     else:
                         _exit_in_output_tuples = (exit_in_output_tuples,)
                 else:
                     _exit_in_output_tuples = ()
                 if len(exit_param_names) > 0:
-                    if numba_loop:
+                    if jitted_loop:
                         _exit_param_tuples = (to_typed_list(exit_param_tuples),)
                     else:
                         _exit_param_tuples = (exit_param_tuples,)
@@ -926,7 +928,7 @@ class SignalFactory(IndicatorFactory):
                     entry_args + entry_more_args + entry_cache,
                     exit_args + exit_more_args + exit_cache,
                     n_outputs=2,
-                    numba_loop=numba_loop,
+                    jitted_loop=jitted_loop,
                     execute_kwargs=execute_kwargs
                 )
 

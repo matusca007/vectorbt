@@ -488,7 +488,7 @@ from vectorbt.base.reshaping import to_1d_array, to_2d_array
 from vectorbt.base.wrapping import ArrayWrapper
 from vectorbt.ch_registry import ch_registry
 from vectorbt.generic.ranges import Ranges
-from vectorbt.nb_registry import nb_registry
+from vectorbt.jit_registry import jit_registry
 from vectorbt.portfolio import nb
 from vectorbt.portfolio.enums import TradeDirection, TradeStatus, trade_dt
 from vectorbt.portfolio.orders import Orders
@@ -693,7 +693,7 @@ class Trades(Ranges):
 
     def win_rate(self,
                  group_by: tp.GroupByLike = None,
-                 nb_parallel: tp.Optional[bool] = None,
+                 jitted: tp.JittedOption = None,
                  chunked: tp.ChunkedOption = None,
                  wrap_kwargs: tp.KwargsLike = None,
                  **kwargs) -> tp.MaybeSeries:
@@ -702,7 +702,7 @@ class Trades(Ranges):
         return self.get_map_field('pnl').reduce(
             nb.win_rate_1d_nb,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -710,7 +710,7 @@ class Trades(Ranges):
 
     def profit_factor(self,
                       group_by: tp.GroupByLike = None,
-                      nb_parallel: tp.Optional[bool] = None,
+                      jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None,
                       wrap_kwargs: tp.KwargsLike = None,
                       **kwargs) -> tp.MaybeSeries:
@@ -719,7 +719,7 @@ class Trades(Ranges):
         return self.get_map_field('pnl').reduce(
             nb.profit_factor_1d_nb,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -727,7 +727,7 @@ class Trades(Ranges):
 
     def expectancy(self,
                    group_by: tp.GroupByLike = None,
-                   nb_parallel: tp.Optional[bool] = None,
+                   jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None,
                    wrap_kwargs: tp.KwargsLike = None,
                    **kwargs) -> tp.MaybeSeries:
@@ -736,7 +736,7 @@ class Trades(Ranges):
         return self.get_map_field('pnl').reduce(
             nb.expectancy_1d_nb,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -745,7 +745,7 @@ class Trades(Ranges):
     def sqn(self,
             ddof: int = 1,
             group_by: tp.GroupByLike = None,
-            nb_parallel: tp.Optional[bool] = None,
+            jitted: tp.JittedOption = None,
             chunked: tp.ChunkedOption = None,
             wrap_kwargs: tp.KwargsLike = None,
             **kwargs) -> tp.MaybeSeries:
@@ -754,7 +754,7 @@ class Trades(Ranges):
         return self.get_map_field('pnl').reduce(
             nb.sqn_1d_nb, ddof,
             group_by=group_by,
-            nb_parallel=nb_parallel,
+            jitted=jitted,
             chunked=chunked,
             wrap_kwargs=wrap_kwargs,
             **kwargs
@@ -1529,14 +1529,14 @@ class EntryTrades(Trades):
                     close: tp.Optional[tp.ArrayLike] = None,
                     init_position: tp.ArrayLike = 0.,
                     attach_close: bool = True,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     **kwargs) -> EntryTradesT:
         """Build `EntryTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = nb_registry.redecorate_parallel(nb.get_entry_trades_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.get_entry_trades_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1581,14 +1581,14 @@ class ExitTrades(Trades):
                     close: tp.Optional[tp.ArrayLike] = None,
                     init_position: tp.ArrayLike = 0.,
                     attach_close: bool = True,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     **kwargs) -> ExitTradesT:
         """Build `ExitTrades` from `vectorbt.portfolio.orders.Orders`."""
         if close is None:
             close = orders.close
-        func = nb_registry.redecorate_parallel(nb.get_exit_trades_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.get_exit_trades_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         trade_records_arr = func(
             orders.values,
             to_2d_array(close),
@@ -1640,13 +1640,13 @@ class Positions(Trades):
                     trades: Trades,
                     close: tp.Optional[tp.ArrayLike] = None,
                     attach_close: bool = True,
-                    nb_parallel: tp.Optional[bool] = None,
+                    jitted: tp.JittedOption = None,
                     chunked: tp.ChunkedOption = None,
                     **kwargs) -> PositionsT:
         """Build `Positions` from `Trades`."""
         if close is None:
             close = trades.close
-        func = nb_registry.redecorate_parallel(nb.get_positions_nb, nb_parallel)
-        func = ch_registry.resolve_chunked(func, chunked)
+        func = jit_registry.resolve_option(nb.get_positions_nb, jitted)
+        func = ch_registry.resolve_option(func, chunked)
         position_records_arr = func(trades.values, trades.col_mapper.col_map)
         return cls(trades.wrapper, position_records_arr, close=close if attach_close else None, **kwargs)

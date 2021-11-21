@@ -13,7 +13,7 @@ import pandas as pd
 
 from vectorbt import _typing as tp
 from vectorbt.base import indexes, reshaping
-from vectorbt.nb_registry import register_jit
+from vectorbt.jit_registry import register_jitted
 from vectorbt.utils import checks
 
 
@@ -311,7 +311,7 @@ def build_param_indexer(param_names: tp.Sequence[str], class_name: str = 'ParamI
     return ParamIndexer
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def flex_choose_i_and_col_nb(a: tp.Array, flex_2d: bool = True) -> tp.Tuple[int, int]:
     """Choose selection index and column based on the array's shape.
 
@@ -344,7 +344,7 @@ def flex_choose_i_and_col_nb(a: tp.Array, flex_2d: bool = True) -> tp.Tuple[int,
     return i, col
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, flex_2d: bool = True) -> tp.Any:
     """Select element of `a` as if it has been broadcast."""
     if flex_i == -1:
@@ -360,7 +360,7 @@ def flex_select_nb(a: tp.Array, i: int, col: int, flex_i: int, flex_col: int, fl
     return a[flex_i, int(flex_col)]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def flex_select_auto_nb(a: tp.Array, i: int, col: int, flex_2d: bool = True) -> tp.Any:
     """Combines `flex_choose_i_and_col_nb` and `flex_select_nb`."""
     flex_i, flex_col = flex_choose_i_and_col_nb(a, flex_2d)

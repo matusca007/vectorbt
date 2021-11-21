@@ -22,7 +22,7 @@ size_zero_neg_err = "Found order with size 0 or less"
 price_zero_neg_err = "Found order with price 0 or less"
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_trade_record_nb(new_records: tp.Record,
                          r: int,
                          col: int,
@@ -64,7 +64,7 @@ def fill_trade_record_nb(new_records: tp.Record,
     new_records['parent_id'][r] = parent_id
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
                                      col_map: tp.ColMap,
                                      col: int,
@@ -152,7 +152,7 @@ def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def get_entry_trades_nb(order_records: tp.RecordArray,
                         close: tp.Array2d,
                         col_map: tp.ColMap,
@@ -429,7 +429,7 @@ def get_entry_trades_nb(order_records: tp.RecordArray,
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def get_exit_trades_nb(order_records: tp.RecordArray,
                        close: tp.Array2d,
                        col_map: tp.ColMap,
@@ -698,7 +698,7 @@ def get_exit_trades_nb(order_records: tp.RecordArray,
     return generic_nb.repartition_nb(new_records, counts)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def fill_position_record_nb(new_records: tp.RecordArray, r: int, trade_records: tp.RecordArray) -> None:
     """Fill a position record by aggregating trade records."""
     # Aggregate trades
@@ -738,7 +738,7 @@ def fill_position_record_nb(new_records: tp.RecordArray, r: int, trade_records: 
     new_records['parent_id'][r] = r
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def copy_trade_record_nb(new_records: tp.RecordArray, r: int, trade_record: tp.Record) -> None:
     """Copy a trade record."""
     new_records['id'][r] = r
@@ -765,7 +765,7 @@ def copy_trade_record_nb(new_records: tp.RecordArray, r: int, trade_record: tp.R
     ),
     merge_func=base_ch.concat
 )
-@register_jit(cache=True, tags={'can_parallel'})
+@register_jitted(cache=True, tags={'can_parallel'})
 def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.RecordArray:
     """Fill position records by aggregating trade records.
 
@@ -842,7 +842,7 @@ def get_positions_nb(trade_records: tp.RecordArray, col_map: tp.ColMap) -> tp.Re
     return generic_nb.repartition_nb(new_records, counts)
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def trade_winning_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     """Return the current winning streak of each trade."""
     out = np.full(len(records), 0, dtype=np.int_)
@@ -856,7 +856,7 @@ def trade_winning_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def trade_losing_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     """Return the current losing streak of each trade."""
     out = np.full(len(records), 0, dtype=np.int_)
@@ -870,7 +870,7 @@ def trade_losing_streak_nb(records: tp.RecordArray) -> tp.Array1d:
     return out
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def win_rate_1d_nb(pnl_arr: tp.Array1d) -> float:
     """Win rate of a PnL array."""
     if pnl_arr.shape[0] == 0:
@@ -885,7 +885,7 @@ def win_rate_1d_nb(pnl_arr: tp.Array1d) -> float:
     return win_count / pnl_arr.shape[0]
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def profit_factor_1d_nb(pnl_arr: tp.Array1d) -> float:
     """Profit factor of a PnL array."""
     if pnl_arr.shape[0] == 0:
@@ -905,7 +905,7 @@ def profit_factor_1d_nb(pnl_arr: tp.Array1d) -> float:
     return win_sum / loss_sum
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def expectancy_1d_nb(pnl_arr: tp.Array1d) -> float:
     """Expectancy of a PnL array."""
     if pnl_arr.shape[0] == 0:
@@ -937,7 +937,7 @@ def expectancy_1d_nb(pnl_arr: tp.Array1d) -> float:
     return win_rate * win_mean - loss_rate * loss_mean
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def sqn_1d_nb(pnl_arr: tp.Array1d, ddof: int = 0) -> float:
     """SQN of a PnL array."""
     count = generic_nb.nancnt_1d_nb(pnl_arr)

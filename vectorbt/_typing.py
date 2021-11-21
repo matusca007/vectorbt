@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from vectorbt.utils.execution import ExecutionEngine
     from vectorbt.utils.chunking import Sizer, ChunkTaker, ChunkMeta, ChunkMetaGenerator
     from vectorbt.generic.plotting import TraceUpdater
+    from vectorbt.utils.jitting import Jitter
 else:
     Regex = 'Regex'
     ExecutionEngine = 'ExecutionEngine'
@@ -43,6 +44,7 @@ else:
     ChunkMeta = 'ChunkMeta'
     ChunkMetaGenerator = 'ChunkMetaGenerator'
     TraceUpdater = 'TraceUpdater'
+    Jitter = 'Jitter'
 
 # Generic types
 T = TypeVar("T")
@@ -64,6 +66,7 @@ MaybeIterable = Union[T, Iterable[T]]
 MaybeSequence = Union[T, Sequence[T]]
 MaybeCollection = Union[T, Collection[T]]
 MaybeMappingSequence = Union[T, Mapping[str, T], Sequence[T]]
+SetLike = Union[None, Set[T]]
 
 
 # Arrays
@@ -206,3 +209,8 @@ MappingTakeSpec = Mapping[Hashable, TakeSpec]
 SequenceTakeSpec = Sequence[TakeSpec]
 ContainerTakeSpec = Union[MappingTakeSpec, SequenceTakeSpec]
 ChunkedOption = Union[None, bool, str, Kwargs]
+
+
+# JIT
+JittedOption = Union[None, bool, str, Kwargs]
+JitterLike = Union[str, Jitter, Type[Jitter]]

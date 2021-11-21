@@ -14,7 +14,7 @@ from vectorbt.utils.array_ import insert_argsort_nb
 from vectorbt.utils.math_ import is_less_nb
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def generate_stop_signal_nb(position_now: float,
                             upon_stop_exit: int,
                             accumulate: int) -> tp.Tuple[bool, bool, bool, bool, int]:
@@ -48,7 +48,7 @@ def generate_stop_signal_nb(position_now: float,
     return is_long_entry, is_long_exit, is_short_entry, is_short_exit, accumulate
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def resolve_stop_price_and_slippage_nb(stop_price: float,
                                        price: float,
                                        close: float,
@@ -64,7 +64,7 @@ def resolve_stop_price_and_slippage_nb(stop_price: float,
     return price, slippage
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def resolve_signal_conflict_nb(position_now: float,
                                is_entry: bool,
                                is_exit: bool,
@@ -113,7 +113,7 @@ def resolve_signal_conflict_nb(position_now: float,
     return is_entry, is_exit
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def resolve_dir_conflict_nb(position_now: float,
                             is_long_entry: bool,
                             is_short_entry: bool,
@@ -146,7 +146,7 @@ def resolve_dir_conflict_nb(position_now: float,
     return is_long_entry, is_short_entry
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def resolve_opposite_entry_nb(position_now: float,
                               is_long_entry: bool,
                               is_long_exit: bool,
@@ -182,7 +182,7 @@ def resolve_opposite_entry_nb(position_now: float,
     return is_long_entry, is_long_exit, is_short_entry, is_short_exit, accumulate
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def signals_to_size_nb(position_now: float,
                        is_long_entry: bool,
                        is_long_exit: bool,
@@ -273,7 +273,7 @@ def signals_to_size_nb(position_now: float,
     return order_size, size_type, direction
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def should_update_stop_nb(stop: float, upon_stop_update: int) -> bool:
     """Whether to update stop."""
     if upon_stop_update == StopUpdateMode.Override or upon_stop_update == StopUpdateMode.OverrideNaN:
@@ -282,7 +282,7 @@ def should_update_stop_nb(stop: float, upon_stop_update: int) -> bool:
     return False
 
 
-@register_jit(cache=True)
+@register_jitted(cache=True)
 def get_stop_price_nb(position_now: float,
                       stop_price: float,
                       stop: float,
@@ -312,19 +312,19 @@ def get_stop_price_nb(position_now: float,
     return np.nan
 
 
-@register_jit
+@register_jitted
 def no_signal_func_nb(c: SignalContext, *args) -> tp.Tuple[bool, bool, bool, bool]:
     """Placeholder signal function that returns no signal."""
     return False, False, False, False
 
 
-@register_jit
+@register_jitted
 def no_adjust_sl_func_nb(c: AdjustSLContext, *args) -> tp.Tuple[float, bool]:
     """Placeholder function that returns the initial stop-loss value and trailing flag."""
     return c.curr_stop, c.curr_trail
 
 
-@register_jit
+@register_jitted
 def no_adjust_tp_func_nb(c: AdjustTPContext, *args) -> float:
     """Placeholder function that returns the initial take-profit value."""
     return c.curr_stop
@@ -395,7 +395,7 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def simulate_from_signal_func_nb(target_shape: tp.Shape,
                                  group_lens: tp.Array1d,
                                  call_seq: tp.Array2d,
@@ -985,7 +985,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
     )
 
 
-@register_jit
+@register_jitted
 def dir_enex_signal_func_nb(c: SignalContext,
                             entries: tp.FlexArray,
                             exits: tp.FlexArray,
@@ -1001,7 +1001,7 @@ def dir_enex_signal_func_nb(c: SignalContext,
     return is_entry, False, is_exit, False
 
 
-@register_jit
+@register_jitted
 def ls_enex_signal_func_nb(c: SignalContext,
                            long_entries: tp.FlexArray,
                            long_exits: tp.FlexArray,

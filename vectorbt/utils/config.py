@@ -157,7 +157,7 @@ def update_dict(x: InConfigLikeT,
 def merge_dicts(*dicts: InConfigLikeT,
                 to_dict: bool = True,
                 copy_mode: tp.Optional[str] = 'shallow',
-                nested: bool = True,
+                nested: tp.Optional[bool] = None,
                 same_keys: bool = False) -> OutConfigLikeT:
     """Merge dicts.
 
@@ -168,10 +168,27 @@ def merge_dicts(*dicts: InConfigLikeT,
 
             Pass None to not copy.
         nested (bool): Whether to merge all child dicts in recursive manner.
+
+            If None, checks whether any dict is nested.
         same_keys (bool): Whether to merge on the overlapping keys only."""
     # copy only once
+    if nested is None:
+        for dct in dicts:
+            if dct is not None:
+                for v in dct.values():
+                    if isinstance(v, dict) and not isinstance(v, atomic_dict):
+                        nested = True
+                        break
+            if nested:
+                break
     if to_dict:
-        dicts = tuple([convert_to_dict(dct, nested=nested) for dct in dicts])
+        if not nested and copy_mode == 'shallow':  # shortcut
+            out = dict()
+            for dct in dicts:
+                if dct is not None:
+                    out.update(dct)
+            return out
+        dicts = tuple([convert_to_dict(dct, nested=True) for dct in dicts])
     if copy_mode is not None:
         if not to_dict or copy_mode != 'shallow':
             # to_dict already does a shallow copy
@@ -366,16 +383,16 @@ class Config(PickleableDict, Documented):
                  as_attrs: tp.Optional[bool] = None) -> None:
         try:
             from vectorbt._settings import settings
-            configured_cfg = settings['config']
+            config_cfg = settings['config']
         except ImportError:
-            configured_cfg = {}
+            config_cfg = {}
 
         if dct is None:
             dct = dict()
 
         # Resolve params
         def _resolve_param(pname: str, p: tp.Any, default: tp.Any, merge: bool = False) -> tp.Any:
-            cfg_default = configured_cfg.get(pname, None)
+            cfg_default = config_cfg.get(pname, None)
             dct_p = getattr(dct, pname + '_') if isinstance(dct, Config) else None
 
             if merge and isinstance(default, dict):
@@ -821,13 +838,13 @@ class Configured(Cacheable, Pickleable, Documented):
         check_expected_keys = cls_or_self._check_expected_keys
         if check_expected_keys is None:
             check_expected_keys = configured_cfg['check_expected_keys']
+        if not check_expected_keys:
+            return None
 
         if isinstance(cls_or_self, type):
             cls = cls_or_self
         else:
             cls = cls_or_self.__class__
-        if not check_expected_keys:
-            return None
         expected_keys = set()
         for cls in inspect.getmro(cls):
             if issubclass(cls, Configured):

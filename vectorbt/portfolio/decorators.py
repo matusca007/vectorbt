@@ -37,7 +37,7 @@ def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
                            freq: tp.Optional[tp.FrequencyLike] = None,
                            year_freq: tp.Optional[tp.FrequencyLike] = None,
                            use_asset_returns: bool = False,
-                           nb_parallel: tp.Optional[bool] = None,
+                           jitted: tp.JittedOption = None,
                            _source_name: str = source_name,
                            **kwargs) -> tp.Any:
                 returns_acc = self.get_returns_acc(
@@ -46,7 +46,7 @@ def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
                     freq=freq,
                     year_freq=year_freq,
                     use_asset_returns=use_asset_returns,
-                    nb_parallel=nb_parallel
+                    jitted=jitted
                 )
                 ret_method = getattr(returns_acc, _source_name)
                 if 'parallel' in get_func_arg_names(ret_method):

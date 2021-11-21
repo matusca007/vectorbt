@@ -14,19 +14,19 @@ from vectorbt.utils import chunking as ch
 from vectorbt.utils.template import RepFunc
 
 
-@register_jit
+@register_jitted
 def no_pre_func_nb(c: tp.NamedTuple, *args) -> tp.Args:
     """Placeholder preprocessing function that forwards received arguments down the stack."""
     return args
 
 
-@register_jit
+@register_jitted
 def no_order_func_nb(c: OrderContext, *args) -> Order:
     """Placeholder order function that returns no order."""
     return NoOrder
 
 
-@register_jit
+@register_jitted
 def no_post_func_nb(c: tp.NamedTuple, *args) -> None:
     """Placeholder postprocessing function that returns nothing."""
     return None
@@ -88,7 +88,7 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def simulate_nb(target_shape: tp.Shape,
                 group_lens: tp.Array1d,
                 cash_sharing: bool,
@@ -1173,7 +1173,7 @@ def simulate_nb(target_shape: tp.Shape,
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit
+@register_jitted
 def simulate_row_wise_nb(target_shape: tp.Shape,
                          group_lens: tp.Array1d,
                          cash_sharing: bool,
@@ -1957,7 +1957,7 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
     )
 
 
-@register_jit
+@register_jitted
 def no_flex_order_func_nb(c: FlexOrderContext, *args) -> tp.Tuple[int, Order]:
     """Placeholder flexible order function that returns break column and no order."""
     return -1, NoOrder
@@ -2009,7 +2009,7 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit(tags={'can_parallel'})
+@register_jitted(tags={'can_parallel'})
 def flex_simulate_nb(target_shape: tp.Shape,
                      group_lens: tp.Array1d,
                      cash_sharing: bool,
@@ -2918,7 +2918,7 @@ def flex_simulate_nb(target_shape: tp.Shape,
     ),
     **portfolio_ch.merge_sim_outs_config
 )
-@register_jit
+@register_jitted
 def flex_simulate_row_wise_nb(target_shape: tp.Shape,
                               group_lens: tp.Array1d,
                               cash_sharing: bool,
