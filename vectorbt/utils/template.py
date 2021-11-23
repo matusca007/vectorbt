@@ -64,9 +64,20 @@ class CustomTemplate(Hashable, SafeToStr):
                     return False
         return True
 
+    def resolve_strict(self, strict: tp.Optional[bool] = None) -> bool:
+        """Resolve `CustomTemplate.strict`."""
+        if strict is None:
+            strict = self.strict
+        if strict is None:
+            from vectorbt._settings import settings
+            template_cfg = settings['template']
+
+            strict = template_cfg['strict']
+        return strict
+
     def substitute(self,
                    mapping: tp.Optional[tp.Mapping] = None,
-                   strict: bool = False,
+                   strict: tp.Optional[bool] = None,
                    sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Abstract method to substitute the template `CustomTemplate.template` using
         the mapping from merging `CustomTemplate.mapping` and `mapping`."""
@@ -96,13 +107,13 @@ class Sub(CustomTemplate):
 
     def substitute(self,
                    mapping: tp.Optional[tp.Mapping] = None,
-                   strict: bool = False,
+                   strict: tp.Optional[bool] = None,
                    sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Substitute parts of `Sub.template` as a regular template."""
         if not self.meets_sub_id(sub_id):
             return self
-        if self.strict is not None:
-            strict = self.strict
+        strict = self.resolve_strict(strict=strict)
+
         try:
             mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return Template(self.template).substitute(mapping)
@@ -117,13 +128,13 @@ class Rep(CustomTemplate):
 
     def substitute(self,
                    mapping: tp.Optional[tp.Mapping] = None,
-                   strict: bool = False,
+                   strict: tp.Optional[bool] = None,
                    sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Replace `Rep.template` as a key."""
         if not self.meets_sub_id(sub_id):
             return self
-        if self.strict is not None:
-            strict = self.strict
+        strict = self.resolve_strict(strict=strict)
+
         try:
             mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return mapping[self.template]
@@ -138,13 +149,13 @@ class RepEval(CustomTemplate):
 
     def substitute(self,
                    mapping: tp.Optional[tp.Mapping] = None,
-                   strict: bool = False,
+                   strict: tp.Optional[bool] = None,
                    sub_id: tp.Optional[Hashable] = None) -> tp.Any:
         """Evaluate `RepEval.template` as an expression."""
         if not self.meets_sub_id(sub_id):
             return self
-        if self.strict is not None:
-            strict = self.strict
+        strict = self.resolve_strict(strict=strict)
+
         try:
             mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return eval(self.template, {}, mapping)
@@ -159,13 +170,13 @@ class RepFunc(CustomTemplate):
 
     def substitute(self,
                    mapping: tp.Optional[tp.Mapping] = None,
-                   strict: bool = False,
+                   strict: tp.Optional[bool] = None,
                    sub_id: int = 0) -> tp.Any:
         """Call `RepFunc.template` as a function."""
         if not self.meets_sub_id(sub_id):
             return self
-        if self.strict is not None:
-            strict = self.strict
+        strict = self.resolve_strict(strict=strict)
+
         try:
             mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             func_arg_names = get_func_arg_names(self.template)
@@ -235,11 +246,6 @@ def deep_substitute(obj: tp.Any,
     >>> vbt.deep_substitute(vbt.RepEval('key == 100', strict=False))
     <vectorbt.utils.template.RepEval at 0x7fe3ad2ab668>
     ```"""
-    from vectorbt._settings import settings
-    template_cfg = settings['template']
-
-    if strict is None:
-        strict = template_cfg['strict']
     if mapping is None:
         mapping = {}
 

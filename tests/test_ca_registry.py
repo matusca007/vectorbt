@@ -224,7 +224,7 @@ class TestCacheableRegistry:
 
         setup = f.get_ca_setup()
         with pytest.raises(Exception):
-            _ = CARunSetup(f)
+            CARunSetup(f)
         assert setup.unbound_setup is None
         assert setup.instance_setup is None
         assert setup is CARunSetup.get(f)
@@ -344,7 +344,7 @@ class TestCacheableRegistry:
                 return 10
 
         with pytest.raises(Exception):
-            _ = CARunSetup.get(A.f)
+            CARunSetup.get(A.f)
 
         a = A()
 

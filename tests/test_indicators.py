@@ -1411,9 +1411,9 @@ class TestFactory:
                     pd.testing.assert_series_equal(_in_out, ts['a'].vbt.wrapper.wrap(_in_out.values))
             return _ts
 
-        _ = F.from_custom_func(custom_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
+        F.from_custom_func(custom_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
             .run(ts['a'])
-        _ = F.from_apply_func(apply_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
+        F.from_apply_func(apply_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
             .run(ts['a'])
 
         def custom_func(_ts, _in_out, col=None):
@@ -1450,9 +1450,9 @@ class TestFactory:
                     pd.testing.assert_series_equal(_in_out, ts.iloc[:, col].vbt.wrapper.wrap(_in_out.values))
             return _ts
 
-        _ = F.from_custom_func(custom_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
+        F.from_custom_func(custom_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
             .run(ts['a'], per_column=True, pass_col=True)
-        _ = F.from_apply_func(apply_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
+        F.from_apply_func(apply_func, to_2d=test_to_2d, keep_pd=test_keep_pd, var_args=True) \
             .run(ts['a'], per_column=True, pass_col=True)
 
     def test_as_lists(self):

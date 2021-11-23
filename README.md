@@ -35,7 +35,7 @@ With vectorbt, you can
 ## Installation
 
 ```bash
-pip install vectorbt
+pip install --upgrade vectorbt
 ```
 
 To also install optional dependencies:

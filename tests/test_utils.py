@@ -5,12 +5,14 @@ from collections import namedtuple
 from copy import copy, deepcopy
 from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
 from itertools import product, combinations
+from functools import wraps
 
 import numpy as np
 import pandas as pd
 import pytest
 import pytz
 from numba import njit
+from numba.core.registry import CPUDispatcher
 
 import vectorbt as vbt
 from tests.utils import chunk_meta_equal
@@ -31,7 +33,8 @@ from vectorbt.utils import (
     template,
     parsing,
     execution,
-    chunking
+    chunking,
+    jitting
 )
 
 dask_available = True
@@ -651,11 +654,11 @@ class TestConfig:
         assert cfg.dct.d == 0
 
         with pytest.raises(Exception):
-            _ = config.Config(dict(readonly_=True), as_attrs=True)
+            config.Config(dict(readonly_=True), as_attrs=True)
         with pytest.raises(Exception):
-            _ = config.Config(dict(values=True), as_attrs=True)
+            config.Config(dict(values=True), as_attrs=True)
         with pytest.raises(Exception):
-            _ = config.Config(dict(update=True), as_attrs=True)
+            config.Config(dict(update=True), as_attrs=True)
 
     def test_config_frozen_keys(self):
         cfg = config.Config(dict(a=0), frozen_keys=False)
@@ -932,7 +935,7 @@ class TestConfig:
         assert H(1).config == {'a': 1, 'b': 2}
         assert H(1).replace(b=3).config == {'a': 1, 'b': 3}
         with pytest.raises(Exception):
-            _ = H(1).replace(c=4)
+            H(1).replace(c=4)
         assert H(pd.Series([1, 2, 3])) == H(pd.Series([1, 2, 3]))
         assert H(pd.Series([1, 2, 3])) != H(pd.Series([1, 2, 4]))
         assert H(pd.DataFrame([1, 2, 3])) == H(pd.DataFrame([1, 2, 3]))
@@ -1032,13 +1035,13 @@ class TestAttr:
                 return 0
 
         with pytest.raises(Exception):
-            _ = attr_.deep_getattr(A(), 'a')
+            attr_.deep_getattr(A(), 'a')
         with pytest.raises(Exception):
-            _ = attr_.deep_getattr(A(), ('a',))
+            attr_.deep_getattr(A(), ('a',))
         with pytest.raises(Exception):
-            _ = attr_.deep_getattr(A(), ('a', 1))
+            attr_.deep_getattr(A(), ('a', 1))
         with pytest.raises(Exception):
-            _ = attr_.deep_getattr(A(), ('a', (1,)))
+            attr_.deep_getattr(A(), ('a', (1,)))
         assert attr_.deep_getattr(A(), ('a', (1,), {'y': 1})) == 2
         assert attr_.deep_getattr(C(), 'c') == 0
         assert attr_.deep_getattr(C(), ['c']) == 0
@@ -1730,18 +1733,18 @@ class TestMapping:
     def test_apply_mapping(self):
         assert mapping.apply_mapping('Attr1', mapping_like=Enum, reverse=True) == 0
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping('Attr3', mapping_like=Enum, reverse=True)
+            mapping.apply_mapping('Attr3', mapping_like=Enum, reverse=True)
         assert mapping.apply_mapping('attr1', mapping_like=Enum, reverse=True, ignore_case=True) == 0
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping('attr1', mapping_like=Enum, reverse=True, ignore_case=False)
+            mapping.apply_mapping('attr1', mapping_like=Enum, reverse=True, ignore_case=False)
         assert mapping.apply_mapping('Attr_1', mapping_like=Enum, reverse=True, ignore_underscores=True) == 0
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping('Attr_1', mapping_like=Enum, reverse=True, ignore_underscores=False)
+            mapping.apply_mapping('Attr_1', mapping_like=Enum, reverse=True, ignore_underscores=False)
         assert mapping.apply_mapping(
             'attr_1', mapping_like=Enum, reverse=True, ignore_case=True,
             ignore_underscores=True) == 0
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping(
+            mapping.apply_mapping(
                 'attr_1', mapping_like=Enum, reverse=True, ignore_case=True,
                 ignore_underscores=False)
         assert mapping.apply_mapping(np.array([1]), mapping_like={1: 'hello'})[0] == 'hello'
@@ -1750,9 +1753,9 @@ class TestMapping:
         assert mapping.apply_mapping(np.array([True]), mapping_like={1: 'hello'})[0] == 'hello'
         assert mapping.apply_mapping(np.array([True]), mapping_like={True: 'hello'})[0] == 'hello'
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping(np.array([True]), mapping_like={'world': 'hello'})
+            mapping.apply_mapping(np.array([True]), mapping_like={'world': 'hello'})
         with pytest.raises(Exception):
-            _ = mapping.apply_mapping(np.array([1]), mapping_like={'world': 'hello'})
+            mapping.apply_mapping(np.array([1]), mapping_like={'world': 'hello'})
         assert mapping.apply_mapping(np.array(['world']), mapping_like={'world': 'hello'})[0] == 'hello'
 
 
@@ -1764,11 +1767,11 @@ class TestEnum:
         assert enum_.map_enum_fields(0, Enum) == 0
         assert enum_.map_enum_fields(10, Enum) == 10
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(10., Enum)
+            enum_.map_enum_fields(10., Enum)
         assert enum_.map_enum_fields('Attr1', Enum) == 0
         assert enum_.map_enum_fields('attr1', Enum) == 0
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields('hello', Enum)
+            enum_.map_enum_fields('hello', Enum)
         assert enum_.map_enum_fields('attr1', Enum) == 0
         assert enum_.map_enum_fields(('attr1', 'attr2'), Enum) == (0, 1)
         assert enum_.map_enum_fields([['attr1', 'attr2']], Enum) == [[0, 1]]
@@ -1777,9 +1780,9 @@ class TestEnum:
             np.array([])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(np.array([[0., 1.]]), Enum)
+            enum_.map_enum_fields(np.array([[0., 1.]]), Enum)
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(np.array([[False, True]]), Enum)
+            enum_.map_enum_fields(np.array([[False, True]]), Enum)
         np.testing.assert_array_equal(
             enum_.map_enum_fields(np.array([[0, 1]]), Enum),
             np.array([[0, 1]])
@@ -1789,15 +1792,15 @@ class TestEnum:
             np.array([[0, 1]])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(np.array([['attr1', 1]]), Enum)
+            enum_.map_enum_fields(np.array([['attr1', 1]]), Enum)
         pd.testing.assert_series_equal(
             enum_.map_enum_fields(pd.Series([]), Enum),
             pd.Series([])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(pd.Series([0., 1.]), Enum)
+            enum_.map_enum_fields(pd.Series([0., 1.]), Enum)
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(pd.Series([False, True]), Enum)
+            enum_.map_enum_fields(pd.Series([False, True]), Enum)
         pd.testing.assert_series_equal(
             enum_.map_enum_fields(pd.Series([0, 1]), Enum),
             pd.Series([0, 1])
@@ -1807,13 +1810,13 @@ class TestEnum:
             pd.Series([0, 1])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(pd.Series(['attr1', 0]), Enum)
+            enum_.map_enum_fields(pd.Series(['attr1', 0]), Enum)
         pd.testing.assert_frame_equal(
             enum_.map_enum_fields(pd.DataFrame([]), Enum),
             pd.DataFrame([])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_fields(pd.DataFrame([[0., 1.]]), Enum)
+            enum_.map_enum_fields(pd.DataFrame([[0., 1.]]), Enum)
         pd.testing.assert_frame_equal(
             enum_.map_enum_fields(pd.DataFrame([[0, 1]]), Enum),
             pd.DataFrame([[0, 1]])
@@ -1831,7 +1834,7 @@ class TestEnum:
         assert enum_.map_enum_values(0, Enum) == 'Attr1'
         assert enum_.map_enum_values(-1, Enum) is None
         with pytest.raises(Exception):
-            _ = enum_.map_enum_values(-2, Enum)
+            enum_.map_enum_values(-2, Enum)
         assert enum_.map_enum_values((0, 1, 'Attr3'), Enum) == ('Attr1', 'Attr2', 'Attr3')
         assert enum_.map_enum_values([[0, 1, 'Attr3']], Enum) == [['Attr1', 'Attr2', 'Attr3']]
         assert enum_.map_enum_values('hello', Enum) == 'hello'
@@ -1868,7 +1871,7 @@ class TestEnum:
             pd.Series(['Attr1', 'Attr2'])
         )
         with pytest.raises(Exception):
-            _ = enum_.map_enum_values(pd.Series([0, 'Attr2']), Enum)
+            enum_.map_enum_values(pd.Series([0, 'Attr2']), Enum)
         pd.testing.assert_frame_equal(
             enum_.map_enum_values(pd.DataFrame([]), Enum),
             pd.DataFrame([])
@@ -1962,7 +1965,7 @@ class TestDatetime:
         assert datetime_.to_timezone(1) == _timezone(_timedelta(hours=1))
         assert datetime_.to_timezone(0.5) == _timezone(_timedelta(hours=0.5))
         with pytest.raises(Exception):
-            _ = datetime_.to_timezone('+05')
+            datetime_.to_timezone('+05')
 
     def test_to_tzaware_datetime(self):
         assert datetime_.to_tzaware_datetime(0.5) == \
@@ -1985,7 +1988,7 @@ class TestDatetime:
             _datetime(2020, 1, 1, 12, 0, 0, tzinfo=datetime_.get_utc_tz()), tz=datetime_.get_local_tz()) == \
                _datetime(2020, 1, 1, 12, 0, 0, tzinfo=datetime_.get_utc_tz()).astimezone(datetime_.get_local_tz())
         with pytest.raises(Exception):
-            _ = datetime_.to_tzaware_datetime('2020-01-001')
+            datetime_.to_tzaware_datetime('2020-01-001')
 
     def test_datetime_to_ms(self):
         assert datetime_.datetime_to_ms(_datetime(2020, 1, 1)) == \
@@ -2118,11 +2121,11 @@ class TestTemplate:
     def test_deep_substitute(self):
         assert template.deep_substitute(template.Rep('hello'), {'hello': 100}) == 100
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Rep('hello2'), {'hello': 100})
+            template.deep_substitute(template.Rep('hello2'), {'hello': 100})
         assert isinstance(template.deep_substitute(template.Rep('hello2'), {'hello': 100}, strict=False), template.Rep)
         assert template.deep_substitute(template.Sub('$hello'), {'hello': 100}) == '100'
         with pytest.raises(Exception):
-            _ = template.deep_substitute(template.Sub('$hello2'), {'hello': 100})
+            template.deep_substitute(template.Sub('$hello2'), {'hello': 100})
         assert template.deep_substitute([template.Rep('hello')], {'hello': 100}) == [100]
         assert template.deep_substitute((template.Rep('hello'),), {'hello': 100}) == (100,)
         assert template.deep_substitute({'test': template.Rep('hello')}, {'hello': 100}) == {'test': 100}
@@ -2234,9 +2237,9 @@ class TestParsing:
         assert parsing.match_ann_arg(ann_args, 3) == 3
         assert parsing.match_ann_arg(ann_args, 'c') == 3
         with pytest.raises(Exception):
-            _ = parsing.match_ann_arg(ann_args, 4)
+            parsing.match_ann_arg(ann_args, 4)
         with pytest.raises(Exception):
-            _ = parsing.match_ann_arg(ann_args, 'd')
+            parsing.match_ann_arg(ann_args, 'd')
 
     def test_ignore_flat_ann_args(self):
         def f(a, *args, b=2, **kwargs):
@@ -2254,8 +2257,8 @@ class TestParsing:
             pass
 
         with pytest.raises(Exception):
-            _ = parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])))
-        _ = parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])), ignore_args=['c'])
+            parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])))
+        parsing.hash_args(f, (0, 1), dict(c=np.array([1, 2, 3])), ignore_args=['c'])
 
     def test_get_context_vars(self):
         a = 1
@@ -2372,9 +2375,9 @@ class TestChunking:
         assert chunking.ArgGetterMixin(3).get_arg(ann_args) == 2
         assert chunking.ArgGetterMixin('c').get_arg(ann_args) == 2
         with pytest.raises(Exception):
-            _ = chunking.ArgGetterMixin(4).get_arg(ann_args)
+            chunking.ArgGetterMixin(4).get_arg(ann_args)
         with pytest.raises(Exception):
-            _ = chunking.ArgGetterMixin('d').get_arg(ann_args)
+            chunking.ArgGetterMixin('d').get_arg(ann_args)
 
     def test_sizers(self):
         def f(a):
@@ -2389,25 +2392,25 @@ class TestChunking:
         ann_args = parsing.annotate_args(f, (3,), {})
         assert chunking.LenSizer('a', single_type=int).apply(ann_args) == 1
         with pytest.raises(Exception):
-            _ = chunking.LenSizer('a').apply(ann_args)
+            chunking.LenSizer('a').apply(ann_args)
 
         ann_args = parsing.annotate_args(f, ((2, 3),), {})
         with pytest.raises(Exception):
-            _ = chunking.ShapeSizer('a', -1).apply(ann_args)
+            chunking.ShapeSizer('a', -1).apply(ann_args)
         assert chunking.ShapeSizer('a', 0).apply(ann_args) == 2
         assert chunking.ShapeSizer('a', 1).apply(ann_args) == 3
         assert chunking.ShapeSizer('a', 2).apply(ann_args) == 0
 
         ann_args = parsing.annotate_args(f, (np.empty((2, 3)),), {})
         with pytest.raises(Exception):
-            _ = chunking.ArraySizer('a', -1).apply(ann_args)
+            chunking.ArraySizer('a', -1).apply(ann_args)
         assert chunking.ArraySizer('a', 0).apply(ann_args) == 2
         assert chunking.ArraySizer('a', 1).apply(ann_args) == 3
         assert chunking.ArraySizer('a', 2).apply(ann_args) == 0
 
     def test_yield_chunk_meta(self):
         with pytest.raises(Exception):
-            _ = list(chunking.yield_chunk_meta(n_chunks=0))
+            list(chunking.yield_chunk_meta(n_chunks=0))
 
         chunk_meta_equal(list(chunking.yield_chunk_meta(n_chunks=4)), [
             chunking.ChunkMeta(uuid='', idx=0, start=None, end=None, indices=None),
@@ -2440,7 +2443,7 @@ class TestChunking:
             chunking.ChunkMeta(uuid='', idx=3, start=3, end=4, indices=None)
         ])
         with pytest.raises(Exception):
-            _ = list(chunking.yield_chunk_meta(chunk_len=0, size=4))
+            list(chunking.yield_chunk_meta(chunk_len=0, size=4))
         chunk_meta_equal(list(chunking.yield_chunk_meta(chunk_len=1, size=4)), [
             chunking.ChunkMeta(uuid='', idx=0, start=0, end=1, indices=None),
             chunking.ChunkMeta(uuid='', idx=1, start=1, end=2, indices=None),
@@ -2469,7 +2472,7 @@ class TestChunking:
             chunking.ChunkMeta(uuid='', idx=0, start=0, end=2, indices=None)
         ])
         with pytest.raises(Exception):
-            _ = list(chunking.yield_chunk_meta(n_chunks=2, size=4, chunk_len=2))
+            list(chunking.yield_chunk_meta(n_chunks=2, size=4, chunk_len=2))
 
     def test_chunk_meta_generators(self):
         def f(a):
@@ -2504,7 +2507,7 @@ class TestChunking:
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, size=3, n_chunks=chunking.ArgSizer(1))), chunk_meta)
         with pytest.raises(Exception):
-            _ = list(chunking.get_chunk_meta_from_args(
+            list(chunking.get_chunk_meta_from_args(
                 ann_args, size=3, n_chunks='a'))
 
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
@@ -2514,7 +2517,7 @@ class TestChunking:
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, chunk_len=1, size=chunking.ArgSizer(1))), chunk_meta)
         with pytest.raises(Exception):
-            _ = list(chunking.get_chunk_meta_from_args(
+            list(chunking.get_chunk_meta_from_args(
                 ann_args, chunk_len=1, size='a'))
 
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
@@ -2524,7 +2527,7 @@ class TestChunking:
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
             ann_args, size=3, chunk_len=chunking.ArgSizer(2))), chunk_meta)
         with pytest.raises(Exception):
-            _ = list(chunking.get_chunk_meta_from_args(
+            list(chunking.get_chunk_meta_from_args(
                 ann_args, size=3, chunk_len='a'))
 
         chunk_meta_equal(list(chunking.get_chunk_meta_from_args(
@@ -2579,7 +2582,7 @@ class TestChunking:
         assert chunking.ChunkSelector().apply(
             None, chunking.ChunkMeta('', 0, 0, 1, None)) is None
         with pytest.raises(Exception):
-            _ = chunking.ChunkSelector(ignore_none=False).apply(
+            chunking.ChunkSelector(ignore_none=False).apply(
                 None, chunking.ChunkMeta('', 0, 0, 1, None))
         assert chunking.ChunkSelector(single_type=int).apply(
             10, chunking.ChunkMeta('', 0, 0, 1, None)) == 10
@@ -2594,7 +2597,7 @@ class TestChunking:
             np.array([1, 1])
         )
         with pytest.raises(Exception):
-            _ = chunking.ChunkSlicer().apply(
+            chunking.ChunkSlicer().apply(
                 np.array([1, 2, 3]), chunking.ChunkMeta('', 0, None, None, np.array([3])))
 
         assert chunking.CountAdapter().apply(
@@ -2611,12 +2614,12 @@ class TestChunking:
         assert chunking.ShapeSelector(2).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSelector(4).apply(
+            chunking.ShapeSelector(4).apply(
                 (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
         assert chunking.ShapeSelector(0, keep_dims=True).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 3)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSelector(0).apply(
+            chunking.ShapeSelector(0).apply(
                 (1, 2, 3), chunking.ChunkMeta('', 1, 0, 1, None))
         assert chunking.ShapeSelector(0).apply(
             (1,), chunking.ChunkMeta('', 0, 0, 1, None)) == ()
@@ -2627,7 +2630,7 @@ class TestChunking:
         assert chunking.ShapeSlicer(2).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None)) == (1, 2, 1)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSlicer(4).apply(
+            chunking.ShapeSlicer(4).apply(
                 (1, 2, 3), chunking.ChunkMeta('', 0, 0, 1, None))
         assert chunking.ShapeSlicer(0).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, 0, 2, None)) == (1, 2, 3)
@@ -2636,7 +2639,7 @@ class TestChunking:
         assert chunking.ShapeSlicer(0).apply(
             (1, 2, 3), chunking.ChunkMeta('', 0, None, None, np.array([0, 0]))) == (2, 2, 3)
         with pytest.raises(Exception):
-            _ = chunking.ShapeSlicer(0).apply(
+            chunking.ShapeSlicer(0).apply(
                 (1, 2, 3), chunking.ChunkMeta('', 0, None, None, np.array([1])))
 
         np.testing.assert_array_equal(chunking.ArraySelector(0).apply(
@@ -2647,7 +2650,7 @@ class TestChunking:
         np.testing.assert_array_equal(chunking.ArraySelector(1).apply(
             a, chunking.ChunkMeta('', 0, 0, 1, None)), a[:, 0])
         with pytest.raises(Exception):
-            _ = chunking.ArraySelector(2).apply(
+            chunking.ArraySelector(2).apply(
                 a, chunking.ChunkMeta('', 0, 0, 1, None))
         assert chunking.ArraySelector(0).apply(
             sr, chunking.ChunkMeta('', 0, 0, 1, None)) == sr.iloc[0]
@@ -2663,10 +2666,10 @@ class TestChunking:
             a[[0]]
         )
         with pytest.raises(Exception):
-            _ = chunking.ArraySlicer(0).apply(
+            chunking.ArraySlicer(0).apply(
                 a, chunking.ChunkMeta('', 0, None, None, np.array([2])))
         with pytest.raises(Exception):
-            _ = chunking.ArraySlicer(2).apply(
+            chunking.ArraySlicer(2).apply(
                 a, chunking.ChunkMeta('', 0, 0, 1, None))
         pd.testing.assert_series_equal(chunking.ArraySlicer(0).apply(
             sr, chunking.ChunkMeta('', 0, 0, 1, None)), sr.iloc[[0]])
@@ -2821,3 +2824,91 @@ class TestChunking:
                 return a
 
             np.testing.assert_array_equal(f8(np.arange(10)), np.arange(10))
+
+
+# ############# jitting.py ############# #
+
+class TestJitting:
+    def test_jitters(self):
+        py_func = lambda x: x
+
+        assert jitting.NumPyJitter().decorate(py_func) is py_func
+        if checks.is_numba_enabled():
+            assert isinstance(jitting.NumbaJitter().decorate(py_func), CPUDispatcher)
+            assert not jitting.NumbaJitter(parallel=True) \
+                .decorate(py_func).targetoptions['parallel']
+            assert jitting.NumbaJitter(parallel=True) \
+                .decorate(py_func, tags={'can_parallel'}).targetoptions['parallel']
+            assert jitting.NumbaJitter(parallel=True, fix_cannot_parallel=False) \
+                .decorate(py_func).targetoptions['parallel']
+
+    def test_get_func_suffix(self):
+        def py_func():
+            pass
+
+        def func_nb():
+            pass
+
+        assert jitting.get_func_suffix(lambda x: x) is None
+        assert jitting.get_func_suffix(py_func) is None
+        assert jitting.get_func_suffix(func_nb) == 'nb'
+
+    def test_resolve_jitter_type(self):
+        def py_func():
+            pass
+
+        def func_nb():
+            pass
+
+        with pytest.raises(Exception):
+            jitting.resolve_jitter_type()
+        with pytest.raises(Exception):
+            jitting.resolve_jitter_type(py_func=py_func)
+        assert jitting.resolve_jitter_type(py_func=func_nb) is jitting.NumbaJitter
+        assert jitting.resolve_jitter_type(jitter='numba', py_func=func_nb) is jitting.NumbaJitter
+        with pytest.raises(Exception):
+            jitting.resolve_jitter_type(jitter='numba2', py_func=func_nb)
+        assert jitting.resolve_jitter_type(jitter=jitting.NumbaJitter, py_func=func_nb) is jitting.NumbaJitter
+        assert jitting.resolve_jitter_type(jitter=jitting.NumbaJitter(), py_func=func_nb) is jitting.NumbaJitter
+        with pytest.raises(Exception):
+            jitting.resolve_jitter_type(jitter=object, py_func=func_nb)
+
+    def test_get_id_of_jitter_type(self):
+        assert jitting.get_id_of_jitter_type(jitting.NumbaJitter) == 'nb'
+        assert jitting.get_id_of_jitter_type(jitting.NumPyJitter) == 'np'
+        assert jitting.get_id_of_jitter_type(object) is None
+
+    def test_resolve_jitted_kwargs(self):
+        assert jitting.resolve_jitted_kwargs(option=True) == dict()
+        assert jitting.resolve_jitted_kwargs(option=False) is None
+        assert jitting.resolve_jitted_kwargs(option=dict(test='test')) == dict(test='test')
+        assert jitting.resolve_jitted_kwargs(option='numba') == dict(jitter='numba')
+        with pytest.raises(Exception):
+            jitting.resolve_jitted_kwargs(option=10)
+        assert jitting.resolve_jitted_kwargs(option='numba', jitter='numpy') == dict(jitter='numba')
+
+    def test_jitted(self):
+        class MyJitter(jitting.Jitter):
+            _check_expected_keys = False
+
+            def decorate(self, py_func, tags=None):
+                @wraps(py_func)
+                def wrapper(*args, **kwargs):
+                    return py_func(*args, **kwargs)
+
+                wrapper.config = self.config
+                return wrapper
+
+        vbt.settings.jitting.jitters['my'] = dict(cls=MyJitter)
+
+        @jitting.jitted
+        def func_my():
+            pass
+
+        assert dict(func_my.config) == dict()
+
+        @jitting.jitted(test='test')
+        def func_my():
+            pass
+
+        assert dict(func_my.config) == dict(test='test')

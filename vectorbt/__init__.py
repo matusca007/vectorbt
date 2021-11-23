@@ -12,7 +12,7 @@ Accessing and analyzing this information for yourself could give you an informat
 ## Installation
 
 ```bash
-pip install vectorbt
+pip install --upgrade vectorbt
 ```
 
 To also install optional dependencies:

@@ -527,7 +527,7 @@ class TestMappedArray:
             np.array([33.])
         )
         with pytest.raises(Exception):
-            _ = mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([2, 1, 0]))
+            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([2, 1, 0]))
         np.testing.assert_array_equal(
             mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).values,
             np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
@@ -937,7 +937,7 @@ class TestMappedArray:
             pd.Series(np.array([12., 13., 10., np.nan]), index=wrapper.columns).rename('nth')
         )
         with pytest.raises(Exception):
-            _ = mapped_array.nth(10)
+            mapped_array.nth(10)
         pd.testing.assert_series_equal(
             mapped_array_grouped.nth(0),
             pd.Series(np.array([10., 12.]), index=pd.Index(['g1', 'g2'], dtype='object')).rename('nth')
@@ -961,7 +961,7 @@ class TestMappedArray:
             ).rename('nth_index')
         )
         with pytest.raises(Exception):
-            _ = mapped_array.nth_index(10)
+            mapped_array.nth_index(10)
         pd.testing.assert_series_equal(
             mapped_array_grouped.nth_index(0),
             pd.Series(
@@ -1332,7 +1332,7 @@ class TestMappedArray:
             pd.Index(['a', 'b'], dtype='object')
         )
         with pytest.raises(Exception):
-            _ = ma.iloc[::2, :]  # changing time not supported
+            ma.iloc[::2, :]  # changing time not supported
         pd.testing.assert_index_equal(
             ma_grouped['g1'].wrapper.columns,
             pd.Index(['a', 'b'], dtype='object')
@@ -1400,7 +1400,7 @@ class TestMappedArray:
         b_bool = records_arr['some_field2'] > np.mean(records_arr['some_field2'])
         assert a ** a == a ** 2
         with pytest.raises(Exception):
-            _ = a * a_inv
+            a * a_inv
 
         # binary ops
         # comparison ops
@@ -1846,7 +1846,7 @@ class TestRecords:
             pd.Index(['a', 'b'], dtype='object')
         )
         with pytest.raises(Exception):
-            _ = r.iloc[::2, :]  # changing time not supported
+            r.iloc[::2, :]  # changing time not supported
         pd.testing.assert_index_equal(
             r_grouped['g1'].wrapper.columns,
             pd.Index(['a', 'b'], dtype='object')

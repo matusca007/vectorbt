@@ -63,115 +63,115 @@ def assert_same_tuple(tup1, tup2):
 def test_execute_order_nb():
     # Errors, ignored and rejected orders
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(-100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(np.nan, 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., np.inf, 0., 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., np.nan, 0., 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., np.nan, 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., -10., 100., 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., np.nan, 10., 1100.),
             nb.order_nb(10, 10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, size_type=-2))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, size_type=20))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, direction=-2))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, direction=20))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., -100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, direction=Direction.LongOnly))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, direction=Direction.ShortOnly))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, -10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, fees=np.inf))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, fees=np.nan))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, fixed_fees=np.inf))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, fixed_fees=np.nan))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, slippage=np.inf))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, slippage=-1))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, min_size=np.inf))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, min_size=-1))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, max_size=0))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, max_size=-10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, size_granularity=-10))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, reject_prob=np.nan))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, reject_prob=-1))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., 10., 1100.),
             nb.order_nb(10, 10, reject_prob=2))
 
@@ -188,11 +188,11 @@ def test_execute_order_nb():
     assert_same_tuple(order_result, OrderResult(
         size=np.nan, price=np.nan, fees=np.nan, side=-1, status=2, status_info=4))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., np.inf, 1100.),
             nb.order_nb(10, 10, size_type=SizeType.Value))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., -10., 1100),
             nb.order_nb(10, 10, size_type=SizeType.Value))
     exec_state, order_result = nb.execute_order_nb(
@@ -200,11 +200,11 @@ def test_execute_order_nb():
         nb.order_nb(10, 10, size_type=SizeType.Value))
     assert exec_state == ExecuteOrderState(cash=100.0, position=100.0, debt=0.0, free_cash=100.0)
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., np.inf, 1100.),
             nb.order_nb(10, 10, size_type=SizeType.TargetValue))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(100., 100., 0., 100., -10., 1100),
             nb.order_nb(10, 10, size_type=SizeType.TargetValue))
     exec_state, order_result = nb.execute_order_nb(
@@ -256,11 +256,11 @@ def test_execute_order_nb():
     assert_same_tuple(order_result, OrderResult(
         size=np.nan, price=np.nan, fees=np.nan, side=-1, status=2, status_info=7))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(np.inf, 100, 0., np.inf, np.nan, 1100.),
             nb.order_nb(np.inf, 10, direction=Direction.LongOnly))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(np.inf, 100., 0., np.inf, 10., 1100.),
             nb.order_nb(np.inf, 10, direction=Direction.Both))
     exec_state, order_result = nb.execute_order_nb(
@@ -270,11 +270,11 @@ def test_execute_order_nb():
     assert_same_tuple(order_result, OrderResult(
         size=np.nan, price=np.nan, fees=np.nan, side=-1, status=2, status_info=8))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(np.inf, 100., 0., np.inf, 10., 1100.),
             nb.order_nb(-np.inf, 10, direction=Direction.ShortOnly))
     with pytest.raises(Exception):
-        _ = nb.execute_order_nb(
+        nb.execute_order_nb(
             ProcessOrderState(np.inf, 100., 0., np.inf, 10., 1100.),
             nb.order_nb(-np.inf, 10, direction=Direction.Both))
     exec_state, order_result = nb.execute_order_nb(
@@ -806,27 +806,27 @@ class TestFromOrders:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = from_orders_longonly(
+            from_orders_longonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=0.5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_orders_longonly(
+            from_orders_longonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=np.inf, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_orders_longonly(
+            from_orders_longonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_orders_shortonly(
+            from_orders_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=0.5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_orders_shortonly(
+            from_orders_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=np.inf, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_orders_shortonly(
+            from_orders_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=5, size=1, slippage=0.1)
 
@@ -1299,11 +1299,11 @@ class TestFromOrders:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = from_orders_both(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
+            from_orders_both(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
         with pytest.raises(Exception):
-            _ = from_orders_longonly(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
+            from_orders_longonly(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
         with pytest.raises(Exception):
-            _ = from_orders_shortonly(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
+            from_orders_shortonly(size=order_size_one * 1000, allow_partial=False, raise_reject=True).order_records
 
     def test_log(self):
         record_arrays_close(
@@ -1367,7 +1367,7 @@ class TestFromOrders:
         )
         assert pf.cash_sharing
         with pytest.raises(Exception):
-            _ = pf.regroup(group_by=False)
+            pf.regroup(group_by=False)
 
     def test_call_seq(self):
         pf = from_orders_both(close=price_wide, group_by=np.array([0, 0, 1]), cash_sharing=True)
@@ -1743,14 +1743,14 @@ class TestFromOrders:
         assert from_orders_both(close=price_wide, max_orders=3).order_records.shape[0] == 9
         assert from_orders_both(close=price_wide, max_orders=0).order_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = from_orders_both(close=price_wide, max_orders=2)
+            from_orders_both(close=price_wide, max_orders=2)
 
     def test_max_logs(self):
         assert from_orders_both(close=price_wide, log=True).log_records.shape[0] == 15
         assert from_orders_both(close=price_wide, log=True, max_logs=5).log_records.shape[0] == 15
         assert from_orders_both(close=price_wide, log=True, max_logs=0).log_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = from_orders_both(close=price_wide, log=True, max_logs=4)
+            from_orders_both(close=price_wide, log=True, max_logs=4)
 
     def test_jitted_parallel(self):
         price_wide2 = price_wide.copy()
@@ -2059,7 +2059,7 @@ class TestFromSignals:
 
     def test_percent(self):
         with pytest.raises(Exception):
-            _ = from_signals_both(size=0.5, size_type='percent')
+            from_signals_both(size=0.5, size_type='percent')
         record_arrays_close(
             from_signals_both(size=0.5, size_type='percent', upon_opposite_entry='close').order_records,
             np.array([
@@ -2203,27 +2203,27 @@ class TestFromSignals:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = from_signals_longonly(
+            from_signals_longonly(
                 entries=True, exits=False, open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 price=0.5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_signals_longonly(
+            from_signals_longonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 entries=True, exits=False, price=np.inf, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_signals_longonly(
+            from_signals_longonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 entries=True, exits=False, price=5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(
+            from_signals_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 entries=True, exits=False, price=0.5, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(
+            from_signals_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 entries=True, exits=False, price=np.inf, size=1, slippage=0.1)
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(
+            from_signals_shortonly(
                 open=2, high=4, low=1, close=3, price_area_vio_mode='error',
                 entries=True, exits=False, price=5, size=1, slippage=0.1)
 
@@ -2539,13 +2539,13 @@ class TestFromSignals:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(size=1000, allow_partial=True, raise_reject=True).order_records
+            from_signals_shortonly(size=1000, allow_partial=True, raise_reject=True).order_records
         with pytest.raises(Exception):
-            _ = from_signals_both(size=1000, allow_partial=False, raise_reject=True).order_records
+            from_signals_both(size=1000, allow_partial=False, raise_reject=True).order_records
         with pytest.raises(Exception):
-            _ = from_signals_longonly(size=1000, allow_partial=False, raise_reject=True).order_records
+            from_signals_longonly(size=1000, allow_partial=False, raise_reject=True).order_records
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(size=1000, allow_partial=False, raise_reject=True).order_records
+            from_signals_shortonly(size=1000, allow_partial=False, raise_reject=True).order_records
 
     def test_log(self):
         record_arrays_close(
@@ -2781,11 +2781,11 @@ class TestFromSignals:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = from_signals_both(init_cash=np.inf).order_records
+            from_signals_both(init_cash=np.inf).order_records
         with pytest.raises(Exception):
-            _ = from_signals_longonly(init_cash=np.inf).order_records
+            from_signals_longonly(init_cash=np.inf).order_records
         with pytest.raises(Exception):
-            _ = from_signals_shortonly(init_cash=np.inf).order_records
+            from_signals_shortonly(init_cash=np.inf).order_records
 
     def test_init_position(self):
         pf = vbt.Portfolio.from_signals(
@@ -2836,7 +2836,7 @@ class TestFromSignals:
         )
         assert pf.cash_sharing
         with pytest.raises(Exception):
-            _ = pf.regroup(group_by=False)
+            pf.regroup(group_by=False)
 
     def test_call_seq(self):
         pf = from_signals_both(close=price_wide, group_by=np.array([0, 0, 1]), cash_sharing=True)
@@ -3005,7 +3005,7 @@ class TestFromSignals:
         exits = pd.Series([False, False, False, False, False], index=price.index)
 
         with pytest.raises(Exception):
-            _ = from_signals_both(sl_stop=-0.1)
+            from_signals_both(sl_stop=-0.1)
 
         close = pd.Series([5., 4., 3., 2., 1.], index=price.index)
         open = close + 0.25
@@ -3150,7 +3150,7 @@ class TestFromSignals:
         exits = pd.Series([False, False, False, False, False], index=price.index)
 
         with pytest.raises(Exception):
-            _ = from_signals_both(sl_stop=-0.1, sl_trail=True)
+            from_signals_both(sl_stop=-0.1, sl_trail=True)
 
         close = pd.Series([4., 5., 4., 3., 2.], index=price.index)
         open = close + 0.25
@@ -3295,7 +3295,7 @@ class TestFromSignals:
         exits = pd.Series([False, False, False, False, False], index=price.index)
 
         with pytest.raises(Exception):
-            _ = from_signals_both(sl_stop=-0.1)
+            from_signals_both(sl_stop=-0.1)
 
         close = pd.Series([5., 4., 3., 2., 1.], index=price.index)
         open = close + 0.25
@@ -3705,14 +3705,14 @@ class TestFromSignals:
         assert from_signals_both(close=price_wide, max_orders=2).order_records.shape[0] == 6
         assert from_signals_both(close=price_wide, max_orders=0).order_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = from_signals_both(close=price_wide, max_orders=1)
+            from_signals_both(close=price_wide, max_orders=1)
 
     def test_max_logs(self):
         assert from_signals_both(close=price_wide, log=True).log_records.shape[0] == 6
         assert from_signals_both(close=price_wide, log=True, max_logs=2).log_records.shape[0] == 6
         assert from_signals_both(close=price_wide, log=True, max_logs=0).log_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = from_signals_both(close=price_wide, log=True, max_logs=1)
+            from_signals_both(close=price_wide, log=True, max_logs=1)
 
     def test_jitted_parallel(self):
         price_wide2 = price_wide.copy()
@@ -4063,19 +4063,19 @@ class TestFromOrderFunc:
             ], dtype=order_dt)
         )
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
                 open=2, high=4, low=1,
                 row_wise=test_row_wise, flexible=test_flexible,
                 broadcast_named_args=dict(price=0.5, price_area_vio_mode=PriceAreaVioMode.Error))
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
                 open=2, high=4, low=1,
                 row_wise=test_row_wise, flexible=test_flexible,
                 broadcast_named_args=dict(price=np.inf, price_area_vio_mode=PriceAreaVioMode.Error))
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 3, order_func, vbt.Rep('price'), vbt.Rep('price_area_vio_mode'),
                 open=2, high=4, low=1,
                 row_wise=test_row_wise, flexible=test_flexible,
@@ -4213,7 +4213,7 @@ class TestFromOrderFunc:
             ])
         )
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 price_wide, order_func_nb, np.asarray(np.inf), group_by=np.array([0, 0, 1]),
                 cash_sharing=True, call_seq='auto', row_wise=test_row_wise
             )
@@ -4380,7 +4380,7 @@ class TestFromOrderFunc:
         value_before = np.empty_like(price.values[:, None])
         value_now = np.empty_like(price.values[:, None])
 
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price,
             order_func_nb,
             post_order_func_nb=post_order_func_nb,
@@ -4394,7 +4394,7 @@ class TestFromOrderFunc:
             value_now
         )
 
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price,
             order_func_nb,
             post_order_func_nb=post_order_func_nb,
@@ -4495,7 +4495,7 @@ class TestFromOrderFunc:
             return_arr3[c.i, c.col] = c.return_now
             pos_record_arr3[c.i, c.col] = c.pos_record_now
 
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             close,
             order_func_nb,
             pre_segment_func_nb=pre_segment_func_nb,
@@ -4714,7 +4714,7 @@ class TestFromOrderFunc:
 
         lst = []
 
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide,
             order_func,
             post_sim_func_nb=post_sim_func,
@@ -5231,7 +5231,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5269,7 +5269,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5301,7 +5301,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5402,7 +5402,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5443,7 +5443,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5475,7 +5475,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5557,7 +5557,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst),
@@ -5595,7 +5595,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst),
@@ -5627,7 +5627,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, order_func_nb, order_lst,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst),
@@ -5728,7 +5728,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5769,7 +5769,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5801,7 +5801,7 @@ class TestFromOrderFunc:
         post_segment_lst = List.empty_list(typeof(0))
         order_lst = List.empty_list(typeof(0))
         post_order_lst = List.empty_list(typeof(0))
-        _ = vbt.Portfolio.from_order_func(
+        vbt.Portfolio.from_order_func(
             price_wide, flex_order_func_nb, order_lst, sub_arg,
             group_by=np.array([0, 0, 1]),
             pre_sim_func_nb=pre_sim_func_nb, pre_sim_args=(call_i, pre_sim_lst, sub_arg),
@@ -5838,7 +5838,7 @@ class TestFromOrderFunc:
             price_wide, order_func, np.asarray(np.inf),
             row_wise=test_row_wise, max_orders=0, flexible=test_flexible).order_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 price_wide, order_func, np.asarray(np.inf),
                 row_wise=test_row_wise, max_orders=4, flexible=test_flexible)
 
@@ -5856,7 +5856,7 @@ class TestFromOrderFunc:
             price_wide, log_order_func, np.asarray(np.inf),
             row_wise=test_row_wise, max_logs=0, flexible=test_flexible).log_records.shape[0] == 0
         with pytest.raises(Exception):
-            _ = vbt.Portfolio.from_order_func(
+            vbt.Portfolio.from_order_func(
                 price_wide, log_order_func, np.asarray(np.inf),
                 row_wise=test_row_wise, max_logs=4, flexible=test_flexible)
 
@@ -6208,7 +6208,7 @@ class TestPortfolio:
         assert pf_grouped.regroup(group_by) == pf_grouped
         assert pf_shared.regroup(None) == pf_shared
         with pytest.raises(Exception):
-            _ = pf_shared.regroup(False)
+            pf_shared.regroup(False)
         assert pf_shared.regroup(group_by) == pf_shared
 
     def test_cash_sharing(self):
@@ -8775,7 +8775,7 @@ class TestPortfolio:
             ).rename('information_ratio')
         )
         with pytest.raises(Exception):
-            _ = pf_shared.information_ratio(pf_shared.market_returns(group_by=False) * 2)
+            pf_shared.information_ratio(pf_shared.market_returns(group_by=False) * 2)
         pd.testing.assert_frame_equal(
             pf_shared.cumulative_returns(jitted=dict(parallel=True)),
             pf_shared.cumulative_returns(jitted=dict(parallel=False))
@@ -9098,11 +9098,11 @@ class TestPortfolio:
         )
 
     def test_plots(self):
-        _ = pf.plot(column='a', subplots='all')
-        _ = pf_grouped.plot(column='first', subplots='all')
-        _ = pf_grouped.plot(column='a', subplots='all', group_by=False)
-        _ = pf_shared.plot(column='a', subplots='all', group_by=False)
+        pf.plot(column='a', subplots='all')
+        pf_grouped.plot(column='first', subplots='all')
+        pf_grouped.plot(column='a', subplots='all', group_by=False)
+        pf_shared.plot(column='a', subplots='all', group_by=False)
         with pytest.raises(Exception):
-            _ = pf.plot(subplots='all')
+            pf.plot(subplots='all')
         with pytest.raises(Exception):
-            _ = pf_grouped.plot(subplots='all')
+            pf_grouped.plot(subplots='all')

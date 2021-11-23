@@ -1312,17 +1312,18 @@ def build_columns(param_list: tp.Sequence[tp.Sequence[tp.Param]],
         param_indexes.append(param_index)
         if i not in hide_levels:
             shown_param_indexes.append(param_index)
+    if not per_column:
+        n_param_values = len(param_list[0]) if len(param_list) > 0 else 1
+        input_columns = indexes.tile_index(
+            input_columns,
+            n_param_values,
+            ignore_default=ignore_default
+        )
     if len(shown_param_indexes) > 0:
-        if not per_column:
-            n_param_values = len(param_list[0]) if len(param_list) > 0 else 1
-            input_columns = indexes.tile_index(
-                input_columns,
-                n_param_values,
-                ignore_default=ignore_default
-            )
         stacked_columns = indexes.stack_indexes([*shown_param_indexes, input_columns], **kwargs)
-        return param_indexes, stacked_columns
-    return param_indexes, input_columns
+    else:
+        stacked_columns = input_columns
+    return param_indexes, stacked_columns
 
 
 CacheOutputT = tp.Any

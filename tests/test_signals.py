@@ -129,7 +129,7 @@ class TestAccessors:
             )
         )
         with pytest.raises(Exception):
-            _ = pd.Series.vbt.signals.generate((5, 2), place_func_nb, 1)
+            pd.Series.vbt.signals.generate((5, 2), place_func_nb, 1)
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate(
                 (5, 3), place_func_nb, 1,
@@ -598,7 +598,7 @@ class TestAccessors:
             )
         )
         with pytest.raises(Exception):
-            _ = pd.Series.vbt.signals.clean(entries, entries, entries)
+            pd.Series.vbt.signals.clean(entries, entries, entries)
         pd.testing.assert_frame_equal(
             entries.vbt.signals.clean(jitted=dict(parallel=True)),
             entries.vbt.signals.clean(jitted=dict(parallel=False))
@@ -636,7 +636,7 @@ class TestAccessors:
             )
         )
         with pytest.raises(Exception):
-            _ = pd.Series.vbt.signals.generate_random((5, 2), n=3)
+            pd.Series.vbt.signals.generate_random((5, 2), n=3)
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_random(
                 (5, 3), n=3, seed=seed,
@@ -688,7 +688,7 @@ class TestAccessors:
             )
         )
         with pytest.raises(Exception):
-            _ = pd.Series.vbt.signals.generate_random((5, 2), prob=3)
+            pd.Series.vbt.signals.generate_random((5, 2), prob=3)
         pd.testing.assert_frame_equal(
             pd.DataFrame.vbt.signals.generate_random(
                 (5, 3), prob=0.5, seed=seed,
@@ -1327,9 +1327,9 @@ class TestAccessors:
 
     def test_generate_ohlc_stop_exits(self):
         with pytest.raises(Exception):
-            _ = mask.vbt.signals.generate_ohlc_stop_exits(ts, sl_stop=-0.1)
+            mask.vbt.signals.generate_ohlc_stop_exits(ts, sl_stop=-0.1)
         with pytest.raises(Exception):
-            _ = mask.vbt.signals.generate_ohlc_stop_exits(ts, tp_stop=-0.1)
+            mask.vbt.signals.generate_ohlc_stop_exits(ts, tp_stop=-0.1)
 
         pd.testing.assert_frame_equal(
             mask.vbt.signals.generate_stop_exits(ts, -0.1),

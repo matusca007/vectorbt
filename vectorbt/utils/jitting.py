@@ -12,30 +12,33 @@ from vectorbt.utils.config import merge_dicts, Configured
 class Jitter(Configured):
     """Abstract class for decorating jitable functions.
 
-    Represents a single configuration for jitting."""
+    Represents a single configuration for jitting.
+
+    When overriding `Jitter.decorate`, make sure to check whether wrapping is disabled
+    globally using `Jitter.wrapping_disabled`."""
 
     def __init__(self, **kwargs) -> None:
         Configured.__init__(self, **kwargs)
 
+    @property
+    def wrapping_disabled(self) -> bool:
+        """Whether wrapping is disabled globally."""
+        from vectorbt._settings import settings
+        jitting_cfg = settings['jitting']
+
+        return jitting_cfg['disable_wrapping']
+
     def decorate(self, py_func: tp.Callable, tags: tp.Optional[set] = None) -> tp.Callable:
         """Decorate a jitable function."""
+        if self.wrapping_disabled:
+            return py_func
         raise NotImplementedError
-
-
-class NoJitter(Jitter):
-    """Reserved class that returns functions without jitting.
-
-    !!! note
-        Cannot be registered."""
-
-    def decorate(self, py_func: tp.Callable, tags: tp.Optional[set] = None) -> tp.Callable:
-        return py_func
 
 
 class NumPyJitter(Jitter):
     """Class for decorating functions that use NumPy.
 
-    Similarly to `NoJitter`, returns the function without decorating, but can be registered."""
+    Returns the function without decorating."""
 
     def decorate(self, py_func: tp.Callable, tags: tp.Optional[set] = None) -> tp.Callable:
         return py_func
@@ -120,6 +123,9 @@ class NumbaJitter(Jitter):
         return self._cache
 
     def decorate(self, py_func: tp.Callable, tags: tp.Optional[set] = None) -> tp.Callable:
+        if self.wrapping_disabled:
+            return py_func
+
         if tags is None:
             tags = set()
         if self.is_generated_jit:
@@ -145,10 +151,16 @@ class NumbaJitter(Jitter):
 
 def get_func_suffix(py_func: tp.Callable) -> tp.Optional[str]:
     """Get the suffix of the function."""
+    from vectorbt._settings import settings
+    jitting_cfg = settings['jitting']
+
     splitted_name = py_func.__name__.split('_')
     if len(splitted_name) == 1:
         return None
-    return splitted_name[-1].lower()
+    suffix = splitted_name[-1].lower()
+    if suffix not in jitting_cfg['jitters']:
+        return None
+    return suffix
 
 
 def resolve_jitter_type(jitter: tp.Optional[tp.JitterLike] = None,
@@ -167,7 +179,7 @@ def resolve_jitter_type(jitter: tp.Optional[tp.JitterLike] = None,
         if py_func is None:
             raise ValueError("Could not parse jitter without a function")
         jitter = get_func_suffix(py_func)
-        if jitter is None or jitter not in jitting_cfg['jitters']:
+        if jitter is None:
             raise ValueError(f"Could not parse jitter from suffix of function {py_func}")
 
     if isinstance(jitter, str):
@@ -181,7 +193,7 @@ def resolve_jitter_type(jitter: tp.Optional[tp.JitterLike] = None,
                     found = True
                     break
             if not found:
-                raise ValueError(f"Jitter with name '{jitter}' is unknown")
+                raise ValueError(f"Jitter with name '{jitter}' not registered")
     if isinstance(jitter, type) and issubclass(jitter, Jitter):
         return jitter
     if isinstance(jitter, Jitter):
@@ -200,13 +212,13 @@ def get_id_of_jitter_type(jitter_type: tp.Type[Jitter]) -> tp.Optional[tp.Hashab
     return None
 
 
-def resolve_jitted_option(option: tp.JittedOption = None) -> tp.Kwargs:
+def resolve_jitted_option(option: tp.JittedOption = None) -> tp.KwargsLike:
     """Return keyword arguments for `jitted`.
 
     `option` can be:
 
     * True: Decorate using default settings
-    * False: Do not decorate
+    * False: Do not decorate (returns None)
     * string: Use `option` as the name of the jitter
     * dict: Use `option` as keyword arguments for jitting
 
@@ -219,7 +231,7 @@ def resolve_jitted_option(option: tp.JittedOption = None) -> tp.Kwargs:
 
     if isinstance(option, bool):
         if not option:
-            return dict(jitter=NoJitter)
+            return None
         return dict()
     if isinstance(option, dict):
         return option
@@ -228,13 +240,16 @@ def resolve_jitted_option(option: tp.JittedOption = None) -> tp.Kwargs:
     raise TypeError(f"Type {type(option)} is invalid for a jitting option")
 
 
-def specialize_jitted_option(option: tp.JittedOption = None, **kwargs) -> tp.Kwargs:
+def specialize_jitted_option(option: tp.JittedOption = None, **kwargs) -> tp.KwargsLike:
     """Resolve `option` and merge it with `kwargs` if it's not None so the dict can be passed
     as an option to other functions."""
-    return merge_dicts(kwargs, resolve_jitted_option(option))
+    jitted_kwargs = resolve_jitted_option(option)
+    if jitted_kwargs is None:
+        return None
+    return merge_dicts(kwargs, jitted_kwargs)
 
 
-def resolve_jitted_kwargs(option: tp.JittedOption = None, **kwargs) -> tp.Kwargs:
+def resolve_jitted_kwargs(option: tp.JittedOption = None, **kwargs) -> tp.KwargsLike:
     """Resolve keyword arguments for `jitted`.
 
     Resolves `option` using `resolve_jitted_option`.
@@ -245,6 +260,8 @@ def resolve_jitted_kwargs(option: tp.JittedOption = None, **kwargs) -> tp.Kwargs
     jitting_cfg = settings['jitting']
 
     jitted_kwargs = resolve_jitted_option(option=option)
+    if jitted_kwargs is None:
+        return None
     if isinstance(jitting_cfg['option'], dict):
         jitted_kwargs = merge_dicts(jitting_cfg['option'], kwargs, jitted_kwargs)
     else:
@@ -292,12 +309,6 @@ def jitted(*args, tags: tp.Optional[set] = None, **jitted_kwargs) -> tp.Callable
     ```"""
 
     def decorator(py_func: tp.Callable) -> tp.Callable:
-        from vectorbt._settings import settings
-        jitting_cfg = settings['jitting']
-
-        if jitting_cfg['disable_wrapping']:
-            return py_func
-
         jitter = resolve_jitter(py_func=py_func, **jitted_kwargs)
         return jitter.decorate(py_func, tags=tags)
 

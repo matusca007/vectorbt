@@ -384,9 +384,9 @@ class TestArrayWrapper:
         np.testing.assert_array_equal(b, np.array([0, 1]))
         np.testing.assert_array_equal(c, np.array([0, 1]))
         with pytest.raises(Exception):
-            _ = df4_wrapper.indexing_func_meta(lambda x: x.iloc[0, 0])[1:]
+            df4_wrapper.indexing_func_meta(lambda x: x.iloc[0, 0])[1:]
         with pytest.raises(Exception):
-            _ = df4_wrapper.indexing_func_meta(lambda x: x.iloc[[0], 0])[1:]
+            df4_wrapper.indexing_func_meta(lambda x: x.iloc[[0], 0])[1:]
 
         # not grouped, column only
         a, b, c = df4_wrapper_co.indexing_func_meta(lambda x: x.iloc[0])[1:]
@@ -402,9 +402,9 @@ class TestArrayWrapper:
         np.testing.assert_array_equal(b, np.array([0, 1]))
         np.testing.assert_array_equal(c, np.array([0, 1]))
         with pytest.raises(Exception):
-            _ = sr2_wrapper_co.indexing_func_meta(lambda x: x.iloc[:2])[1:]
+            sr2_wrapper_co.indexing_func_meta(lambda x: x.iloc[:2])[1:]
         with pytest.raises(Exception):
-            _ = df4_wrapper_co.indexing_func_meta(lambda x: x.iloc[:, :2])[1:]
+            df4_wrapper_co.indexing_func_meta(lambda x: x.iloc[:, :2])[1:]
 
         # grouped
         a, b, c = sr2_grouped_wrapper.indexing_func_meta(lambda x: x.iloc[:2])[1:]
@@ -428,7 +428,7 @@ class TestArrayWrapper:
         np.testing.assert_array_equal(b, np.array([0, 1]))
         np.testing.assert_array_equal(c, np.array([0, 1, 2]))
         with pytest.raises(Exception):
-            _ = df4_grouped_wrapper.indexing_func_meta(lambda x: x.iloc[0, :2])[1:]
+            df4_grouped_wrapper.indexing_func_meta(lambda x: x.iloc[0, :2])[1:]
 
         # grouped, column only
         a, b, c = df4_grouped_wrapper_co.indexing_func_meta(lambda x: x.iloc[0])[1:]
@@ -1184,7 +1184,7 @@ class TestIndexFns:
             multi_i
         )
         with pytest.raises(Exception):
-            _ = indexes.drop_levels(multi_i, 'i9')
+            indexes.drop_levels(multi_i, 'i9')
         pd.testing.assert_index_equal(
             indexes.drop_levels(multi_i, ['i7', 'i8'], strict=False),  # won't do anything
             pd.MultiIndex.from_tuples([
@@ -1194,7 +1194,7 @@ class TestIndexFns:
             ], names=['i7', 'i8'])
         )
         with pytest.raises(Exception):
-            _ = indexes.drop_levels(multi_i, ['i7', 'i8'])
+            indexes.drop_levels(multi_i, ['i7', 'i8'])
 
     def test_rename_levels(self):
         i = pd.Int64Index([1, 2, 3], name='i')
@@ -1207,7 +1207,7 @@ class TestIndexFns:
             i
         )
         with pytest.raises(Exception):
-            _ = indexes.rename_levels(i, {'a': 'b'}, strict=True)
+            indexes.rename_levels(i, {'a': 'b'}, strict=True)
         pd.testing.assert_index_equal(
             indexes.rename_levels(multi_i, {'i7': 'f7', 'i8': 'f8'}),
             pd.MultiIndex.from_tuples([
@@ -1766,7 +1766,7 @@ class TestReshapeFns:
                 )
             )
         with pytest.raises(Exception):
-            _ = reshaping.broadcast(
+            reshaping.broadcast(
                 *to_broadcast,
                 index_from=0,
                 columns_from=0,
@@ -1805,7 +1805,7 @@ class TestReshapeFns:
         # 1d
         to_broadcast = sr1, sr2
         with pytest.raises(Exception):
-            _ = reshaping.broadcast(
+            reshaping.broadcast(
                 *to_broadcast,
                 index_from='strict',  # changing index not allowed
                 columns_from='stack',
@@ -1816,7 +1816,7 @@ class TestReshapeFns:
         # 2d
         to_broadcast = df1, df2
         with pytest.raises(Exception):
-            _ = reshaping.broadcast(
+            reshaping.broadcast(
                 *to_broadcast,
                 index_from='stack',
                 columns_from='strict',  # changing columns not allowed
@@ -2375,9 +2375,9 @@ h = H.run(df4, [0.1, 0.1, 0.2, 0.2], [0.3, 0.4, 0.5, 0.6])
 
 class TestIndexing:
     def test_kwargs(self):
-        _ = h[(0.1, 0.3, 'a6')]
+        h[(0.1, 0.3, 'a6')]
         assert called_dict['PandasIndexer']
-        _ = h.param1_loc[0.1]
+        h.param1_loc[0.1]
         assert called_dict['ParamIndexer']
 
     def test_pandas_indexing(self):

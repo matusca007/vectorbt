@@ -253,6 +253,9 @@ any argument that contains a Pandas object to a 2-dimensional NumPy array prior 
 
 >>> class SafeNumbaJitter(NumbaJitter):
 ...     def decorate(self, py_func, tags=None):
+...         if self.wrapping_disabled:
+...             return py_func
+...
 ...         @wraps(py_func)
 ...         def wrapper(*args, **kwargs):
 ...             new_args = ()
@@ -314,7 +317,6 @@ from vectorbt.utils.config import merge_dicts, atomic_dict
 from vectorbt.utils.template import RepEval, deep_substitute, CustomTemplate
 from vectorbt.utils.jitting import (
     Jitter,
-    NoJitter,
     resolve_jitted_kwargs,
     resolve_jitter_type,
     resolve_jitter,
@@ -514,8 +516,6 @@ class JITRegistry:
                               tags: tp.Optional[set] = None):
         """Decorate a jitable function and register both jitable and jitted setups."""
         jitter = resolve_jitter(jitter=jitter, py_func=py_func, **jitter_kwargs)
-        if isinstance(jitter, NoJitter):
-            raise TypeError("Cannot register jitter of type NoJitter")
         jitter_id = get_id_of_jitter_type(jitter.__class__)
         if jitter_id is None:
             raise ValueError("Jitter id cannot be None: is jitter registered globally?")
@@ -591,9 +591,6 @@ class JITRegistry:
         !!! note
             `disable` is only being used by `JITRegistry`, not `vectorbt.utils.jitting`.
 
-        If the resolved jitter is a subclass or an instance of `vectorbt.utils.jitting.NoJitter`,
-        returns the Python function without decoration.
-
         !!! note
             If there are more than one jitted setups registered for a single task id,
             make sure to provide a jitter.
@@ -628,12 +625,11 @@ class JITRegistry:
             task_id = task_id_or_func
 
         if task_id not in self.jitable_setups:
-            if return_missing_task:
-                return task_id_or_func
-            raise KeyError(f"Task id '{task_id}' not registered")
-        task_setups = self.jitable_setups[task_id]
-        if len(task_setups) == 0:
-            raise ValueError(f"There are no registered setups for task id '{task_id}'")
+            if not allow_new:
+                if return_missing_task:
+                    return task_id_or_func
+                raise KeyError(f"Task id '{task_id}' not registered")
+        task_setups = self.jitable_setups.get(task_id, dict())
 
         template_mapping = merge_dicts(
             jitting_cfg['template_mapping'],
@@ -646,12 +642,6 @@ class JITRegistry:
         )
         jitter = deep_substitute(jitter, template_mapping, sub_id='jitter')
 
-        if jitter is not None:
-            if isinstance(jitter, type) and issubclass(jitter, NoJitter):
-                return py_func
-            if isinstance(jitter, NoJitter):
-                return py_func
-
         if jitter is None and py_func is not None:
             jitter = get_func_suffix(py_func)
 
@@ -659,6 +649,8 @@ class JITRegistry:
             if len(task_setups) > 1:
                 raise ValueError(f"There are multiple registered setups for task id '{task_id}'. "
                                  f"Please specify the jitter.")
+            elif len(task_setups) == 0:
+                raise ValueError(f"There are no registered setups for task id '{task_id}'")
             jitable_setup = list(task_setups.values())[0]
             jitter = jitable_setup.jitter_id
             jitter_id = jitable_setup.jitter_id
@@ -697,8 +689,8 @@ class JITRegistry:
         if not isinstance(jitter, Jitter):
             jitter_kwargs = merge_dicts(
                 jitable_setup.jitter_kwargs if jitable_setup is not None else None,
-                jitting_cfg['task_kwargs'].get(task_id, {}),
                 jitting_cfg['jitter_kwargs'].get(jitter_id, {}),
+                jitting_cfg['task_kwargs'].get(task_id, {}),
                 jitting_cfg['setup_kwargs'].get((task_id, jitter_id), {}),
                 jitter_kwargs
             )
@@ -729,7 +721,10 @@ class JITRegistry:
     def resolve_option(self, task_id: tp.Union[tp.Hashable, tp.Callable],
                        option: tp.JittedOption, **kwargs) -> tp.Union[tp.Hashable, tp.Callable]:
         """Resolve `option` using `vectorbt.utils.jitting.resolve_jitted_kwargs` and call `JITRegistry.resolve`."""
-        return self.resolve(task_id, **resolve_jitted_kwargs(option=option, **kwargs))
+        kwargs = resolve_jitted_kwargs(option=option, **kwargs)
+        if kwargs is None:
+            kwargs = dict(disable=True)
+        return self.resolve(task_id, **kwargs)
 
 
 jit_registry = JITRegistry()
