@@ -385,7 +385,7 @@ def broadcast(*args,
               require_kwargs: tp.MaybeMappingSequence[tp.KwargsLike] = None,
               keep_raw: tp.MaybeMappingSequence[bool] = False,
               min_one_dim: tp.MaybeMappingSequence[bool] = True,
-              return_2d_array: tp.MaybeMappingSequence[bool] = False,
+              post_func: tp.MaybeMappingSequence[tp.Optional[tp.Callable]] = None,
               return_wrapper: bool = False,
               wrapper_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.Any:
@@ -431,8 +431,8 @@ def broadcast(*args,
             Defaults to True.
 
             Can be provided per argument.
-        return_2d_array (bool, sequence or dict): Whether to convert wrapped arrays into 2-dim NumPy arrays.
-            Defaults to False.
+        post_func (bool, sequence or dict): Function to postprocess each output.
+            Defaults to None.
 
             Can be provided per argument. Applied only when `keep_raw` is False.
         return_wrapper (bool): Whether to also return the wrapper associated with the operation.
@@ -642,13 +642,18 @@ def broadcast(*args,
             pass
         else:
             require_kwargs = [require_kwargs.get(k, require_kwargs.get('_default', None)) for k in keys]
-    if checks.is_mapping(return_2d_array):
-        return_2d_array = [return_2d_array.get(k, return_2d_array.get('_default', False)) for k in keys]
+    if checks.is_mapping(post_func):
+        post_func = [post_func.get(k, post_func.get('_default', None)) for k in keys]
 
     # Convert to np.ndarray object if not numpy or pandas
     # Also check whether we broadcast to pandas and whether work on 2-dim data
+    none_keys = set()
     arr_args = []
     for i in range(len(args)):
+        if args[i] is None:
+            none_keys.add(keys[i])
+            continue
+
         arg = to_any_array(args[i])
         if arg.ndim > 1:
             is_2d = True
@@ -745,18 +750,24 @@ def broadcast(*args,
             new_index=new_index,
             new_columns=new_columns
         )
-        if checks.is_sequence(return_2d_array):
-            _return_2d_array = return_2d_array[i]
+        if checks.is_sequence(post_func):
+            _post_func = post_func[i]
         else:
-            _return_2d_array = return_2d_array
-        if _return_2d_array:
-            wrapped_arr = to_2d_array(wrapped_arr)
+            _post_func = post_func
+        if _post_func is not None:
+            wrapped_arr = _post_func(wrapped_arr)
         new_args[i] = wrapped_arr
 
+    return_args = []
+    for k in keys:
+        if k not in none_keys:
+            return_args.append(new_args.pop(0))
+        else:
+            return_args.append(None)
     if return_dict:
-        new_args = dict(zip(keys, new_args))
+        return_args = dict(zip(keys, return_args))
     else:
-        new_args = tuple(new_args)
+        return_args = tuple(return_args)
     if return_wrapper:
         wrapper = wrapping.ArrayWrapper.from_shape(
             to_shape,
@@ -764,13 +775,13 @@ def broadcast(*args,
             columns=new_columns,
             **resolve_dict(wrapper_kwargs)
         )
-    if len(new_args) > 1 or return_dict:
+    if len(return_args) > 1 or return_dict:
         if return_wrapper:
-            return new_args, wrapper
-        return new_args
+            return return_args, wrapper
+        return return_args
     if return_wrapper:
-        return new_args[0], wrapper
-    return new_args[0]
+        return return_args[0], wrapper
+    return return_args[0]
 
 
 def broadcast_to(arg1: tp.ArrayLike,

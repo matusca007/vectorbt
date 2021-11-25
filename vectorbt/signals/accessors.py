@@ -510,7 +510,7 @@ class SignalsAccessor(GenericAccessor):
         obj = self.obj
         if len(broadcast_named_args) > 0:
             broadcast_named_args = {'obj': obj, **broadcast_named_args}
-            broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+            broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
             broadcast_named_args, wrapper = reshaping.broadcast(
                 broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
             obj = broadcast_named_args['obj']
@@ -1605,7 +1605,7 @@ class SignalsAccessor(GenericAccessor):
         else:
             broadcast_named_args = {'obj': self.obj, **broadcast_named_args}
         if len(broadcast_named_args) > 1:
-            broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+            broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
             broadcast_named_args, wrapper = reshaping.broadcast(
                 broadcast_named_args, return_wrapper=True, **broadcast_kwargs)
         else:

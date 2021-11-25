@@ -532,7 +532,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -640,7 +640,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -757,7 +757,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -885,7 +885,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1000,7 +1000,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1134,7 +1134,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             reduce_args = ()
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1324,7 +1324,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)
@@ -1486,7 +1486,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
 
         if isinstance(cls_or_self, type):
             if len(broadcast_named_args) > 0:
-                broadcast_kwargs = merge_dicts(dict(to_pd=False, return_2d_array=True), broadcast_kwargs)
+                broadcast_kwargs = merge_dicts(dict(to_pd=False, post_func=reshaping.to_2d_array), broadcast_kwargs)
                 if wrapper is not None:
                     broadcast_named_args = reshaping.broadcast(
                         broadcast_named_args, to_shape=wrapper.shape_2d, **broadcast_kwargs)

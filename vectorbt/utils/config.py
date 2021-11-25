@@ -13,21 +13,49 @@ from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils.docs import Documented, stringify
+from vectorbt.utils.docs import SafeToStr, Documented, stringify
 from vectorbt.utils.parsing import get_func_arg_names
+from vectorbt.utils.hashing import Hashable
 
 
-class Default:
+class Default(Hashable, SafeToStr):
     """Class for wrapping default values."""
 
     def __init__(self, value: tp.Any) -> None:
-        self.value = value
+        self._value = value
 
-    def __repr__(self) -> str:
-        return "Default(" + self.value.__repr__() + ")"
+    @property
+    def value(self) -> tp.Any:
+        """Default value."""
+        return self._value
+
+    @property
+    def hash_key(self) -> tuple:
+        return (self.value,)
 
     def __str__(self) -> str:
-        return self.__repr__()
+        return f"{self.__class__.__name__}(" \
+               f"key=\"{self.value}\")"
+
+
+class Ref(Hashable, SafeToStr):
+    """Class for wrapping references to other keys."""
+
+    def __init__(self, key: tp.Hashable) -> None:
+        self._key = key
+
+    @property
+    def key(self) -> tp.Any:
+        """Reference to another key."""
+        return self._key
+
+    @property
+    def hash_key(self) -> tuple:
+        return (self.key,)
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(" \
+               f"key=\"{self.key}\")"
 
 
 def resolve_dict(dct: tp.DictLikeSequence, i: tp.Optional[int] = None) -> dict:

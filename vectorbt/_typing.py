@@ -65,6 +65,7 @@ MaybeTupleList = Union[T, List[T], Tuple[T, ...]]
 MaybeIterable = Union[T, Iterable[T]]
 MaybeSequence = Union[T, Sequence[T]]
 MaybeCollection = Union[T, Collection[T]]
+MappingSequence = Union[Mapping[str, T], Sequence[T]]
 MaybeMappingSequence = Union[T, Mapping[str, T], Sequence[T]]
 SetLike = Union[None, Set[T]]
 

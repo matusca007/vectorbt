@@ -25,7 +25,15 @@ from vectorbt.utils.chunking import (
     KwargsTaker,
     chunked
 )
-from vectorbt.utils.config import atomic_dict, merge_dicts, Config, Configured, AtomicConfig
+from vectorbt.utils.config import (
+    Default,
+    Ref,
+    atomic_dict,
+    merge_dicts,
+    Config,
+    Configured,
+    AtomicConfig
+)
 from vectorbt.utils.decorators import (
     cacheable_property,
     cached_property,
@@ -45,6 +53,8 @@ from vectorbt.utils.template import Sub, Rep, RepEval, RepFunc, deep_substitute
 from vectorbt.utils.jitting import jitted
 
 __all__ = [
+    'Default',
+    'Ref',
     'atomic_dict',
     'merge_dicts',
     'Config',

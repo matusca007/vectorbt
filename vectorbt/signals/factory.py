@@ -538,19 +538,21 @@ class SignalFactory(IndicatorFactory):
         if mode == FactoryMode.Entries:
             _0 = "i"
             _0 += ", shape"
-            _0 += ", entry_input_tuple"
+            if len(entry_input_names) > 0:
+                _0 += ', ' + ', '.join(entry_input_names)
             if len(entry_in_output_names) > 0:
-                _0 += ", entry_in_output_tuples"
+                _0 += ', ' + ', '.join(entry_in_output_names)
             if len(entry_param_names) > 0:
-                _0 += ", entry_param_tuples"
+                _0 += ', ' + ', '.join(entry_param_names)
             _0 += ", entry_args"
             _1 = "shape"
             _1 += ", entry_place_func"
-            _1 += ", *entry_input_tuple"
+            if len(entry_input_names) > 0:
+                _1 += ', ' + ', '.join(entry_input_names)
             if len(entry_in_output_names) > 0:
-                _1 += ", *entry_in_output_tuples[i]"
+                _1 += ', ' + ', '.join(map(lambda x: x + '[i]', entry_in_output_names))
             if len(entry_param_names) > 0:
-                _1 += ", *entry_param_tuples[i]"
+                _1 += ', ' + ', '.join(map(lambda x: x + '[i]', entry_param_names))
             _1 += ", *entry_args"
             func_str = "def apply_func({0}):\n   return generate_func({1})".format(_0, _1)
             scope = {
@@ -570,22 +572,24 @@ class SignalFactory(IndicatorFactory):
             _0 += ", exit_wait"
             _0 += ", until_next"
             _0 += ", skip_until_exit"
-            _0 += ", exit_input_tuple"
+            if len(exit_input_names) > 0:
+                _0 += ', ' + ', '.join(exit_input_names)
             if len(exit_in_output_names) > 0:
-                _0 += ", exit_in_output_tuples"
+                _0 += ', ' + ', '.join(exit_in_output_names)
             if len(exit_param_names) > 0:
-                _0 += ", exit_param_tuples"
+                _0 += ', ' + ', '.join(exit_param_names)
             _0 += ", exit_args"
             _1 = "entries"
             _1 += ", exit_wait"
             _1 += ", until_next"
             _1 += ", skip_until_exit"
             _1 += ", exit_place_func"
-            _1 += ", *exit_input_tuple"
+            if len(exit_input_names) > 0:
+                _1 += ', ' + ', '.join(exit_input_names)
             if len(exit_in_output_names) > 0:
-                _1 += ", *exit_in_output_tuples[i]"
+                _1 += ', ' + ', '.join(map(lambda x: x + '[i]', exit_in_output_names))
             if len(exit_param_names) > 0:
-                _1 += ", *exit_param_tuples[i]"
+                _1 += ', ' + ', '.join(map(lambda x: x + '[i]', exit_param_names))
             _1 += ", *exit_args"
             func_str = "def apply_func({0}):\n   return generate_ex_func({1})".format(_0, _1)
             scope = {
@@ -606,17 +610,19 @@ class SignalFactory(IndicatorFactory):
             _0 += ", exit_wait"
             _0 += ", max_one_entry"
             _0 += ", max_one_exit"
-            _0 += ", entry_input_tuple"
-            _0 += ", exit_input_tuple"
+            if len(entry_input_names) > 0:
+                _0 += ', ' + ', '.join(map(lambda x: '_entry_' + x, entry_input_names))
             if len(entry_in_output_names) > 0:
-                _0 += ", entry_in_output_tuples"
-            if len(exit_in_output_names) > 0:
-                _0 += ", exit_in_output_tuples"
+                _0 += ', ' + ', '.join(map(lambda x: '_entry_' + x, entry_in_output_names))
             if len(entry_param_names) > 0:
-                _0 += ", entry_param_tuples"
-            if len(exit_param_names) > 0:
-                _0 += ", exit_param_tuples"
+                _0 += ', ' + ', '.join(map(lambda x: '_entry_' + x, entry_param_names))
             _0 += ", entry_args"
+            if len(exit_input_names) > 0:
+                _0 += ', ' + ', '.join(map(lambda x: '_exit_' + x, exit_input_names))
+            if len(exit_in_output_names) > 0:
+                _0 += ', ' + ', '.join(map(lambda x: '_exit_' + x, exit_in_output_names))
+            if len(exit_param_names) > 0:
+                _0 += ', ' + ', '.join(map(lambda x: '_exit_' + x, exit_param_names))
             _0 += ", exit_args"
             _1 = "shape"
             _1 += ", entry_wait"
@@ -624,19 +630,23 @@ class SignalFactory(IndicatorFactory):
             _1 += ", max_one_entry"
             _1 += ", max_one_exit"
             _1 += ", entry_place_func"
-            _1 += ", (*entry_input_tuple"
+            _1 += ", ("
+            if len(entry_input_names) > 0:
+                _1 += ', '.join(map(lambda x: '_entry_' + x, entry_input_names)) + ', '
             if len(entry_in_output_names) > 0:
-                _1 += ", *entry_in_output_tuples[i]"
+                _1 += ', '.join(map(lambda x: '_entry_' + x + '[i]', entry_in_output_names)) + ', '
             if len(entry_param_names) > 0:
-                _1 += ", *entry_param_tuples[i]"
-            _1 += ", *entry_args)"
+                _1 += ', '.join(map(lambda x: '_entry_' + x + '[i]', entry_param_names)) + ', '
+            _1 += "*entry_args,)"
             _1 += ", exit_place_func"
-            _1 += ", (*exit_input_tuple"
+            _1 += ", ("
+            if len(exit_input_names) > 0:
+                _1 += ', '.join(map(lambda x: '_exit_' + x, exit_input_names)) + ', '
             if len(exit_in_output_names) > 0:
-                _1 += ", *exit_in_output_tuples[i]"
+                _1 += ', '.join(map(lambda x: '_exit_' + x + '[i]', exit_in_output_names)) + ', '
             if len(exit_param_names) > 0:
-                _1 += ", *exit_param_tuples[i]"
-            _1 += ", *exit_args)"
+                _1 += ', '.join(map(lambda x: '_exit_' + x + '[i]', exit_param_names)) + ', '
+            _1 += "*exit_args,)"
             func_str = "def apply_func({0}):\n   return generate_enex_func({1})".format(_0, _1)
             scope = {
                 'generate_enex_func': generate_enex_func,
@@ -731,15 +741,15 @@ class SignalFactory(IndicatorFactory):
             skip_until_exit = exit_kwargs['skip_until_exit']
 
             # Distribute arguments across functions
-            entry_input_tuple = ()
-            exit_input_tuple = ()
-            cache_input_tuple = ()
+            entry_input_list = []
+            exit_input_list = []
+            cache_input_list = []
             for input_name in entry_input_names:
-                entry_input_tuple += (input_list[input_names.index(input_name)],)
+                entry_input_list.append(input_list[input_names.index(input_name)])
             for input_name in exit_input_names:
-                exit_input_tuple += (input_list[input_names.index(input_name)],)
+                exit_input_list.append(input_list[input_names.index(input_name)])
             for input_name in cache_input_names:
-                cache_input_tuple += (input_list[input_names.index(input_name)],)
+                cache_input_list.append(input_list[input_names.index(input_name)])
 
             entry_in_output_list = []
             exit_in_output_list = []
@@ -762,10 +772,6 @@ class SignalFactory(IndicatorFactory):
                 cache_param_list.append(param_list[param_names.index(param_name)])
 
             n_params = len(param_list[0]) if len(param_list) > 0 else 1
-            entry_in_output_tuples = list(zip(*entry_in_output_list))
-            exit_in_output_tuples = list(zip(*exit_in_output_list))
-            entry_param_tuples = list(zip(*entry_param_list))
-            exit_param_tuples = list(zip(*exit_param_list))
 
             def _build_more_args(func_settings: tp.Kwargs, func_kwargs: tp.Kwargs) -> tp.Args:
                 pass_kwargs = func_settings.get('pass_kwargs', [])
@@ -793,13 +799,11 @@ class SignalFactory(IndicatorFactory):
                 _cache_in_output_list = cache_in_output_list
                 _cache_param_list = cache_param_list
                 if checks.is_numba_func(cache_func):
-                    if len(_cache_in_output_list) > 0:
-                        _cache_in_output_list = [to_typed_list(in_outputs) for in_outputs in _cache_in_output_list]
-                    if len(_cache_param_list) > 0:
-                        _cache_param_list = [to_typed_list(params) for params in _cache_param_list]
+                    _cache_in_output_list = list(map(to_typed_list, cache_in_output_list))
+                    _cache_param_list = list(map(to_typed_list, cache_param_list))
 
                 cache = cache_func(
-                    *cache_input_tuple,
+                    *cache_input_list,
                     *_cache_in_output_list,
                     *_cache_param_list,
                     *cache_args,
@@ -821,28 +825,20 @@ class SignalFactory(IndicatorFactory):
 
             # Apply and concatenate
             if mode == FactoryMode.Entries:
-                if len(entry_in_output_names) > 0:
-                    if jitted_loop:
-                        _entry_in_output_tuples = (to_typed_list(entry_in_output_tuples),)
-                    else:
-                        _entry_in_output_tuples = (entry_in_output_tuples,)
+                if jitted_loop:
+                    _entry_in_output_list = list(map(to_typed_list, entry_in_output_list))
+                    _entry_param_list = list(map(to_typed_list, entry_param_list))
                 else:
-                    _entry_in_output_tuples = ()
-                if len(entry_param_names) > 0:
-                    if jitted_loop:
-                        _entry_param_tuples = (to_typed_list(entry_param_tuples),)
-                    else:
-                        _entry_param_tuples = (entry_param_tuples,)
-                else:
-                    _entry_param_tuples = ()
+                    _entry_in_output_list = entry_in_output_list
+                    _entry_param_list = entry_param_list
 
                 return combining.apply_and_concat(
                     n_params,
                     apply_func,
                     input_shape,
-                    entry_input_tuple,
-                    *_entry_in_output_tuples,
-                    *_entry_param_tuples,
+                    *entry_input_list,
+                    *_entry_in_output_list,
+                    *_entry_param_list,
                     entry_args + entry_more_args + entry_cache,
                     n_outputs=1,
                     jitted_loop=jitted_loop,
@@ -850,20 +846,12 @@ class SignalFactory(IndicatorFactory):
                 )
 
             elif mode == FactoryMode.Exits:
-                if len(exit_in_output_names) > 0:
-                    if jitted_loop:
-                        _exit_in_output_tuples = (to_typed_list(exit_in_output_tuples),)
-                    else:
-                        _exit_in_output_tuples = (exit_in_output_tuples,)
+                if jitted_loop:
+                    _exit_in_output_list = list(map(to_typed_list, exit_in_output_list))
+                    _exit_param_list = list(map(to_typed_list, exit_param_list))
                 else:
-                    _exit_in_output_tuples = ()
-                if len(exit_param_names) > 0:
-                    if jitted_loop:
-                        _exit_param_tuples = (to_typed_list(exit_param_tuples),)
-                    else:
-                        _exit_param_tuples = (exit_param_tuples,)
-                else:
-                    _exit_param_tuples = ()
+                    _exit_in_output_list = exit_in_output_list
+                    _exit_param_list = exit_param_list
 
                 return combining.apply_and_concat(
                     n_params,
@@ -872,9 +860,9 @@ class SignalFactory(IndicatorFactory):
                     exit_wait,
                     until_next,
                     skip_until_exit,
-                    exit_input_tuple,
-                    *_exit_in_output_tuples,
-                    *_exit_param_tuples,
+                    *exit_input_list,
+                    *_exit_in_output_list,
+                    *_exit_param_list,
                     exit_args + exit_more_args + exit_cache,
                     n_outputs=1,
                     jitted_loop=jitted_loop,
@@ -882,34 +870,16 @@ class SignalFactory(IndicatorFactory):
                 )
 
             else:
-                if len(entry_in_output_names) > 0:
-                    if jitted_loop:
-                        _entry_in_output_tuples = (to_typed_list(entry_in_output_tuples),)
-                    else:
-                        _entry_in_output_tuples = (entry_in_output_tuples,)
+                if jitted_loop:
+                    _entry_in_output_list = list(map(to_typed_list, entry_in_output_list))
+                    _entry_param_list = list(map(to_typed_list, entry_param_list))
+                    _exit_in_output_list = list(map(to_typed_list, exit_in_output_list))
+                    _exit_param_list = list(map(to_typed_list, exit_param_list))
                 else:
-                    _entry_in_output_tuples = ()
-                if len(entry_param_names) > 0:
-                    if jitted_loop:
-                        _entry_param_tuples = (to_typed_list(entry_param_tuples),)
-                    else:
-                        _entry_param_tuples = (entry_param_tuples,)
-                else:
-                    _entry_param_tuples = ()
-                if len(exit_in_output_names) > 0:
-                    if jitted_loop:
-                        _exit_in_output_tuples = (to_typed_list(exit_in_output_tuples),)
-                    else:
-                        _exit_in_output_tuples = (exit_in_output_tuples,)
-                else:
-                    _exit_in_output_tuples = ()
-                if len(exit_param_names) > 0:
-                    if jitted_loop:
-                        _exit_param_tuples = (to_typed_list(exit_param_tuples),)
-                    else:
-                        _exit_param_tuples = (exit_param_tuples,)
-                else:
-                    _exit_param_tuples = ()
+                    _entry_in_output_list = entry_in_output_list
+                    _entry_param_list = entry_param_list
+                    _exit_in_output_list = exit_in_output_list
+                    _exit_param_list = exit_param_list
 
                 return combining.apply_and_concat(
                     n_params,
@@ -919,13 +889,13 @@ class SignalFactory(IndicatorFactory):
                     exit_wait,
                     max_one_entry,
                     max_one_exit,
-                    entry_input_tuple,
-                    exit_input_tuple,
-                    *_entry_in_output_tuples,
-                    *_exit_in_output_tuples,
-                    *_entry_param_tuples,
-                    *_exit_param_tuples,
+                    *entry_input_list,
+                    *_entry_in_output_list,
+                    *_entry_param_list,
                     entry_args + entry_more_args + entry_cache,
+                    *exit_input_list,
+                    *_exit_in_output_list,
+                    *_exit_param_list,
                     exit_args + exit_more_args + exit_cache,
                     n_outputs=2,
                     jitted_loop=jitted_loop,
@@ -934,7 +904,7 @@ class SignalFactory(IndicatorFactory):
 
         return self.from_custom_func(
             custom_func,
-            as_lists=True,
+            pass_packed=True,
             require_input_shape=require_input_shape,
             **kwargs
         )
