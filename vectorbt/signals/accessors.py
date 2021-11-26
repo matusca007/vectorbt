@@ -296,7 +296,6 @@ class SignalsAccessor(GenericAccessor):
         2020-01-05  False  False  False
         ```
         """
-        checks.assert_numba_func(place_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -422,10 +421,6 @@ class SignalsAccessor(GenericAccessor):
         2020-01-05  False  False  False
         ```
         """
-        checks.assert_not_none(entry_place_func_nb)
-        checks.assert_not_none(exit_place_func_nb)
-        checks.assert_numba_func(entry_place_func_nb)
-        checks.assert_numba_func(exit_place_func_nb)
         if entry_args is None:
             entry_args = ()
         if exit_args is None:
@@ -499,7 +494,6 @@ class SignalsAccessor(GenericAccessor):
         2020-01-05   True  False   True
         ```
         """
-        checks.assert_numba_func(exit_place_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -1589,8 +1583,6 @@ class SignalsAccessor(GenericAccessor):
         It must take both broadcasted arrays (`reset_by` can be None) and return a tuple.
 
         Set `as_mapped` to True to return an instance of `vectorbt.records.mapped_array.MappedArray`."""
-        checks.assert_not_none(rank_func_nb)
-        checks.assert_numba_func(rank_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:

@@ -3371,9 +3371,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 )
         for k in broadcast_named_args:
             broadcasted_args.pop(k)
-        checks.assert_numba_func(signal_func_nb)
-        checks.assert_numba_func(adjust_sl_func_nb)
-        checks.assert_numba_func(adjust_tp_func_nb)
 
         # Perform the simulation
         func = jit_registry.resolve_option(nb.simulate_from_signal_func_nb, jitted)

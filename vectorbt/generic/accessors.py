@@ -522,7 +522,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-05  5.0  2.5  1.666667
         ```
         """
-        checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -630,7 +629,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         ```
         """
         checks.assert_in(axis, (0, 1))
-        checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -747,7 +745,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-05  4.5  2.25  1.500000
         ```
         """
-        checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -875,7 +872,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         The advantage of the approach above is in the flexibility: we can pass two arrays of
         any broadcastable shapes and everything else is done for us.
         """
-        checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -990,7 +986,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-05  5.0  2.50  1.666667
         ```
         """
-        checks.assert_numba_func(apply_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -1119,8 +1114,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         Name: apply_and_reduce, dtype: int64
         ```
         """
-        checks.assert_numba_func(apply_func_nb)
-        checks.assert_numba_func(reduce_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -1314,7 +1307,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         arr2  1.0  2.0  3.0
         ```
         """
-        checks.assert_numba_func(reduce_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:
@@ -1476,7 +1468,6 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         2020-01-05  3.333333  1.666667
         ```
         """
-        checks.assert_numba_func(squeeze_func_nb)
         if broadcast_named_args is None:
             broadcast_named_args = {}
         if broadcast_kwargs is None:

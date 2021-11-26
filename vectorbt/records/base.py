@@ -790,8 +790,6 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         For details on the meta version, see `vectorbt.records.nb.map_records_meta_nb`.
 
         `**kwargs` are passed to `Records.map_array`."""
-        checks.assert_numba_func(map_func_nb)
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             func = jit_registry.resolve_option(nb.map_records_meta_nb, jitted)
@@ -828,8 +826,6 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         For details on the meta version, see `vectorbt.records.nb.apply_meta_nb`.
 
         `**kwargs` are passed to `Records.map_array`."""
-        checks.assert_numba_func(apply_func_nb)
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)

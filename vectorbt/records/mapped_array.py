@@ -181,8 +181,8 @@ z   NaN   NaN  18.0
 ...     return np.sum(a)
 
 >>> ma_no_conf = ma_conf.reduce_segments(
-...     sum_reduce_nb,
-...     segment_arr=(ma_conf.idx_arr, ma_conf.col_arr)
+...     (ma_conf.idx_arr, ma_conf.col_arr),
+...     sum_reduce_nb
 ... )
 >>> ma_no_conf.to_pd()
       a     b     c
@@ -783,8 +783,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         For details on the meta version, see `vectorbt.records.nb.apply_meta_nb`.
 
         `**kwargs` are passed to `MappedArray.replace`."""
-        checks.assert_numba_func(apply_func_nb)
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by if apply_per_group else False)
@@ -804,9 +802,9 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
     # ############# Reducing ############# #
 
     def reduce_segments(self: MappedArrayT,
+                        segment_arr: tp.Union[tp.MaybeTuple[tp.Array1d]],
                         reduce_func_nb: tp.ReduceFunc, *args,
                         idx_arr: tp.Optional[tp.Array1d] = None,
-                        segment_arr: tp.Optional[tp.Union[tp.MaybeTuple[tp.Array1d]]] = None,
                         group_by: tp.GroupByLike = None,
                         apply_per_group: bool = False,
                         dtype: tp.Optional[tp.DTypeLike] = None,
@@ -831,9 +829,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         See `vectorbt.records.nb.reduce_mapped_segments_nb`.
 
         `**kwargs` are passed to `MappedArray.replace`."""
-        checks.assert_numba_func(reduce_func_nb)
-        checks.assert_not_none(segment_arr)
-
         if idx_arr is None:
             if self.idx_arr is None:
                 raise ValueError("Must pass idx_arr")
@@ -897,8 +892,6 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         * `vectorbt.records.nb.reduce_mapped_to_array_meta_nb` if `returns_array` is True and `returns_idx` is False
         * `vectorbt.records.nb.reduce_mapped_to_idx_array_meta_nb` if `returns_array` is True and `returns_idx` is True
         """
-        checks.assert_numba_func(reduce_func_nb)
-
         if isinstance(cls_or_self, type):
             checks.assert_not_none(col_mapper)
             col_map = col_mapper.get_col_map(group_by=group_by)

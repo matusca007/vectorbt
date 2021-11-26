@@ -464,7 +464,6 @@ class SignalFactory(IndicatorFactory):
         if mode == FactoryMode.Entries:
             require_input_shape = True
             checks.assert_not_none(entry_place_func)
-            checks.assert_numba_func(entry_place_func)
             if exit_place_func is not None:
                 raise ValueError("exit_place_func cannot be used with FactoryMode.Entries")
         elif mode == FactoryMode.Exits:
@@ -472,13 +471,10 @@ class SignalFactory(IndicatorFactory):
             if entry_place_func is not None:
                 raise ValueError("entry_place_func cannot be used with FactoryMode.Exits")
             checks.assert_not_none(exit_place_func)
-            checks.assert_numba_func(exit_place_func)
         elif mode == FactoryMode.Both:
             require_input_shape = True
             checks.assert_not_none(entry_place_func)
-            checks.assert_numba_func(entry_place_func)
             checks.assert_not_none(exit_place_func)
-            checks.assert_numba_func(exit_place_func)
         else:
             require_input_shape = False
             if entry_place_func is None:
@@ -489,9 +485,7 @@ class SignalFactory(IndicatorFactory):
                 pass_inputs=['entries']
             ), entry_settings)
             checks.assert_not_none(entry_place_func)
-            checks.assert_numba_func(entry_place_func)
             checks.assert_not_none(exit_place_func)
-            checks.assert_numba_func(exit_place_func)
         require_input_shape = kwargs.pop('require_input_shape', require_input_shape)
 
         if entry_settings is None:

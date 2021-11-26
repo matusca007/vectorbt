@@ -515,29 +515,29 @@ class TestMappedArray:
             return np.sum(a)
 
         np.testing.assert_array_equal(
-            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 1, 2])).values,
+            mapped_array['a'].reduce_segments(np.array([0, 1, 2]), sum_reduce_nb).values,
             np.array([10., 11., 12.])
         )
         np.testing.assert_array_equal(
-            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 2])).values,
+            mapped_array['a'].reduce_segments(np.array([0, 0, 2]), sum_reduce_nb).values,
             np.array([21., 12.])
         )
         np.testing.assert_array_equal(
-            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0])).values,
+            mapped_array['a'].reduce_segments(np.array([0, 0, 0]), sum_reduce_nb).values,
             np.array([33.])
         )
         with pytest.raises(Exception):
-            mapped_array['a'].reduce_segments(sum_reduce_nb, segment_arr=np.array([2, 1, 0]))
+            mapped_array['a'].reduce_segments(np.array([2, 1, 0]), sum_reduce_nb)
         np.testing.assert_array_equal(
-            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).values,
+            mapped_array.reduce_segments(np.arange(9), sum_reduce_nb).values,
             np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
         )
         np.testing.assert_array_equal(
-            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 1, 2, 0, 1, 2, 0, 1, 2])).values,
+            mapped_array.reduce_segments(np.array([0, 1, 2, 0, 1, 2, 0, 1, 2]), sum_reduce_nb).values,
             np.array([10., 11., 12., 13., 14., 13., 12., 11., 10.])
         )
         np.testing.assert_array_equal(
-            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2])).values,
+            mapped_array.reduce_segments(np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]), sum_reduce_nb).values,
             np.array([33., 40., 33.])
         )
         mapped_array2 = vbt.MappedArray(
@@ -547,7 +547,8 @@ class TestMappedArray:
             idx_arr=np.repeat(records_arr['idx'], 2)
         )
         result = mapped_array2.reduce_segments(
-            sum_reduce_nb, segment_arr=(mapped_array2.idx_arr, mapped_array2.col_arr))
+            (mapped_array2.idx_arr, mapped_array2.col_arr),
+            sum_reduce_nb)
         np.testing.assert_array_equal(
             result.values,
             mapped_array.values * 2
@@ -566,23 +567,23 @@ class TestMappedArray:
         )
         np.testing.assert_array_equal(
             mapped_array_grouped.reduce_segments(
-                sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
-                apply_per_group=False).values,
+                np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
+                sum_reduce_nb, apply_per_group=False).values,
             np.array([33., 40., 33.])
         )
         np.testing.assert_array_equal(
             mapped_array_grouped.reduce_segments(
-                sum_reduce_nb, segment_arr=np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
-                apply_per_group=True).values,
+                np.array([0, 0, 0, 1, 1, 1, 2, 2, 2]),
+                sum_reduce_nb, apply_per_group=True).values,
             np.array([33., 40., 33.])
         )
-        assert mapped_array_grouped.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9)).wrapper == \
-               mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), group_by=group_by).wrapper
-        assert mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), group_by=False) \
+        assert mapped_array_grouped.reduce_segments(np.arange(9), sum_reduce_nb).wrapper == \
+               mapped_array.reduce_segments(np.arange(9), sum_reduce_nb, group_by=group_by).wrapper
+        assert mapped_array.reduce_segments(np.arange(9), sum_reduce_nb, group_by=False) \
                    .wrapper.grouper.group_by is None
         np.testing.assert_array_equal(
-            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), chunked=True).values,
-            mapped_array.reduce_segments(sum_reduce_nb, segment_arr=np.arange(9), chunked=False).values
+            mapped_array.reduce_segments(np.arange(9), sum_reduce_nb, chunked=True).values,
+            mapped_array.reduce_segments(np.arange(9), sum_reduce_nb, chunked=False).values
         )
 
     def test_reduce(self):
