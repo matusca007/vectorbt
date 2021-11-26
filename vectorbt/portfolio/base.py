@@ -2248,6 +2248,36 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not np.any(log):
             max_logs = 0
 
+        # Check types
+        checks.assert_subdtype(cs_group_lens, np.int_)
+        checks.assert_subdtype(call_seq, np.int_)
+        checks.assert_subdtype(init_cash, np.number)
+        checks.assert_subdtype(init_position, np.number)
+        checks.assert_subdtype(cash_deposits, np.number)
+        checks.assert_subdtype(cash_earnings, np.number)
+        checks.assert_subdtype(cash_dividends, np.number)
+        checks.assert_subdtype(broadcasted_args['size'], np.number)
+        checks.assert_subdtype(broadcasted_args['price'], np.number)
+        checks.assert_subdtype(broadcasted_args['size_type'], np.int_)
+        checks.assert_subdtype(broadcasted_args['direction'], np.int_)
+        checks.assert_subdtype(broadcasted_args['fees'], np.number)
+        checks.assert_subdtype(broadcasted_args['fixed_fees'], np.number)
+        checks.assert_subdtype(broadcasted_args['slippage'], np.number)
+        checks.assert_subdtype(broadcasted_args['min_size'], np.number)
+        checks.assert_subdtype(broadcasted_args['max_size'], np.number)
+        checks.assert_subdtype(broadcasted_args['size_granularity'], np.number)
+        checks.assert_subdtype(broadcasted_args['reject_prob'], np.number)
+        checks.assert_subdtype(broadcasted_args['price_area_vio_mode'], np.int_)
+        checks.assert_subdtype(broadcasted_args['lock_cash'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['allow_partial'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['raise_reject'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['log'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['val_price'], np.number)
+        checks.assert_subdtype(broadcasted_args['open'], np.number)
+        checks.assert_subdtype(broadcasted_args['high'], np.number)
+        checks.assert_subdtype(broadcasted_args['low'], np.number)
+        checks.assert_subdtype(broadcasted_args['close'], np.number)
+
         # Perform the simulation
         func = jit_registry.resolve_option(nb.simulate_from_orders_nb, jitted)
         func = ch_registry.resolve_option(func, chunked)
@@ -3220,6 +3250,60 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             call_seq = build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
         if not np.any(log):
             max_logs = 0
+
+        # Check types
+        checks.assert_subdtype(cs_group_lens, np.int_)
+        checks.assert_subdtype(call_seq, np.int_)
+        checks.assert_subdtype(init_cash, np.number)
+        checks.assert_subdtype(init_position, np.number)
+        checks.assert_subdtype(cash_deposits, np.number)
+        checks.assert_subdtype(cash_earnings, np.number)
+        checks.assert_subdtype(cash_dividends, np.number)
+        checks.assert_subdtype(broadcasted_args['size'], np.number)
+        checks.assert_subdtype(broadcasted_args['price'], np.number)
+        checks.assert_subdtype(broadcasted_args['size_type'], np.int_)
+        checks.assert_subdtype(broadcasted_args['fees'], np.number)
+        checks.assert_subdtype(broadcasted_args['fixed_fees'], np.number)
+        checks.assert_subdtype(broadcasted_args['slippage'], np.number)
+        checks.assert_subdtype(broadcasted_args['min_size'], np.number)
+        checks.assert_subdtype(broadcasted_args['max_size'], np.number)
+        checks.assert_subdtype(broadcasted_args['size_granularity'], np.number)
+        checks.assert_subdtype(broadcasted_args['reject_prob'], np.number)
+        checks.assert_subdtype(broadcasted_args['price_area_vio_mode'], np.int_)
+        checks.assert_subdtype(broadcasted_args['lock_cash'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['allow_partial'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['raise_reject'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['log'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['accumulate'], (np.int_, np.bool_))
+        checks.assert_subdtype(broadcasted_args['upon_long_conflict'], np.int_)
+        checks.assert_subdtype(broadcasted_args['upon_short_conflict'], np.int_)
+        checks.assert_subdtype(broadcasted_args['upon_dir_conflict'], np.int_)
+        checks.assert_subdtype(broadcasted_args['upon_opposite_entry'], np.int_)
+        checks.assert_subdtype(broadcasted_args['val_price'], np.number)
+        checks.assert_subdtype(broadcasted_args['open'], np.number)
+        checks.assert_subdtype(broadcasted_args['high'], np.number)
+        checks.assert_subdtype(broadcasted_args['low'], np.number)
+        checks.assert_subdtype(broadcasted_args['close'], np.number)
+        checks.assert_subdtype(broadcasted_args['sl_stop'], np.number)
+        checks.assert_subdtype(broadcasted_args['sl_trail'], np.bool_)
+        checks.assert_subdtype(broadcasted_args['tp_stop'], np.number)
+        checks.assert_subdtype(broadcasted_args['stop_entry_price'], np.int_)
+        checks.assert_subdtype(broadcasted_args['stop_exit_price'], np.int_)
+        checks.assert_subdtype(broadcasted_args['upon_stop_exit'], np.int_)
+        checks.assert_subdtype(broadcasted_args['upon_stop_update'], np.int_)
+        checks.assert_subdtype(broadcasted_args['signal_priority'], np.int_)
+        if 'entries' in broadcasted_args:
+            checks.assert_subdtype(broadcasted_args['entries'], np.bool_)
+        if 'exits' in broadcasted_args:
+            checks.assert_subdtype(broadcasted_args['exits'], np.bool_)
+        if 'short_entries' in broadcasted_args:
+            checks.assert_subdtype(broadcasted_args['short_entries'], np.bool_)
+        if 'short_exits' in broadcasted_args:
+            checks.assert_subdtype(broadcasted_args['short_exits'], np.bool_)
+        if 'direction' in broadcasted_args:
+            checks.assert_subdtype(broadcasted_args['direction'], np.int_)
+
+        # Prepare arguments
         template_mapping = merge_dicts(
             broadcasted_args,
             dict(
@@ -4137,6 +4221,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 call_seq = require_call_seq(broadcast(call_seq, to_shape=target_shape_2d, to_pd=False))
             else:
                 call_seq = build_call_seq(target_shape_2d, group_lens, call_seq_type=call_seq)
+
+        # Check types
+        checks.assert_subdtype(cs_group_lens, np.int_)
+        if call_seq is not None:
+            checks.assert_subdtype(call_seq, np.int_)
+        checks.assert_subdtype(init_cash, np.number)
+        checks.assert_subdtype(init_position, np.number)
+        checks.assert_subdtype(cash_deposits, np.number)
+        checks.assert_subdtype(cash_earnings, np.number)
+        checks.assert_subdtype(segment_mask, np.bool_)
+        checks.assert_subdtype(broadcasted_args['open'], np.number)
+        checks.assert_subdtype(broadcasted_args['high'], np.number)
+        checks.assert_subdtype(broadcasted_args['low'], np.number)
+        checks.assert_subdtype(broadcasted_args['close'], np.number)
+
+        # Prepare arguments
         template_mapping = merge_dicts(
             broadcasted_args,
             dict(
