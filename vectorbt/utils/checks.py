@@ -355,28 +355,46 @@ def assert_type_equal(arg1: tp.Any, arg2: tp.Any) -> None:
         raise AssertionError(f"Types {type(arg1)} and {type(arg2)} do not match")
 
 
-def assert_dtype(arg: tp.ArrayLike, dtype: tp.DTypeLike) -> None:
+def assert_dtype(arg: tp.ArrayLike, dtype: tp.MaybeTuple[tp.DTypeLike]) -> None:
     """Raise exception if the argument is not of data type `dtype`."""
     arg = _to_any_array(arg)
-    if isinstance(arg, pd.DataFrame):
-        for i, col_dtype in enumerate(arg.dtypes):
-            if col_dtype != dtype:
-                raise AssertionError(f"Data type of column {i} must be {dtype}, not {col_dtype}")
+    if isinstance(dtype, tuple):
+        if isinstance(arg, pd.DataFrame):
+            for i, col_dtype in enumerate(arg.dtypes):
+                if not any([col_dtype == _dtype for _dtype in dtype]):
+                    raise AssertionError(f"Data type of column {i} must be one of {dtype}, not {col_dtype}")
+        else:
+            if not any([arg.dtype == _dtype for _dtype in dtype]):
+                raise AssertionError(f"Data type must be one of {dtype}, not {arg.dtype}")
     else:
-        if arg.dtype != dtype:
-            raise AssertionError(f"Data type must be {dtype}, not {arg.dtype}")
+        if isinstance(arg, pd.DataFrame):
+            for i, col_dtype in enumerate(arg.dtypes):
+                if col_dtype != dtype:
+                    raise AssertionError(f"Data type of column {i} must be {dtype}, not {col_dtype}")
+        else:
+            if arg.dtype != dtype:
+                raise AssertionError(f"Data type must be {dtype}, not {arg.dtype}")
 
 
-def assert_subdtype(arg: tp.ArrayLike, dtype: tp.DTypeLike) -> None:
+def assert_subdtype(arg: tp.ArrayLike, dtype: tp.MaybeTuple[tp.DTypeLike]) -> None:
     """Raise exception if the argument is not a sub data type of `dtype`."""
     arg = _to_any_array(arg)
-    if isinstance(arg, pd.DataFrame):
-        for i, col_dtype in enumerate(arg.dtypes):
-            if not np.issubdtype(col_dtype, dtype):
-                raise AssertionError(f"Data type of column {i} must be {dtype}, not {col_dtype}")
+    if isinstance(dtype, tuple):
+        if isinstance(arg, pd.DataFrame):
+            for i, col_dtype in enumerate(arg.dtypes):
+                if not any([np.issubdtype(col_dtype, _dtype) for _dtype in dtype]):
+                    raise AssertionError(f"Data type of column {i} must be one of {dtype}, not {col_dtype}")
+        else:
+            if not any([np.issubdtype(arg.dtype, _dtype) for _dtype in dtype]):
+                raise AssertionError(f"Data type must be one of {dtype}, not {arg.dtype}")
     else:
-        if not np.issubdtype(arg.dtype, dtype):
-            raise AssertionError(f"Data type must be {dtype}, not {arg.dtype}")
+        if isinstance(arg, pd.DataFrame):
+            for i, col_dtype in enumerate(arg.dtypes):
+                if not np.issubdtype(col_dtype, dtype):
+                    raise AssertionError(f"Data type of column {i} must be {dtype}, not {col_dtype}")
+        else:
+            if not np.issubdtype(arg.dtype, dtype):
+                raise AssertionError(f"Data type must be {dtype}, not {arg.dtype}")
 
 
 def assert_dtype_equal(arg1: tp.ArrayLike, arg2: tp.ArrayLike) -> None:
