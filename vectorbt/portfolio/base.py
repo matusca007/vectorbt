@@ -24,7 +24,7 @@ Run for the examples below:
 
 >>> import vectorbt as vbt
 >>> from vectorbt.utils.colors import adjust_opacity
->>> from vectorbt.utils.enum import map_enum_fields
+>>> from vectorbt.utils.enum_ import map_enum_fields
 >>> from vectorbt.base.reshaping import broadcast, to_2d_array
 >>> from vectorbt.base.indexing import flex_select_auto_nb
 >>> from vectorbt.portfolio.enums import SizeType, Direction, NoOrder, OrderStatus, OrderSide
@@ -209,16 +209,15 @@ cryptocurrencies in 2020 against every single pattern found in TA-Lib, and trans
 >>> # OHLCV by column
 >>> ohlcv = vbt.YFData.fetch(symbols, start=start, end=end).concat()
 >>> ohlcv['Open']
-
 symbol                          BTC-USD     ETH-USD   XRP-USD    BNB-USD  \\
 Date
 2020-01-01 00:00:00+00:00   7194.892090  129.630661  0.192912  13.730962
 2020-01-02 00:00:00+00:00   7202.551270  130.820038  0.192708  13.698126
 2020-01-03 00:00:00+00:00   6984.428711  127.411263  0.187948  13.035329
 ...                                 ...         ...       ...        ...
+2020-08-29 00:00:00+00:00  11541.054688  395.687592  0.272009  23.134024
 2020-08-30 00:00:00+00:00  11508.713867  399.616699  0.274568  23.009060
 2020-08-31 00:00:00+00:00  11713.306641  428.509003  0.283065  23.647858
-2020-09-01 00:00:00+00:00  11679.316406  434.874451  0.281612  23.185047
 
 symbol                        BCH-USD    LTC-USD
 Date
@@ -226,11 +225,11 @@ Date
 2020-01-02 00:00:00+00:00  204.354538  42.018085
 2020-01-03 00:00:00+00:00  196.007690  39.863129
 ...                               ...        ...
+2020-08-29 00:00:00+00:00  269.112976  57.438873
 2020-08-30 00:00:00+00:00  268.842865  57.207737
 2020-08-31 00:00:00+00:00  279.280426  62.844059
-2020-09-01 00:00:00+00:00  274.480865  61.105076
 
-[244 rows x 6 columns]
+[243 rows x 6 columns]
 
 >>> # Run every single pattern recognition indicator and combine the results
 >>> result = vbt.pd_acc.empty_like(ohlcv['Open'], fill_value=0.)
@@ -251,7 +250,7 @@ Date
 ...     init_cash='autoalign', fees=0.001, slippage=0.001)
 
 >>> # Visualize portfolio value
->>> pf.value().vbt.plot()
+>>> pf.value.vbt.plot()
 ```
 
 ![](/docs/img/portfolio_value.svg)
@@ -322,6 +321,27 @@ For example, the default size used in `Portfolio.from_signals` and `Portfolio.fr
 inf
 ```
 
+## Attributes
+
+Once a portfolio is created, it gives us the possibility to assess its performance from various angles.
+There are two main types of attributes: those that return a Series/DataFrame with data points per timestamp
+(such as running cash balance), and those that return a scalar/Series with data points per column/group
+(such as total return). The first type takes a lot of memory and thus, unless pre-computed by the user,
+must be reconstructed from order records and other data passed to `Portfolio`. This way, any information
+is only processed whenever the user actually needs it.
+
+Since most attributes of a portfolio must first be reconstructed, they have a getter method.
+For example, to reconstruct the cash balance at each time step, we call `Portfolio.get_cash`.
+Additionally, for sheer convenience, each attribute has a naked attribute (`Portfolio.cash`
+in our example) that just calls the getter method with default arguments.
+
+```python-repl
+>>> pf.cash.equals(pf.get_cash())
+True
+```
+
+Use the getter method whenever you need to specify anything, such as to change `group_by`.
+
 ## Grouping
 
 One of the key features of `Portfolio` is the ability to group columns. Groups can be specified by
@@ -343,7 +363,7 @@ For example, let's divide our portfolio into two groups sharing the same cash ba
 ...     group_by=group_by, cash_sharing=True)
 
 >>> # Get total profit per group
->>> comb_pf.total_profit()
+>>> comb_pf.total_profit
 group
 first     26221.571200
 second    10141.952674
@@ -354,7 +374,7 @@ Not only can we analyze each group, but also each column in the group:
 
 ```python-repl
 >>> # Get total profit per column
->>> comb_pf.total_profit(group_by=False)
+>>> comb_pf.get_total_profit(group_by=False)
 symbol
 BTC-USD     5792.120252
 ETH-USD    16380.039692
@@ -369,7 +389,7 @@ In the same way, we can introduce new grouping to the method itself:
 
 ```python-repl
 >>> # Get total profit per group
->>> pf.total_profit(group_by=group_by)
+>>> pf.get_total_profit(group_by=group_by)
 group
 first     26221.571200
 second    10141.952674
@@ -388,7 +408,7 @@ on a `Portfolio` instance, which forwards indexing operation to each object with
 >>> pf['BTC-USD']
 <vectorbt.portfolio.base.Portfolio at 0x7fac7517ac88>
 
->>> pf['BTC-USD'].total_profit()
+>>> pf['BTC-USD'].total_profit
 5792.120252189081
 ```
 
@@ -398,7 +418,7 @@ Combined portfolio is indexed by group:
 >>> comb_pf['first']
 <vectorbt.portfolio.base.Portfolio at 0x7fac5756b828>
 
->>> comb_pf['first'].total_profit()
+>>> comb_pf['first'].total_profit
 26221.57120014546
 ```
 
@@ -471,8 +491,7 @@ variables it's specified per order and can broadcast automatically.
 ## Caching
 
 `Portfolio` heavily relies upon caching. If a method or a property requires heavy computation
-and takes not that much space, it's wrapped with `vectorbt.utils.decorators.cached_method` and
-`vectorbt.utils.decorators.cached_property` respectively. Some attributes are not cached
+and takes not that much space, it's wrapped with a cacheable decorator. Some attributes are not cached
 automatically but are cacheable, meaning you must explicitly turn them on.
 
 Caching can be disabled globally via `caching` in `vectorbt._settings.settings`.
@@ -506,26 +525,26 @@ run and save `Portfolio.returns` to a variable, delete the portfolio object, and
 `vectorbt.returns.accessors.ReturnsAccessor` to analyze them. Do not use methods akin to
 `Portfolio.sharpe_ratio` because they will re-calculate returns each time.
 
-Many methods such as `Portfolio.returns` are both instance and class methods. Running the instance method
+Many methods such as `Portfolio.get_returns` are both instance and class methods. Running the instance method
 will trigger a waterfall of computations, such as getting cash flow, asset flow, etc. Some of these
-attributes are calculated more than once. For example, `Portfolio.net_exposure` must compute
-`Portfolio.gross_exposure` for long and short positions. Each call of `Portfolio.gross_exposure`
+attributes are calculated more than once. For example, `Portfolio.get_net_exposure` must compute
+`Portfolio.get_gross_exposure` for long and short positions. Each call of `Portfolio.get_gross_exposure`
 must recalculate the cash series from scratch if caching is disabled. To avoid this, use class methods:
 
 ```python-repl
->>> free_cash = pf.cash(free=True)  # reuse wherever possible
->>> long_exposure = vbt.Portfolio.gross_exposure(
-...     asset_value=pf.asset_value(direction='longonly'),
+>>> free_cash = pf.free_cash  # reuse wherever possible
+>>> long_exposure = vbt.Portfolio.get_gross_exposure(
+...     asset_value=pf.get_asset_value(direction='longonly'),
 ...     free_cash=free_cash,
 ...     wrapper=pf.wrapper
 ... )
->>> short_exposure = vbt.Portfolio.gross_exposure(
-...     asset_value=pf.asset_value(direction='shortonly'),
+>>> short_exposure = vbt.Portfolio.get_gross_exposure(
+...     asset_value=pf.get_asset_value(direction='shortonly'),
 ...     free_cash=free_cash,
 ...     wrapper=pf.wrapper
 ... )
 >>> del free_cash  # release memory
->>> net_exposure = vbt.Portfolio.net_exposure(
+>>> net_exposure = vbt.Portfolio.get_net_exposure(
 ...     long_exposure=long_exposure,
 ...     short_exposure=short_exposure,
 ...     wrapper=pf.wrapper
@@ -544,7 +563,7 @@ we can pre-calculate them during the simulation using `Portfolio.from_order_func
 >>> pf_baseline = vbt.Portfolio.from_orders(
 ...     ohlcv['Close'], size, price=ohlcv['Open'],
 ...     init_cash='autoalign', fees=0.001, slippage=0.001, freq='d')
->>> pf_baseline.sharpe_ratio()
+>>> pf_baseline.sharpe_ratio
 symbol
 BTC-USD    1.743437
 ETH-USD    2.800903
@@ -654,7 +673,7 @@ concatenates their total returns:
 ...     entries = fast_ma.ma_crossed_above(slow_ma)
 ...     exits = fast_ma.ma_crossed_below(slow_ma)
 ...     pf = vbt.Portfolio.from_signals(price, entries, exits)
-...     return pf.total_return()
+...     return pf.total_return
 
 >>> price = vbt.YFData.fetch(['BTC-USD', 'ETH-USD']).get('Close')
 >>> pipeline(price, [10, 10, 10], [20, 30, 50])
@@ -723,7 +742,7 @@ instance to the disk with `Portfolio.save` and load it with `Portfolio.load`:
 >>> pf = vbt.Portfolio.from_orders(
 ...     ohlcv['Close'], size, price=ohlcv['Open'],
 ...     init_cash='autoalign', fees=0.001, slippage=0.001, freq='d')
->>> pf.sharpe_ratio()
+>>> pf.sharpe_ratio
 symbol
 BTC-USD    1.743437
 ETH-USD    2.800903
@@ -735,7 +754,7 @@ Name: sharpe_ratio, dtype: float64
 
 >>> pf.save('my_pf')
 >>> pf = vbt.Portfolio.load('my_pf')
->>> pf.sharpe_ratio()
+>>> pf.sharpe_ratio
 symbol
 BTC-USD    1.743437
 ETH-USD    2.800903
@@ -1397,7 +1416,7 @@ Most metrics defined in `vectorbt.returns.accessors.ReturnsAccessor` are also av
 as attributes of `Portfolio`:
 
 ```python-repl
->>> pf.sharpe_ratio()
+>>> pf.sharpe_ratio
 randnx_n
 10    0.445231
 20    1.886158
@@ -1460,8 +1479,7 @@ To create a new subplot, a preferred way is to pass a plotting function:
 ```python-repl
 >>> def plot_order_size(pf, size, column=None, add_trace_kwargs=None, fig=None):
 ...     size = pf.select_one_from_obj(size, pf.wrapper.regroup(False), column=column)
-...     size.rename('Order Size').vbt.barplot(
-...         add_trace_kwargs=add_trace_kwargs, fig=fig)
+...     size.rename('Order Size').vbt.barplot(add_trace_kwargs=add_trace_kwargs, fig=fig)
 
 >>> order_size = pf.orders.size.to_pd(fill_value=0.)
 >>> pf.plot(subplots=[
@@ -1571,14 +1589,13 @@ from vectorbt.portfolio.enums import *
 from vectorbt.portfolio.logs import Logs
 from vectorbt.portfolio.orders import Orders
 from vectorbt.portfolio.trades import Trades, EntryTrades, ExitTrades, Positions
-from vectorbt.returns import nb as returns_nb
 from vectorbt.returns.accessors import ReturnsAccessor
 from vectorbt.signals.generators import RANDNX, RPROBNX
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.colors import adjust_opacity
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.decorators import cacheable_property, cached_property, class_or_instancemethod
+from vectorbt.utils.decorators import cached_property, class_or_instancemethod
 from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.template import RepEval, deep_substitute
@@ -2035,14 +2052,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> close = pd.Series([1, 2, 3, 4, 5])
         >>> pf = vbt.Portfolio.from_orders(close, 10)
 
-        >>> pf.assets()
+        >>> pf.assets
         0    10.0
         1    20.0
         2    30.0
         3    40.0
         4    40.0
         dtype: float64
-        >>> pf.cash()
+        >>> pf.cash
         0    90.0
         1    70.0
         2    40.0
@@ -2057,14 +2074,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> size = [1, 0, -1, 0, 1]
         >>> pf = vbt.Portfolio.from_orders(close, size, size_type='targetpercent')
 
-        >>> pf.assets()
+        >>> pf.assets
         0    100.000000
         1      0.000000
         2    -66.666667
         3      0.000000
         4     26.666667
         dtype: float64
-        >>> pf.cash()
+        >>> pf.cash
         0      0.000000
         1    200.000000
         2    400.000000
@@ -2092,7 +2109,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     fees=0.001, fixed_fees=1., slippage=0.001  # costs
         ... )
 
-        >>> pf.asset_value(group_by=False).vbt.plot()
+        >>> pf.get_asset_value(group_by=False).vbt.plot()
         ```
 
         ![](/docs/img/simulate_nb.svg)
@@ -2606,7 +2623,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ```python-repl
         >>> close = pd.Series([1, 2, 3, 4, 5])
         >>> pf = vbt.Portfolio.from_signals(close, size=1)
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2625,7 +2642,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1,
         ...     direction='longonly'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2642,7 +2659,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     short_exits=False,
         ...     size=1
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2664,7 +2681,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1,
         ...     direction='shortonly'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0   -1.0
         1    0.0
         2    0.0
@@ -2681,7 +2698,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     short_exits=pd.Series([False, False, True, True, True]),
         ...     size=1
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0   -1.0
         1    0.0
         2    0.0
@@ -2700,7 +2717,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1,
         ...     direction='both'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2717,7 +2734,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     short_exits=False,
         ...     size=1
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2739,7 +2756,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1,
         ...     upon_opposite_entry='ignore'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2   -1.0
@@ -2759,7 +2776,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     direction='both',
         ...     upon_opposite_entry='close'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2    0.0
@@ -2778,7 +2795,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1.,
         ...     direction='longonly',
         ...     upon_long_conflict='exit')
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2   -1.0
@@ -2797,7 +2814,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1.,
         ...     direction='both',
         ...     upon_dir_conflict='short')
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2   -2.0
@@ -2824,7 +2841,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     upon_short_conflict='entry',
         ...     upon_dir_conflict='short'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0   -1.0
         1    0.0
         2    0.0
@@ -2844,7 +2861,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1.,
         ...     direction='both',
         ...     accumulate=True)
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    1.0
         2    0.0
@@ -2863,7 +2880,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1.,
         ...     direction='both',
         ...     accumulate='addonly')
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0  << open a long position
         1    1.0  << add to the position
         2    0.0
@@ -2881,7 +2898,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     exits=pd.Series([False, False, True, True, True]),
         ...     direction=[list(Direction)],
         ...     broadcast_kwargs=dict(columns_from=Direction._fields))
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
             Long  Short    All
         0  100.0 -100.0  100.0
         1    0.0    0.0    0.0
@@ -2899,7 +2916,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> pf = vbt.Portfolio.from_signals(
         ...     close, entries, exits,
         ...     sl_stop=0.1, sl_trail=True, tp_stop=0.2)  # take profit hit
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    10.0
         1     0.0
         2   -10.0
@@ -2911,7 +2928,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> pf = vbt.Portfolio.from_signals(
         ...     close, entries, exits,
         ...     sl_stop=0.1, sl_trail=True, tp_stop=0.3)  # stop loss hit
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    10.0
         1     0.0
         2     0.0
@@ -2923,7 +2940,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> pf = vbt.Portfolio.from_signals(
         ...     close, entries, exits,
         ...     sl_stop=np.inf, sl_trail=True, tp_stop=np.inf)  # nothing hit, exit as usual
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    10.0
         1     0.0
         2     0.0
@@ -2957,7 +2974,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         >>> close = pd.Series([10, 11, 12, 11, 10])
         >>> pf = vbt.Portfolio.from_signals(close, adjust_sl_func_nb=adjust_sl_func_nb)
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    10.0
         1     0.0
         2     0.0
@@ -2993,7 +3010,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     size=1,
         ...     upon_opposite_entry='ignore'
         ... )
-        >>> pf.asset_flow()
+        >>> pf.asset_flow
         0    1.0
         1    0.0
         2   -1.0
@@ -3441,11 +3458,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ```python-repl
         >>> close = pd.Series([1, 2, 3, 4, 5])
         >>> pf = vbt.Portfolio.from_holding(close, base_method='from_signals')
-        >>> pf.final_value()
+        >>> pf.final_value
         500.0
 
         >>> pf = vbt.Portfolio.from_holding(close, base_method='from_orders')
-        >>> pf.final_value()
+        >>> pf.final_value
         500.0
         ```"""
         from vectorbt._settings import settings
@@ -3790,14 +3807,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> close = pd.Series([1, 2, 3, 4, 5])
         >>> pf = vbt.Portfolio.from_order_func(close, order_func_nb, 10)
 
-        >>> pf.assets()
+        >>> pf.assets
         0    10.0
         1    20.0
         2    30.0
         3    40.0
         4    40.0
         dtype: float64
-        >>> pf.cash()
+        >>> pf.cash
         0    90.0
         1    70.0
         2    40.0
@@ -3834,14 +3851,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     pre_group_func_nb=pre_group_func_nb
         ... )
 
-        >>> pf.assets()
+        >>> pf.assets
         0    100.000000
         1      0.000000
         2    -66.666667
         3      0.000000
         4     26.666667
         dtype: float64
-        >>> pf.cash()
+        >>> pf.cash
         0      0.000000
         1    200.000000
         2    400.000000
@@ -3912,7 +3929,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     cash_sharing=True, group_by=True,  # one group with cash sharing
         ... )
 
-        >>> pf.asset_value(group_by=False).vbt.plot()
+        >>> pf.get_asset_value(group_by=False).vbt.plot()
         ```
 
         ![](/docs/img/simulate_nb.svg)
@@ -3931,8 +3948,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> close = np.random.uniform(1, 10, size=(5, 6))  # 6 columns instead of 3
         >>> group_by = ['g1', 'g1', 'g1', 'g2', 'g2', 'g2']  # 2 groups instead of 1
 
-        >>> pf['g1'].asset_value(group_by=False).vbt.plot()
-        >>> pf['g2'].asset_value(group_by=False).vbt.plot()
+        >>> pf['g1'].get_asset_value(group_by=False).vbt.plot()
+        >>> pf['g2'].get_asset_value(group_by=False).vbt.plot()
         ```
 
         ![](/docs/img/from_order_func_g1.svg)
@@ -4004,7 +4021,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> close = pd.Series([10, 11, 12, 13, 14])
         >>> entries = pd.Series([True, True, False, False, False])
         >>> exits = pd.Series([False, False, False, True, True])
-        >>> simulate(close, entries, exits, np.inf, 0.1).asset_flow()
+        >>> simulate(close, entries, exits, np.inf, 0.1).asset_flow
         0    10.0
         1     0.0
         2   -10.0
@@ -4012,7 +4029,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         4     0.0
         dtype: float64
 
-        >>> simulate(close, entries, exits, np.inf, 0.2).asset_flow()
+        >>> simulate(close, entries, exits, np.inf, 0.2).asset_flow
         0    10.0
         1     0.0
         2   -10.0
@@ -4020,7 +4037,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         4     0.0
         dtype: float64
 
-        >>> simulate(close, entries, exits, np.nan).asset_flow()
+        >>> simulate(close, entries, exits, np.nan).asset_flow
         0    10.0
         1     0.0
         2     0.0
@@ -4042,7 +4059,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     [[0.1, 0.2, np.nan]],
         ...     columns=pd.Index(['0.1', '0.2', 'nan'], name='size')
         ... )
-        >>> simulate(close, entries, exits, np.inf, size).asset_flow()
+        >>> simulate(close, entries, exits, np.inf, size).asset_flow
         size   0.1   0.2   nan
         0     10.0  10.0  10.0
         1      0.0   0.0   0.0
@@ -4545,7 +4562,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         filled_close = func(to_2d_array(close))
         return wrapper.wrap(filled_close, group_by=False, **resolve_dict(wrap_kwargs))
 
-    @cacheable_property
+    @property
     def filled_close(self) -> tp.SeriesFrame:
         """`Portfolio.get_filled_close` with default arguments."""
         return self.get_filled_close()
@@ -4567,7 +4584,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = self.wrapper
         return Orders(wrapper, self.order_records, close=self.close, **kwargs).regroup(group_by)
 
-    @cached_property
+    @property
     def orders(self) -> Orders:
         """`Portfolio.get_orders` with default arguments."""
         return self.get_orders()
@@ -4587,7 +4604,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             wrapper = self.wrapper
         return Logs(wrapper, self.log_records, **kwargs).regroup(group_by)
 
-    @cached_property
+    @property
     def logs(self) -> Logs:
         """`Portfolio.get_logs` with default arguments."""
         return self.get_logs()
@@ -4598,7 +4615,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         See `vectorbt.portfolio.trades.EntryTrades`."""
         return EntryTrades.from_orders(self.orders, init_position=self.init_position, **kwargs).regroup(group_by)
 
-    @cached_property
+    @property
     def entry_trades(self) -> EntryTrades:
         """`Portfolio.get_entry_trades` with default arguments."""
         return self.get_entry_trades()
@@ -4609,7 +4626,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         See `vectorbt.portfolio.trades.ExitTrades`."""
         return ExitTrades.from_orders(self.orders, init_position=self.init_position, **kwargs).regroup(group_by)
 
-    @cached_property
+    @property
     def exit_trades(self) -> ExitTrades:
         """`Portfolio.get_exit_trades` with default arguments."""
         return self.get_exit_trades()
@@ -4620,7 +4637,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         See `vectorbt.portfolio.trades.Positions`."""
         return Positions.from_trades(self.exit_trades, **kwargs).regroup(group_by)
 
-    @cached_property
+    @property
     def positions(self) -> Positions:
         """`Portfolio.get_positions` with default arguments."""
         return self.get_positions()
@@ -4633,21 +4650,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             return self.get_exit_trades(group_by=group_by, **kwargs)
         return self.get_positions(group_by=group_by, **kwargs)
 
-    @cached_property
+    @property
     def trades(self) -> Trades:
         """`Portfolio.get_trades` with default arguments."""
         return self.get_trades()
 
     def get_drawdowns(self, group_by: tp.GroupByLike = None, wrap_kwargs: tp.KwargsLike = None,
                       wrapper_kwargs: tp.KwargsLike = None, **kwargs) -> Drawdowns:
-        """Get drawdown records from `Portfolio.value`.
+        """Get drawdown records from `Portfolio.get_value`.
 
         See `vectorbt.generic.drawdowns.Drawdowns`."""
-        value = self.value(group_by=group_by, wrap_kwargs=wrap_kwargs)
+        value = self.get_value(group_by=group_by, wrap_kwargs=wrap_kwargs)
         wrapper_kwargs = merge_dicts(self.orders.wrapper.config, wrapper_kwargs, dict(group_by=None))
         return Drawdowns.from_ts(value, wrapper_kwargs=wrapper_kwargs, **kwargs)
 
-    @cached_property
+    @property
     def drawdowns(self) -> Drawdowns:
         """`Portfolio.get_drawdowns` with default arguments."""
         return self.get_drawdowns()
@@ -4666,14 +4683,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         return self.get_init_position()
 
     @class_or_instancemethod
-    def asset_flow(cls_or_self,
-                   direction: str = 'both',
-                   orders: tp.Optional[Orders] = None,
-                   init_position: tp.Optional[tp.ArrayLike] = None,
-                   jitted: tp.JittedOption = None,
-                   chunked: tp.ChunkedOption = None,
-                   wrapper: tp.Optional[ArrayWrapper] = None,
-                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_asset_flow(cls_or_self,
+                       direction: str = 'both',
+                       orders: tp.Optional[Orders] = None,
+                       init_position: tp.Optional[tp.ArrayLike] = None,
+                       jitted: tp.JittedOption = None,
+                       chunked: tp.ChunkedOption = None,
+                       wrapper: tp.Optional[ArrayWrapper] = None,
+                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset flow series per column.
 
         Returns the total transacted amount of assets at each time step."""
@@ -4702,21 +4719,36 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         return wrapper.wrap(asset_flow, group_by=False, **resolve_dict(wrap_kwargs))
 
+    @property
+    def asset_flow(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_flow` with default arguments."""
+        return self.get_asset_flow()
+
+    @property
+    def longonly_asset_flow(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_flow` with default arguments and `direction` set to 'longonly'."""
+        return self.get_asset_flow(direction='longonly')
+
+    @property
+    def shortonly_asset_flow(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_flow` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_asset_flow(direction='shortonly')
+
     @class_or_instancemethod
-    def assets(cls_or_self,
-               direction: str = 'both',
-               asset_flow: tp.Optional[tp.SeriesFrame] = None,
-               init_position: tp.Optional[tp.ArrayLike] = None,
-               jitted: tp.JittedOption = None,
-               chunked: tp.ChunkedOption = None,
-               wrapper: tp.Optional[ArrayWrapper] = None,
-               wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_assets(cls_or_self,
+                   direction: str = 'both',
+                   asset_flow: tp.Optional[tp.SeriesFrame] = None,
+                   init_position: tp.Optional[tp.ArrayLike] = None,
+                   jitted: tp.JittedOption = None,
+                   chunked: tp.ChunkedOption = None,
+                   wrapper: tp.Optional[ArrayWrapper] = None,
+                   wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset series per column.
 
         Returns the current position at each time step."""
         if not isinstance(cls_or_self, type):
             if asset_flow is None:
-                asset_flow = cls_or_self.asset_flow(direction='both', jitted=jitted, chunked=chunked)
+                asset_flow = cls_or_self.get_asset_flow(direction='both', jitted=jitted, chunked=chunked)
             if init_position is None:
                 init_position = cls_or_self._init_position
             if wrapper is None:
@@ -4742,21 +4774,36 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             assets = func(assets)
         return wrapper.wrap(assets, group_by=False, **resolve_dict(wrap_kwargs))
 
+    @property
+    def assets(self) -> tp.SeriesFrame:
+        """`Portfolio.get_assets` with default arguments."""
+        return self.get_assets()
+
+    @property
+    def longonly_assets(self) -> tp.SeriesFrame:
+        """`Portfolio.get_assets` with default arguments and `direction` set to 'longonly'."""
+        return self.get_assets(direction='longonly')
+
+    @property
+    def shortonly_assets(self) -> tp.SeriesFrame:
+        """`Portfolio.get_assets` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_assets(direction='shortonly')
+
     @class_or_instancemethod
-    def position_mask(cls_or_self,
-                      direction: str = 'both',
-                      group_by: tp.GroupByLike = None,
-                      assets: tp.Optional[tp.SeriesFrame] = None,
-                      jitted: tp.JittedOption = None,
-                      chunked: tp.ChunkedOption = None,
-                      wrapper: tp.Optional[ArrayWrapper] = None,
-                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_position_mask(cls_or_self,
+                          direction: str = 'both',
+                          group_by: tp.GroupByLike = None,
+                          assets: tp.Optional[tp.SeriesFrame] = None,
+                          jitted: tp.JittedOption = None,
+                          chunked: tp.ChunkedOption = None,
+                          wrapper: tp.Optional[ArrayWrapper] = None,
+                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get position mask per column/group.
 
         An element is True if the asset is in the market at this tick."""
         if not isinstance(cls_or_self, type):
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, jitted=jitted, chunked=chunked)
+                assets = cls_or_self.get_assets(direction=direction, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -4774,19 +4821,34 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             )
         return wrapper.wrap(position_mask, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def position_mask(self) -> tp.SeriesFrame:
+        """`Portfolio.get_position_mask` with default arguments."""
+        return self.get_position_mask()
+
+    @property
+    def longonly_position_mask(self) -> tp.SeriesFrame:
+        """`Portfolio.get_position_mask` with default arguments and `direction` set to 'longonly'."""
+        return self.get_position_mask(direction='longonly')
+
+    @property
+    def shortonly_position_mask(self) -> tp.SeriesFrame:
+        """`Portfolio.get_position_mask` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_position_mask(direction='shortonly')
+
     @class_or_instancemethod
-    def position_coverage(cls_or_self,
-                          direction: str = 'both',
-                          group_by: tp.GroupByLike = None,
-                          position_mask: tp.Optional[tp.SeriesFrame] = None,
-                          jitted: tp.JittedOption = None,
-                          chunked: tp.ChunkedOption = None,
-                          wrapper: tp.Optional[ArrayWrapper] = None,
-                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_position_coverage(cls_or_self,
+                              direction: str = 'both',
+                              group_by: tp.GroupByLike = None,
+                              position_mask: tp.Optional[tp.SeriesFrame] = None,
+                              jitted: tp.JittedOption = None,
+                              chunked: tp.ChunkedOption = None,
+                              wrapper: tp.Optional[ArrayWrapper] = None,
+                              wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get position coverage per column/group."""
         if not isinstance(cls_or_self, type):
             if position_mask is None:
-                position_mask = cls_or_self.position_mask(
+                position_mask = cls_or_self.get_position_mask(
                     direction=direction, jitted=jitted, chunked=chunked, group_by=False)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -4803,6 +4865,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         wrap_kwargs = merge_dicts(dict(name_or_index='position_coverage'), wrap_kwargs)
         return wrapper.wrap_reduced(position_coverage, group_by=group_by, **wrap_kwargs)
+
+    @property
+    def position_coverage(self) -> tp.MaybeSeries:
+        """`Portfolio.get_position_coverage` with default arguments."""
+        return self.get_position_coverage()
+
+    @property
+    def longonly_position_coverage(self) -> tp.SeriesFrame:
+        """`Portfolio.get_position_coverage` with default arguments and `direction` set to 'longonly'."""
+        return self.get_position_coverage(direction='longonly')
+
+    @property
+    def shortonly_position_coverage(self) -> tp.SeriesFrame:
+        """`Portfolio.get_position_coverage` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_position_coverage(direction='shortonly')
 
     # ############# Cash ############# #
 
@@ -4831,7 +4908,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if isinstance(init_cash_raw, int):
             if not isinstance(cls_or_self, type):
                 if cash_flow is None:
-                    cash_flow = cls_or_self.cash_flow(
+                    cash_flow = cls_or_self.get_cash_flow(
                         group_by=group_by, jitted=jitted, chunked=chunked)
             func = jit_registry.resolve_option(nb.align_init_cash_nb, jitted)
             func = ch_registry.resolve_option(func, chunked)
@@ -4849,7 +4926,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='init_cash'), wrap_kwargs)
         return wrapper.wrap_reduced(init_cash, group_by=group_by, **wrap_kwargs)
 
-    @cached_property
+    @property
     def init_cash(self) -> tp.MaybeSeries:
         """`Portfolio.get_init_cash` with default arguments."""
         return self.get_init_cash()
@@ -4913,7 +4990,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             return cash_deposits
         return wrapper.wrap(cash_deposits, group_by=group_by, **resolve_dict(wrap_kwargs))
 
-    @cacheable_property
+    @property
     def cash_deposits(self) -> tp.ArrayLike:
         """`Portfolio.get_cash_deposits` with default arguments."""
         return self.get_cash_deposits()
@@ -4922,7 +4999,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
     def get_cash_earnings(cls_or_self,
                           group_by: tp.GroupByLike = None,
                           cash_earnings_raw: tp.Optional[tp.ArrayLike] = None,
-                          flex_2d: bool = False,
                           keep_raw: bool = False,
                           jitted: tp.JittedOption = None,
                           chunked: tp.ChunkedOption = None,
@@ -4956,22 +5032,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             return cash_earnings
         return wrapper.wrap(cash_earnings, group_by=group_by, **resolve_dict(wrap_kwargs))
 
-    @cacheable_property
+    @property
     def cash_earnings(self) -> tp.ArrayLike:
         """`Portfolio.get_cash_earnings` with default arguments."""
         return self.get_cash_earnings()
 
     @class_or_instancemethod
-    def cash_flow(cls_or_self,
-                  group_by: tp.GroupByLike = None,
-                  free: bool = False,
-                  orders: tp.Optional[Orders] = None,
-                  cash_earnings: tp.Optional[tp.ArrayLike] = None,
-                  flex_2d: bool = False,
-                  jitted: tp.JittedOption = None,
-                  chunked: tp.ChunkedOption = None,
-                  wrapper: tp.Optional[ArrayWrapper] = None,
-                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_cash_flow(cls_or_self,
+                      group_by: tp.GroupByLike = None,
+                      free: bool = False,
+                      orders: tp.Optional[Orders] = None,
+                      cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                      flex_2d: bool = False,
+                      jitted: tp.JittedOption = None,
+                      chunked: tp.ChunkedOption = None,
+                      wrapper: tp.Optional[ArrayWrapper] = None,
+                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get cash flow series per column/group.
 
         Use `free` to return the flow of the free cash, which never goes above the initial level,
@@ -5009,27 +5085,37 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             cash_flow = func(cash_flow, group_lens)
         return wrapper.wrap(cash_flow, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def cash_flow(self) -> tp.SeriesFrame:
+        """`Portfolio.get_cash_flow` with default arguments."""
+        return self.get_cash_flow()
+
+    @property
+    def free_cash_flow(self) -> tp.SeriesFrame:
+        """`Portfolio.get_cash_flow` with default arguments and `free` set to True."""
+        return self.get_cash_flow(free=True)
+
     @class_or_instancemethod
-    def cash(cls_or_self,
-             group_by: tp.GroupByLike = None,
-             free: bool = False,
-             cash_sharing: tp.Optional[bool] = None,
-             init_cash: tp.Optional[tp.ArrayLike] = None,
-             cash_deposits: tp.Optional[tp.ArrayLike] = None,
-             cash_flow: tp.Optional[tp.SeriesFrame] = None,
-             flex_2d: bool = False,
-             jitted: tp.JittedOption = None,
-             chunked: tp.ChunkedOption = None,
-             wrapper: tp.Optional[ArrayWrapper] = None,
-             wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_cash(cls_or_self,
+                 group_by: tp.GroupByLike = None,
+                 free: bool = False,
+                 cash_sharing: tp.Optional[bool] = None,
+                 init_cash: tp.Optional[tp.ArrayLike] = None,
+                 cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                 cash_flow: tp.Optional[tp.SeriesFrame] = None,
+                 flex_2d: bool = False,
+                 jitted: tp.JittedOption = None,
+                 chunked: tp.ChunkedOption = None,
+                 wrapper: tp.Optional[ArrayWrapper] = None,
+                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get cash balance series per column/group.
 
-        For `free`, see `Portfolio.cash_flow`."""
+        For `free`, see `Portfolio.get_cash_flow`."""
         if not isinstance(cls_or_self, type):
             if cash_sharing is None:
                 cash_sharing = cls_or_self.cash_sharing
             if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(
+                cash_flow = cls_or_self.get_cash_flow(
                     group_by=group_by, free=free, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -5074,6 +5160,16 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             )
         return wrapper.wrap(cash, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def cash(self) -> tp.SeriesFrame:
+        """`Portfolio.get_cash` with default arguments."""
+        return self.get_cash()
+
+    @property
+    def free_cash(self) -> tp.SeriesFrame:
+        """`Portfolio.get_cash` with default arguments and `free` set to True."""
+        return self.get_cash(free=True)
+
     # ############# Value ############# #
 
     @class_or_instancemethod
@@ -5081,13 +5177,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                                 close: tp.Optional[tp.SeriesFrame] = None,
                                 init_position: tp.Optional[tp.ArrayLike] = None,
                                 jitted: tp.JittedOption = None,
+                                chunked: tp.ChunkedOption = None,
                                 wrapper: tp.Optional[ArrayWrapper] = None,
                                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get initial position value per column/group."""
         if not isinstance(cls_or_self, type):
             if close is None:
                 if cls_or_self.fillna_close:
-                    close = cls_or_self.filled_close
+                    close = cls_or_self.get_filled_close(jitted=jitted, chunked=chunked)
                 else:
                     close = cls_or_self.close
             if init_position is None:
@@ -5105,7 +5202,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='init_position_value'), wrap_kwargs)
         return wrapper.wrap_reduced(init_position_value, group_by=False, **wrap_kwargs)
 
-    @cached_property
+    @property
     def init_position_value(self) -> tp.MaybeSeries:
         """`Portfolio.get_init_position_value` with default arguments."""
         return self.get_init_position_value()
@@ -5147,7 +5244,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='init_value'), wrap_kwargs)
         return wrapper.wrap_reduced(init_value, group_by=group_by, **wrap_kwargs)
 
-    @cached_property
+    @property
     def init_value(self) -> tp.MaybeSeries:
         """`Portfolio.get_init_value` with default arguments."""
         return self.get_init_value()
@@ -5191,30 +5288,30 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='input_value'), wrap_kwargs)
         return wrapper.wrap_reduced(input_value, group_by=group_by, **wrap_kwargs)
 
-    @cached_property
+    @property
     def input_value(self) -> tp.MaybeSeries:
         """`Portfolio.get_input_value` with default arguments."""
         return self.get_input_value()
 
     @class_or_instancemethod
-    def asset_value(cls_or_self,
-                    direction: str = 'both',
-                    group_by: tp.GroupByLike = None,
-                    close: tp.Optional[tp.SeriesFrame] = None,
-                    assets: tp.Optional[tp.SeriesFrame] = None,
-                    jitted: tp.JittedOption = None,
-                    chunked: tp.ChunkedOption = None,
-                    wrapper: tp.Optional[ArrayWrapper] = None,
-                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_asset_value(cls_or_self,
+                        direction: str = 'both',
+                        group_by: tp.GroupByLike = None,
+                        close: tp.Optional[tp.SeriesFrame] = None,
+                        assets: tp.Optional[tp.SeriesFrame] = None,
+                        jitted: tp.JittedOption = None,
+                        chunked: tp.ChunkedOption = None,
+                        wrapper: tp.Optional[ArrayWrapper] = None,
+                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset value series per column/group."""
         if not isinstance(cls_or_self, type):
             if close is None:
                 if cls_or_self.fillna_close:
-                    close = cls_or_self.filled_close
+                    close = cls_or_self.get_filled_close(jitted=jitted, chunked=chunked)
                 else:
                     close = cls_or_self.close
             if assets is None:
-                assets = cls_or_self.assets(direction=direction, jitted=jitted, chunked=chunked)
+                assets = cls_or_self.get_assets(direction=direction, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5232,23 +5329,38 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             asset_value = func(asset_value, group_lens)
         return wrapper.wrap(asset_value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def asset_value(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_value` with default arguments."""
+        return self.get_asset_value()
+
+    @property
+    def longonly_asset_value(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_value` with default arguments and `direction` set to 'longonly'."""
+        return self.get_asset_value(direction='longonly')
+
+    @property
+    def shortonly_asset_value(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_value` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_asset_value(direction='shortonly')
+
     @class_or_instancemethod
-    def gross_exposure(cls_or_self,
-                       direction: str = 'both',
-                       group_by: tp.GroupByLike = None,
-                       asset_value: tp.Optional[tp.SeriesFrame] = None,
-                       free_cash: tp.Optional[tp.SeriesFrame] = None,
-                       jitted: tp.JittedOption = None,
-                       chunked: tp.ChunkedOption = None,
-                       wrapper: tp.Optional[ArrayWrapper] = None,
-                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_gross_exposure(cls_or_self,
+                           direction: str = 'both',
+                           group_by: tp.GroupByLike = None,
+                           asset_value: tp.Optional[tp.SeriesFrame] = None,
+                           free_cash: tp.Optional[tp.SeriesFrame] = None,
+                           jitted: tp.JittedOption = None,
+                           chunked: tp.ChunkedOption = None,
+                           wrapper: tp.Optional[ArrayWrapper] = None,
+                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get gross exposure."""
         if not isinstance(cls_or_self, type):
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(
+                asset_value = cls_or_self.get_asset_value(
                     group_by=group_by, direction=direction, jitted=jitted, chunked=chunked)
             if free_cash is None:
-                free_cash = cls_or_self.cash(
+                free_cash = cls_or_self.get_cash(
                     group_by=group_by, free=True, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -5260,40 +5372,70 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         gross_exposure = func(to_2d_array(asset_value), to_2d_array(free_cash))
         return wrapper.wrap(gross_exposure, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def gross_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_gross_exposure` with default arguments."""
+        return self.get_gross_exposure()
+
+    @property
+    def longonly_gross_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_gross_exposure` with default arguments and `direction` set to 'longonly'."""
+        return self.get_gross_exposure(direction='longonly')
+
+    @property
+    def shortonly_gross_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_gross_exposure` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_gross_exposure(direction='shortonly')
+
     @class_or_instancemethod
-    def net_exposure(cls_or_self,
-                     group_by: tp.GroupByLike = None,
-                     long_exposure: tp.Optional[tp.SeriesFrame] = None,
-                     short_exposure: tp.Optional[tp.SeriesFrame] = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrapper: tp.Optional[ArrayWrapper] = None,
-                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_net_exposure(cls_or_self,
+                         group_by: tp.GroupByLike = None,
+                         long_exposure: tp.Optional[tp.SeriesFrame] = None,
+                         short_exposure: tp.Optional[tp.SeriesFrame] = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrapper: tp.Optional[ArrayWrapper] = None,
+                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get net exposure."""
         if not isinstance(cls_or_self, type):
             if long_exposure is None:
-                long_exposure = cls_or_self.gross_exposure(
+                long_exposure = cls_or_self.get_gross_exposure(
                     direction='longonly', group_by=group_by, jitted=jitted, chunked=chunked)
             if short_exposure is None:
-                short_exposure = cls_or_self.gross_exposure(
+                short_exposure = cls_or_self.get_gross_exposure(
                     direction='shortonly', group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
-            wrapper = ArrayWrapper.from_obj(long_gross_exposure)
+            wrapper = ArrayWrapper.from_obj(long_exposure)
 
         net_exposure = to_2d_array(long_exposure) - to_2d_array(short_exposure)
         return wrapper.wrap(net_exposure, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def net_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_net_exposure` with default arguments."""
+        return self.get_net_exposure()
+
+    @property
+    def longonly_net_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_net_exposure` with default arguments and `direction` set to 'longonly'."""
+        return self.get_net_exposure(direction='longonly')
+
+    @property
+    def shortonly_net_exposure(self) -> tp.SeriesFrame:
+        """`Portfolio.get_net_exposure` with default arguments and `direction` set to 'shortonly'."""
+        return self.get_net_exposure(direction='shortonly')
+
     @class_or_instancemethod
-    def value(cls_or_self,
-              group_by: tp.GroupByLike = None,
-              cash: tp.Optional[tp.SeriesFrame] = None,
-              asset_value: tp.Optional[tp.SeriesFrame] = None,
-              jitted: tp.JittedOption = None,
-              chunked: tp.ChunkedOption = None,
-              wrapper: tp.Optional[ArrayWrapper] = None,
-              wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_value(cls_or_self,
+                  group_by: tp.GroupByLike = None,
+                  cash: tp.Optional[tp.SeriesFrame] = None,
+                  asset_value: tp.Optional[tp.SeriesFrame] = None,
+                  jitted: tp.JittedOption = None,
+                  chunked: tp.ChunkedOption = None,
+                  wrapper: tp.Optional[ArrayWrapper] = None,
+                  wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get portfolio value series per column/group.
 
         By default, will generate portfolio value for each asset based on cash flows and thus
@@ -5301,10 +5443,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         entire group. Useful for generating returns and comparing assets within the same group."""
         if not isinstance(cls_or_self, type):
             if cash is None:
-                cash = cls_or_self.cash(
+                cash = cls_or_self.get_cash(
                     group_by=group_by, jitted=jitted, chunked=chunked)
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(
+                asset_value = cls_or_self.get_asset_value(
                     group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -5315,25 +5457,30 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         value = func(to_2d_array(cash), to_2d_array(asset_value))
         return wrapper.wrap(value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def value(self) -> tp.SeriesFrame:
+        """`Portfolio.get_value` with default arguments."""
+        return self.get_value()
+
     @class_or_instancemethod
-    def total_profit(cls_or_self,
-                     group_by: tp.GroupByLike = None,
-                     close: tp.Optional[tp.SeriesFrame] = None,
-                     orders: tp.Optional[Orders] = None,
-                     init_position: tp.Optional[tp.ArrayLike] = None,
-                     cash_earnings: tp.Optional[tp.ArrayLike] = None,
-                     flex_2d: bool = False,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrapper: tp.Optional[ArrayWrapper] = None,
-                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def get_total_profit(cls_or_self,
+                         group_by: tp.GroupByLike = None,
+                         close: tp.Optional[tp.SeriesFrame] = None,
+                         orders: tp.Optional[Orders] = None,
+                         init_position: tp.Optional[tp.ArrayLike] = None,
+                         cash_earnings: tp.Optional[tp.ArrayLike] = None,
+                         flex_2d: bool = False,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrapper: tp.Optional[ArrayWrapper] = None,
+                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total profit per column/group.
 
         Calculated directly from order records (fast)."""
         if not isinstance(cls_or_self, type):
             if close is None:
                 if cls_or_self.fillna_close:
-                    close = cls_or_self.filled_close
+                    close = cls_or_self.get_filled_close(jitted=jitted, chunked=chunked)
                 else:
                     close = cls_or_self.close
             if orders is None:
@@ -5372,21 +5519,26 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='total_profit'), wrap_kwargs)
         return wrapper.wrap_reduced(total_profit, group_by=group_by, **wrap_kwargs)
 
+    @property
+    def total_profit(self) -> tp.MaybeSeries:
+        """`Portfolio.get_total_profit` with default arguments."""
+        return self.get_total_profit()
+
     @class_or_instancemethod
-    def final_value(cls_or_self,
-                    group_by: tp.GroupByLike = None,
-                    input_value: tp.Optional[tp.MaybeSeries] = None,
-                    total_profit: tp.Optional[tp.MaybeSeries] = None,
-                    jitted: tp.JittedOption = None,
-                    chunked: tp.ChunkedOption = None,
-                    wrapper: tp.Optional[ArrayWrapper] = None,
-                    wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def get_final_value(cls_or_self,
+                        group_by: tp.GroupByLike = None,
+                        input_value: tp.Optional[tp.MaybeSeries] = None,
+                        total_profit: tp.Optional[tp.MaybeSeries] = None,
+                        jitted: tp.JittedOption = None,
+                        chunked: tp.ChunkedOption = None,
+                        wrapper: tp.Optional[ArrayWrapper] = None,
+                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total profit per column/group."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
                 input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
+                total_profit = cls_or_self.get_total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -5394,21 +5546,26 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='final_value'), wrap_kwargs)
         return wrapper.wrap_reduced(final_value, group_by=group_by, **wrap_kwargs)
 
+    @property
+    def final_value(self) -> tp.MaybeSeries:
+        """`Portfolio.get_final_value` with default arguments."""
+        return self.get_final_value()
+
     @class_or_instancemethod
-    def total_return(cls_or_self,
-                     group_by: tp.GroupByLike = None,
-                     input_value: tp.Optional[tp.MaybeSeries] = None,
-                     total_profit: tp.Optional[tp.MaybeSeries] = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrapper: tp.Optional[ArrayWrapper] = None,
-                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def get_total_return(cls_or_self,
+                         group_by: tp.GroupByLike = None,
+                         input_value: tp.Optional[tp.MaybeSeries] = None,
+                         total_profit: tp.Optional[tp.MaybeSeries] = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrapper: tp.Optional[ArrayWrapper] = None,
+                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total return per column/group."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
                 input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if total_profit is None:
-                total_profit = cls_or_self.total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
+                total_profit = cls_or_self.get_total_profit(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
 
@@ -5416,17 +5573,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='total_return'), wrap_kwargs)
         return wrapper.wrap_reduced(total_return, group_by=group_by, **wrap_kwargs)
 
+    @property
+    def total_return(self) -> tp.MaybeSeries:
+        """`Portfolio.get_total_return` with default arguments."""
+        return self.get_total_return()
+
     @class_or_instancemethod
-    def returns(cls_or_self,
-                group_by: tp.GroupByLike = None,
-                init_value: tp.Optional[tp.MaybeSeries] = None,
-                cash_deposits: tp.Optional[tp.ArrayLike] = None,
-                value: tp.Optional[tp.SeriesFrame] = None,
-                flex_2d: bool = False,
-                jitted: tp.JittedOption = None,
-                chunked: tp.ChunkedOption = None,
-                wrapper: tp.Optional[ArrayWrapper] = None,
-                wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_returns(cls_or_self,
+                    group_by: tp.GroupByLike = None,
+                    init_value: tp.Optional[tp.MaybeSeries] = None,
+                    cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                    value: tp.Optional[tp.SeriesFrame] = None,
+                    flex_2d: bool = False,
+                    jitted: tp.JittedOption = None,
+                    chunked: tp.ChunkedOption = None,
+                    wrapper: tp.Optional[ArrayWrapper] = None,
+                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get return series per column/group based on portfolio value."""
         if not isinstance(cls_or_self, type):
             if init_value is None:
@@ -5436,7 +5598,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 cash_deposits = cls_or_self.get_cash_deposits(
                     group_by=group_by, jitted=jitted, chunked=chunked, keep_raw=True)
             if value is None:
-                value = cls_or_self.value(
+                value = cls_or_self.get_value(
                     group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -5456,16 +5618,21 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         return wrapper.wrap(returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def returns(self) -> tp.SeriesFrame:
+        """`Portfolio.get_returns` with default arguments."""
+        return self.get_returns()
+
     @class_or_instancemethod
-    def asset_returns(cls_or_self,
-                      group_by: tp.GroupByLike = None,
-                      init_position_value: tp.Optional[tp.MaybeSeries] = None,
-                      asset_value: tp.Optional[tp.SeriesFrame] = None,
-                      cash_flow: tp.Optional[tp.SeriesFrame] = None,
-                      jitted: tp.JittedOption = None,
-                      chunked: tp.ChunkedOption = None,
-                      wrapper: tp.Optional[ArrayWrapper] = None,
-                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_asset_returns(cls_or_self,
+                          group_by: tp.GroupByLike = None,
+                          init_position_value: tp.Optional[tp.MaybeSeries] = None,
+                          asset_value: tp.Optional[tp.SeriesFrame] = None,
+                          cash_flow: tp.Optional[tp.SeriesFrame] = None,
+                          jitted: tp.JittedOption = None,
+                          chunked: tp.ChunkedOption = None,
+                          wrapper: tp.Optional[ArrayWrapper] = None,
+                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset return series per column/group.
 
         This type of returns is based solely on cash flows and asset value rather than portfolio
@@ -5476,9 +5643,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if init_position_value is None:
                 init_position_value = cls_or_self.init_position_value
             if asset_value is None:
-                asset_value = cls_or_self.asset_value(group_by=group_by, jitted=jitted, chunked=chunked)
+                asset_value = cls_or_self.get_asset_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if cash_flow is None:
-                cash_flow = cls_or_self.cash_flow(group_by=group_by, jitted=jitted, chunked=chunked)
+                cash_flow = cls_or_self.get_cash_flow(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5493,17 +5660,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         return wrapper.wrap(asset_returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def asset_returns(self) -> tp.SeriesFrame:
+        """`Portfolio.get_asset_returns` with default arguments."""
+        return self.get_asset_returns()
+
     @class_or_instancemethod
-    def market_value(cls_or_self,
-                     group_by: tp.GroupByLike = None,
-                     close: tp.Optional[tp.SeriesFrame] = None,
-                     init_value: tp.Optional[tp.MaybeSeries] = None,
-                     cash_deposits: tp.Optional[tp.ArrayLike] = None,
-                     flex_2d: bool = False,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrapper: tp.Optional[ArrayWrapper] = None,
-                     wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_market_value(cls_or_self,
+                         group_by: tp.GroupByLike = None,
+                         close: tp.Optional[tp.SeriesFrame] = None,
+                         init_value: tp.Optional[tp.MaybeSeries] = None,
+                         cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                         flex_2d: bool = False,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrapper: tp.Optional[ArrayWrapper] = None,
+                         wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get market value series per column/group.
 
         If grouped, evenly distributes the initial cash among assets in the group.
@@ -5513,7 +5685,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if not isinstance(cls_or_self, type):
             if close is None:
                 if cls_or_self.fillna_close:
-                    close = cls_or_self.filled_close
+                    close = cls_or_self.get_filled_close(jitted=jitted, chunked=chunked)
                 else:
                     close = cls_or_self.close
             if wrapper is None:
@@ -5560,17 +5732,22 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             )
         return wrapper.wrap(market_value, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def market_value(self) -> tp.SeriesFrame:
+        """`Portfolio.get_market_value` with default arguments."""
+        return self.get_market_value()
+
     @class_or_instancemethod
-    def market_returns(cls_or_self,
-                       group_by: tp.GroupByLike = None,
-                       init_value: tp.Optional[tp.MaybeSeries] = None,
-                       cash_deposits: tp.Optional[tp.ArrayLike] = None,
-                       market_value: tp.Optional[tp.SeriesFrame] = None,
-                       flex_2d: bool = False,
-                       jitted: tp.JittedOption = None,
-                       chunked: tp.ChunkedOption = None,
-                       wrapper: tp.Optional[ArrayWrapper] = None,
-                       wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+    def get_market_returns(cls_or_self,
+                           group_by: tp.GroupByLike = None,
+                           init_value: tp.Optional[tp.MaybeSeries] = None,
+                           cash_deposits: tp.Optional[tp.ArrayLike] = None,
+                           market_value: tp.Optional[tp.SeriesFrame] = None,
+                           flex_2d: bool = False,
+                           jitted: tp.JittedOption = None,
+                           chunked: tp.ChunkedOption = None,
+                           wrapper: tp.Optional[ArrayWrapper] = None,
+                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get market return series per column/group."""
         if not isinstance(cls_or_self, type):
             if init_value is None:
@@ -5580,7 +5757,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 cash_deposits = cls_or_self.get_cash_deposits(
                     group_by=group_by, jitted=jitted, chunked=chunked, keep_raw=True)
             if market_value is None:
-                market_value = cls_or_self.market_value(
+                market_value = cls_or_self.get_market_value(
                     group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
@@ -5600,23 +5777,30 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         return wrapper.wrap(market_returns, group_by=group_by, **resolve_dict(wrap_kwargs))
 
+    @property
+    def market_returns(self) -> tp.SeriesFrame:
+        """`Portfolio.get_market_returns` with default arguments."""
+        return self.get_market_returns()
+
+    get_benchmark_rets = get_market_returns
+
     benchmark_rets = market_returns
 
     @class_or_instancemethod
-    def total_market_return(cls_or_self,
-                            group_by: tp.GroupByLike = None,
-                            input_value: tp.Optional[tp.MaybeSeries] = None,
-                            market_value: tp.Optional[tp.SeriesFrame] = None,
-                            jitted: tp.JittedOption = None,
-                            chunked: tp.ChunkedOption = None,
-                            wrapper: tp.Optional[ArrayWrapper] = None,
-                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+    def get_total_market_return(cls_or_self,
+                                group_by: tp.GroupByLike = None,
+                                input_value: tp.Optional[tp.MaybeSeries] = None,
+                                market_value: tp.Optional[tp.SeriesFrame] = None,
+                                jitted: tp.JittedOption = None,
+                                chunked: tp.ChunkedOption = None,
+                                wrapper: tp.Optional[ArrayWrapper] = None,
+                                wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
         """Get total market return."""
         if not isinstance(cls_or_self, type):
             if input_value is None:
                 input_value = cls_or_self.get_input_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if market_value is None:
-                market_value = cls_or_self.market_value(group_by=group_by, jitted=jitted, chunked=chunked)
+                market_value = cls_or_self.get_market_value(group_by=group_by, jitted=jitted, chunked=chunked)
             if wrapper is None:
                 wrapper = cls_or_self.wrapper
         elif wrapper is None:
@@ -5628,10 +5812,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         wrap_kwargs = merge_dicts(dict(name_or_index='total_market_return'), wrap_kwargs)
         return wrapper.wrap_reduced(total_return, group_by=group_by, **wrap_kwargs)
 
-    @cacheable_property
-    def returns_acc(self) -> ReturnsAccessor:
-        """`Portfolio.get_returns_acc` with default arguments."""
-        return self.get_returns_acc()
+    @property
+    def total_market_return(self) -> tp.MaybeSeries:
+        """`Portfolio.get_total_market_return` with default arguments."""
+        return self.get_total_market_return()
 
     def get_returns_acc(self,
                         group_by: tp.GroupByLike = None,
@@ -5650,11 +5834,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         if freq is None:
             freq = self.wrapper.freq
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            returns = self.get_asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
-            returns = self.returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            returns = self.get_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            benchmark_rets = self.get_market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         return returns.vbt.returns(
             benchmark_rets=benchmark_rets,
             freq=freq,
@@ -5663,10 +5847,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             **kwargs
         )
 
-    @cacheable_property
-    def qs(self) -> QSAdapterT:
-        """`Portfolio.get_qs` with default arguments."""
-        return self.get_qs()
+    @property
+    def returns_acc(self) -> ReturnsAccessor:
+        """`Portfolio.get_returns_acc` with default arguments."""
+        return self.get_returns_acc()
 
     def get_qs(self,
                group_by: tp.GroupByLike = None,
@@ -5693,6 +5877,11 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         )
         return QSAdapter(returns_acc, **kwargs)
 
+    @property
+    def qs(self) -> QSAdapterT:
+        """`Portfolio.get_qs` with default arguments."""
+        return self.get_qs()
+
     # ############# Resolution ############# #
 
     @property
@@ -5705,7 +5894,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         Uses the following keys:
 
-        * `use_asset_returns`: Whether to use `Portfolio.asset_returns` when resolving `returns` argument.
+        * `use_asset_returns`: Whether to use `Portfolio.get_asset_returns` when resolving `returns` argument.
         * `trades_type`: Which trade type to use when resolving `trades` argument."""
         if 'use_asset_returns' in final_kwargs:
             if attr == 'returns' and final_kwargs['use_asset_returns']:
@@ -5781,7 +5970,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             ),
             start_value=dict(
                 title='Start Value',
-                calc_func='get_init_cash',
+                calc_func='init_cash',
                 tags='portfolio'
             ),
             end_value=dict(
@@ -5949,7 +6138,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         See `Portfolio.returns_acc` and `vectorbt.returns.accessors.ReturnsAccessor.metrics`.
 
         `kwargs` will be passed to `vectorbt.returns.accessors.ReturnsAccessor.stats` method.
-        If `benchmark_rets` is not set, uses `Portfolio.market_returns`."""
+        If `benchmark_rets` is not set, uses `Portfolio.get_market_returns`."""
         returns_acc = self.get_returns_acc(
             group_by=group_by,
             benchmark_rets=benchmark_rets,
@@ -6011,7 +6200,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        asset_flow = self.asset_flow(direction=direction, jitted=jitted, chunked=chunked)
+        asset_flow = self.get_asset_flow(direction=direction, jitted=jitted, chunked=chunked)
         asset_flow = self.select_one_from_obj(asset_flow, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6063,7 +6252,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        cash_flow = self.cash_flow(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
+        cash_flow = self.get_cash_flow(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
         cash_flow = self.select_one_from_obj(cash_flow, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6113,7 +6302,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        assets = self.assets(direction=direction, jitted=jitted, chunked=chunked)
+        assets = self.get_assets(direction=direction, jitted=jitted, chunked=chunked)
         assets = self.select_one_from_obj(assets, self.wrapper.regroup(False), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6174,7 +6363,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         init_cash = self.get_init_cash(group_by=group_by, jitted=jitted, chunked=chunked)
         init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        cash = self.cash(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
+        cash = self.get_cash(group_by=group_by, free=free, jitted=jitted, chunked=chunked)
         cash = self.select_one_from_obj(cash, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6233,7 +6422,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        asset_value = self.asset_value(
+        asset_value = self.get_asset_value(
             direction=direction, group_by=group_by, jitted=jitted, chunked=chunked)
         asset_value = self.select_one_from_obj(asset_value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
@@ -6294,7 +6483,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         init_cash = self.get_init_cash(group_by=group_by, jitted=jitted, chunked=chunked)
         init_cash = self.select_one_from_obj(init_cash, self.wrapper.regroup(group_by), column=column)
-        value = self.value(group_by=group_by, jitted=jitted, chunked=chunked)
+        value = self.get_value(group_by=group_by, jitted=jitted, chunked=chunked)
         value = self.select_one_from_obj(value, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6337,7 +6526,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by (any): Group or ungroup columns. See `vectorbt.base.grouping.Grouper`.
             benchmark_rets (array_like): Benchmark returns.
 
-                If None, will use `Portfolio.market_returns`.
+                If None, will use `Portfolio.get_market_returns`.
             use_asset_returns (bool): Whether to plot asset returns.
             **kwargs: Keyword arguments passed to `vectorbt.returns.accessors.ReturnsSRAccessor.plot_cumulative`.
         """
@@ -6345,14 +6534,14 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         plotting_cfg = settings['plotting']
 
         if benchmark_rets is None:
-            benchmark_rets = self.market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            benchmark_rets = self.get_market_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
             benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         benchmark_rets = self.select_one_from_obj(benchmark_rets, self.wrapper.regroup(group_by), column=column)
         if use_asset_returns:
-            returns = self.asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            returns = self.get_asset_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         else:
-            returns = self.returns(group_by=group_by, jitted=jitted, chunked=chunked)
+            returns = self.get_returns(group_by=group_by, jitted=jitted, chunked=chunked)
         returns = self.select_one_from_obj(returns, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             benchmark_rets=benchmark_rets,
@@ -6421,7 +6610,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        drawdown = self.drawdown(group_by=group_by, jitted=jitted, chunked=chunked)
+        drawdown = self.get_drawdown(group_by=group_by, jitted=jitted, chunked=chunked)
         drawdown = self.select_one_from_obj(drawdown, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(
@@ -6477,7 +6666,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        gross_exposure = self.gross_exposure(
+        gross_exposure = self.get_gross_exposure(
             direction=direction, group_by=group_by, jitted=jitted, chunked=chunked)
         gross_exposure = self.select_one_from_obj(gross_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
@@ -6535,7 +6724,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         from vectorbt._settings import settings
         plotting_cfg = settings['plotting']
 
-        net_exposure = self.net_exposure(group_by=group_by, jitted=jitted, chunked=chunked)
+        net_exposure = self.get_net_exposure(group_by=group_by, jitted=jitted, chunked=chunked)
         net_exposure = self.select_one_from_obj(net_exposure, self.wrapper.regroup(group_by), column=column)
         kwargs = merge_dicts(dict(
             trace_kwargs=dict(

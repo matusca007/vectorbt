@@ -147,7 +147,8 @@ class AttrResolver:
                      custom_arg_names: tp.Optional[tp.Container[str]] = None,
                      cache_dct: tp.KwargsLike = None,
                      use_caching: bool = True,
-                     passed_kwargs_out: tp.KwargsLike = None) -> tp.Any:
+                     passed_kwargs_out: tp.KwargsLike = None,
+                     search_for_get: bool = True) -> tp.Any:
         """Resolve an attribute using keyword arguments and built-in caching.
 
         * If `attr` is a property, returns its value.
@@ -173,8 +174,9 @@ class AttrResolver:
         # Resolve attribute
         cls = type(self)
         _attr = self.pre_resolve_attr(attr, final_kwargs=final_kwargs)
-        if 'get_' + attr in dir(cls):
-            _attr = 'get_' + attr
+        if search_for_get:
+            if 'get_' + attr in dir(cls):
+                _attr = 'get_' + attr
         if inspect.ismethod(getattr(cls, _attr)) or inspect.isfunction(getattr(cls, _attr)):
             attr_func = getattr(self, _attr)
             attr_func_kwargs = dict()

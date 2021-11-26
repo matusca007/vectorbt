@@ -49,14 +49,22 @@ def attach_returns_acc_methods(config: Config) -> WrapperFuncT:
                     jitted=jitted
                 )
                 ret_method = getattr(returns_acc, _source_name)
-                if 'parallel' in get_func_arg_names(ret_method):
-                    kwargs['parallel'] = parallel
+                if 'jitted' in get_func_arg_names(ret_method):
+                    kwargs['jitted'] = jitted
                 return ret_method(**kwargs)
 
-            new_method.__name__ = target_name
-            new_method.__qualname__ = f"{cls.__name__}.{target_name}"
+            new_method.__name__ = 'get_' + target_name
+            new_method.__qualname__ = f"{cls.__name__}.get_{target_name}"
             new_method.__doc__ = docstring
-            setattr(cls, target_name, cached_method(new_method))
+            setattr(cls, new_method.__name__, new_method)
+
+            def new_prop(self, _target_name: str = target_name) -> tp.Any:
+                return getattr(self, 'get_' + _target_name)()
+
+            new_prop.__name__ = target_name
+            new_prop.__qualname__ = f"{cls.__name__}.{target_name}"
+            new_prop.__doc__ = f"`{cls.__name__}.get_{target_name}` with default arguments."
+            setattr(cls, new_prop.__name__, property(new_prop))
         return cls
 
     return wrapper

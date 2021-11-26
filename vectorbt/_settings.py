@@ -91,8 +91,6 @@ import os
 import pkgutil
 
 import numpy as np
-import pandas as pd
-import vectorbt as vbt
 
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz

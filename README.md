@@ -86,7 +86,7 @@ import vectorbt as vbt
 price = vbt.YFData.fetch('BTC-USD').get('Close')
 
 pf = vbt.Portfolio.from_holding(price, init_cash=100)
-pf.total_profit()
+pf.total_profit
 ```
 
 ```plaintext
@@ -102,7 +102,7 @@ entries = fast_ma.ma_crossed_above(slow_ma)
 exits = fast_ma.ma_crossed_below(slow_ma)
 
 pf = vbt.Portfolio.from_signals(price, entries, exits, init_cash=100)
-pf.total_profit()
+pf.total_profit
 ```
 
 ```plaintext
@@ -142,7 +142,7 @@ exits = fast_ma.ma_crossed_below(slow_ma)
 pf_kwargs = dict(size=np.inf, fees=0.001, freq='1D')
 pf = vbt.Portfolio.from_signals(price, entries, exits, **pf_kwargs)
 
-fig = pf.total_return().vbt.heatmap(
+fig = pf.total_return.vbt.heatmap(
     x_level='fast_window', y_level='slow_window', slider_level='symbol', symmetric=True,
     trace_kwargs=dict(colorbar=dict(title='Total return', tickformat='%')))
 fig.show()

@@ -151,6 +151,8 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 * `resolve_{arg}`: Whether to resolve an argument that is meant to be an attribute of
                     this object and is present in the function's signature. Defaults to False.
                     See `vectorbt.utils.attr_.AttrResolver.resolve_attr`.
+                * `search_for_get`: Whether to search for a `get_` method.
+                * `search_for_get_{arg}`: Whether to search for a `get_{arg}` method.
                 * `template_mapping`: Mapping to replace templates in metric settings. Used across all settings.
                 * Any other keyword argument that overrides the settings or is passed directly to `calc_func`.
 
@@ -446,6 +448,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 calc_func = final_kwargs.pop('calc_func')
                 resolve_calc_func = final_kwargs.pop('resolve_calc_func', True)
                 post_calc_func = final_kwargs.pop('post_calc_func', None)
+                search_for_get = final_kwargs.pop('search_for_get', True)
                 use_caching = final_kwargs.pop('use_caching', True)
                 fill_wrap_kwargs = final_kwargs.pop('fill_wrap_kwargs', False)
                 if fill_wrap_kwargs:
@@ -468,9 +471,15 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                                           _final_kwargs: tp.Kwargs = final_kwargs,
                                           _opt_arg_names: tp.Set[str] = opt_arg_names,
                                           _custom_arg_names: tp.Set[str] = custom_arg_names,
-                                          _arg_cache_dct: tp.Kwargs = arg_cache_dct) -> tp.Any:
-                            if attr in final_kwargs:
-                                return final_kwargs[attr]
+                                          _arg_cache_dct: tp.Kwargs = arg_cache_dct,
+                                          _search_for_get: bool = search_for_get,
+                                          _use_caching: bool = use_caching) -> tp.Any:
+                            if attr in _final_kwargs:
+                                return _final_kwargs[attr]
+                            if _search_for_get and 'get_' + attr in dir(type(obj)):
+                                _attr = 'get_' + attr
+                            else:
+                                _attr = attr
                             if args is None:
                                 args = ()
                             if kwargs is None:
@@ -478,17 +487,18 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                             if obj is custom_reself and _final_kwargs.pop('resolve_path_' + attr, True):
                                 if call_attr:
                                     return custom_reself.resolve_attr(
-                                        attr,
+                                        attr,  # do not pass _attr, important for caching
                                         args=args,
                                         cond_kwargs={k: v for k, v in _final_kwargs.items() if k in _opt_arg_names},
                                         kwargs=kwargs,
                                         custom_arg_names=_custom_arg_names,
                                         cache_dct=_arg_cache_dct,
-                                        use_caching=use_caching,
-                                        passed_kwargs_out=passed_kwargs_out
+                                        use_caching=_use_caching,
+                                        passed_kwargs_out=passed_kwargs_out,
+                                        search_for_get=_search_for_get
                                     )
-                                return getattr(obj, attr)
-                            out = getattr(obj, attr)
+                                return getattr(obj, _attr)
+                            out = getattr(obj, _attr)
                             if callable(out) and call_attr:
                                 return out(*args, **kwargs)
                             return out
@@ -508,14 +518,17 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                         func_arg_names = get_func_arg_names(calc_func)
                         for k in func_arg_names:
                             if k not in final_kwargs:
-                                if final_kwargs.pop('resolve_' + k, False):
+                                resolve_arg = final_kwargs.pop('resolve_' + k, False)
+                                search_for_get_arg = final_kwargs.pop('search_for_get_' + k, True)
+                                if resolve_arg:
                                     try:
                                         arg_out = custom_reself.resolve_attr(
                                             k,
                                             cond_kwargs=final_kwargs,
                                             custom_arg_names=custom_arg_names,
                                             cache_dct=arg_cache_dct,
-                                            use_caching=use_caching
+                                            use_caching=use_caching,
+                                            search_for_get=search_for_get_arg
                                         )
                                     except AttributeError:
                                         continue
