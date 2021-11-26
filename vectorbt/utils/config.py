@@ -58,6 +58,30 @@ class Ref(Hashable, SafeToStr):
                f"key=\"{self.key}\")"
 
 
+def resolve_ref(dct: dict, k: tp.Hashable, keep_defaults: bool = True) -> tp.Any:
+    """Resolve a potential reference."""
+    v = dct[k]
+    is_default = False
+    if isinstance(v, Default):
+        v = v.value
+        is_default = True
+    if isinstance(v, Ref):
+        new_v = resolve_ref(dct, v.key)
+    else:
+        new_v = v
+    if is_default and keep_defaults:
+        new_v = Default(new_v)
+    return new_v
+
+
+def resolve_refs(dct: dict, keep_defaults: bool = True) -> dict:
+    """Resolve all references of type `Ref` in a dictionary."""
+    new_dct = dict()
+    for k in dct:
+        new_dct[k] = resolve_ref(dct, k, keep_defaults=keep_defaults)
+    return new_dct
+
+
 def resolve_dict(dct: tp.DictLikeSequence, i: tp.Optional[int] = None) -> dict:
     """Select keyword arguments."""
     if dct is None:

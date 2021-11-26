@@ -1187,7 +1187,7 @@ from vectorbt.generic.accessors import BaseAccessor
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, resolve_dict, Config, Default, Ref
+from vectorbt.utils.config import merge_dicts, resolve_dict, Config, Default, Ref, resolve_refs
 from vectorbt.utils.decorators import classproperty, cacheable_property
 from vectorbt.utils.docs import stringify
 from vectorbt.utils.enum_ import map_enum_fields
@@ -2806,20 +2806,6 @@ class IndicatorFactory:
                 checks.assert_dict_valid(new_settings, allowed_keys)
             return new_settings
 
-        def _resolve_ref(pool: tp.Dict[str, tp.Any], k: str) -> tp.Any:
-            v = pool[k]
-            is_default = False
-            if isinstance(v, Default):
-                v = v.value
-                is_default = True
-            if isinstance(v, Ref):
-                new_v = _resolve_ref(pool, v.key)
-            else:
-                new_v = v
-            if is_default:
-                new_v = Default(new_v)
-            return new_v
-
         def _resolve_refs(inputs: tp.Dict[str, tp.ArrayLike],
                           in_outputs: tp.Dict[str, tp.ArrayLike],
                           params: tp.Dict[str, tp.Param]) -> tp.Tuple[
@@ -2829,9 +2815,7 @@ class IndicatorFactory:
         ]:
             # You can reference anything between inputs, parameters, and in-place outputs
             # even parameter to input (thanks to broadcasting)
-            pool = {**inputs, **in_outputs, **params}
-            for k in pool:
-                pool[k] = _resolve_ref(pool, k)
+            pool = resolve_refs({**inputs, **in_outputs, **params})
             inputs = OrderedDict({k: pool[k] for k in input_names})
             in_outputs = OrderedDict({k: pool[k] for k in in_output_names})
             params = OrderedDict({k: pool[k] for k in param_names})

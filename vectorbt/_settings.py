@@ -91,6 +91,8 @@ import os
 import pkgutil
 
 import numpy as np
+import pandas as pd
+import vectorbt as vbt
 
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
@@ -292,7 +294,10 @@ ${config_doc}
 _settings['chunking'] = chunking
 
 template = dict(
-    strict=True
+    strict=True,
+    mapping=Config(  # flex
+        dict()
+    )
 )
 """_"""
 
@@ -344,7 +349,8 @@ broadcasting = dict(
     drop_duplicates=True,
     keep='last',
     drop_redundant=True,
-    ignore_default=True
+    ignore_default=True,
+    keep_defaults=False
 )
 """_"""
 

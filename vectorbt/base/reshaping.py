@@ -15,7 +15,7 @@ from numpy.lib.stride_tricks import _broadcast_shape
 from vectorbt import _typing as tp
 from vectorbt.base import indexes, wrapping
 from vectorbt.utils import checks
-from vectorbt.utils.config import resolve_dict, merge_dicts
+from vectorbt.utils.config import resolve_dict, merge_dicts, Default, Ref, resolve_refs
 from vectorbt.utils.parsing import get_func_arg_names
 
 
@@ -386,6 +386,7 @@ def broadcast(*args,
               keep_raw: tp.MaybeMappingSequence[bool] = False,
               min_one_dim: tp.MaybeMappingSequence[bool] = True,
               post_func: tp.MaybeMappingSequence[tp.Optional[tp.Callable]] = None,
+              keep_defaults: tp.Optional[bool] = None,
               return_wrapper: bool = False,
               wrapper_kwargs: tp.KwargsLike = None,
               **kwargs) -> tp.Any:
@@ -399,11 +400,14 @@ def broadcast(*args,
         *args (array_like): Array-like objects.
 
             If the first and only argument is a mapping, will return a dict.
+
+            Allows using `vectorbt.utils.config.Ref`.
         to_shape (tuple of int): Target shape. If set, will broadcast every element in `args` to `to_shape`.
         to_pd (bool, sequence or mapping): Whether to convert output arrays to Pandas objects, otherwise returns
             raw NumPy arrays. If None, converts only if there is at least one Pandas object among them.
 
-            Can be provided per argument.
+            Can be provided per argument. If a mapping, use `_default` key to give value to arguments
+            that are not listed in the mapping.
         to_frame (bool): Whether to convert all Series to DataFrames.
         align_index (bool): Whether to align index of Pandas objects using multi-index.
 
@@ -419,22 +423,28 @@ def broadcast(*args,
             Pass None to use the default.
         require_kwargs (dict, sequence or mapping): Keyword arguments passed to `np.require`.
 
-            Can be provided per argument.
+            Can be provided per argument. If a mapping, use `_default` key to give value to arguments
+            that are not listed in the mapping. This key will be merged with any argument-specific dict.
+            If the mapping contains all keys in `np.require`, it will be applied on all arguments.
         keep_raw (bool, sequence or mapping): Whether to keep the raw version of each array.
             Defaults to False.
 
             Only makes sure that the array can be broadcast to the target shape.
             Mostly used for flexible indexing.
 
-            Can be provided per argument.
+            Can be provided per argument. If a mapping, use `_default` key to give value to arguments
+            that are not listed in the mapping.
         min_one_dim (bool, sequence or dict): Whether to convert constants into 1-dim arrays.
             Defaults to True.
 
-            Can be provided per argument.
-        post_func (bool, sequence or dict): Function to postprocess each output.
+            Can be provided per argument. If a mapping, use `_default` key to give value to arguments
+            that are not listed in the mapping.
+        post_func (callable, sequence or dict): Function to postprocess each output.
             Defaults to None.
 
-            Can be provided per argument. Applied only when `keep_raw` is False.
+            Can be provided per argument. If a mapping, use `_default` key to give value to arguments
+            that are not listed in the mapping. Applied only when `keep_raw` is False.
+        keep_defaults (bool): Whether to wrapping with `vectorbt.utils.config.Default`.
         return_wrapper (bool): Whether to also return the wrapper associated with the operation.
         wrapper_kwargs (dict): Keyword arguments passed to `vectorbt.base.wrapping.ArrayWrapper`.
         **kwargs: Keyword arguments passed to `broadcast_index`.
@@ -620,6 +630,9 @@ def broadcast(*args,
         index_from = broadcasting_cfg['index_from']
     if columns_from is None:
         columns_from = broadcasting_cfg['columns_from']
+    if keep_defaults is None:
+        keep_defaults = broadcasting_cfg['keep_defaults']
+
     if checks.is_mapping(args[0]):
         if len(args) > 1:
             raise ValueError("Only one argument is allowed when passing a mapping")
@@ -630,6 +643,7 @@ def broadcast(*args,
         args = list(args)
         keys = list(range(len(args)))
         return_dict = False
+
     if checks.is_mapping(to_pd):
         to_pd = [to_pd.get(k, to_pd.get('_default', None)) for k in keys]
     if checks.is_mapping(keep_raw):
@@ -641,20 +655,31 @@ def broadcast(*args,
         if set(require_kwargs) <= set(require_arg_names):
             pass
         else:
-            require_kwargs = [require_kwargs.get(k, require_kwargs.get('_default', None)) for k in keys]
+            require_kwargs = [merge_dicts(
+                require_kwargs.get('_default', None),
+                require_kwargs.get(k, None)
+            ) for k in keys]
     if checks.is_mapping(post_func):
         post_func = [post_func.get(k, post_func.get('_default', None)) for k in keys]
 
     # Convert to np.ndarray object if not numpy or pandas
     # Also check whether we broadcast to pandas and whether work on 2-dim data
+    refs = dict()
     none_keys = set()
+    default_keys = set()
     arr_args = []
-    for i in range(len(args)):
-        if args[i] is None:
+    for i, arg in enumerate(args):
+        if isinstance(arg, Default):
+            default_keys.add(keys[i])
+            arg = arg.value
+        if arg is None:
             none_keys.add(keys[i])
             continue
+        if isinstance(arg, Ref):
+            refs[keys[i]] = arg
+            continue
 
-        arg = to_any_array(args[i])
+        arg = to_any_array(arg)
         if arg.ndim > 1:
             is_2d = True
         if checks.is_pandas(arg):
@@ -761,9 +786,18 @@ def broadcast(*args,
     return_args = []
     for k in keys:
         if k not in none_keys:
-            return_args.append(new_args.pop(0))
+            if k in refs:
+                return_args.append(refs[k])
+            else:
+                if k in default_keys and keep_defaults:
+                    return_args.append(Default(new_args.pop(0)))
+                else:
+                    return_args.append(new_args.pop(0))
         else:
             return_args.append(None)
+    if len(refs) > 0:
+        pool = resolve_refs(dict(zip(keys, return_args)), keep_defaults=True)
+        return_args = [pool[k] for k in keys]
     if return_dict:
         return_args = dict(zip(keys, return_args))
     else:

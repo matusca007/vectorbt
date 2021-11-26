@@ -6,6 +6,10 @@
 from copy import copy
 from string import Template
 
+import numpy as np
+import pandas as pd
+
+import vectorbt as vbt
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import set_dict_item, merge_dicts
@@ -64,8 +68,31 @@ class CustomTemplate(Hashable, SafeToStr):
                     return False
         return True
 
+    def resolve_mapping(self, mapping: tp.Optional[tp.Mapping] = None,
+                        sub_id: tp.Optional[Hashable] = None) -> tp.Kwargs:
+        """Resolve `CustomTemplate.mapping`.
+
+        Merges `template.mapping` in `vectorbt._settings.settings`, `CustomTemplate.mapping`, and `mapping`.
+        Automatically appends `sub_id`, `np` (NumPy), `pd` (Pandas), and `vbt` (vectorbt)."""
+        from vectorbt._settings import settings
+        template_cfg = settings['template']
+
+        return merge_dicts(
+            template_cfg['mapping'],
+            dict(
+                sub_id=sub_id,
+                np=np,
+                pd=pd,
+                vbt=vbt
+            ),
+            self.mapping,
+            mapping
+        )
+
     def resolve_strict(self, strict: tp.Optional[bool] = None) -> bool:
-        """Resolve `CustomTemplate.strict`."""
+        """Resolve `CustomTemplate.strict`.
+
+        If `strict` is None, uses `template.strict` in `vectorbt._settings.settings`."""
         if strict is None:
             strict = self.strict
         if strict is None:
@@ -112,10 +139,10 @@ class Sub(CustomTemplate):
         """Substitute parts of `Sub.template` as a regular template."""
         if not self.meets_sub_id(sub_id):
             return self
+        mapping = self.resolve_mapping(mapping=mapping, sub_id=sub_id)
         strict = self.resolve_strict(strict=strict)
 
         try:
-            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return Template(self.template).substitute(mapping)
         except KeyError as e:
             if strict:
@@ -133,10 +160,10 @@ class Rep(CustomTemplate):
         """Replace `Rep.template` as a key."""
         if not self.meets_sub_id(sub_id):
             return self
+        mapping = self.resolve_mapping(mapping=mapping, sub_id=sub_id)
         strict = self.resolve_strict(strict=strict)
 
         try:
-            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return mapping[self.template]
         except KeyError as e:
             if strict:
@@ -154,10 +181,10 @@ class RepEval(CustomTemplate):
         """Evaluate `RepEval.template` as an expression."""
         if not self.meets_sub_id(sub_id):
             return self
+        mapping = self.resolve_mapping(mapping=mapping, sub_id=sub_id)
         strict = self.resolve_strict(strict=strict)
 
         try:
-            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
             return eval(self.template, {}, mapping)
         except NameError as e:
             if strict:
@@ -175,15 +202,16 @@ class RepFunc(CustomTemplate):
         """Call `RepFunc.template` as a function."""
         if not self.meets_sub_id(sub_id):
             return self
+        mapping = self.resolve_mapping(mapping=mapping, sub_id=sub_id)
         strict = self.resolve_strict(strict=strict)
 
+        func_arg_names = get_func_arg_names(self.template)
+        func_kwargs = dict()
+        for k, v in mapping.items():
+            if k in func_arg_names:
+                func_kwargs[k] = v
+
         try:
-            mapping = merge_dicts(dict(sub_id=sub_id), self.mapping, mapping)
-            func_arg_names = get_func_arg_names(self.template)
-            func_kwargs = dict()
-            for k, v in mapping.items():
-                if k in func_arg_names:
-                    func_kwargs[k] = v
             return self.template(**func_kwargs)
         except TypeError as e:
             if strict:
@@ -245,7 +273,8 @@ def deep_substitute(obj: tp.Any,
     NameError: name 'key' is not defined
     >>> vbt.deep_substitute(vbt.RepEval('key == 100', strict=False))
     <vectorbt.utils.template.RepEval at 0x7fe3ad2ab668>
-    ```"""
+    ```
+    """
     if mapping is None:
         mapping = {}
 
