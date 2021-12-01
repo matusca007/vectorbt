@@ -120,7 +120,7 @@ class CustomTemplate(Hashable, SafeToStr):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"template=\"{self.template}\", " \
                f"mapping={prepare_for_doc(self.mapping)}, " \
                f"strict=\"{self.strict}\", " \

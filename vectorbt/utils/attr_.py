@@ -10,6 +10,7 @@ from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names
+from vectorbt.utils.decorators import cachedproperty
 
 
 def get_dict_attr(obj: tp.Union[object, type], attr: str) -> tp.Any:
@@ -17,7 +18,7 @@ def get_dict_attr(obj: tp.Union[object, type], attr: str) -> tp.Any:
     if inspect.isclass(obj):
         cls = obj
     else:
-        cls = obj.__class__
+        cls = type(obj)
     for obj in [obj] + cls.mro():
         if attr in obj.__dict__:
             return obj.__dict__[attr]
@@ -139,6 +140,22 @@ class AttrResolver:
         Must return an object."""
         return out
 
+    @cachedproperty
+    def cls_dir(self) -> tp.Set[str]:
+        """Get set of attribute names."""
+        return set(dir(type(self)))
+
+    def resolve_shortcut_attr(self, attr: str, *args, **kwargs) -> tp.Any:
+        """Resolve an attribute that may have shortcut properties."""
+        if not attr.startswith('get_'):
+            if 'get_' + attr not in self.cls_dir or (len(args) == 0 and len(kwargs) == 0):
+                if isinstance(getattr(type(self), attr), property):
+                    return getattr(self, attr)
+                return getattr(self, attr)(*args, **kwargs)
+            attr = 'get_' + attr
+
+        return getattr(self, attr)(*args, **kwargs)
+
     def resolve_attr(self,
                      attr: str,
                      args: tp.ArgsLike = None,
@@ -148,12 +165,13 @@ class AttrResolver:
                      cache_dct: tp.KwargsLike = None,
                      use_caching: bool = True,
                      passed_kwargs_out: tp.KwargsLike = None,
-                     search_for_get: bool = True) -> tp.Any:
+                     use_shortcuts: bool = True) -> tp.Any:
         """Resolve an attribute using keyword arguments and built-in caching.
 
+        * If there is a `get_{arg}` method, uses `get_{arg}` as `attr`.
         * If `attr` is a property, returns its value.
         * If `attr` is a method, passes `*args`, `**kwargs`, and `**cond_kwargs` with keys found in the signature.
-        * If `attr` is a property and there is a `get_{arg}` method, calls the `get_{arg}` method.
+        * If `use_shortcuts` is True, resolves the potential shortcuts using `AttrResolver.resolve_shortcut_attr`.
 
         Won't cache if `use_caching` is False or any passed argument is in `custom_arg_names`.
 
@@ -174,9 +192,8 @@ class AttrResolver:
         # Resolve attribute
         cls = type(self)
         _attr = self.pre_resolve_attr(attr, final_kwargs=final_kwargs)
-        if search_for_get:
-            if 'get_' + attr in dir(cls):
-                _attr = 'get_' + attr
+        if 'get_' + attr in dir(cls):
+            _attr = 'get_' + attr
         if inspect.ismethod(getattr(cls, _attr)) or inspect.isfunction(getattr(cls, _attr)):
             attr_func = getattr(self, _attr)
             attr_func_kwargs = dict()
@@ -191,14 +208,20 @@ class AttrResolver:
             if use_caching and not custom_k and attr in cache_dct:
                 out = cache_dct[attr]
             else:
-                out = attr_func(*args, **attr_func_kwargs)
+                if use_shortcuts:
+                    out = self.resolve_shortcut_attr(_attr, *args, **attr_func_kwargs)
+                else:
+                    out = attr_func(*args, **attr_func_kwargs)
                 if use_caching and not custom_k:
                     cache_dct[attr] = out
         else:
             if use_caching and attr in cache_dct:
                 out = cache_dct[attr]
             else:
-                out = getattr(self, _attr)
+                if use_shortcuts:
+                    out = self.resolve_shortcut_attr(_attr)
+                else:
+                    out = getattr(self, _attr)
                 if use_caching:
                     cache_dct[attr] = out
         out = self.post_resolve_attr(attr, out, final_kwargs=final_kwargs)

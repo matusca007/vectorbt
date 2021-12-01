@@ -211,7 +211,10 @@ SequenceTakeSpec = Sequence[TakeSpec]
 ContainerTakeSpec = Union[MappingTakeSpec, SequenceTakeSpec]
 ChunkedOption = Union[None, bool, str, Kwargs]
 
-
 # JIT
 JittedOption = Union[None, bool, str, Kwargs]
 JitterLike = Union[str, Jitter, Type[Jitter]]
+
+# Decorators
+ClassWrapper = Callable[[Type[T]], Type[T]]
+FlexClassWrapper = Union[Callable[[Type[T]], Type[T]], Type[T]]

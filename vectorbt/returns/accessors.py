@@ -790,7 +790,7 @@ class ReturnsAccessor(GenericAccessor):
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
-        return self.__class__.rolling_apply(
+        return type(self).rolling_apply(
             window,
             jit_registry.resolve_option(nb.beta_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), ddof,
@@ -843,7 +843,7 @@ class ReturnsAccessor(GenericAccessor):
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
         )
-        return self.__class__.rolling_apply(
+        return type(self).rolling_apply(
             window,
             jit_registry.resolve_option(nb.alpha_rollmeta_nb, jitted),
             to_2d_array(self.obj) - risk_free, to_2d_array(benchmark_rets) - risk_free, self.ann_factor,
@@ -1051,7 +1051,7 @@ class ReturnsAccessor(GenericAccessor):
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
-        return self.__class__.rolling_apply(
+        return type(self).rolling_apply(
             window,
             jit_registry.resolve_option(nb.capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
@@ -1103,7 +1103,7 @@ class ReturnsAccessor(GenericAccessor):
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
-        return self.__class__.rolling_apply(
+        return type(self).rolling_apply(
             window,
             jit_registry.resolve_option(nb.up_capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,
@@ -1155,7 +1155,7 @@ class ReturnsAccessor(GenericAccessor):
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
         )
-        return self.__class__.rolling_apply(
+        return type(self).rolling_apply(
             window,
             jit_registry.resolve_option(nb.down_capture_rollmeta_nb, jitted),
             to_2d_array(self.obj), to_2d_array(benchmark_rets), self.ann_factor, None,

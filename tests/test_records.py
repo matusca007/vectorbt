@@ -486,25 +486,25 @@ class TestMappedArray:
             mapped_array.apply(cumsum_apply_nb, chunked=False).values
         )
         np.testing.assert_array_equal(
-            mapped_array.__class__.apply(
+            type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper).values,
             mapped_array.apply(cumsum_apply_nb).values
         )
         np.testing.assert_array_equal(
-            mapped_array.__class__.apply(
+            type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=True)).values,
-            mapped_array.__class__.apply(
+            type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)).values
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         np.testing.assert_array_equal(
-            mapped_array.__class__.apply(
+            type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, chunked=chunked).values,
-            mapped_array.__class__.apply(
+            type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, chunked=False).values
         )
@@ -638,25 +638,25 @@ class TestMappedArray:
             mapped_array.reduce(mean_reduce_nb, chunked=False)
         )
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values, col_mapper=mapped_array.col_mapper),
             mapped_array.reduce(mean_reduce_nb)
         )
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=True)),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, chunked=chunked),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values,
                 col_mapper=mapped_array.col_mapper, chunked=False),
         )
@@ -692,26 +692,26 @@ class TestMappedArray:
             mapped_array.reduce(argmin_reduce_nb, returns_idx=True, chunked=False)
         )
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr),
             mapped_array.reduce(argmin_reduce_nb, returns_idx=True)
         )
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=True)),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         pd.testing.assert_series_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=chunked),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=False),
         )
@@ -796,26 +796,26 @@ class TestMappedArray:
             mapped_array.reduce(min_max_reduce_nb, returns_array=True, chunked=False)
         )
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper),
             mapped_array.reduce(min_max_reduce_nb, returns_array=True)
         )
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=True)),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper, chunked=chunked),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
                 col_mapper=mapped_array.col_mapper, chunked=False),
         )
@@ -902,26 +902,26 @@ class TestMappedArray:
             mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True, chunked=False)
         )
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr),
             mapped_array.reduce(idxmin_idxmax_reduce_nb, returns_array=True, returns_idx=True)
         )
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=True)),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         pd.testing.assert_frame_equal(
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=chunked),
-            mapped_array.__class__.reduce(
+            type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, chunked=False),
         )
@@ -1666,23 +1666,23 @@ class TestRecords:
             records.map(map_func_nb, chunked=False).values
         )
         np.testing.assert_array_equal(
-            records.__class__.map(map_func_meta_nb, records.values, col_mapper=records.col_mapper).values,
+            type(records).map(map_func_meta_nb, records.values, col_mapper=records.col_mapper).values,
             records.map(map_func_nb).values
         )
         np.testing.assert_array_equal(
-            records.__class__.map(
+            type(records).map(
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, jitted=dict(parallel=True)).values,
-            records.__class__.map(
+            type(records).map(
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, jitted=dict(parallel=False)).values
         )
         count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0), )))
         np.testing.assert_array_equal(
-            records.__class__.map(
+            type(records).map(
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, chunked=count_chunked).values,
-            records.__class__.map(
+            type(records).map(
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, chunked=False).values
         )
@@ -1738,24 +1738,24 @@ class TestRecords:
             records.apply(cumsum_apply_nb, chunked=False).values
         )
         np.testing.assert_array_equal(
-            records.__class__.apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values,
+            type(records).apply(cumsum_apply_meta_nb, records.values, col_mapper=records.col_mapper).values,
             records.apply(cumsum_apply_nb).values
         )
         np.testing.assert_array_equal(
-            records.__class__.apply(
+            type(records).apply(
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, jitted=dict(parallel=True)).values,
-            records.__class__.apply(
+            type(records).apply(
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, jitted=dict(parallel=False)).values
         )
         chunked = dict(arg_take_spec=dict(
             args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
         np.testing.assert_array_equal(
-            records.__class__.apply(
+            type(records).apply(
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, chunked=chunked).values,
-            records.__class__.apply(
+            type(records).apply(
                 cumsum_apply_meta_nb, records.values,
                 col_mapper=records.col_mapper, chunked=False).values
         )

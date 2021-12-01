@@ -212,8 +212,10 @@ class Orders(Records):
 
     @property
     def close(self) -> tp.Optional[tp.SeriesFrame]:
-        """Reference price such as close (optional)."""
-        return self._close
+        """Closing price."""
+        if self._close is None:
+            return None
+        return self.wrapper.wrap(self._close, group_by=False)
 
     # ############# Stats ############# #
 

@@ -998,6 +998,7 @@ portfolio = dict(
     freq=None,
     attach_call_seq=False,
     holding_base_method='from_signals',
+    use_in_outputs=True,
     fillna_close=True,
     trades_type='exittrades',
     stats=Config(  # flex

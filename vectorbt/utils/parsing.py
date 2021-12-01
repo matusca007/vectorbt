@@ -42,7 +42,7 @@ class Regex(Hashable, SafeToStr):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"pattern=\"{self.pattern}\", " \
                f"flags={self.flags})"
 

@@ -312,7 +312,7 @@ respectively. Caching can be disabled globally via `caching` in `vectorbt._setti
 
 !!! note
     Because of caching, class is meant to be immutable and all properties are read-only.
-    To change any attribute, use the `copy` method and pass the attribute as keyword argument.
+    To change any attribute, use the `MappedArray.replace` method and pass changes as keyword arguments.
 
 ## Saving and loading
 

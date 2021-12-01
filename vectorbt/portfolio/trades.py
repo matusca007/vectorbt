@@ -612,6 +612,16 @@ class Trades(Ranges):
     def field_config(self) -> Config:
         return self._field_config
 
+    @classmethod
+    def from_records(cls: tp.Type[TradesT],
+                     wrapper: ArrayWrapper,
+                     records: tp.RecordArray,
+                     close: tp.Optional[tp.ArrayLike] = None,
+                     attach_close: bool = True,
+                     **kwargs) -> TradesT:
+        """Build `Trades` from records."""
+        return cls(wrapper, records, close=close if attach_close else None, **kwargs)
+
     def __init__(self,
                  wrapper: ArrayWrapper,
                  records_arr: tp.RecordArray,
@@ -631,7 +641,7 @@ class Trades(Ranges):
         new_wrapper, new_records_arr, group_idxs, col_idxs = \
             Ranges.indexing_func_meta(self, pd_indexing_func, **kwargs)
         if self.close is not None:
-            new_close = new_wrapper.wrap(to_2d_array(self.close)[:, col_idxs], group_by=False)
+            new_close = to_2d_array(self.close)[:, col_idxs]
         else:
             new_close = None
         return self.replace(
@@ -642,8 +652,10 @@ class Trades(Ranges):
 
     @property
     def close(self) -> tp.Optional[tp.SeriesFrame]:
-        """Reference price such as close (optional)."""
-        return self._close
+        """Closing price."""
+        if self._close is None:
+            return None
+        return self.wrapper.wrap(self._close, group_by=False)
 
     @classmethod
     def from_ts(cls: tp.Type[TradesT], *args, **kwargs) -> TradesT:

@@ -462,7 +462,7 @@ def is_cacheable(cacheable: tp.Any) -> bool:
 
 def get_obj_id(instance: object) -> tp.Tuple[type, int]:
     """Get id of an instance."""
-    return instance.__class__, id(instance)
+    return type(instance), id(instance)
 
 
 CAQueryT = tp.TypeVar("CAQueryT", bound="CAQuery")
@@ -695,7 +695,7 @@ class CAQuery(Hashable, SafeToStr):
                     and setup.instance is _GARBAGE:
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and not checks.is_class(setup.instance.__class__, self.cls):
+                    and not checks.is_class(type(setup.instance), self.cls):
                 return False
             if isinstance(setup, CAClassSetup) \
                     and not checks.is_class(setup.cls, self.cls):
@@ -708,7 +708,7 @@ class CAQuery(Hashable, SafeToStr):
                     and setup.instance is _GARBAGE:
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and not checks.is_subclass_of(setup.instance.__class__, self.base_cls):
+                    and not checks.is_subclass_of(type(setup.instance), self.base_cls):
                 return False
             if isinstance(setup, CAClassSetup) \
                     and not checks.is_subclass_of(setup.cls, self.base_cls):
@@ -724,7 +724,7 @@ class CAQuery(Hashable, SafeToStr):
         return True
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"cacheable={self.cacheable}, " \
                f"instance={self.instance}, " \
                f"cls={self.cls}, " \
@@ -1603,7 +1603,7 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         return set(self.subclass_setups) | self.instance_setups
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"cls={self.cls})"
 
     @property
@@ -1698,7 +1698,7 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         """Setup of type `CAClassSetup` of the cacheable class of the instance."""
         if self.contains_garbage:
             return None
-        return CAClassSetup.get(self.instance.__class__, self.registry)
+        return CAClassSetup.get(type(self.instance), self.registry)
 
     @property
     def unbound_setups(self) -> tp.Set['CAUnboundSetup']:
@@ -1723,14 +1723,14 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         return self.run_setups
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"instance={self.instance})"
 
     @property
     def short_str(self) -> str:
         if self.contains_garbage:
             return "<destroyed object>"
-        return f"<instance of {self.instance.__class__.__module__}.{self.instance.__class__.__name__}>"
+        return f"<instance of {type(self.instance).__module__}.{type(self.instance).__name__}>"
 
     @property
     def hash_key(self) -> tuple:
@@ -1823,7 +1823,7 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         return self.run_setups
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"cacheable={self.cacheable})"
 
     @property
@@ -1908,7 +1908,7 @@ class CARunResult(Hashable, SafeToStr):
         return self.result
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"args_hash={self.args_hash}, " \
                f"result={self.result})"
 
@@ -2214,7 +2214,7 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         self.cache.clear()
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"cacheable={self.cacheable}, " \
                f"instance={self.instance})"
 
@@ -2223,11 +2223,11 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         if self.contains_garbage:
             return "<destroyed object>"
         if is_cacheable_property(self.cacheable):
-            return f"<instance property {self.instance.__class__.__module__}." \
-                   f"{self.instance.__class__.__name__}.{self.cacheable.func.__name__}>"
+            return f"<instance property {type(self.instance).__module__}." \
+                   f"{type(self.instance).__name__}.{self.cacheable.func.__name__}>"
         if is_cacheable_method(self.cacheable):
-            return f"<instance method {self.instance.__class__.__module__}." \
-                   f"{self.instance.__class__.__name__}.{self.cacheable.func.__name__}>"
+            return f"<instance method {type(self.instance).__module__}." \
+                   f"{type(self.instance).__name__}.{self.cacheable.func.__name__}>"
         return f"<func {self.cacheable.__module__}.{self.cacheable.__name__}>"
 
     @property

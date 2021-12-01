@@ -12,10 +12,8 @@ from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.parsing import get_func_arg_names
 
-WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 
-
-def attach_nb_methods(config: Config) -> WrapperFuncT:
+def attach_nb_methods(config: Config) -> tp.ClassWrapper:
     """Class decorator to attach Numba methods.
 
     `config` must contain target method names (keys) and dictionaries (values) with the following keys:
@@ -43,7 +41,6 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
             disable_chunked = settings.get('disable_chunked', False)
             replace_signature = settings.get('replace_signature', True)
             default_wrap_kwargs = settings.get('wrap_kwargs', dict(name_or_index=target_name) if is_reducing else None)
-            setup_id = func.__module__ + '.' + func.__name__
 
             def new_method(self,
                            *args,
@@ -99,7 +96,7 @@ def attach_nb_methods(config: Config) -> WrapperFuncT:
     return wrapper
 
 
-def attach_transform_methods(config: Config) -> WrapperFuncT:
+def attach_transform_methods(config: Config) -> tp.ClassWrapper:
     """Class decorator to add transformation methods.
 
     `config` must contain target method names (keys) and dictionaries (values) with the following keys:

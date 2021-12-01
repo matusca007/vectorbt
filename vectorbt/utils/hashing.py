@@ -29,6 +29,6 @@ class Hashable:
         return self.hash
 
     def __eq__(self, other: tp.Any) -> bool:
-        if isinstance(other, self.__class__):
+        if isinstance(other, type(self)):
             return self.hash_key == other.hash_key
         raise NotImplementedError

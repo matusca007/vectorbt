@@ -14,7 +14,7 @@ import pandas as pd
 from vectorbt import _typing as tp
 from vectorbt.base.wrapping import Wrapping
 from vectorbt.utils import checks
-from vectorbt.utils.attr_ import get_dict_attr
+from vectorbt.utils.attr_ import get_dict_attr, AttrResolver
 from vectorbt.utils.config import Config, merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.tagging import match_tags
@@ -41,7 +41,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
         checks.assert_instance_of(self, Wrapping)
 
         # Copy writeable attrs
-        self._metrics = self.__class__._metrics.copy()
+        self._metrics = type(self)._metrics.copy()
 
     @property
     def stats_defaults(self) -> tp.Kwargs:
@@ -134,6 +134,8 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                     arguments in the signature (see below). If `resolve_calc_func` is False, `calc_func`
                     must accept (resolved) self and dictionary of merged metric settings.
                     Defaults to True.
+                * `use_shortcuts`: Whether to use shortcut properties whenever possible when
+                    resolving `calc_func`. Defaults to True.
                 * `post_calc_func`: Function to post-process the result of `calc_func`.
                     Must accept (resolved) self, output of `calc_func`, and dictionary of merged metric settings,
                     and return whatever is acceptable to be returned by `calc_func`. Defaults to None.
@@ -151,8 +153,8 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 * `resolve_{arg}`: Whether to resolve an argument that is meant to be an attribute of
                     this object and is present in the function's signature. Defaults to False.
                     See `vectorbt.utils.attr_.AttrResolver.resolve_attr`.
-                * `search_for_get`: Whether to search for a `get_` method.
-                * `search_for_get_{arg}`: Whether to search for a `get_{arg}` method.
+                * `use_shortcuts_{arg}`: Whether to use shortcut properties whenever possible when resolving
+                    an argument. Defaults to True.
                 * `template_mapping`: Mapping to replace templates in metric settings. Used across all settings.
                 * Any other keyword argument that overrides the settings or is passed directly to `calc_func`.
 
@@ -448,7 +450,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 calc_func = final_kwargs.pop('calc_func')
                 resolve_calc_func = final_kwargs.pop('resolve_calc_func', True)
                 post_calc_func = final_kwargs.pop('post_calc_func', None)
-                search_for_get = final_kwargs.pop('search_for_get', True)
+                use_shortcuts = final_kwargs.pop('use_shortcuts', True)
                 use_caching = final_kwargs.pop('use_caching', True)
                 fill_wrap_kwargs = final_kwargs.pop('fill_wrap_kwargs', False)
                 if fill_wrap_kwargs:
@@ -472,18 +474,15 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                                           _opt_arg_names: tp.Set[str] = opt_arg_names,
                                           _custom_arg_names: tp.Set[str] = custom_arg_names,
                                           _arg_cache_dct: tp.Kwargs = arg_cache_dct,
-                                          _search_for_get: bool = search_for_get,
+                                          _use_shortcuts: bool = use_shortcuts,
                                           _use_caching: bool = use_caching) -> tp.Any:
                             if attr in _final_kwargs:
                                 return _final_kwargs[attr]
-                            if _search_for_get and 'get_' + attr in dir(type(obj)):
-                                _attr = 'get_' + attr
-                            else:
-                                _attr = attr
                             if args is None:
                                 args = ()
                             if kwargs is None:
                                 kwargs = {}
+
                             if obj is custom_reself and _final_kwargs.pop('resolve_path_' + attr, True):
                                 if call_attr:
                                     return custom_reself.resolve_attr(
@@ -495,10 +494,19 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                                         cache_dct=_arg_cache_dct,
                                         use_caching=_use_caching,
                                         passed_kwargs_out=passed_kwargs_out,
-                                        search_for_get=_search_for_get
+                                        use_shortcuts=_use_shortcuts
                                     )
+                                if isinstance(obj, AttrResolver):
+                                    cls_dir = obj.cls_dir
+                                else:
+                                    cls_dir = dir(type(obj))
+                                if 'get_' + attr in cls_dir:
+                                    _attr = 'get_' + attr
+                                else:
+                                    _attr = attr
                                 return getattr(obj, _attr)
-                            out = getattr(obj, _attr)
+
+                            out = getattr(obj, attr)
                             if callable(out) and call_attr:
                                 return out(*args, **kwargs)
                             return out
@@ -519,7 +527,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                         for k in func_arg_names:
                             if k not in final_kwargs:
                                 resolve_arg = final_kwargs.pop('resolve_' + k, False)
-                                search_for_get_arg = final_kwargs.pop('search_for_get_' + k, True)
+                                use_shortcuts_arg = final_kwargs.pop('use_shortcuts_' + k, True)
                                 if resolve_arg:
                                     try:
                                         arg_out = custom_reself.resolve_attr(
@@ -528,7 +536,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                                             custom_arg_names=custom_arg_names,
                                             cache_dct=arg_cache_dct,
                                             use_caching=use_caching,
-                                            search_for_get=search_for_get_arg
+                                            use_shortcuts=use_shortcuts_arg
                                         )
                                     except AttributeError:
                                         continue

@@ -67,7 +67,7 @@ class ChunkedSetup(Hashable, SafeToStr):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"setup_id={self.setup_id}, " \
                f"func={self.func}, " \
                f"options={prepare_for_doc(self.options)}, " \

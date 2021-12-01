@@ -187,7 +187,7 @@ class TelegramBot(Configured):
             self.dispatcher.add_handler(handler)
         self.dispatcher.add_handler(MessageHandler(Filters.status_update.migrate, self.chat_migration_callback))
         self.dispatcher.add_handler(MessageHandler(Filters.command, self.unknown_callback))
-        self.dispatcher.add_error_handler(self_decorator(self, self.__class__.error_callback))
+        self.dispatcher.add_error_handler(self_decorator(self, type(self).error_callback))
 
         # Set up data
         if 'chat_ids' not in self.dispatcher.bot_data:

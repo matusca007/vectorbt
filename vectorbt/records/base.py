@@ -301,7 +301,7 @@ respectively. Caching can be disabled globally via `caching` in `vectorbt._setti
 
 !!! note
     Because of caching, class is meant to be immutable and all properties are read-only.
-    To change any attribute, use the `copy` method and pass the attribute as keyword argument.
+    To change any attribute, use the `Records.replace` method and pass changes as keyword arguments.
 
 ## Saving and loading
 
@@ -574,6 +574,8 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         """Get records corresponding to column indices.
 
         Returns new records array."""
+        if len(self.values) == 0:
+            return self.values
         if self.col_mapper.is_sorted():
             func = jit_registry.resolve_option(nb.record_col_lens_select_nb, jitted)
             new_records_arr = func(self.values, self.col_mapper.col_lens, to_1d_array(col_idxs))  # faster

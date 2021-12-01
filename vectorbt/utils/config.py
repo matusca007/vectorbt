@@ -34,7 +34,7 @@ class Default(Hashable, SafeToStr):
         return (self.value,)
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"key=\"{self.value}\")"
 
 
@@ -54,7 +54,7 @@ class Ref(Hashable, SafeToStr):
         return (self.key,)
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"key=\"{self.key}\")"
 
 
@@ -247,7 +247,7 @@ def merge_dicts(*dicts: InConfigLikeT,
             dicts = tuple([copy_dict(dct, copy_mode=copy_mode, nested=nested) for dct in dicts])
     x, y = dicts[0], dicts[1]
     should_update = True
-    if x.__class__ is dict and y.__class__ is dict and len(x) == 0:
+    if type(x) is dict and type(y) is dict and len(x) == 0:
         x = y
         should_update = False
     if isinstance(x, atomic_dict) or isinstance(y, atomic_dict):
@@ -340,7 +340,7 @@ class PickleableDict(Pickleable, dict):
         dct = dict()
         for k, v in self.items():
             if isinstance(v, Pickleable):
-                dct[k] = DumpTuple(cls=v.__class__, dumps=v.dumps(**kwargs))
+                dct[k] = DumpTuple(cls=type(v), dumps=v.dumps(**kwargs))
             else:
                 dct[k] = v
         return pickle.dumps(dct, **kwargs)
@@ -493,7 +493,7 @@ class Config(PickleableDict, Documented):
             for k, v in dct.items():
                 if isinstance(v, dict) and not isinstance(v, Config):
                     if isinstance(convert_dicts, bool):
-                        config_cls = self.__class__
+                        config_cls = type(self)
                     elif issubclass(convert_dicts, Config):
                         config_cls = convert_dicts
                     else:
@@ -663,7 +663,7 @@ class Config(PickleableDict, Documented):
         """Shallow operation, primarily used by `copy.copy`.
 
         Does not take into account copy parameters."""
-        cls = self.__class__
+        cls = type(self)
         self_copy = cls.__new__(cls)
         for k, v in self.__dict__.items():
             if k not in self_copy:  # otherwise copies dict keys twice
@@ -678,7 +678,7 @@ class Config(PickleableDict, Documented):
         Does not take into account copy parameters."""
         if memo is None:
             memo = {}
-        cls = self.__class__
+        cls = type(self)
         self_copy = cls.__new__(cls)
         memo[id(self)] = self_copy
         for k, v in self.__dict__.items():
@@ -814,7 +814,7 @@ class Config(PickleableDict, Documented):
 
     def stringify(self, with_params: bool = False, **kwargs) -> str:
         """Stringify using JSON."""
-        doc = self.__class__.__name__ + "(" + stringify(dict(self), **kwargs) + ")"
+        doc = type(self).__name__ + "(" + stringify(dict(self), **kwargs) + ")"
         if with_params:
             doc += " with params " + stringify(dict(
                 copy_kwargs=self.copy_kwargs_,
@@ -870,7 +870,7 @@ class Configured(Cacheable, Pickleable, Documented):
         if expected_keys is not None:
             for k in config:
                 if k not in expected_keys:
-                    raise TypeError(f"{self.__class__.__name__}.__init__() got an unexpected keyword argument '{k}'")
+                    raise TypeError(f"{type(self).__name__}.__init__() got an unexpected keyword argument '{k}'")
 
         self._config = Config(config, **configured_cfg['config'])
 
@@ -896,7 +896,7 @@ class Configured(Cacheable, Pickleable, Documented):
         if isinstance(cls_or_self, type):
             cls = cls_or_self
         else:
-            cls = cls_or_self.__class__
+            cls = type(cls_or_self)
         expected_keys = set()
         for cls in inspect.getmro(cls):
             if issubclass(cls, Configured):
@@ -913,7 +913,7 @@ class Configured(Cacheable, Pickleable, Documented):
         if isinstance(cls_or_self, type):
             cls = cls_or_self
         else:
-            cls = cls_or_self.__class__
+            cls = type(cls_or_self)
         writeable_attrs = set()
         for cls in inspect.getmro(cls):
             if issubclass(cls, Configured) and cls._writeable_attrs is not None:
@@ -931,7 +931,7 @@ class Configured(Cacheable, Pickleable, Documented):
             This operation won't return a copy of the instance but a new instance
             initialized with the same config and writeable attributes (or their copy, depending on `copy_mode`)."""
         if cls_ is None:
-            cls_ = self.__class__
+            cls_ = type(self)
         new_config = self.config.merge_with(new_config, copy_mode=copy_mode_, nested=nested_)
         new_instance = cls_(**new_config)
         for attr in self.get_writeable_attrs():
@@ -1008,4 +1008,4 @@ class Configured(Cacheable, Pickleable, Documented):
 
     def stringify(self, **kwargs) -> str:
         """Stringify using JSON."""
-        return self.__class__.__name__ + "(**" + self.config.stringify(**kwargs) + ")"
+        return type(self).__name__ + "(**" + self.config.stringify(**kwargs) + ")"

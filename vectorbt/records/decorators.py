@@ -14,10 +14,8 @@ from vectorbt.utils.config import merge_dicts, Config
 from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.mapping import to_mapping
 
-WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
 
-
-def override_field_config(*args, merge_configs: bool = True) -> tp.Union[WrapperFuncT, tp.Type[tp.T]]:
+def override_field_config(*args, merge_configs: bool = True) -> tp.FlexClassWrapper:
     """Class decorator to override field configs of all base classes in MRO that subclass
     `vectorbt.records.base.Records`.
     
@@ -55,7 +53,7 @@ def override_field_config(*args, merge_configs: bool = True) -> tp.Union[Wrapper
     raise ValueError("Either class, config, class and config, or keyword arguments must be passed")
 
 
-def attach_fields(*args, on_conflict: str = 'raise') -> tp.Union[WrapperFuncT, tp.Type[tp.T]]:
+def attach_fields(*args, on_conflict: str = 'raise') -> tp.FlexClassWrapper:
     """Class decorator to attach field properties in a `vectorbt.records.base.Records` class.
 
     Will extract `dtype` and other relevant information from `vectorbt.records.base.Records.field_config`

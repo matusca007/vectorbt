@@ -549,11 +549,11 @@ class ArrayWrapper(Configured, PandasIndexer):
 
     def wrap(self,
              arr: tp.ArrayLike,
+             group_by: tp.GroupByLike = None,
              index: tp.Optional[tp.IndexLike] = None,
              columns: tp.Optional[tp.IndexLike] = None,
              fillna: tp.Optional[tp.Scalar] = None,
              dtype: tp.Optional[tp.PandasDTypeLike] = None,
-             group_by: tp.GroupByLike = None,
              to_timedelta: bool = False,
              to_index: bool = False,
              silence_warnings: tp.Optional[bool] = None) -> tp.SeriesFrame:
@@ -620,11 +620,11 @@ class ArrayWrapper(Configured, PandasIndexer):
 
     def wrap_reduced(self,
                      arr: tp.ArrayLike,
+                     group_by: tp.GroupByLike = None,
                      name_or_index: tp.NameIndex = None,
                      columns: tp.Optional[tp.IndexLike] = None,
                      fillna: tp.Optional[tp.Scalar] = None,
                      dtype: tp.Optional[tp.PandasDTypeLike] = None,
-                     group_by: tp.GroupByLike = None,
                      to_timedelta: bool = False,
                      to_index: bool = False,
                      silence_warnings: tp.Optional[bool] = None) -> tp.MaybeSeriesFrame:

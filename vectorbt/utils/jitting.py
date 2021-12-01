@@ -197,7 +197,7 @@ def resolve_jitter_type(jitter: tp.Optional[tp.JitterLike] = None,
     if isinstance(jitter, type) and issubclass(jitter, Jitter):
         return jitter
     if isinstance(jitter, Jitter):
-        return jitter.__class__
+        return type(jitter)
     raise TypeError(f"Jitter type {jitter} is not supported")
 
 

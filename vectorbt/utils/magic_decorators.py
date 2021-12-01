@@ -8,8 +8,6 @@ import numpy as np
 from vectorbt import _typing as tp
 from vectorbt.utils.config import Config
 
-WrapperFuncT = tp.Callable[[tp.Type[tp.T]], tp.Type[tp.T]]
-
 __pdoc__ = {}
 
 binary_magic_config = Config(
@@ -48,7 +46,7 @@ binary_magic_config = Config(
 )
 """_"""
 
-__pdoc__['binary_magic_config'] = f"""Config of binary magic methods to be added to a class.
+__pdoc__['binary_magic_config'] = f"""Config of binary magic methods to be attached to a class.
 
 ```json
 {binary_magic_config.stringify()}
@@ -59,7 +57,7 @@ BinaryTranslateFuncT = tp.Callable[[tp.Any, tp.Any, tp.Callable], tp.Any]
 
 
 def attach_binary_magic_methods(translate_func: BinaryTranslateFuncT,
-                                config: tp.Optional[Config] = None) -> WrapperFuncT:
+                                config: tp.Optional[Config] = None) -> tp.ClassWrapper:
     """Class decorator to add binary magic methods to a class.
 
     `translate_func` must
@@ -106,7 +104,7 @@ unary_magic_config = Config(
 )
 """_"""
 
-__pdoc__['unary_magic_config'] = f"""Config of unary magic methods to be added to a class.
+__pdoc__['unary_magic_config'] = f"""Config of unary magic methods to be attached to a class.
 
 ```json
 {unary_magic_config.stringify()}
@@ -117,7 +115,7 @@ UnaryTranslateFuncT = tp.Callable[[tp.Any, tp.Callable], tp.Any]
 
 
 def attach_unary_magic_methods(translate_func: UnaryTranslateFuncT,
-                               config: tp.Optional[Config] = None) -> WrapperFuncT:
+                               config: tp.Optional[Config] = None) -> tp.ClassWrapper:
     """Class decorator to add unary magic methods to a class.
 
     `translate_func` must

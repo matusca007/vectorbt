@@ -981,7 +981,8 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
         log_records=log_records,
         last_lidx=last_lidx,
         cash_earnings=cash_earnings_out,
-        call_seq=call_seq
+        call_seq=call_seq,
+        in_outputs=None
     )
 
 

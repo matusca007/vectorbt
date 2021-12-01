@@ -697,6 +697,7 @@ class SimulationOutput(tp.NamedTuple):
     log_records: tp.RecordArray2d
     cash_earnings: tp.Array2d
     call_seq: tp.Optional[tp.Array2d]
+    in_outputs: tp.Optional[tp.NamedTuple]
 
 
 __pdoc__['SimulationOutput'] = "A named tuple representing the output of a simulation."
@@ -704,6 +705,7 @@ __pdoc__['SimulationOutput.order_records'] = "Order records (flattened)."
 __pdoc__['SimulationOutput.log_records'] = "Log records (flattened)."
 __pdoc__['SimulationOutput.cash_earnings'] = "Earnings added at each timestamp."
 __pdoc__['SimulationOutput.call_seq'] = "Call sequence."
+__pdoc__['SimulationOutput.in_outputs'] = "Named tuple with in-output objects."
 
 
 class SimulationContext(tp.NamedTuple):
@@ -729,6 +731,7 @@ class SimulationContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -980,6 +983,9 @@ np.array([(0, 0, 1, 50., 1., 0., 1)]
 __pdoc__['SimulationContext.log_records'] = """Log records per column.
 
 Similar to `SimulationContext.order_records` but of type `log_dt` and index `SimulationContext.last_lidx`."""
+__pdoc__['SimulationContext.in_outputs'] = """Named tuple with in-output objects.
+
+Can contain objects of arbitrary shape and type. Will be returned as part of `SimulationOutput`."""
 __pdoc__['SimulationContext.last_cash'] = """Latest cash per column (or per group with cash sharing).
 
 At the very first timestamp, contains initial capital.
@@ -1191,6 +1197,7 @@ class GroupContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1275,6 +1282,7 @@ class RowContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1328,6 +1336,7 @@ class SegmentContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1401,6 +1410,7 @@ class OrderContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1485,6 +1495,7 @@ class PostOrderContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d
@@ -1587,6 +1598,7 @@ class FlexOrderContext(tp.NamedTuple):
     flex_2d: bool
     order_records: tp.RecordArray2d
     log_records: tp.RecordArray2d
+    in_outputs: tp.Optional[tp.NamedTuple]
     last_cash: tp.Array1d
     last_position: tp.Array1d
     last_debt: tp.Array1d

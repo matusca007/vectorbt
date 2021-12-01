@@ -393,7 +393,7 @@ class JitableSetup(Hashable, SafeToStr):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"task_id={self.task_id}, " \
                f"jitter_id={self.jitter_id}, " \
                f"py_func={self.py_func}, " \
@@ -441,7 +441,7 @@ class JittedSetup(Hashable, SafeToStr):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(" \
+        return f"{type(self).__name__}(" \
                f"jitter={self.jitter}, " \
                f"jitted_func={self.jitted_func})"
 
@@ -516,7 +516,7 @@ class JITRegistry:
                               tags: tp.Optional[set] = None):
         """Decorate a jitable function and register both jitable and jitted setups."""
         jitter = resolve_jitter(jitter=jitter, py_func=py_func, **jitter_kwargs)
-        jitter_id = get_id_of_jitter_type(jitter.__class__)
+        jitter_id = get_id_of_jitter_type(type(jitter))
         if jitter_id is None:
             raise ValueError("Jitter id cannot be None: is jitter registered globally?")
         jitable_setup = self.register_jitable_setup(

@@ -90,7 +90,7 @@ class PandasIndexer(IndexingBase):
     ...         super().__init__()
     ...
     ...     def indexing_func(self, pd_indexing_func):
-    ...         return self.__class__(
+    ...         return type(self)(
     ...             pd_indexing_func(self.df1),
     ...             pd_indexing_func(self.df2)
     ...         )
@@ -257,7 +257,7 @@ def build_param_indexer(param_names: tp.Sequence[str], class_name: str = 'ParamI
     ...         super().__init__([param_mapper])
     ...
     ...     def indexing_func(self, pd_indexing_func):
-    ...         return self.__class__(
+    ...         return type(self)(
     ...             pd_indexing_func(self.df),
     ...             indexing_on_mapper(self._my_param_mapper, self.df, pd_indexing_func)
     ...         )

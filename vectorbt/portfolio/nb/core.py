@@ -1193,7 +1193,8 @@ def prepare_simout_nb(order_records: tp.RecordArray2d,
                       log_records: tp.RecordArray2d,
                       last_lidx: tp.Array1d,
                       cash_earnings: tp.Array2d,
-                      call_seq: tp.Optional[tp.Array2d] = None) -> SimulationOutput:
+                      call_seq: tp.Optional[tp.Array2d] = None,
+                      in_outputs: tp.Optional[tp.NamedTuple] = None) -> SimulationOutput:
     """Prepare simulation output."""
     if order_records.shape[0] > 0:
         order_records_repart = generic_nb.repartition_nb(order_records, last_oidx + 1)
@@ -1207,7 +1208,8 @@ def prepare_simout_nb(order_records: tp.RecordArray2d,
         order_records=order_records_repart,
         log_records=log_records_repart,
         cash_earnings=cash_earnings,
-        call_seq=call_seq
+        call_seq=call_seq,
+        in_outputs=in_outputs
     )
 
 

@@ -198,6 +198,16 @@ class Ranges(Records):
     def field_config(self) -> Config:
         return self._field_config
 
+    @classmethod
+    def from_records(cls: tp.Type[RangesT],
+                     wrapper: ArrayWrapper,
+                     records: tp.RecordArray,
+                     ts: tp.Optional[tp.ArrayLike] = None,
+                     attach_ts: bool = True,
+                     **kwargs) -> RangesT:
+        """Build `Trades` from records."""
+        return cls(wrapper, records, ts=ts if attach_ts else None, **kwargs)
+
     def __init__(self,
                  wrapper: ArrayWrapper,
                  records_arr: tp.RecordArray,
@@ -217,7 +227,7 @@ class Ranges(Records):
         new_wrapper, new_records_arr, _, col_idxs = \
             Records.indexing_func_meta(self, pd_indexing_func, **kwargs)
         if self.ts is not None:
-            new_ts = new_wrapper.wrap(self.ts.values[:, col_idxs], group_by=False)
+            new_ts = to_2d_array(self.ts)[:, col_idxs]
         else:
             new_ts = None
         return self.replace(
@@ -265,7 +275,9 @@ class Ranges(Records):
     @property
     def ts(self) -> tp.Optional[tp.SeriesFrame]:
         """Original time series that records are built from (optional)."""
-        return self._ts
+        if self._ts is None:
+            return None
+        return self.wrapper.wrap(self._ts, group_by=False)
 
     def to_mask(self,
                 group_by: tp.GroupByLike = None,

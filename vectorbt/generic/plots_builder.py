@@ -11,7 +11,7 @@ from collections import Counter
 from vectorbt import _typing as tp
 from vectorbt.base.wrapping import Wrapping
 from vectorbt.utils import checks
-from vectorbt.utils.attr_ import get_dict_attr
+from vectorbt.utils.attr_ import get_dict_attr, AttrResolver
 from vectorbt.utils.config import Config, merge_dicts
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.tagging import match_tags
@@ -38,7 +38,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
         checks.assert_instance_of(self, Wrapping)
 
         # Copy writeable attrs
-        self._subplots = self.__class__._subplots.copy()
+        self._subplots = type(self)._subplots.copy()
 
     @property
     def plots_defaults(self) -> tp.Kwargs:
@@ -521,7 +521,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                 xaxis_kwargs = final_kwargs.pop('xaxis_kwargs', None)
                 yaxis_kwargs = final_kwargs.pop('yaxis_kwargs', None)
                 resolve_plot_func = final_kwargs.pop('resolve_plot_func', True)
-                search_for_get = final_kwargs.pop('search_for_get', True)
+                use_shortcuts = final_kwargs.pop('use_shortcuts', True)
                 use_caching = final_kwargs.pop('use_caching', True)
 
                 if plot_func is not None:
@@ -539,18 +539,15 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                                               _opt_arg_names: tp.Set[str] = opt_arg_names,
                                               _custom_arg_names: tp.Set[str] = custom_arg_names,
                                               _arg_cache_dct: tp.Kwargs = arg_cache_dct,
-                                              _search_for_get: bool = search_for_get,
+                                              _use_shortcuts: bool = use_shortcuts,
                                               _use_caching: bool = use_caching) -> tp.Any:
                                 if attr in _final_kwargs:
                                     return _final_kwargs[attr]
-                                if _search_for_get and 'get_' + attr in dir(type(obj)):
-                                    _attr = 'get_' + attr
-                                else:
-                                    _attr = attr
                                 if args is None:
                                     args = ()
                                 if kwargs is None:
                                     kwargs = {}
+
                                 if obj is custom_reself and _final_kwargs.pop('resolve_path_' + attr, True):
                                     if call_attr:
                                         return custom_reself.resolve_attr(
@@ -562,10 +559,19 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                                             cache_dct=_arg_cache_dct,
                                             use_caching=_use_caching,
                                             passed_kwargs_out=passed_kwargs_out,
-                                            search_for_get=_search_for_get
+                                            use_shortcuts=_use_shortcuts
                                         )
+                                    if isinstance(obj, AttrResolver):
+                                        cls_dir = obj.cls_dir
+                                    else:
+                                        cls_dir = dir(type(obj))
+                                    if 'get_' + attr in cls_dir:
+                                        _attr = 'get_' + attr
+                                    else:
+                                        _attr = attr
                                     return getattr(obj, _attr)
-                                out = getattr(obj, _attr)
+
+                                out = getattr(obj, attr)
                                 if callable(out) and call_attr:
                                     return out(*args, **kwargs)
                                 return out
@@ -587,7 +593,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                         for k in func_arg_names:
                             if k not in final_kwargs:
                                 resolve_arg = final_kwargs.pop('resolve_' + k, False)
-                                search_for_get_arg = final_kwargs.pop('search_for_get_' + k, True)
+                                use_shortcuts_arg = final_kwargs.pop('use_shortcuts_' + k, True)
                                 if resolve_arg:
                                     try:
                                         arg_out = custom_reself.resolve_attr(
@@ -596,7 +602,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
                                             custom_arg_names=custom_arg_names,
                                             cache_dct=arg_cache_dct,
                                             use_caching=use_caching,
-                                            search_for_get=search_for_get_arg
+                                            use_shortcuts=use_shortcuts_arg
                                         )
                                     except AttributeError:
                                         continue

@@ -101,8 +101,29 @@ col_idxs_mapper = ColIdxsMapper('col_map')
 """Default instance of `ColIdxsMapper`."""
 
 
-def merge_records(results: tp.List[tp.RecordArray], chunk_meta: ChunkMeta) -> tp.RecordArray:
-    """Merge chunks of record arrays."""
+def fix_field_in_records(record_arrays: tp.List[tp.RecordArray],
+                         chunk_meta: tp.Iterable[ChunkMeta],
+                         ann_args: tp.Optional[tp.AnnArgs] = None,
+                         mapper: tp.Optional[ChunkMapper] = None,
+                         field: str = 'col') -> None:
+    """Fix a field of the record array in each chunk."""
     for _chunk_meta in chunk_meta:
-        results[_chunk_meta.idx]['col'] += _chunk_meta.start
+        if mapper is None:
+            record_arrays[_chunk_meta.idx][field] += _chunk_meta.start
+        else:
+            _chunk_meta_mapped = mapper.map(_chunk_meta, ann_args=ann_args)
+            record_arrays[_chunk_meta.idx][field] += _chunk_meta_mapped.start
+
+
+def merge_records(results: tp.List[tp.RecordArray],
+                  chunk_meta: tp.Iterable[ChunkMeta],
+                  ann_args: tp.Optional[tp.AnnArgs] = None,
+                  mapper: tp.Optional[ChunkMapper] = None) -> tp.RecordArray:
+    """Merge chunks of record arrays.
+
+    Mapper is only applied on the column field."""
+    if 'col' in results[0].dtype.fields:
+        fix_field_in_records(results, chunk_meta, ann_args=ann_args, mapper=mapper, field='col')
+    if 'group' in results[0].dtype.fields:
+        fix_field_in_records(results, chunk_meta, field='group')
     return np.concatenate(results)
