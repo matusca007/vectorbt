@@ -953,6 +953,7 @@ class Trades(Ranges):
                  pct_scale: bool = True,
                  marker_size_range: tp.Tuple[float, float] = (7, 14),
                  opacity_range: tp.Tuple[float, float] = (0.75, 0.9),
+                 closed_trace_kwargs: tp.KwargsLike = None,
                  closed_profit_trace_kwargs: tp.KwargsLike = None,
                  closed_loss_trace_kwargs: tp.KwargsLike = None,
                  open_trace_kwargs: tp.KwargsLike = None,
@@ -969,6 +970,7 @@ class Trades(Ranges):
             pct_scale (bool): Whether to set y-axis to `Trades.returns`, otherwise to `Trades.pnl`.
             marker_size_range (tuple): Range of marker size.
             opacity_range (tuple): Range of marker opacity.
+            closed_trace_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Scatter` for "Closed" markers.
             closed_profit_trace_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Scatter` for "Closed - Profit" markers.
             closed_loss_trace_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Scatter` for "Closed - Loss" markers.
             open_trace_kwargs (dict): Keyword arguments passed to `plotly.graph_objects.Scatter` for "Open" markers.
@@ -1004,6 +1006,8 @@ class Trades(Ranges):
 
         self_col = self.select_one(column=column, group_by=False)
 
+        if closed_trace_kwargs is None:
+            closed_trace_kwargs = {}
         if closed_profit_trace_kwargs is None:
             closed_profit_trace_kwargs = {}
         if closed_loss_trace_kwargs is None:
@@ -1043,9 +1047,10 @@ class Trades(Ranges):
 
             status = self_col.get_field_arr('status')
 
-            neutral_mask = pnl == 0
-            profit_mask = pnl > 0
-            loss_mask = pnl < 0
+            valid_mask = ~np.isnan(returns)
+            neutral_mask = (pnl == 0) & valid_mask
+            profit_mask = (pnl > 0) & valid_mask
+            loss_mask = (pnl < 0) & valid_mask
 
             marker_size = min_rel_rescale(np.abs(returns), marker_size_range)
             opacity = max_rel_rescale(np.abs(returns), opacity_range)
@@ -1101,6 +1106,14 @@ class Trades(Ranges):
                     )
                     scatter.update(**kwargs)
                     fig.add_trace(scatter, **add_trace_kwargs)
+
+            # Plot Closed - Neutral scatter
+            _plot_scatter(
+                neutral_mask,
+                'Closed',
+                plotting_cfg['contrast_color_schema']['gray'],
+                closed_trace_kwargs
+            )
 
             # Plot Closed - Profit scatter
             _plot_scatter(

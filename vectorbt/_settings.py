@@ -143,11 +143,17 @@ jitting = dict(
         dict(
             np=dict(
                 cls=NumPyJitter,
-                aliases={'numpy'}
+                aliases={'numpy'},
+                options=dict(),
+                override_setup_options=dict(),
+                override_options=dict()
             ),
             nb=dict(
                 cls=NumbaJitter,
-                aliases={'numba'}
+                aliases={'numba'},
+                options=dict(),
+                override_setup_options=dict(),
+                override_options=dict()
             )
         )
     ),

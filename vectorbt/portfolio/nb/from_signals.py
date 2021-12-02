@@ -195,7 +195,7 @@ def signals_to_size_nb(position_now: float,
     """Translate direction-aware signals into size, size type, and direction."""
     if size_type != SizeType.Amount and size_type != SizeType.Value and size_type != SizeType.Percent:
         raise ValueError("Only SizeType.Amount, SizeType.Value, and SizeType.Percent are supported")
-    order_size = 0.
+    order_size = np.nan
     direction = Direction.Both
     abs_position_now = abs(position_now)
     if is_less_nb(size, 0):
@@ -693,7 +693,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                         _accumulate,
                         last_val_price[col]
                     )
-                    stop_signal_set = _stex_size != 0
+                    stop_signal_set = not np.isnan(_stex_size)
 
                 # Get user-defined signal
                 signal_ctx = SignalContext(
@@ -763,7 +763,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                     _accumulate,
                     last_val_price[col]
                 )
-                user_signal_set = _size != 0
+                user_signal_set = not np.isnan(_size)
 
                 # Decide on which signal should be executed: stop or user-defined?
                 if stop_signal_set and user_signal_set:
@@ -788,7 +788,7 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                 direction_arr[col] = _direction
 
                 if cash_sharing:
-                    if _size == 0:
+                    if np.isnan(_size):
                         temp_order_value[k] = 0.
                     else:
                         # Approximate order value
@@ -842,11 +842,11 @@ def simulate_from_signal_func_nb(target_shape: tp.Shape,
                 _size_type = size_type_arr[col]
                 _direction = direction_arr[col]
                 _slippage = slippage_arr[col]
-                if _size != 0:
+                if not np.isnan(_size):
                     if _size > 0:  # long order
                         if _direction == Direction.ShortOnly:
                             _size *= -1  # must reverse for process_order_nb
-                    else:  # short order
+                    elif _size < 0:  # short order
                         if _direction == Direction.ShortOnly:
                             _size *= -1
                     order = order_nb(

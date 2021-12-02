@@ -352,6 +352,18 @@ def test_execute_order_nb():
     assert exec_state == ExecuteOrderState(cash=2.0, position=10.0, debt=0.0, free_cash=2.0)
     assert_same_tuple(order_result, OrderResult(
         size=10.0, price=11.0, fees=-12.0, side=0, status=0, status_info=-1))
+    exec_state, order_result = nb.execute_order_nb(
+        ProcessOrderState(100., 0., 0., 100., 10., 100.),
+        nb.order_nb(10, 0, fees=0.1, fixed_fees=1, slippage=0.1))
+    assert exec_state == ExecuteOrderState(cash=99.0, position=10.0, debt=0.0, free_cash=99.0)
+    assert_same_tuple(order_result, OrderResult(
+        size=10.0, price=0.0, fees=1.0, side=0, status=0, status_info=-1))
+    exec_state, order_result = nb.execute_order_nb(
+        ProcessOrderState(100., 10., 0., 100., 10., 100.),
+        nb.order_nb(-10, 0, fees=0.1, fixed_fees=1, slippage=0.1))
+    assert exec_state == ExecuteOrderState(cash=99.0, position=0.0, debt=0.0, free_cash=99.0)
+    assert_same_tuple(order_result, OrderResult(
+        size=10.0, price=0.0, fees=1.0, side=1, status=0, status_info=-1))
 
     exec_state, order_result = nb.execute_order_nb(
         ProcessOrderState(100., 0., 0., 100., 10., 100.),

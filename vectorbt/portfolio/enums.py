@@ -27,8 +27,8 @@ __all__ = [
     'Direction',
     'PriceAreaVioMode',
     'OrderStatus',
-    'OrderSide',
     'OrderStatusInfo',
+    'OrderSide',
     'TradeDirection',
     'TradeStatus',
     'TradesType',
@@ -503,22 +503,6 @@ Attributes:
 """
 
 
-class OrderSideT(tp.NamedTuple):
-    Buy: int = 0
-    Sell: int = 1
-
-
-OrderSide = OrderSideT()
-"""_"""
-
-__pdoc__['OrderSide'] = f"""Order side.
-
-```json
-{stringify(OrderSide)}
-```
-"""
-
-
 class OrderStatusInfoT(tp.NamedTuple):
     SizeNaN: int = 0
     PriceNaN: int = 1
@@ -568,6 +552,22 @@ __pdoc__['status_info_desc'] = f"""Order status description.
 
 ```json
 {stringify(status_info_desc)}
+```
+"""
+
+
+class OrderSideT(tp.NamedTuple):
+    Buy: int = 0
+    Sell: int = 1
+
+
+OrderSide = OrderSideT()
+"""_"""
+
+__pdoc__['OrderSide'] = f"""Order side.
+
+```json
+{stringify(OrderSide)}
 ```
 """
 

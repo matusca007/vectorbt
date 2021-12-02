@@ -2550,6 +2550,35 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ```
 
         ![](/docs/img/simulate_nb.svg)
+
+        * Regularly deposit cash at open and invest it within the same bar at close:
+
+        ```python-repl
+        >>> close = pd.Series([1, 2, 3, 4, 5])
+        >>> cash_deposits = pd.Series([10., 0., 10., 0., 10.])
+        >>> pf = vbt.Portfolio.from_orders(
+        ...     close,
+        ...     size=cash_deposits,  # invest the amount deposited
+        ...     size_type='value',
+        ...     cash_deposits=cash_deposits
+        ... )
+
+        >>> pf.cash
+        0    100.0
+        1    100.0
+        2    100.0
+        3    100.0
+        4    100.0
+        dtype: float64
+
+        >>> pf.asset_flow
+        0    10.000000
+        1     0.000000
+        2     3.333333
+        3     0.000000
+        4     2.000000
+        dtype: float64
+        ```
         """
         # Get defaults
         from vectorbt._settings import settings

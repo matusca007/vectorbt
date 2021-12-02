@@ -18,8 +18,8 @@ from vectorbt.utils.math_ import (
 )
 from vectorbt.utils.template import Rep
 
-size_zero_neg_err = "Found order with size 0 or less"
-price_zero_neg_err = "Found order with price 0 or less"
+invalid_size_msg = "Encountered an order with size 0 or less"
+invalid_price_msg = "Encountered an order with price less than 0"
 
 
 @register_jitted(cache=True)
@@ -226,7 +226,7 @@ def get_entry_trades_nb(order_records: tp.RecordArray,
     ```"""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
-    max_records = np.max(col_lens) + int(np.any(init_position != 0))
+    max_records = np.max(col_lens) + int((init_position != 0).any())
     new_records = np.empty((max_records, len(col_lens)), dtype=trade_dt)
     counts = np.full(len(col_lens), 0, dtype=np.int_)
 
@@ -278,9 +278,9 @@ def get_entry_trades_nb(order_records: tp.RecordArray,
             order_side = order_record['side']
 
             if order_size <= 0.:
-                raise ValueError(size_zero_neg_err)
-            if order_price <= 0.:
-                raise ValueError(price_zero_neg_err)
+                raise ValueError(invalid_size_msg)
+            if order_price < 0.:
+                raise ValueError(invalid_price_msg)
 
             if not in_position:
                 # New position opened
@@ -440,45 +440,11 @@ def get_exit_trades_nb(order_records: tp.RecordArray,
 
     ## Example
 
+    Building upon the example in `get_exit_trades_nb`:
+
     ```python-repl
-    >>> import numpy as np
-    >>> import pandas as pd
-    >>> from vectorbt.records.nb import col_map_nb
-    >>> from vectorbt.portfolio.nb import simulate_from_orders_nb, get_exit_trades_nb
+    >>> from vectorbt.portfolio.nb import get_exit_trades_nb
 
-    >>> close = order_price = np.array([
-    ...     [1, 6],
-    ...     [2, 5],
-    ...     [3, 4],
-    ...     [4, 3],
-    ...     [5, 2],
-    ...     [6, 1]
-    ... ])
-    >>> size = np.asarray([
-    ...     [1, -1],
-    ...     [0.1, -0.1],
-    ...     [-1, 1],
-    ...     [-0.1, 0.1],
-    ...     [1, -1],
-    ...     [-2, 2]
-    ... ])
-    >>> target_shape = close.shape
-    >>> group_lens = np.full(target_shape[1], 1)
-    >>> init_cash = np.full(target_shape[1], 100)
-    >>> call_seq = np.full(target_shape, 0)
-
-    >>> sim_out = simulate_from_orders_nb(
-    ...     target_shape,
-    ...     group_lens,
-    ...     init_cash,
-    ...     call_seq,
-    ...     size=size,
-    ...     price=close,
-    ...     fees=np.asarray(0.01),
-    ...     slippage=np.asarray(0.01)
-    ... )
-
-    >>> col_map = col_map_nb(sim_out.order_records['col'], target_shape[1])
     >>> exit_trade_records = get_exit_trades_nb(sim_out.order_records, close, col_map)
     >>> pd.DataFrame.from_records(exit_trade_records)
        id  col  size  entry_idx  entry_price  entry_fees  exit_idx  exit_price  \\
@@ -503,7 +469,7 @@ def get_exit_trades_nb(order_records: tp.RecordArray,
     ```"""
     col_idxs, col_lens = col_map
     col_start_idxs = np.cumsum(col_lens) - col_lens
-    max_records = np.max(col_lens) + int(np.any(init_position != 0))
+    max_records = np.max(col_lens) + int((init_position != 0).any())
     new_records = np.empty((max_records, len(col_lens)), dtype=trade_dt)
     counts = np.full(len(col_lens), 0, dtype=np.int_)
 
@@ -550,9 +516,9 @@ def get_exit_trades_nb(order_records: tp.RecordArray,
             order_side = order_record['side']
 
             if order_size <= 0.:
-                raise ValueError(size_zero_neg_err)
-            if order_price <= 0.:
-                raise ValueError(price_zero_neg_err)
+                raise ValueError(invalid_size_msg)
+            if order_price < 0.:
+                raise ValueError(invalid_price_msg)
 
             if not in_position:
                 # Trade opened

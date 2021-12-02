@@ -169,6 +169,7 @@ def buy_nb(exec_state: ExecuteOrderState,
             fees_paid = cash_limit - max_req_cash
             final_req_cash = cash_limit
 
+    # Check size of zero
     if is_close_nb(adj_size, 0):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeZero)
 
@@ -300,6 +301,7 @@ def sell_nb(exec_state: ExecuteOrderState,
     if not np.isnan(size_granularity):
         size_limit = size_limit // size_granularity * size_granularity
 
+    # Check size of zero
     if is_close_nb(size_limit, 0):
         return exec_state, order_not_filled_nb(OrderStatus.Ignored, OrderStatusInfo.SizeZero)
 
@@ -319,7 +321,7 @@ def sell_nb(exec_state: ExecuteOrderState,
 
     # Get final cash by subtracting costs
     final_acq_cash = add_nb(acq_cash, -fees_paid)
-    if final_acq_cash < 0:
+    if final_acq_cash < 0 and is_less_nb(exec_state.cash, -final_acq_cash):
         return exec_state, order_not_filled_nb(OrderStatus.Rejected, OrderStatusInfo.CantCoverFees)
 
     # Update current cash balance and position
@@ -402,14 +404,14 @@ def execute_order_nb(state: ProcessOrderState,
     )
 
     # Check price area
-    if np.isinf(price_area.open) or price_area.open <= 0:
-        raise ValueError("price_area.open must be either NaN, or finite and greater than 0")
-    if np.isinf(price_area.high) or price_area.high <= 0:
-        raise ValueError("price_area.high must be either NaN, or finite and greater than 0")
-    if np.isinf(price_area.low) or price_area.low <= 0:
-        raise ValueError("price_area.low must be either NaN, or finite and greater than 0")
-    if np.isinf(price_area.close) or price_area.close <= 0:
-        raise ValueError("price_area.close must be either NaN, or finite and greater than 0")
+    if np.isinf(price_area.open) or price_area.open < 0:
+        raise ValueError("price_area.open must be either NaN, or finite and 0 or greater")
+    if np.isinf(price_area.high) or price_area.high < 0:
+        raise ValueError("price_area.high must be either NaN, or finite and 0 or greater")
+    if np.isinf(price_area.low) or price_area.low < 0:
+        raise ValueError("price_area.low must be either NaN, or finite and 0 or greater")
+    if np.isinf(price_area.close) or price_area.close < 0:
+        raise ValueError("price_area.close must be either NaN, or finite and 0 or greater")
 
     # Resolve price
     order_price = order.price
@@ -438,8 +440,8 @@ def execute_order_nb(state: ProcessOrderState,
         raise ValueError("state.free_cash cannot be NaN")
 
     # Check order
-    if not np.isfinite(order_price) or order_price <= 0:
-        raise ValueError("order.price must be finite and greater than 0")
+    if not np.isfinite(order_price) or order_price < 0:
+        raise ValueError("order.price must be finite and 0 or greater")
     if order.size_type < 0 or order.size_type >= len(SizeType):
         raise ValueError("order.size_type is invalid")
     if order.direction < 0 or order.direction >= len(Direction):
@@ -512,7 +514,7 @@ def execute_order_nb(state: ProcessOrderState,
         order_size = np.sign(order_size) * np.inf
         order_size_type = SizeType.Amount
 
-    if order_size > 0:
+    if order_size >= 0:
         new_exec_state, order_result = buy_nb(
             exec_state=exec_state,
             size=order_size,
@@ -1227,7 +1229,10 @@ def get_trade_stats_nb(size: float,
     if val_diff != 0 and direction == TradeDirection.Short:
         val_diff *= -1
     pnl = val_diff - entry_fees - exit_fees
-    ret = pnl / entry_val
+    if is_close_nb(entry_val, 0):
+        ret = np.nan
+    else:
+        ret = pnl / entry_val
     return pnl, ret
 
 
