@@ -3,18 +3,16 @@
 
 """General types used in vectorbt."""
 
+from datetime import datetime, timedelta, tzinfo
+from pathlib import Path
+from typing import *
+
 import numpy as np
 import pandas as pd
-from pandas import Series, DataFrame as Frame, Index
-from typing import *
-from datetime import datetime, timedelta, tzinfo
-from mypy_extensions import VarArg, KwArg
-from pandas.tseries.offsets import DateOffset
-from pandas.core.groupby import GroupBy as PandasGroupBy
-from pandas.core.resample import Resampler as PandasResampler
-from numba.core.registry import CPUDispatcher
+from mypy_extensions import VarArg
 from numba.typed import List as NumbaList
-from pathlib import Path
+from pandas import Series, DataFrame as Frame, Index
+from pandas.tseries.offsets import DateOffset
 
 try:
     from plotly.graph_objects import Figure, FigureWidget
@@ -34,7 +32,6 @@ if TYPE_CHECKING:
     from vectorbt.utils.parsing import Regex
     from vectorbt.utils.execution import ExecutionEngine
     from vectorbt.utils.chunking import Sizer, ChunkTaker, ChunkMeta, ChunkMetaGenerator
-    from vectorbt.generic.plotting import TraceUpdater
     from vectorbt.utils.jitting import Jitter
 else:
     Regex = 'Regex'

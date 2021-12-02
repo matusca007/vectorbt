@@ -396,7 +396,7 @@ class _RSI(RSI):
              levels: tp.Tuple[float, float] = (30, 70),
              rsi_trace_kwargs: tp.KwargsLike = None,
              add_trace_kwargs: tp.KwargsLike = None,
-             xref: str = 'x', 
+             xref: str = 'x',
              yref: str = 'y',
              fig: tp.Optional[tp.BaseFigure] = None,
              **layout_kwargs) -> tp.BaseFigure:  # pragma: no cover

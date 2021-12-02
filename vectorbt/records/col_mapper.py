@@ -4,9 +4,9 @@
 """Class for mapping column arrays."""
 
 from vectorbt import _typing as tp
-from vectorbt.jit_registry import jit_registry
 from vectorbt.base.reshaping import to_1d_array
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
+from vectorbt.jit_registry import jit_registry
 from vectorbt.records import nb
 from vectorbt.utils.decorators import cached_property, cached_method
 
@@ -95,5 +95,3 @@ class ColumnMapper(Wrapping):
         """Check whether column array is sorted."""
         func = jit_registry.resolve_option(nb.is_col_sorted_nb, jitted)
         return func(self.col_arr)
-
-

@@ -14,8 +14,8 @@ from vectorbt.utils import checks
 from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.docs import SafeToStr, Documented, stringify
-from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.hashing import Hashable
+from vectorbt.utils.parsing import get_func_arg_names
 
 
 class Default(Hashable, SafeToStr):

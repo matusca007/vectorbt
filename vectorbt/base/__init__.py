@@ -5,8 +5,8 @@
 
 from vectorbt.base.chunking import GroupLensMapper, FlexArraySelector, FlexArraySlicer
 from vectorbt.base.grouping import Grouper
-from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.base.reshaping import broadcast, broadcast_to
+from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 
 __all__ = [
     'ArrayWrapper',

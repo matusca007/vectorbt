@@ -1178,7 +1178,6 @@ from numba import njit
 from numba.typed import List
 
 from vectorbt import _typing as tp
-from vectorbt.jit_registry import jit_registry
 from vectorbt.base import indexes, reshaping, combining
 from vectorbt.base.indexing import build_param_indexer
 from vectorbt.base.wrapping import ArrayWrapper, Wrapping
@@ -1186,15 +1185,15 @@ from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.accessors import BaseAccessor
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
+from vectorbt.jit_registry import jit_registry
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, resolve_dict, Config, Default, Ref, resolve_refs
+from vectorbt.utils.config import merge_dicts, resolve_dict, Config, Default, resolve_refs
 from vectorbt.utils.decorators import classproperty, cacheable_property
 from vectorbt.utils.docs import stringify
 from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.mapping import to_mapping, apply_mapping
 from vectorbt.utils.params import to_typed_list, broadcast_params, create_param_product, params_to_list
 from vectorbt.utils.random_ import set_seed
-from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.template import has_templates, deep_substitute
 
 try:

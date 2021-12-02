@@ -94,9 +94,9 @@ import numpy as np
 
 from vectorbt.utils.config import Config
 from vectorbt.utils.datetime_ import get_local_tz, get_utc_tz
-from vectorbt.utils.template import Sub, RepEval, deep_substitute
-from vectorbt.utils.jitting import NumPyJitter, NumbaJitter
 from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
+from vectorbt.utils.jitting import NumPyJitter, NumbaJitter
+from vectorbt.utils.template import Sub, RepEval, deep_substitute
 
 __pdoc__ = {}
 

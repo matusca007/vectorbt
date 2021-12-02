@@ -7,9 +7,9 @@ from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.chunking import chunked, resolve_chunked
 from vectorbt.utils.config import merge_dicts
-from vectorbt.utils.template import RepEval
 from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
+from vectorbt.utils.template import RepEval
 
 
 class ChunkedSetup(Hashable, SafeToStr):

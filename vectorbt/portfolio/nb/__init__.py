@@ -44,9 +44,9 @@ other Numba-compatible types.
     See `vectorbt.utils.math_` for current tolerance values.
 """
 
+from vectorbt.portfolio.nb.analysis import *
 from vectorbt.portfolio.nb.core import *
+from vectorbt.portfolio.nb.from_order_func import *
 from vectorbt.portfolio.nb.from_orders import *
 from vectorbt.portfolio.nb.from_signals import *
-from vectorbt.portfolio.nb.from_order_func import *
 from vectorbt.portfolio.nb.records import *
-from vectorbt.portfolio.nb.analysis import *

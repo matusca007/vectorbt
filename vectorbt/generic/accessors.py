@@ -2583,12 +2583,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
     # ############# Crossover ############# #
 
     def crossed_above(self,
-                        other: tp.SeriesFrame,
-                        wait: int = 0,
-                        broadcast_kwargs: tp.KwargsLike = None,
-                        jitted: tp.JittedOption = None,
-                        chunked: tp.ChunkedOption = None,
-                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+                      other: tp.SeriesFrame,
+                      wait: int = 0,
+                      broadcast_kwargs: tp.KwargsLike = None,
+                      jitted: tp.JittedOption = None,
+                      chunked: tp.ChunkedOption = None,
+                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Generate crossover above another array.
 
         See `vectorbt.generic.nb.crossed_above_nb`.
@@ -2627,12 +2627,12 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
         return ArrayWrapper.from_obj(self_obj).wrap(out, group_by=False, **resolve_dict(wrap_kwargs))
 
     def crossed_below(self,
-                        other: tp.SeriesFrame,
-                        wait: int = 0,
-                        broadcast_kwargs: tp.KwargsLike = None,
-                        jitted: tp.JittedOption = None,
-                        chunked: tp.ChunkedOption = None,
-                        wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
+                      other: tp.SeriesFrame,
+                      wait: int = 0,
+                      broadcast_kwargs: tp.KwargsLike = None,
+                      jitted: tp.JittedOption = None,
+                      chunked: tp.ChunkedOption = None,
+                      wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Generate crossover below another array.
 
         See `vectorbt.generic.nb.crossed_above_nb` but in reversed order."""

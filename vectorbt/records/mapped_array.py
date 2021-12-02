@@ -1013,7 +1013,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         wrap_kwargs = merge_dicts(dict(name_or_index='nth'), wrap_kwargs)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.reduce(
             jit_registry.resolve_option(generic_nb.nth_reduce_nb, jitted),
@@ -1039,7 +1039,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         wrap_kwargs = merge_dicts(dict(name_or_index='nth_index'), wrap_kwargs)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.reduce(
             jit_registry.resolve_option(generic_nb.nth_index_reduce_nb, jitted),
@@ -1145,7 +1145,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         wrap_kwargs = merge_dicts(dict(name_or_index='std'), wrap_kwargs)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.reduce(
             jit_registry.resolve_option(generic_nb.std_reduce_nb, jitted),

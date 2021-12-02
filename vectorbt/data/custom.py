@@ -19,9 +19,9 @@ from functools import wraps
 import pandas as pd
 
 from vectorbt import _typing as tp
-from vectorbt.jit_registry import jit_registry
 from vectorbt.data import nb
 from vectorbt.data.base import Data
+from vectorbt.jit_registry import jit_registry
 from vectorbt.utils.config import merge_dicts
 from vectorbt.utils.datetime_ import get_utc_tz, get_local_tz, to_tzaware_datetime, datetime_to_ms
 from vectorbt.utils.parsing import get_func_kwargs

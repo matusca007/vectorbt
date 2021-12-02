@@ -7,6 +7,7 @@
     Accessors do not utilize caching."""
 
 from vectorbt.opt_packages import assert_can_import
+
 assert_can_import('plotly')
 
 from inspect import getmembers, isfunction

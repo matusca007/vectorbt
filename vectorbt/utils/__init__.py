@@ -46,12 +46,12 @@ from vectorbt.utils.decorators import (
 from vectorbt.utils.docs import stringify
 from vectorbt.utils.execution import SequenceEngine, DaskEngine, RayEngine
 from vectorbt.utils.image_ import save_animation
+from vectorbt.utils.jitting import jitted
 from vectorbt.utils.parsing import Regex
 from vectorbt.utils.profiling import Timer, MemTracer
 from vectorbt.utils.random_ import set_seed
 from vectorbt.utils.schedule_ import AsyncJob, AsyncScheduler, CancelledError, ScheduleManager
 from vectorbt.utils.template import Sub, Rep, RepEval, RepFunc, deep_substitute
-from vectorbt.utils.jitting import jitted
 
 __all__ = [
     'Default',

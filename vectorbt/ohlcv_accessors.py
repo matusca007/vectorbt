@@ -163,7 +163,6 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
             return None
         return pd.concat(to_concat, axis=1)
 
-
     @property
     def volume(self) -> tp.Optional[tp.Series]:
         """Volume series."""

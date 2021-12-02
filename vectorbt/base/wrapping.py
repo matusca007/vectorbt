@@ -94,7 +94,6 @@ from vectorbt import _typing as tp
 from vectorbt.base import indexes, reshaping
 from vectorbt.base.grouping import Grouper
 from vectorbt.base.indexing import IndexingError, PandasIndexer
-from vectorbt.base.reshaping import to_pd_array
 from vectorbt.utils import checks
 from vectorbt.utils.array_ import get_ranges_arr
 from vectorbt.utils.attr_ import AttrResolver, AttrResolverT
@@ -353,6 +352,8 @@ class ArrayWrapper(Configured, PandasIndexer):
     @classmethod
     def from_obj(cls: tp.Type[ArrayWrapperT], obj: tp.ArrayLike, *args, **kwargs) -> ArrayWrapperT:
         """Derive metadata from an object."""
+        from vectorbt.base.reshaping import to_pd_array
+
         pd_obj = to_pd_array(obj)
         index = indexes.get_index(pd_obj, 0)
         columns = indexes.get_index(pd_obj, 1)

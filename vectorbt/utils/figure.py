@@ -4,6 +4,7 @@
 """Utilities for constructing and displaying figures."""
 
 from vectorbt.opt_packages import assert_can_import
+
 assert_can_import('plotly')
 
 from plotly.graph_objects import Figure as _Figure, FigureWidget as _FigureWidget

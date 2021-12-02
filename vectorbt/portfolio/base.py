@@ -5309,7 +5309,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                          chunked: tp.ChunkedOption = None,
                          wrapper: tp.Optional[ArrayWrapper] = None,
                          wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Get closing price forward and backward filled."""
+        """Get forward and backward filled closing price.
+
+        See `vectorbt.generic.nb.fbfill_nb`."""
         if not isinstance(cls_or_self, type):
             if close is None:
                 close = cls_or_self.close
@@ -5471,7 +5473,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                           init_position_raw: tp.Optional[tp.ArrayLike] = None,
                           wrapper: tp.Optional[ArrayWrapper] = None,
                           wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get initial position."""
+        """Get initial position per column."""
         if not isinstance(cls_or_self, type):
             if init_position_raw is None:
                 init_position_raw = cls_or_self._init_position
@@ -5534,7 +5536,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                    wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get asset series per column.
 
-        Returns the current position at each time step."""
+        Returns the position at each time step."""
         if not isinstance(cls_or_self, type):
             if asset_flow is None:
                 asset_flow = cls_or_self.resolve_shortcut_attr(
@@ -5579,7 +5581,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                           wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
         """Get position mask per column/group.
 
-        An element is True if the asset is in the market at this tick."""
+        An element is True if there is a position at the given time step."""
         if not isinstance(cls_or_self, type):
             if assets is None:
                 assets = cls_or_self.resolve_shortcut_attr(
@@ -5615,7 +5617,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                               chunked: tp.ChunkedOption = None,
                               wrapper: tp.Optional[ArrayWrapper] = None,
                               wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get position coverage per column/group."""
+        """Get position coverage per column/group.
+
+        Position coverage is the number of time steps in the market divided by the total number of time steps."""
         if not isinstance(cls_or_self, type):
             if position_mask is None:
                 position_mask = cls_or_self.resolve_shortcut_attr(
@@ -5976,7 +5980,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                        chunked: tp.ChunkedOption = None,
                        wrapper: tp.Optional[ArrayWrapper] = None,
                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get initial value per column/group."""
+        """Get initial value per column/group.
+
+        Includes initial cash and the value of initial position."""
         if not isinstance(cls_or_self, type):
             if init_position_value is None:
                 init_position_value = cls_or_self.init_position_value
@@ -6023,7 +6029,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                         chunked: tp.ChunkedOption = None,
                         wrapper: tp.Optional[ArrayWrapper] = None,
                         wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Get total input value per column/group."""
+        """Get total input value per column/group.
+
+        Includes initial value and any cash deposited at any point in time."""
         if not isinstance(cls_or_self, type):
             if init_value is None:
                 init_value = cls_or_self.resolve_shortcut_attr(

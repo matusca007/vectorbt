@@ -648,7 +648,6 @@ __pdoc__['PriceArea.close'] = """Closing price of the time step.
 Violation takes place when adjusted price goes beyond this value.
 """
 
-
 NoPriceArea = PriceArea(
     open=np.nan,
     high=np.nan,

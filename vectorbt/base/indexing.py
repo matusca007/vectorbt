@@ -282,6 +282,7 @@ def build_param_indexer(param_names: tp.Sequence[str], class_name: str = 'ParamI
     1  2  2  4  4
     ```
     """
+
     class ParamIndexer(IndexingBase):
         def __init__(self, param_mappers: tp.Sequence[tp.Series],
                      level_names: tp.Optional[tp.LevelSequence] = None, **kwargs) -> None:

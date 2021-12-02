@@ -351,7 +351,7 @@ class ReturnsAccessor(GenericAccessor):
             minp = self.defaults['minp']
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.rolling_apply(
             window,
@@ -642,7 +642,7 @@ class ReturnsAccessor(GenericAccessor):
             required_return = self.defaults['required_return']
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return (self - required_return).vbt.rolling_apply(
             window,
@@ -684,7 +684,7 @@ class ReturnsAccessor(GenericAccessor):
             required_return = self.defaults['required_return']
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return (self - required_return).vbt.rolling_apply(
             window,
@@ -736,7 +736,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return (self - benchmark_rets).vbt.rolling_apply(
             window,
@@ -953,7 +953,7 @@ class ReturnsAccessor(GenericAccessor):
             func = jit_registry.resolve_option(nb.value_at_risk_1d_nb, jitted)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.rolling_apply(
             window,
@@ -999,7 +999,7 @@ class ReturnsAccessor(GenericAccessor):
             func = jit_registry.resolve_option(nb.cond_value_at_risk_1d_nb, jitted)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(None,))
+            arg_take_spec=dict(args=ch.ArgsTaker(None, ))
         )
         return self.rolling_apply(
             window,

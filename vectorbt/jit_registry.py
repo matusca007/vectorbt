@@ -314,7 +314,8 @@ non-precise type pyobject
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, atomic_dict
-from vectorbt.utils.template import RepEval, deep_substitute, CustomTemplate
+from vectorbt.utils.docs import SafeToStr, prepare_for_doc
+from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.jitting import (
     Jitter,
     resolve_jitted_kwargs,
@@ -323,8 +324,7 @@ from vectorbt.utils.jitting import (
     get_id_of_jitter_type,
     get_func_suffix
 )
-from vectorbt.utils.docs import SafeToStr, prepare_for_doc
-from vectorbt.utils.hashing import Hashable
+from vectorbt.utils.template import RepEval, deep_substitute, CustomTemplate
 
 
 class JitableSetup(Hashable, SafeToStr):

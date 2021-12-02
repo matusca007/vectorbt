@@ -21,4 +21,3 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     set_seed_nb(seed)
-
