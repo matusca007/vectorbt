@@ -1,4 +1,5 @@
 from functools import wraps
+
 import pytest
 
 import vectorbt as vbt

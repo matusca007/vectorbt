@@ -32,6 +32,84 @@ def no_post_func_nb(c: tp.NamedTuple, *args) -> None:
     return None
 
 
+@register_jitted(cache=True)
+def set_val_price_nb(c: SegmentContext, val_price: tp.FlexArray, price: tp.FlexArray) -> None:
+    """Override valuation price in a context.
+
+    Allows specifying a valuation price of positive infinity (takes the current price)
+    and negative infinity (takes the latest valuation price)."""
+    for col in range(c.from_col, c.to_col):
+        _val_price = get_col_elem_nb(c, col, val_price)
+        if np.isinf(_val_price):
+            if _val_price > 0:
+                _price = get_col_elem_nb(c, col, price)
+                if np.isinf(_price):
+                    if _price > 0:
+                        _price = get_col_elem_nb(c, col, c.close)
+                    else:
+                        _price = get_col_elem_nb(c, col, c.open)
+                _val_price = _price
+            else:
+                _val_price = c.last_val_price[col]
+        if not np.isnan(_val_price) or not c.ffill_val_price:
+            c.last_val_price[col] = _val_price
+
+
+@register_jitted(cache=True)
+def def_pre_segment_func_nb(c: SegmentContext,
+                            val_price: tp.FlexArray,
+                            price: tp.FlexArray,
+                            size: tp.FlexArray,
+                            size_type: tp.FlexArray,
+                            direction: tp.FlexArray,
+                            auto_call_seq: bool) -> tp.Args:
+    """Pre-segment function that overrides the valuation price and optionally sorts the call sequence."""
+    set_val_price_nb(c, val_price, price)
+    if auto_call_seq:
+        order_value_out = np.empty(c.group_len, dtype=np.float_)
+        sort_call_seq_nb(c, size, size_type, direction, order_value_out)
+    return ()
+
+
+@register_jitted(cache=True)
+def def_order_func_nb(c: OrderContext,
+                      size: tp.FlexArray,
+                      price: tp.FlexArray,
+                      size_type: tp.FlexArray,
+                      direction: tp.FlexArray,
+                      fees: tp.FlexArray,
+                      fixed_fees: tp.FlexArray,
+                      slippage: tp.FlexArray,
+                      min_size: tp.FlexArray,
+                      max_size: tp.FlexArray,
+                      size_granularity: tp.FlexArray,
+                      reject_prob: tp.FlexArray,
+                      price_area_vio_mode: tp.FlexArray,
+                      lock_cash: tp.FlexArray,
+                      allow_partial: tp.FlexArray,
+                      raise_reject: tp.FlexArray,
+                      log: tp.FlexArray) -> tp.Tuple[int, Order]:
+    """Order function that creates an order based on default information."""
+    return order_nb(
+        size=get_elem_nb(c, size),
+        price=get_elem_nb(c, price),
+        size_type=get_elem_nb(c, size_type),
+        direction=get_elem_nb(c, direction),
+        fees=get_elem_nb(c, fees),
+        fixed_fees=get_elem_nb(c, fixed_fees),
+        slippage=get_elem_nb(c, slippage),
+        min_size=get_elem_nb(c, min_size),
+        max_size=get_elem_nb(c, max_size),
+        size_granularity=get_elem_nb(c, size_granularity),
+        reject_prob=get_elem_nb(c, reject_prob),
+        price_area_vio_mode=get_elem_nb(c, price_area_vio_mode),
+        lock_cash=get_elem_nb(c, lock_cash),
+        allow_partial=get_elem_nb(c, allow_partial),
+        raise_reject=get_elem_nb(c, raise_reject),
+        log=get_elem_nb(c, log)
+    )
+
+
 PreSimFuncT = tp.Callable[[SimulationContext, tp.VarArg()], tp.Args]
 PostSimFuncT = tp.Callable[[SimulationContext, tp.VarArg()], None]
 PreGroupFuncT = tp.Callable[[GroupContext, tp.VarArg()], tp.Args]
@@ -1983,8 +2061,69 @@ def simulate_row_wise_nb(target_shape: tp.Shape,
 
 @register_jitted
 def no_flex_order_func_nb(c: FlexOrderContext, *args) -> tp.Tuple[int, Order]:
-    """Placeholder flexible order function that returns break column and no order."""
+    """Placeholder flexible order function that returns "break" column and no order."""
     return -1, NoOrder
+
+
+@register_jitted(cache=True)
+def def_flex_pre_segment_func_nb(c: SegmentContext,
+                                 val_price: tp.FlexArray,
+                                 price: tp.FlexArray,
+                                 size: tp.FlexArray,
+                                 size_type: tp.FlexArray,
+                                 direction: tp.FlexArray,
+                                 auto_call_seq: bool) -> tp.Args:
+    """Flexible pre-segment function that overrides the valuation price and optionally sorts the call sequence."""
+    set_val_price_nb(c, val_price, price)
+    call_seq_out = np.arange(c.group_len)
+    if auto_call_seq:
+        order_value_out = np.empty(c.group_len, dtype=np.float_)
+        sort_call_seq_out_nb(c, size, size_type, direction, order_value_out, call_seq_out)
+    return (call_seq_out,)
+
+
+@register_jitted(cache=True)
+def def_flex_order_func_nb(c: FlexOrderContext,
+                           call_seq_now: tp.Array1d,
+                           size: tp.FlexArray,
+                           price: tp.FlexArray,
+                           size_type: tp.FlexArray,
+                           direction: tp.FlexArray,
+                           fees: tp.FlexArray,
+                           fixed_fees: tp.FlexArray,
+                           slippage: tp.FlexArray,
+                           min_size: tp.FlexArray,
+                           max_size: tp.FlexArray,
+                           size_granularity: tp.FlexArray,
+                           reject_prob: tp.FlexArray,
+                           price_area_vio_mode: tp.FlexArray,
+                           lock_cash: tp.FlexArray,
+                           allow_partial: tp.FlexArray,
+                           raise_reject: tp.FlexArray,
+                           log: tp.FlexArray) -> tp.Tuple[int, Order]:
+    """Flexible order function that creates an order based on default information."""
+    if c.call_idx < c.group_len:
+        col = c.from_col + call_seq_now[c.call_idx]
+        order = order_nb(
+            size=get_col_elem_nb(c, col, size),
+            price=get_col_elem_nb(c, col, price),
+            size_type=get_col_elem_nb(c, col, size_type),
+            direction=get_col_elem_nb(c, col, direction),
+            fees=get_col_elem_nb(c, col, fees),
+            fixed_fees=get_col_elem_nb(c, col, fixed_fees),
+            slippage=get_col_elem_nb(c, col, slippage),
+            min_size=get_col_elem_nb(c, col, min_size),
+            max_size=get_col_elem_nb(c, col, max_size),
+            size_granularity=get_col_elem_nb(c, col, size_granularity),
+            reject_prob=get_col_elem_nb(c, col, reject_prob),
+            price_area_vio_mode=get_col_elem_nb(c, col, price_area_vio_mode),
+            lock_cash=get_col_elem_nb(c, col, lock_cash),
+            allow_partial=get_col_elem_nb(c, col, allow_partial),
+            raise_reject=get_col_elem_nb(c, col, raise_reject),
+            log=get_col_elem_nb(c, col, log)
+        )
+        return col, order
+    return -1, order_nothing_nb()
 
 
 FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Order]]

@@ -6,7 +6,7 @@ import pytest
 from numba import njit
 
 import vectorbt as vbt
-from tests.utils import record_arrays_close
+from tests.utils import assert_records_close
 from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.enums import range_dt
 
@@ -1673,7 +1673,7 @@ class TestAccessors:
 
     def test_between_ranges(self):
         ranges = mask.vbt.signals.between_ranges()
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 0, 3, 1), (0, 1, 1, 4, 1)
@@ -1698,7 +1698,7 @@ class TestAccessors:
         ], index=mask.index, columns=mask.columns)
 
         ranges = mask2.vbt.signals.between_ranges(other=other_mask)
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 1, 1, 1), (1, 0, 1, 2, 1), (0, 1, 1, 2, 1), (1, 1, 1, 3, 1),
@@ -1708,7 +1708,7 @@ class TestAccessors:
         assert ranges.wrapper == mask2.vbt.wrapper
 
         ranges = mask2.vbt.signals.between_ranges(other=other_mask, from_other=True)
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 1, 1, 1), (1, 0, 0, 1, 1), (0, 1, 1, 2, 1), (1, 1, 0, 2, 1),
@@ -1717,19 +1717,19 @@ class TestAccessors:
         )
         assert ranges.wrapper == mask2.vbt.wrapper
 
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_ranges(jitted=dict(parallel=True)).values,
             mask.vbt.signals.between_ranges(jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_ranges(chunked=True).values,
             mask.vbt.signals.between_ranges(chunked=False).values
         )
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_ranges(other=other_mask, jitted=dict(parallel=True)).values,
             mask.vbt.signals.between_ranges(other=other_mask, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_ranges(other=other_mask, chunked=True).values,
             mask.vbt.signals.between_ranges(other=other_mask, chunked=False).values
         )
@@ -1744,7 +1744,7 @@ class TestAccessors:
         ], index=mask.index, columns=mask.columns)
 
         ranges = mask2.vbt.signals.partition_ranges()
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 1, 3, 1), (1, 0, 4, 4, 0), (0, 1, 2, 4, 1), (0, 2, 3, 4, 0)
@@ -1752,11 +1752,11 @@ class TestAccessors:
         )
         assert ranges.wrapper == mask2.vbt.wrapper
 
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.partition_ranges(jitted=dict(parallel=True)).values,
             mask.vbt.signals.partition_ranges(jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.partition_ranges(chunked=True).values,
             mask.vbt.signals.partition_ranges(chunked=False).values
         )
@@ -1771,7 +1771,7 @@ class TestAccessors:
         ], index=mask.index, columns=mask.columns)
 
         ranges = mask2.vbt.signals.between_partition_ranges()
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 1, 3, 1), (0, 1, 2, 4, 1)
@@ -1779,11 +1779,11 @@ class TestAccessors:
         )
         assert ranges.wrapper == mask2.vbt.wrapper
 
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_partition_ranges(jitted=dict(parallel=True)).values,
             mask.vbt.signals.between_partition_ranges(jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             mask.vbt.signals.between_partition_ranges(chunked=True).values,
             mask.vbt.signals.between_partition_ranges(chunked=False).values
         )

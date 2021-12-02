@@ -4,8 +4,8 @@ import os
 from collections import namedtuple
 from copy import copy, deepcopy
 from datetime import datetime as _datetime, timedelta as _timedelta, time as _time, timezone as _timezone
-from itertools import product, combinations
 from functools import wraps
+from itertools import product, combinations
 
 import numpy as np
 import pandas as pd

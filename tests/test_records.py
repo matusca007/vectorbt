@@ -6,7 +6,7 @@ import pytest
 from numba import njit
 
 import vectorbt as vbt
-from tests.utils import record_arrays_close
+from tests.utils import assert_records_close
 from vectorbt.generic.enums import range_dt, drawdown_dt
 from vectorbt.portfolio.enums import order_dt, trade_dt, log_dt
 
@@ -1607,7 +1607,7 @@ class TestRecords:
 
     def test_apply_mask(self):
         mask_a = records['a'].values['some_field1'] >= records['a'].values['some_field1'].mean()
-        record_arrays_close(
+        assert_records_close(
             records['a'].apply_mask(mask_a).values,
             np.array([
                 (1, 0, 1, 11., 20.), (2, 0, 2, 12., 19.)
@@ -1615,7 +1615,7 @@ class TestRecords:
         )
         mask = records.values['some_field1'] >= records.values['some_field1'].mean()
         filtered = records.apply_mask(mask)
-        record_arrays_close(
+        assert_records_close(
             filtered.values,
             np.array([
                 (2, 0, 2, 12., 19.), (0, 1, 0, 13., 18.), (1, 1, 1, 14., 17.),
@@ -1810,7 +1810,7 @@ class TestRecords:
         else:
             r = records
             r_grouped = records_grouped
-        record_arrays_close(
+        assert_records_close(
             r['a'].values,
             np.array([
                 (0, 0, 0, 10., 21.), (1, 0, 1, 11., 20.), (2, 0, 2, 12., 19.)
@@ -1824,7 +1824,7 @@ class TestRecords:
             r['b'].wrapper.columns,
             pd.Index(['b'], dtype='object')
         )
-        record_arrays_close(
+        assert_records_close(
             r[['a', 'a']].values,
             np.array([
                 (0, 0, 0, 10., 21.), (1, 0, 1, 11., 20.), (2, 0, 2, 12., 19.),
@@ -1835,7 +1835,7 @@ class TestRecords:
             r[['a', 'a']].wrapper.columns,
             pd.Index(['a', 'a'], dtype='object')
         )
-        record_arrays_close(
+        assert_records_close(
             r[['a', 'b']].values,
             np.array([
                 (0, 0, 0, 10., 21.), (1, 0, 1, 11., 20.), (2, 0, 2, 12., 19.),
@@ -1891,12 +1891,12 @@ class TestRecords:
 
     def test_filtering(self):
         filtered_records = vbt.Records(wrapper, records_arr[[0, -1]])
-        record_arrays_close(
+        assert_records_close(
             filtered_records.values,
             np.array([(0, 0, 0, 10., 21.), (2, 2, 2, 10., 21.)], dtype=example_dt)
         )
         # a
-        record_arrays_close(
+        assert_records_close(
             filtered_records['a'].values,
             np.array([(0, 0, 0, 10., 21.)], dtype=example_dt)
         )
@@ -1907,7 +1907,7 @@ class TestRecords:
         assert filtered_records['a'].map_field('some_field1').min() == 10.
         assert filtered_records['a'].count() == 1.
         # b
-        record_arrays_close(
+        assert_records_close(
             filtered_records['b'].values,
             np.array([], dtype=example_dt)
         )
@@ -1918,7 +1918,7 @@ class TestRecords:
         assert np.isnan(filtered_records['b'].map_field('some_field1').min())
         assert filtered_records['b'].count() == 0.
         # c
-        record_arrays_close(
+        assert_records_close(
             filtered_records['c'].values,
             np.array([(2, 0, 2, 10., 21.)], dtype=example_dt)
         )
@@ -1929,7 +1929,7 @@ class TestRecords:
         assert filtered_records['c'].map_field('some_field1').min() == 10.
         assert filtered_records['c'].count() == 1.
         # d
-        record_arrays_close(
+        assert_records_close(
             filtered_records['d'].values,
             np.array([], dtype=example_dt)
         )
@@ -2022,7 +2022,7 @@ class TestRanges:
             )
 
     def test_from_ts(self):
-        record_arrays_close(
+        assert_records_close(
             ranges.values,
             np.array([
                 (0, 0, 0, 1, 1), (1, 0, 2, 3, 1), (2, 0, 4, 5, 1), (0, 1, 3, 5, 0), (0, 2, 0, 3, 1)
@@ -2033,11 +2033,11 @@ class TestRanges:
             ranges_grouped.wrapper.grouper.group_by,
             group_by
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Ranges.from_ts(ts, jitted=dict(parallel=True)).values,
             vbt.Ranges.from_ts(ts, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Ranges.from_ts(ts, chunked=True).values,
             vbt.Ranges.from_ts(ts, chunked=False).values
         )
@@ -2347,7 +2347,7 @@ class TestDrawdowns:
         assert drawdowns.replace(ts=None)['a'].ts is None
 
     def test_from_ts(self):
-        record_arrays_close(
+        assert_records_close(
             drawdowns.values,
             np.array([
                 (0, 0, 0, 1, 1, 2, 2.0, 1.0, 3.0, 1), (1, 0, 2, 3, 3, 4, 3.0, 1.0, 4.0, 1),
@@ -2360,11 +2360,11 @@ class TestDrawdowns:
             drawdowns_grouped.wrapper.grouper.group_by,
             group_by
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Drawdowns.from_ts(ts2, jitted=dict(parallel=True)).values,
             vbt.Drawdowns.from_ts(ts2, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Drawdowns.from_ts(ts2, chunked=True).values,
             vbt.Drawdowns.from_ts(ts2, chunked=False).values
         )
@@ -2725,17 +2725,17 @@ class TestDrawdowns:
     def test_active_records(self):
         assert isinstance(drawdowns.active, vbt.Drawdowns)
         assert drawdowns.active.wrapper == drawdowns.wrapper
-        record_arrays_close(
+        assert_records_close(
             drawdowns['a'].active.values,
             np.array([
                 (2, 0, 4, 5, 5, 5, 4., 1., 1., 0)
             ], dtype=drawdown_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             drawdowns['a'].active.values,
             drawdowns.active['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             drawdowns.active.values,
             np.array([
                 (2, 0, 4, 5, 5, 5, 4.0, 1.0, 1.0, 0), (0, 2, 2, 3, 4, 5, 3.0, 1.0, 2.0, 0)
@@ -2745,17 +2745,17 @@ class TestDrawdowns:
     def test_recovered_records(self):
         assert isinstance(drawdowns.recovered, vbt.Drawdowns)
         assert drawdowns.recovered.wrapper == drawdowns.wrapper
-        record_arrays_close(
+        assert_records_close(
             drawdowns['a'].recovered.values,
             np.array([
                 (0, 0, 0, 1, 1, 2, 2.0, 1.0, 3.0, 1), (1, 0, 2, 3, 3, 4, 3.0, 1.0, 4.0, 1)
             ], dtype=drawdown_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             drawdowns['a'].recovered.values,
             drawdowns.recovered['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             drawdowns.recovered.values,
             np.array([
                 (0, 0, 0, 1, 1, 2, 2.0, 1.0, 3.0, 1), (1, 0, 2, 3, 3, 4, 3.0, 1.0, 4.0, 1),
@@ -3066,18 +3066,18 @@ class TestOrders:
     def test_buy_records(self):
         assert isinstance(orders.buy, vbt.Orders)
         assert orders.buy.wrapper == orders.wrapper
-        record_arrays_close(
+        assert_records_close(
             orders['a'].buy.values,
             np.array([
                 (0, 0, 0, 1.0, 1.0, 0.01, 0), (1, 0, 1, 0.1, 2.0, 0.002, 0),
                 (4, 0, 5, 1.0, 6.0, 0.06, 0), (6, 0, 7, 2.0, 8.0, 0.16, 0)
             ], dtype=order_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             orders['a'].buy.values,
             orders.buy['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             orders.buy.values,
             np.array([
                 (0, 0, 0, 1.0, 1.0, 0.01, 0), (1, 0, 1, 0.1, 2.0, 0.002, 0),
@@ -3092,18 +3092,18 @@ class TestOrders:
     def test_sell_records(self):
         assert isinstance(orders.sell, vbt.Orders)
         assert orders.sell.wrapper == orders.wrapper
-        record_arrays_close(
+        assert_records_close(
             orders['a'].sell.values,
             np.array([
                 (2, 0, 2, 1.0, 3.0, 0.03, 1), (3, 0, 3, 0.1, 4.0, 0.004, 1),
                 (5, 0, 6, 1.0, 7.0, 0.07, 1)
             ], dtype=order_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             orders['a'].sell.values,
             orders.sell['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             orders.sell.values,
             np.array([
                 (2, 0, 2, 1.0, 3.0, 0.03, 1), (3, 0, 3, 0.1, 4.0, 0.004, 1),
@@ -3216,7 +3216,7 @@ class TestExitTrades:
         assert exit_trades.replace(close=None)['a'].close is None
 
     def test_records_arr(self):
-        record_arrays_close(
+        assert_records_close(
             exit_trades.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3239,15 +3239,15 @@ class TestExitTrades:
             orders.values[orders.values['col'] == 1],
             orders.values[orders.values['col'] == 0]
         )))
-        record_arrays_close(
+        assert_records_close(
             vbt.ExitTrades.from_orders(reversed_col_orders).values,
             exit_trades.values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.ExitTrades.from_orders(orders, jitted=dict(parallel=True)).values,
             vbt.ExitTrades.from_orders(orders, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.ExitTrades.from_orders(orders, chunked=True).values,
             vbt.ExitTrades.from_orders(orders, chunked=False).values
         )
@@ -3377,7 +3377,7 @@ class TestExitTrades:
     def test_winning_records(self):
         assert isinstance(exit_trades.winning, vbt.ExitTrades)
         assert exit_trades.winning.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].winning.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3385,11 +3385,11 @@ class TestExitTrades:
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1)
             ], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].winning.values,
             exit_trades.winning['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.winning.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3404,17 +3404,17 @@ class TestExitTrades:
     def test_losing_records(self):
         assert isinstance(exit_trades.losing, vbt.ExitTrades)
         assert exit_trades.losing.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].losing.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2)
             ], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].losing.values,
             exit_trades.losing['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.losing.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
@@ -3518,7 +3518,7 @@ class TestExitTrades:
     def test_long_records(self):
         assert isinstance(exit_trades.long, vbt.ExitTrades)
         assert exit_trades.long.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].long.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3527,11 +3527,11 @@ class TestExitTrades:
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2)
             ], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].long.values,
             exit_trades.long['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.long.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3548,15 +3548,15 @@ class TestExitTrades:
     def test_short_records(self):
         assert isinstance(exit_trades.short, vbt.ExitTrades)
         assert exit_trades.short.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].short.values,
             np.array([], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].short.values,
             exit_trades.short['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.short.values,
             np.array([
                 (0, 1, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, -1.95, -1.7875, 1, 1, 0),
@@ -3570,17 +3570,17 @@ class TestExitTrades:
     def test_open_records(self):
         assert isinstance(exit_trades.open, vbt.ExitTrades)
         assert exit_trades.open.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].open.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2)
             ], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].open.values,
             exit_trades.open['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.open.values,
             np.array([
                 (3, 0, 2., 7, 8., 0.16, 7, 8., 0., -0.16, -0.01, 0, 0, 2),
@@ -3592,7 +3592,7 @@ class TestExitTrades:
     def test_closed_records(self):
         assert isinstance(exit_trades.closed, vbt.ExitTrades)
         assert exit_trades.closed.wrapper == exit_trades.wrapper
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].closed.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3600,11 +3600,11 @@ class TestExitTrades:
                 (2, 0, 1., 5, 6., 0.06, 6, 7., 0.07, 0.87, 0.145, 0, 1, 1)
             ], dtype=trade_dt)
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades['a'].closed.values,
             exit_trades.closed['a'].values
         )
-        record_arrays_close(
+        assert_records_close(
             exit_trades.closed.values,
             np.array([
                 (0, 0, 1., 0, 1.09090909, 0.01090909, 2, 3., 0.03, 1.86818182, 1.7125, 0, 1, 0),
@@ -3727,7 +3727,7 @@ entry_trades_grouped = vbt.EntryTrades.from_orders(orders_grouped)
 
 class TestEntryTrades:
     def test_records_arr(self):
-        record_arrays_close(
+        assert_records_close(
             entry_trades.values,
             np.array([
                 (0, 0, 1.0, 0, 1.0, 0.01, 3, 3.0909090909090904, 0.03090909090909091, 2.05, 2.05, 0, 1, 0),
@@ -3754,15 +3754,15 @@ class TestEntryTrades:
             orders.values[orders.values['col'] == 1],
             orders.values[orders.values['col'] == 0]
         )))
-        record_arrays_close(
+        assert_records_close(
             vbt.EntryTrades.from_orders(reversed_col_orders).values,
             entry_trades.values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.EntryTrades.from_orders(orders, jitted=dict(parallel=True)).values,
             vbt.EntryTrades.from_orders(orders, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.EntryTrades.from_orders(orders, chunked=True).values,
             vbt.EntryTrades.from_orders(orders, chunked=False).values
         )
@@ -3790,7 +3790,7 @@ positions_grouped = vbt.Positions.from_trades(exit_trades_grouped)
 
 class TestPositions:
     def test_records_arr(self):
-        record_arrays_close(
+        assert_records_close(
             positions.values,
             np.array([
                 (0, 0, 1.1, 0, 1.09090909, 0.012, 3, 3.09090909, 0.034, 2.154, 1.795, 0, 1, 0),
@@ -3810,23 +3810,23 @@ class TestPositions:
             exit_trades.values[exit_trades.values['col'] == 1],
             exit_trades.values[exit_trades.values['col'] == 0]
         )))
-        record_arrays_close(
+        assert_records_close(
             vbt.Positions.from_trades(reversed_col_trades).values,
             positions.values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Positions.from_trades(entry_trades, jitted=dict(parallel=True)).values,
             vbt.Positions.from_trades(entry_trades, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Positions.from_trades(entry_trades, chunked=True).values,
             vbt.Positions.from_trades(entry_trades, chunked=False).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Positions.from_trades(exit_trades, jitted=dict(parallel=True)).values,
             vbt.Positions.from_trades(exit_trades, jitted=dict(parallel=False)).values
         )
-        record_arrays_close(
+        assert_records_close(
             vbt.Positions.from_trades(exit_trades, chunked=True).values,
             vbt.Positions.from_trades(exit_trades, chunked=False).values
         )

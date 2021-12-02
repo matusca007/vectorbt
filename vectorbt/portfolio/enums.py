@@ -70,8 +70,8 @@ class RejectedOrderError(Exception):
 
 
 class InitCashModeT(tp.NamedTuple):
-    Auto: int = 0
-    AutoAlign: int = 1
+    Auto: int = -1
+    AutoAlign: int = -2
 
 
 InitCashMode = InitCashModeT()

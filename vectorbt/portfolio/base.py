@@ -1638,7 +1638,6 @@ from vectorbt.generic import nb as generic_nb
 from vectorbt.generic.drawdowns import Drawdowns
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
-from vectorbt.records import nb as records_nb
 from vectorbt.jit_registry import jit_registry
 from vectorbt.portfolio import chunking as portfolio_ch
 from vectorbt.portfolio import nb
@@ -1648,6 +1647,7 @@ from vectorbt.portfolio.enums import *
 from vectorbt.portfolio.logs import Logs
 from vectorbt.portfolio.orders import Orders
 from vectorbt.portfolio.trades import Trades, EntryTrades, ExitTrades, Positions
+from vectorbt.records import nb as records_nb
 from vectorbt.returns.accessors import ReturnsAccessor
 from vectorbt.signals.generators import RANDNX, RPROBNX
 from vectorbt.utils import checks
@@ -1656,10 +1656,10 @@ from vectorbt.utils.colors import adjust_opacity
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
 from vectorbt.utils.decorators import custom_property, cached_property, class_or_instancemethod
 from vectorbt.utils.enum_ import map_enum_fields
-from vectorbt.utils.random_ import set_seed
-from vectorbt.utils.template import RepEval, deep_substitute
 from vectorbt.utils.mapping import to_mapping
 from vectorbt.utils.parsing import get_func_kwargs
+from vectorbt.utils.random_ import set_seed
+from vectorbt.utils.template import Rep, RepEval, deep_substitute
 
 try:
     import quantstats as qs
@@ -1670,11 +1670,13 @@ else:
 
 __pdoc__ = {}
 
+
 def fix_wrapper_for_records(pf: "Portfolio") -> ArrayWrapper:
     """Allow flags for records that were restricted for portfolio."""
     if pf.cash_sharing:
         return pf.wrapper.replace(allow_enable=True, allow_modify=True)
     return pf.wrapper
+
 
 returns_acc_config = Config(
     {
@@ -2537,6 +2539,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ...     close,  # acts both as reference and order price here
         ...     size,
         ...     size_type='targetpercent',
+        ...     direction='longonly',
         ...     call_seq='auto',  # first sell then buy
         ...     group_by=True,  # one group
         ...     cash_sharing=True,  # assets share the same cash
@@ -2614,8 +2617,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by = True
         if call_seq is None:
             call_seq = portfolio_cfg['call_seq']
-        if attach_call_seq is None:
-            attach_call_seq = portfolio_cfg['attach_call_seq']
         auto_call_seq = False
         if isinstance(call_seq, str):
             call_seq = map_enum_fields(call_seq, CallSeqType)
@@ -2623,6 +2624,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if call_seq == CallSeqType.Auto:
                 call_seq = CallSeqType.Default
                 auto_call_seq = True
+        if attach_call_seq is None:
+            attach_call_seq = portfolio_cfg['attach_call_seq']
         if ffill_val_price is None:
             ffill_val_price = portfolio_cfg['ffill_val_price']
         if update_value is None:
@@ -3592,8 +3595,6 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             group_by = True
         if call_seq is None:
             call_seq = portfolio_cfg['call_seq']
-        if attach_call_seq is None:
-            attach_call_seq = portfolio_cfg['attach_call_seq']
         auto_call_seq = False
         if isinstance(call_seq, str):
             call_seq = map_enum_fields(call_seq, CallSeqType)
@@ -3601,6 +3602,8 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             if call_seq == CallSeqType.Auto:
                 call_seq = CallSeqType.Default
                 auto_call_seq = True
+        if attach_call_seq is None:
+            attach_call_seq = portfolio_cfg['attach_call_seq']
         if ffill_val_price is None:
             ffill_val_price = portfolio_cfg['ffill_val_price']
         if update_value is None:
@@ -4951,6 +4954,257 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             cash_earnings=sim_out.cash_earnings,
             call_seq=call_seq if not flexible and attach_call_seq else None,
             in_outputs=sim_out.in_outputs,
+            **kwargs
+        )
+
+    @classmethod
+    def from_def_order_func(cls: tp.Type[PortfolioT],
+                            close: tp.ArrayLike,
+                            size: tp.Optional[tp.ArrayLike] = None,
+                            size_type: tp.Optional[tp.ArrayLike] = None,
+                            direction: tp.Optional[tp.ArrayLike] = None,
+                            price: tp.Optional[tp.ArrayLike] = None,
+                            fees: tp.Optional[tp.ArrayLike] = None,
+                            fixed_fees: tp.Optional[tp.ArrayLike] = None,
+                            slippage: tp.Optional[tp.ArrayLike] = None,
+                            min_size: tp.Optional[tp.ArrayLike] = None,
+                            max_size: tp.Optional[tp.ArrayLike] = None,
+                            size_granularity: tp.Optional[tp.ArrayLike] = None,
+                            reject_prob: tp.Optional[tp.ArrayLike] = None,
+                            price_area_vio_mode: tp.Optional[tp.ArrayLike] = None,
+                            lock_cash: tp.Optional[tp.ArrayLike] = None,
+                            allow_partial: tp.Optional[tp.ArrayLike] = None,
+                            raise_reject: tp.Optional[tp.ArrayLike] = None,
+                            log: tp.Optional[tp.ArrayLike] = None,
+                            pre_segment_func_nb: tp.Optional[nb.PreSegmentFuncT] = None,
+                            order_func_nb: tp.Optional[tp.Union[nb.OrderFuncT, nb.FlexOrderFuncT]] = None,
+                            val_price: tp.Optional[tp.ArrayLike] = None,
+                            call_seq: tp.Optional[tp.ArrayLike] = None,
+                            flexible: tp.Optional[bool] = None,
+                            broadcast_named_args: tp.KwargsLike = None,
+                            chunked: tp.ChunkedOption = None,
+                            **kwargs) -> PortfolioT:
+        """Build portfolio from the default order function.
+
+        Default order function takes size, price, fees, and other available information, and issues
+        an order at each column and time step. Additionally, it uses a segment preprocessing function
+        that overrides the valuation price and sorts the call sequence. This way, it behaves similarly to
+        `Portfolio.from_orders`, but allows injecting pre- and postprocessing functions to have more
+        control over the execution. It also knows how to chunk each argument. The only disadvantage is
+        that `Portfolio.from_orders` is more optimized towards performance (up to 5x).
+
+        If `flexible` is True:
+
+        * `pre_segment_func_nb` is `vectorbt.portfolio.nb.from_order_func.def_flex_pre_segment_func_nb`.
+        * `order_func_nb` is `vectorbt.portfolio.nb.from_order_func.def_flex_order_func_nb`.
+
+        If `flexible` is False:
+
+        * Pre-segment function is `vectorbt.portfolio.nb.from_order_func.def_pre_segment_func_nb`.
+        * Order function is `vectorbt.portfolio.nb.from_order_func.def_order_func_nb`.
+
+        For details on other arguments, see `Portfolio.from_orders` and `Portfolio.from_order_func`.
+
+        ## Example
+
+        Equal-weighted portfolio as in the example under `Portfolio.from_order_func`
+        but much less verbose and with asset value pre-computed during the simulation (= faster):
+
+        ```python-repl
+        >>> np.random.seed(42)
+        >>> close = np.random.uniform(1, 10, size=(5, 3))
+
+        >>> @njit
+        ... def post_segment_func_nb(c):
+        ...     for col in range(c.from_col, c.to_col):
+        ...         c.in_outputs.asset_value_pc[c.i, col] = c.last_position[col] * c.last_val_price[col]
+
+        >>> pf = vbt.Portfolio.from_def_order_func(
+        ...     close,
+        ...     size=1/3,
+        ...     size_type='targetpercent',
+        ...     direction='longonly',
+        ...     fees=0.001,
+        ...     fixed_fees=1.,
+        ...     slippage=0.001,
+        ...     segment_mask=2,
+        ...     cash_sharing=True,
+        ...     group_by=True,
+        ...     call_seq='auto',
+        ...     post_segment_func_nb=post_segment_func_nb,
+        ...     call_post_segment=True,
+        ...     in_outputs=dict(asset_value_pc=vbt.RepEval('np.empty_like(close)'))
+        ... )
+
+        >>> asset_value = pf.wrapper.wrap(pf.in_outputs.asset_value_pc, group_by=False)
+        >>> asset_value.vbt.plot()
+        ```
+
+        ![](/docs/img/simulate_nb.svg)
+        """
+        # Get defaults
+        from vectorbt._settings import settings
+        portfolio_cfg = settings['portfolio']
+
+        if flexible is None:
+            flexible = portfolio_cfg['flexible']
+        if size is None:
+            size = portfolio_cfg['size']
+        if size_type is None:
+            size_type = portfolio_cfg['size_type']
+        size_type = map_enum_fields(size_type, SizeType)
+        if direction is None:
+            direction = portfolio_cfg['order_direction']
+        direction = map_enum_fields(direction, Direction)
+        if price is None:
+            price = np.inf
+        if size is None:
+            size = portfolio_cfg['size']
+        if fees is None:
+            fees = portfolio_cfg['fees']
+        if fixed_fees is None:
+            fixed_fees = portfolio_cfg['fixed_fees']
+        if slippage is None:
+            slippage = portfolio_cfg['slippage']
+        if min_size is None:
+            min_size = portfolio_cfg['min_size']
+        if max_size is None:
+            max_size = portfolio_cfg['max_size']
+        if size_granularity is None:
+            size_granularity = portfolio_cfg['size_granularity']
+        if reject_prob is None:
+            reject_prob = portfolio_cfg['reject_prob']
+        if price_area_vio_mode is None:
+            price_area_vio_mode = portfolio_cfg['price_area_vio_mode']
+        price_area_vio_mode = map_enum_fields(price_area_vio_mode, PriceAreaVioMode)
+        if lock_cash is None:
+            lock_cash = portfolio_cfg['lock_cash']
+        if allow_partial is None:
+            allow_partial = portfolio_cfg['allow_partial']
+        if raise_reject is None:
+            raise_reject = portfolio_cfg['raise_reject']
+        if log is None:
+            log = portfolio_cfg['log']
+        if val_price is None:
+            val_price = portfolio_cfg['val_price']
+        if call_seq is None:
+            call_seq = portfolio_cfg['call_seq']
+        auto_call_seq = False
+        if isinstance(call_seq, str):
+            call_seq = map_enum_fields(call_seq, CallSeqType)
+        if isinstance(call_seq, int):
+            if call_seq == CallSeqType.Auto:
+                call_seq = CallSeqType.Default
+                auto_call_seq = True
+        if broadcast_named_args is None:
+            broadcast_named_args = {}
+        broadcast_named_args = {
+            **dict(
+                size=size,
+                size_type=size_type,
+                direction=direction,
+                price=price,
+                fees=fees,
+                fixed_fees=fixed_fees,
+                slippage=slippage,
+                min_size=min_size,
+                max_size=max_size,
+                size_granularity=size_granularity,
+                reject_prob=reject_prob,
+                price_area_vio_mode=price_area_vio_mode,
+                lock_cash=lock_cash,
+                allow_partial=allow_partial,
+                raise_reject=raise_reject,
+                log=log,
+                val_price=val_price
+            ),
+            **broadcast_named_args
+        }
+
+        # Check types
+        checks.assert_subdtype(size, np.number)
+        checks.assert_subdtype(price, np.number)
+        checks.assert_subdtype(size_type, np.int_)
+        checks.assert_subdtype(direction, np.int_)
+        checks.assert_subdtype(fees, np.number)
+        checks.assert_subdtype(fixed_fees, np.number)
+        checks.assert_subdtype(slippage, np.number)
+        checks.assert_subdtype(min_size, np.number)
+        checks.assert_subdtype(max_size, np.number)
+        checks.assert_subdtype(size_granularity, np.number)
+        checks.assert_subdtype(reject_prob, np.number)
+        checks.assert_subdtype(price_area_vio_mode, np.int_)
+        checks.assert_subdtype(lock_cash, np.bool_)
+        checks.assert_subdtype(allow_partial, np.bool_)
+        checks.assert_subdtype(raise_reject, np.bool_)
+        checks.assert_subdtype(log, np.bool_)
+        checks.assert_subdtype(val_price, np.number)
+
+        # Prepare arguments and pass to from_order_func
+        if flexible:
+            if pre_segment_func_nb is None:
+                pre_segment_func_nb = nb.def_flex_pre_segment_func_nb
+            if order_func_nb is None:
+                order_func_nb = nb.def_flex_order_func_nb
+        else:
+            if pre_segment_func_nb is None:
+                pre_segment_func_nb = nb.def_pre_segment_func_nb
+            if order_func_nb is None:
+                order_func_nb = nb.def_order_func_nb
+        order_args = (
+            Rep('size'),
+            Rep('price'),
+            Rep('size_type'),
+            Rep('direction'),
+            Rep('fees'),
+            Rep('fixed_fees'),
+            Rep('slippage'),
+            Rep('min_size'),
+            Rep('max_size'),
+            Rep('size_granularity'),
+            Rep('reject_prob'),
+            Rep('price_area_vio_mode'),
+            Rep('lock_cash'),
+            Rep('allow_partial'),
+            Rep('raise_reject'),
+            Rep('log')
+        )
+        pre_segment_args = (
+            Rep('val_price'),
+            Rep('price'),
+            Rep('size'),
+            Rep('size_type'),
+            Rep('direction'),
+            auto_call_seq
+        )
+        arg_take_spec = dict(
+            pre_segment_args=ch.ArgsTaker(*[
+                portfolio_ch.flex_array_gl_slicer if isinstance(x, Rep) else None
+                for x in pre_segment_args
+            ])
+        )
+        order_args_taker = ch.ArgsTaker(*[
+            portfolio_ch.flex_array_gl_slicer if isinstance(x, Rep) else None
+            for x in order_args
+        ])
+        if flexible:
+            arg_take_spec['flex_order_args'] = order_args_taker
+        else:
+            arg_take_spec['order_args'] = order_args_taker
+        chunked = ch.specialize_chunked_option(
+            chunked,
+            arg_take_spec=arg_take_spec
+        )
+        return cls.from_order_func(
+            close,
+            order_func_nb,
+            *order_args,
+            pre_segment_func_nb=pre_segment_func_nb,
+            pre_segment_args=pre_segment_args,
+            flexible=flexible,
+            call_seq=call_seq,
+            broadcast_named_args=broadcast_named_args,
+            chunked=chunked,
             **kwargs
         )
 

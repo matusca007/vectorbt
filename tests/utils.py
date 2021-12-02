@@ -20,7 +20,7 @@ def isclose(a, b, rel_tol=1e-06, abs_tol=0.0):
     return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-def record_arrays_close(x, y):
+def assert_records_close(x, y):
     for field in x.dtype.names:
         np.testing.assert_allclose(x[field], y[field], rtol=1e-06)
 
