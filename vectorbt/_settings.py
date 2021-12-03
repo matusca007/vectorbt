@@ -141,32 +141,25 @@ jitting = dict(
     register_new=False,
     jitters=Config(  # flex
         dict(
-            np=dict(
-                cls=NumPyJitter,
-                aliases={'numpy'},
-                options=dict(),
-                override_setup_options=dict(),
-                override_options=dict()
-            ),
             nb=dict(
                 cls=NumbaJitter,
                 aliases={'numba'},
                 options=dict(),
-                override_setup_options=dict(),
-                override_options=dict()
+                override_options=dict(),
+                resolve_kwargs=dict(),
+                tasks=dict()
+            ),
+            np=dict(
+                cls=NumPyJitter,
+                aliases={'numpy'},
+                options=dict(),
+                override_options=dict(),
+                resolve_kwargs=dict(),
+                tasks=dict()
             )
         )
     ),
     template_mapping=Config(  # flex
-        dict()
-    ),
-    task_kwargs=Config(  # flex
-        dict()
-    ),
-    jitter_kwargs=Config(  # flex
-        dict()
-    ),
-    setup_kwargs=Config(  # flex
         dict()
     )
 )
@@ -176,7 +169,9 @@ __pdoc__['jitting'] = Sub("""Sub-config with settings applied across `vectorbt.j
 `vectorbt.utils.jitting`.
 
 !!! note
-    Options (with `_options` suffix) are applied only once.
+    Options (with `_options` suffix) are applied only once. 
+    
+    Keyword arguments (with `_kwargs` suffix) are applied right away.
 
 ```json
 ${config_doc}

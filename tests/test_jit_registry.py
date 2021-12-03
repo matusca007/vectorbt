@@ -87,6 +87,23 @@ class TestJITRegistry:
         assert my2_jitted_setup.jitter == MyJitter2(test='test_my2')
         assert my2_jitted_setup.jitted_func is jitted_f_my2
 
+        def f3_my1():
+            pass
+
+        vbt.settings.jitting['jitters']['my1']['tasks'] = {
+            'f2': {
+                'replace_py_func': f3_my1
+            }
+        }
+
+        @vbt.register_jitted(task_id_or_func='f2')
+        def f2_my1():
+            pass
+
+        assert f2_my1.py_func is f3_my1
+
+        vbt.settings.jitting['jitters']['my1']['tasks'].clear()
+
     def test_match_jitable_setups(self):
         assert jit_registry.match_jitable_setups('task_id == "f"') == {
             jit_registry.jitable_setups['f']['my1'],
@@ -166,20 +183,22 @@ class TestJITRegistry:
             task_id_or_func='f', jitter='my2',
             disable=vbt.RepEval("jitter_id == 'my1'")).py_func is jitted_f_my2.py_func
 
-        vbt.settings.jitting['task_kwargs']['tests.test_jit_registry.f4'] = dict(hello='world')
-        vbt.settings.jitting['jitter_kwargs']['my1'] = dict(hello2='world2')
-        vbt.settings.jitting['setup_kwargs'][('tests.test_jit_registry.f4', 'my1')] = dict(hello3='world3')
+        vbt.settings.jitting['jitters']['my1']['resolve_kwargs'] = dict(hello='world', hello2='world2')
+        vbt.settings.jitting['jitters']['my1']['tasks'] = {
+            'tests.test_jit_registry.f4': {
+                'resolve_kwargs': dict(hello2='world3', hello3='world3')
+            }
+        }
 
         res_func = jit_registry.resolve(
             task_id_or_func=f4, jitter=MyJitter1, allow_new=True, my_jitter_id=vbt.Rep('jitter_id'))
         assert res_func.config['hello'] == 'world'
-        assert res_func.config['hello2'] == 'world2'
-        assert res_func.config['hello3'] == 'world3'
+        assert res_func.config['hello2'] == 'world3'
+        assert res_func.config['hello2'] == 'world3'
         assert res_func.config['my_jitter_id'] == 'my1'
 
-        del vbt.settings.jitting['task_kwargs']['tests.test_jit_registry.f4']
-        del vbt.settings.jitting['jitter_kwargs']['my1']
-        del vbt.settings.jitting['setup_kwargs'][('tests.test_jit_registry.f4', 'my1')]
+        vbt.settings.jitting['jitters']['my1']['resolve_kwargs'].clear()
+        vbt.settings.jitting['jitters']['my1']['tasks'].clear()
 
         @vbt.register_jitted(task_id_or_func='f5', jitter='my1')
         def f5():

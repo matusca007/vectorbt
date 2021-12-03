@@ -318,7 +318,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                  missing_columns: str,
                  fetch_kwargs: tp.Kwargs,
                  last_index: tp.Dict[tp.Symbol, int],
-                 returned_kwargs: tp.Kwargs,
+                 returned_kwargs: tp.Dict[tp.Symbol, tp.Any],
                  **kwargs) -> None:
 
         checks.assert_instance_of(data, dict)
@@ -397,7 +397,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._missing_columns
 
     @property
-    def fetch_kwargs(self) -> dict:
+    def fetch_kwargs(self) -> tp.Kwargs:
         """Keyword arguments initially passed to `Data.fetch_symbol`."""
         return self._fetch_kwargs
 
@@ -407,7 +407,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
         return self._last_index
 
     @property
-    def returned_kwargs(self) -> dict:
+    def returned_kwargs(self) -> tp.Dict[tp.Symbol, tp.Any]:
         """Keyword arguments returned by `Data.fetch_symbol` along with the data."""
         return self._returned_kwargs
 
@@ -559,7 +559,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                   wrapper_kwargs: tp.KwargsLike = None,
                   fetch_kwargs: tp.KwargsLike = None,
                   last_index: tp.Optional[tp.Dict[tp.Symbol, int]] = None,
-                  returned_kwargs: tp.KwargsLike = None,
+                  returned_kwargs: tp.Optional[tp.Dict[tp.Symbol, tp.Any]] = None,
                   **kwargs) -> DataT:
         """Create a new `Data` instance from data.
 

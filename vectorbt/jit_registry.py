@@ -27,6 +27,7 @@ Let's implement a task that takes a sum over an array using both NumPy and Numba
 ```python-repl
 >>> import vectorbt as vbt
 >>> import numpy as np
+>>> import pandas as pd
 
 >>> @vbt.register_jitted(task_id_or_func='sum')
 ... def sum_np(a):
@@ -209,12 +210,45 @@ Let's restart the runtime and instruct vectorbt to load the file with settings b
 {'cache': False}
 ```
 
-We can also change the registration options for some specific tasks:
+We can also change the registration options for some specific tasks, and even replace Python functions.
+For example, we can change the implementation in the deepest places of the core.
+Let's change the default `ddof` from 0 to 1 in `vectorbt.generic.nb.nanstd_1d` and disable caching with Numba:
 
 ```python-repl
->>> vbt.settings.jitting.jitters['nb']['override_setup_options'] = \\
-...     {'vectorbt.generic.nb.diff_nb': dict(cache=False)}
+>>> from vectorbt.generic.nb import nanstd_1d_nb, nanvar_1d_nb
+
+>>> nanstd_1d_nb(np.array([1, 2, 3]))
+0.816496580927726
+
+>>> def new_nanstd_1d_nb(arr, ddof=1):
+...     return np.sqrt(nanvar_1d_nb(arr, ddof=ddof))
+
+>>> vbt.settings.jitting.jitters['nb']['tasks']['vectorbt.generic.nb.nanstd_1d_nb'] = dict(
+...     replace_py_func=new_nanstd_1d_nb,
+...     override_options=dict(
+...         cache=False
+...     )
+... )
+
+>>> vbt.settings.save('my_settings')
 ```
+
+After restarting the runtime:
+
+```python-repl
+>>> import os
+>>> os.environ['VBT_SETTINGS_PATH'] = "my_settings"
+
+>>> import numpy as np
+>>> from vectorbt.generic.nb import nanstd_1d_nb, nanvar_1d_nb
+
+>>> nanstd_1d_nb(np.array([1, 2, 3]))
+1.0
+```
+
+!!! note
+    All of the above examples require saving the setting to a file, restarting the runtime,
+    setting the path to the file to an environment variable, and only then importing vectorbt.
 
 ## Changing options upon resolution
 
@@ -223,20 +257,28 @@ upon resolution using `JITRegistry.resolve_option`:
 
 ```python-repl
 >>> # On specific Numba function
->>> vbt.settings.jitting.setup_kwargs[('vectorbt.generic.nb.diff_nb', 'nb')] = dict(nogil=False)
+>>> vbt.settings.jitting.jitters['nb']['tasks']['vectorbt.generic.nb.diff_nb'] = dict(
+...     resolve_kwargs=dict(
+...         nogil=False
+...     )
+... )
 
+>>> # disabled
 >>> jit_registry.resolve('vectorbt.generic.nb.diff_nb', jitter='nb').targetoptions
 {'nopython': True, 'nogil': False, 'parallel': False, 'boundscheck': False}
 
+>>> # still enabled
 >>> jit_registry.resolve('sum', jitter='nb').targetoptions
 {'nopython': True, 'nogil': True, 'parallel': False, 'boundscheck': False}
 
 >>> # On each Numba function
->>> vbt.settings.jitting.jitter_kwargs['nb'] = dict(nogil=False)
+>>> vbt.settings.jitting.jitters['nb']['resolve_kwargs'] = dict(nogil=False)
 
+>>> # disabled
 >>> jit_registry.resolve('vectorbt.generic.nb.diff_nb', jitter='nb').targetoptions
 {'nopython': True, 'nogil': False, 'parallel': False, 'boundscheck': False}
 
+>>> # disabled
 >>> jit_registry.resolve('sum', jitter='nb').targetoptions
 {'nopython': True, 'nogil': False, 'parallel': False, 'boundscheck': False}
 ```
@@ -325,6 +367,11 @@ from vectorbt.utils.jitting import (
     get_func_suffix
 )
 from vectorbt.utils.template import RepEval, deep_substitute, CustomTemplate
+
+
+def get_func_full_name(func: tp.Callable) -> str:
+    """Get full name of the func to be used as task id."""
+    return func.__module__ + '.' + func.__name__
 
 
 class JitableSetup(Hashable, SafeToStr):
@@ -580,8 +627,12 @@ class JITRegistry:
 
         For details on the format of `task_id_or_func`, see `register_jitted`.
 
-        `jitter_kwargs` are merged with `jitting.task_kwargs`, `jitting.jitter_kwargs`,
-         and `jitting.setup_kwargs` in `vectorbt._settings.settings`.
+        Jitter keyword arguments are merged in the following order:
+
+        * `jitable_setup.jitter_kwargs`
+        * `jitters.your_jitter.resolve_kwargs` in `vectorbt._settings.settings`
+        * `jitters.your_jitter.tasks.your_task.resolve_kwargs` in `vectorbt._settings.settings`
+        * `jitter_kwargs`
 
         Templates are substituted in `jitter`, `disable`, and `jitter_kwargs`.
 
@@ -616,10 +667,10 @@ class JITRegistry:
 
         if hasattr(task_id_or_func, 'py_func'):
             py_func = task_id_or_func.py_func
-            task_id = py_func.__module__ + '.' + py_func.__name__
+            task_id = get_func_full_name(py_func)
         elif callable(task_id_or_func):
             py_func = task_id_or_func
-            task_id = py_func.__module__ + '.' + py_func.__name__
+            task_id = get_func_full_name(py_func)
         else:
             py_func = None
             task_id = task_id_or_func
@@ -687,11 +738,13 @@ class JITRegistry:
             return jitable_setup.py_func
 
         if not isinstance(jitter, Jitter):
+            jitter_cfg = jitting_cfg['jitters'].get(jitter_id, {})
+            setup_cfg = jitter_cfg.get('tasks', {}).get(task_id, {})
+
             jitter_kwargs = merge_dicts(
                 jitable_setup.jitter_kwargs if jitable_setup is not None else None,
-                jitting_cfg['jitter_kwargs'].get(jitter_id, {}),
-                jitting_cfg['task_kwargs'].get(task_id, {}),
-                jitting_cfg['setup_kwargs'].get((task_id, jitter_id), {}),
+                jitter_cfg.get('resolve_kwargs', None),
+                setup_cfg.get('resolve_kwargs', None),
                 jitter_kwargs
             )
             jitter_kwargs = deep_substitute(jitter_kwargs, template_mapping, sub_id='jitter_kwargs')
@@ -743,10 +796,14 @@ def register_jitted(py_func: tp.Optional[tp.Callable] = None,
 
     Options are merged in the following order:
 
-    * `your_jitter.options` in `vectorbt._settings.settings`
-    * `**options`
-    * `your_jitter.task_options` in `vectorbt._settings.settings` with task id as key
-    * `your_jitter.override_options` in `vectorbt._settings.settings`"""
+    * `jitters.your_jitter.options` in `vectorbt._settings.settings`
+    * `jitters.your_jitter.tasks.your_task.options` in `vectorbt._settings.settings`
+    * `options`
+    * `jitters.your_jitter.override_options` in `vectorbt._settings.settings`
+    * `jitters.your_jitter.tasks.your_task.override_options` in `vectorbt._settings.settings`
+
+    `py_func` can also be overridden using `jitters.your_jitter.tasks.your_task.replace_py_func`
+    in `vectorbt._settings.settings`."""
 
     def decorator(_py_func: tp.Callable) -> tp.Callable:
         nonlocal options
@@ -754,13 +811,12 @@ def register_jitted(py_func: tp.Optional[tp.Callable] = None,
         from vectorbt._settings import settings
         jitting_cfg = settings['jitting']
 
-        wrapped_task_id = _py_func.__module__ + '.' + _py_func.__name__
         if task_id_or_func is None:
-            task_id = wrapped_task_id
+            task_id = get_func_full_name(_py_func)
         elif hasattr(task_id_or_func, 'py_func'):
-            task_id = task_id_or_func.py_func.__module__ + '.' + task_id_or_func.py_func.__name__
+            task_id = get_func_full_name(task_id_or_func.py_func)
         elif callable(task_id_or_func):
-            task_id = task_id_or_func.__module__ + '.' + task_id_or_func.__name__
+            task_id = get_func_full_name(task_id_or_func)
         else:
             task_id = task_id_or_func
 
@@ -769,14 +825,18 @@ def register_jitted(py_func: tp.Optional[tp.Callable] = None,
         jitter_id = get_id_of_jitter_type(jitter_type)
 
         jitter_cfg = jitting_cfg['jitters'].get(jitter_id, {})
-        if len(jitter_cfg.get('options', {})) > 0:
-            options = merge_dicts(jitter_cfg['options'], options)
-        if len(jitter_cfg.get('override_setup_options', {})) > 0:
-            override_setup_options = jitter_cfg['override_setup_options'].get(task_id, {})
-            if len(override_setup_options) > 0:
-                options = merge_dicts(options, override_setup_options)
-        if len(jitter_cfg.get('override_options', {})) > 0:
-            options = merge_dicts(options, jitter_cfg['override_options'])
+        setup_cfg = jitter_cfg.get('tasks', {}).get(task_id, {})
+        options = merge_dicts(
+            jitter_cfg.get('options', None),
+            setup_cfg.get('options', None),
+            options,
+            jitter_cfg.get('override_options', None),
+            setup_cfg.get('override_options', None),
+        )
+        if setup_cfg.get('replace_py_func', None) is not None:
+            _py_func = setup_cfg['replace_py_func']
+            if task_id_or_func is None:
+                task_id = get_func_full_name(_py_func)
 
         return registry.decorate_and_register(
             task_id=task_id,
