@@ -934,8 +934,6 @@ class TestConfig:
 
         assert H(1).config == {'a': 1, 'b': 2}
         assert H(1).replace(b=3).config == {'a': 1, 'b': 3}
-        with pytest.raises(Exception):
-            H(1).replace(c=4)
         assert H(pd.Series([1, 2, 3])) == H(pd.Series([1, 2, 3]))
         assert H(pd.Series([1, 2, 3])) != H(pd.Series([1, 2, 4]))
         assert H(pd.DataFrame([1, 2, 3])) == H(pd.DataFrame([1, 2, 3]))
@@ -2889,8 +2887,6 @@ class TestJitting:
 
     def test_jitted(self):
         class MyJitter(jitting.Jitter):
-            _check_expected_keys = False
-
             def decorate(self, py_func, tags=None):
                 @wraps(py_func)
                 def wrapper(*args, **kwargs):

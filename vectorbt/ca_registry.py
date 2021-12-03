@@ -1085,11 +1085,16 @@ class CABaseSetup(CAMetrics):
         from vectorbt._settings import settings
         caching_cfg = settings['caching']
 
-        if self.use_cache is None or self.whitelist is None:
+        if self.use_cache is None:
             return None
         if self.use_cache:
-            if not caching_cfg['disable'] or (self.whitelist and not caching_cfg['disable_whitelist']):
+            if not caching_cfg['disable']:
                 return True
+            if not caching_cfg['disable_whitelist']:
+                if self.whitelist is None:
+                    return None
+                if self.whitelist:
+                    return True
         return False
 
     def register(self) -> None:

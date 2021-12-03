@@ -10,8 +10,6 @@ from vectorbt.utils import jitting
 # ############# Global ############# #
 
 class MyJitter1(jitting.Jitter):
-    _check_expected_keys = False
-
     def decorate(self, py_func, tags=None):
         @wraps(py_func)
         def wrapper(*args, **kwargs):

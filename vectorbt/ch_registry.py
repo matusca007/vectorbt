@@ -198,9 +198,10 @@ def register_chunkable(func: tp.Optional[tp.Callable] = None,
     Options are merged in the following order:
 
     * `chunking.options` in `vectorbt._settings.settings`
-    * `**options`
-    * `chunking.setup_options` in `vectorbt._settings.settings` with setup id as key
+    * `chunking.setup_options.{setup_id}` in `vectorbt._settings.settings`
+    * `options`
     * `chunking.override_options` in `vectorbt._settings.settings`
+    * `chunking.override_setup_options.{setup_id}` in `vectorbt._settings.settings`
 
     !!! note
         Calling the `register_chunkable` decorator before (or below) the `vectorbt.jit_registry.register_jitted`
@@ -212,19 +213,17 @@ def register_chunkable(func: tp.Optional[tp.Callable] = None,
         nonlocal setup_id, options
 
         from vectorbt._settings import settings
-        options_cfg = settings['chunking']['options']
-        override_setup_options_cfg = settings['chunking']['override_setup_options']
-        override_options_cfg = settings['chunking']['override_options']
+        chunking_cfg = settings['chunking']
 
         if setup_id is None:
             setup_id = _func.__module__ + '.' + _func.__name__
-        if len(options_cfg) > 0:
-            options = merge_dicts(options_cfg, options)
-        if len(override_setup_options_cfg) > 0:
-            override_setup_options = override_setup_options_cfg.get(setup_id, {})
-            options = merge_dicts(options, override_setup_options)
-        if len(override_options_cfg) > 0:
-            options = merge_dicts(options, override_options_cfg)
+        options = merge_dicts(
+            chunking_cfg.get('options', None),
+            chunking_cfg.get('setup_options', {}).get(setup_id, None),
+            options,
+            chunking_cfg.get('override_options', None),
+            chunking_cfg.get('override_setup_options', {}).get(setup_id, None)
+        )
 
         registry.register(
             func=_func,

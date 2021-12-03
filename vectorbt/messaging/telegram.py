@@ -142,8 +142,6 @@ class TelegramBot(Configured):
     INFO:apscheduler.scheduler:Scheduler has been shut down
     ```"""
 
-    _check_expected_keys: tp.ClassVar[tp.Optional[bool]] = False
-
     def __init__(self, giphy_kwargs: tp.KwargsLike = None, **kwargs) -> None:
         from vectorbt._settings import settings
         telegram_cfg = settings['messaging']['telegram']

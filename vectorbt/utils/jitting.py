@@ -50,8 +50,6 @@ class NumbaJitter(Jitter):
     !!! note
         If `fix_cannot_parallel` is True, `parallel=True` will be ignored if there is no `can_parallel` tag."""
 
-    _check_expected_keys: tp.ClassVar[tp.Optional[bool]] = False
-
     def __init__(self,
                  is_generated_jit: bool = False,
                  fix_cannot_parallel: bool = True,

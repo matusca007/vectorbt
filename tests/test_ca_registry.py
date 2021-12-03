@@ -835,6 +835,7 @@ class TestCacheableRegistry:
             f3_test.get_ca_setup()
         }
         assert ca_registry.match_setups(queries, kind=None, filter_func=lambda setup: setup.caching_enabled) == {
+            b.get_ca_setup(),
             B.f_test.get_ca_setup(b),
             B.f2_test.get_ca_setup(b)
         }

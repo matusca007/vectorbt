@@ -796,11 +796,11 @@ def register_jitted(py_func: tp.Optional[tp.Callable] = None,
 
     Options are merged in the following order:
 
-    * `jitters.your_jitter.options` in `vectorbt._settings.settings`
-    * `jitters.your_jitter.tasks.your_task.options` in `vectorbt._settings.settings`
+    * `jitters.{jitter_id}.options` in `vectorbt._settings.settings`
+    * `jitters.{jitter_id}.tasks.{task_id}.options` in `vectorbt._settings.settings`
     * `options`
-    * `jitters.your_jitter.override_options` in `vectorbt._settings.settings`
-    * `jitters.your_jitter.tasks.your_task.override_options` in `vectorbt._settings.settings`
+    * `jitters.{jitter_id}.override_options` in `vectorbt._settings.settings`
+    * `jitters.{jitter_id}.tasks.{task_id}.override_options` in `vectorbt._settings.settings`
 
     `py_func` can also be overridden using `jitters.your_jitter.tasks.your_task.replace_py_func`
     in `vectorbt._settings.settings`."""

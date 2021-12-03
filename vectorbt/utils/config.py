@@ -844,20 +844,11 @@ class Configured(Cacheable, Pickleable, Documented):
 
     Settings are defined under `configured` in `vectorbt._settings.settings`.
 
-    Checks if all keys can be found in the signature of `Configured.__init__` or that of its base classes.
-    Set `Configured._check_expected_keys` to False to not check, or disable globally.
-
-    !!! note
-        `Configured._check_expected_keys` is a class attribute and applies to all instances.
-
     !!! warning
         If any attribute has been overwritten that isn't listed in `Configured._writeable_attrs`,
         or if any `Configured.__init__` argument depends upon global defaults,
         their values won't be copied over. Make sure to pass them explicitly to
         make that the saved & loaded / copied instance is resilient to any changes in globals."""
-
-    _check_expected_keys: tp.ClassVar[tp.Optional[bool]] = None
-    """Whether to check keys expected for this class."""
 
     _writeable_attrs: tp.ClassVar[tp.Optional[tp.Set[str]]] = None
     """Set of writeable attributes that will be saved/copied along with the config."""
@@ -865,12 +856,6 @@ class Configured(Cacheable, Pickleable, Documented):
     def __init__(self, **config) -> None:
         from vectorbt._settings import settings
         configured_cfg = settings['configured']
-
-        expected_keys = self.get_expected_keys()
-        if expected_keys is not None:
-            for k in config:
-                if k not in expected_keys:
-                    raise TypeError(f"{type(self).__name__}.__init__() got an unexpected keyword argument '{k}'")
 
         self._config = Config(config, **configured_cfg['config'])
 
@@ -880,32 +865,6 @@ class Configured(Cacheable, Pickleable, Documented):
     def config(self) -> Config:
         """Initialization config."""
         return self._config
-
-    @class_or_instancemethod
-    def get_expected_keys(cls_or_self) -> tp.Optional[tp.Set[str]]:
-        """Get set of keys that are expected by this class or by any of its base classes."""
-        from vectorbt._settings import settings
-        configured_cfg = settings['configured']
-
-        check_expected_keys = cls_or_self._check_expected_keys
-        if check_expected_keys is None:
-            check_expected_keys = configured_cfg['check_expected_keys']
-        if not check_expected_keys:
-            return None
-
-        if isinstance(cls_or_self, type):
-            cls = cls_or_self
-        else:
-            cls = type(cls_or_self)
-        expected_keys = set()
-        for cls in inspect.getmro(cls):
-            if issubclass(cls, Configured):
-                _check_expected_keys = cls._check_expected_keys
-                if _check_expected_keys is None:
-                    _check_expected_keys = configured_cfg['check_expected_keys']
-                if _check_expected_keys:
-                    expected_keys |= set(get_func_arg_names(cls.__init__))
-        return expected_keys
 
     @class_or_instancemethod
     def get_writeable_attrs(cls_or_self) -> tp.Optional[tp.Set[str]]:
