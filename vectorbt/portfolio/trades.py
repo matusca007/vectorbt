@@ -492,12 +492,11 @@ from vectorbt.jit_registry import jit_registry
 from vectorbt.portfolio import nb
 from vectorbt.portfolio.enums import TradeDirection, TradeStatus, trade_dt
 from vectorbt.portfolio.orders import Orders
-from vectorbt.records.decorators import attach_fields, override_field_config
+from vectorbt.records.decorators import attach_fields, override_field_config, attach_shortcut_properties
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.array_ import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import merge_dicts, Config
-from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
@@ -599,9 +598,45 @@ __pdoc__['trades_attach_field_config'] = f"""Config of fields to be attached to 
 ```
 """
 
+trades_shortcut_config = Config(
+    dict(
+        winning=dict(),
+        losing=dict(),
+        winning_streak=dict(
+            obj_type='mapped_array'
+        ),
+        losing_streak=dict(
+            obj_type='mapped_array'
+        ),
+        win_rate=dict(
+            obj_type='red_array'
+        ),
+        profit_factor=dict(
+            obj_type='red_array'
+        ),
+        expectancy=dict(
+            obj_type='red_array'
+        ),
+        sqn=dict(
+            obj_type='red_array'
+        )
+    ),
+    readonly=True,
+    as_attrs=False
+)
+"""_"""
+
+__pdoc__['trades_shortcut_config'] = f"""Config of shortcut properties to be attached to `Trades`.
+
+```json
+{trades_shortcut_config.stringify()}
+```
+"""
+
 TradesT = tp.TypeVar("TradesT", bound="Trades")
 
 
+@attach_shortcut_properties(trades_shortcut_config)
 @attach_fields(trades_attach_field_config)
 @override_field_config(trades_field_config)
 class Trades(Ranges):
@@ -662,54 +697,34 @@ class Trades(Ranges):
         raise NotImplementedError
 
     def get_winning(self: TradesT, **kwargs) -> TradesT:
-        """Winning trades."""
+        """Get winning trades."""
         filter_mask = self.values['pnl'] > 0.
         return self.apply_mask(filter_mask, **kwargs)
 
-    @cached_property
-    def winning(self: TradesT) -> TradesT:
-        """`Ranges.get_winning` with default arguments."""
-        return self.get_winning()
-
     def get_losing(self: TradesT, **kwargs) -> TradesT:
-        """Losing trades."""
+        """Get losing trades."""
         filter_mask = self.values['pnl'] < 0.
         return self.apply_mask(filter_mask, **kwargs)
 
-    @cached_property
-    def losing(self: TradesT) -> TradesT:
-        """`Ranges.get_losing` with default arguments."""
-        return self.get_losing()
-
     def get_winning_streak(self, **kwargs) -> MappedArray:
-        """Winning streak at each trade in the current column.
+        """Get winning streak at each trade in the current column.
 
         See `vectorbt.portfolio.nb.records.trade_winning_streak_nb`."""
         return self.apply(nb.trade_winning_streak_nb, dtype=np.int_, **kwargs)
 
-    @cached_property
-    def winning_streak(self) -> MappedArray:
-        """`Ranges.get_winning_streak` with default arguments."""
-        return self.get_winning_streak()
-
     def get_losing_streak(self, **kwargs) -> MappedArray:
-        """Losing streak at each trade in the current column.
+        """Get losing streak at each trade in the current column.
 
         See `vectorbt.portfolio.nb.records.trade_losing_streak_nb`."""
         return self.apply(nb.trade_losing_streak_nb, dtype=np.int_, **kwargs)
 
-    @cached_property
-    def losing_streak(self) -> MappedArray:
-        """`Ranges.get_losing_streak` with default arguments."""
-        return self.get_losing_streak()
-
-    def win_rate(self,
-                 group_by: tp.GroupByLike = None,
-                 jitted: tp.JittedOption = None,
-                 chunked: tp.ChunkedOption = None,
-                 wrap_kwargs: tp.KwargsLike = None,
-                 **kwargs) -> tp.MaybeSeries:
-        """Rate of winning trades."""
+    def get_win_rate(self,
+                     group_by: tp.GroupByLike = None,
+                     jitted: tp.JittedOption = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None,
+                     **kwargs) -> tp.MaybeSeries:
+        """Get rate of winning trades."""
         wrap_kwargs = merge_dicts(dict(name_or_index='win_rate'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.win_rate_1d_nb,
@@ -720,13 +735,13 @@ class Trades(Ranges):
             **kwargs
         )
 
-    def profit_factor(self,
-                      group_by: tp.GroupByLike = None,
-                      jitted: tp.JittedOption = None,
-                      chunked: tp.ChunkedOption = None,
-                      wrap_kwargs: tp.KwargsLike = None,
-                      **kwargs) -> tp.MaybeSeries:
-        """Profit factor."""
+    def get_profit_factor(self,
+                          group_by: tp.GroupByLike = None,
+                          jitted: tp.JittedOption = None,
+                          chunked: tp.ChunkedOption = None,
+                          wrap_kwargs: tp.KwargsLike = None,
+                          **kwargs) -> tp.MaybeSeries:
+        """Get profit factor."""
         wrap_kwargs = merge_dicts(dict(name_or_index='profit_factor'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.profit_factor_1d_nb,
@@ -737,13 +752,13 @@ class Trades(Ranges):
             **kwargs
         )
 
-    def expectancy(self,
-                   group_by: tp.GroupByLike = None,
-                   jitted: tp.JittedOption = None,
-                   chunked: tp.ChunkedOption = None,
-                   wrap_kwargs: tp.KwargsLike = None,
-                   **kwargs) -> tp.MaybeSeries:
-        """Average profitability."""
+    def get_expectancy(self,
+                       group_by: tp.GroupByLike = None,
+                       jitted: tp.JittedOption = None,
+                       chunked: tp.ChunkedOption = None,
+                       wrap_kwargs: tp.KwargsLike = None,
+                       **kwargs) -> tp.MaybeSeries:
+        """Get average profitability."""
         wrap_kwargs = merge_dicts(dict(name_or_index='expectancy'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.expectancy_1d_nb,
@@ -754,14 +769,14 @@ class Trades(Ranges):
             **kwargs
         )
 
-    def sqn(self,
-            ddof: int = 1,
-            group_by: tp.GroupByLike = None,
-            jitted: tp.JittedOption = None,
-            chunked: tp.ChunkedOption = None,
-            wrap_kwargs: tp.KwargsLike = None,
-            **kwargs) -> tp.MaybeSeries:
-        """System Quality Number (SQN)."""
+    def get_sqn(self,
+                ddof: int = 1,
+                group_by: tp.GroupByLike = None,
+                jitted: tp.JittedOption = None,
+                chunked: tp.ChunkedOption = None,
+                wrap_kwargs: tp.KwargsLike = None,
+                **kwargs) -> tp.MaybeSeries:
+        """Get System Quality Number (SQN)."""
         wrap_kwargs = merge_dicts(dict(name_or_index='sqn'), wrap_kwargs)
         return self.get_map_field('pnl').reduce(
             nb.sqn_1d_nb, ddof,
@@ -871,7 +886,7 @@ class Trades(Ranges):
             ),
             win_rate=dict(
                 title='Win Rate [%]',
-                calc_func='closed.win_rate',
+                calc_func='closed.get_win_rate',
                 post_calc_func=lambda self, out, settings: out * 100,
                 tags=RepEval("['trades', *incl_open_tags]")
             ),
@@ -913,29 +928,29 @@ class Trades(Ranges):
             ),
             avg_winning_trade_duration=dict(
                 title='Avg Winning Trade Duration',
-                calc_func=RepEval("'winning.avg_duration' if incl_open else 'closed.winning.avg_duration'"),
+                calc_func=RepEval("'winning.avg_duration' if incl_open else 'closed.winning.get_avg_duration'"),
                 fill_wrap_kwargs=True,
                 tags=RepEval("['trades', *incl_open_tags, 'winning', 'duration']")
             ),
             avg_losing_trade_duration=dict(
                 title='Avg Losing Trade Duration',
-                calc_func=RepEval("'losing.avg_duration' if incl_open else 'closed.losing.avg_duration'"),
+                calc_func=RepEval("'losing.avg_duration' if incl_open else 'closed.losing.get_avg_duration'"),
                 fill_wrap_kwargs=True,
                 tags=RepEval("['trades', *incl_open_tags, 'losing', 'duration']")
             ),
             profit_factor=dict(
                 title='Profit Factor',
-                calc_func=RepEval("'profit_factor' if incl_open else 'closed.profit_factor'"),
+                calc_func=RepEval("'profit_factor' if incl_open else 'closed.get_profit_factor'"),
                 tags=RepEval("['trades', *incl_open_tags]")
             ),
             expectancy=dict(
                 title='Expectancy',
-                calc_func=RepEval("'expectancy' if incl_open else 'closed.expectancy'"),
+                calc_func=RepEval("'expectancy' if incl_open else 'closed.get_expectancy'"),
                 tags=RepEval("['trades', *incl_open_tags]")
             ),
             sqn=dict(
                 title='SQN',
-                calc_func=RepEval("'sqn' if incl_open else 'closed.sqn'"),
+                calc_func=RepEval("'sqn' if incl_open else 'closed.get_sqn'"),
                 tags=RepEval("['trades', *incl_open_tags]")
             )
         ),

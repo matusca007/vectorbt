@@ -86,7 +86,7 @@ import vectorbt as vbt
 price = vbt.YFData.fetch('BTC-USD').get('Close')
 
 pf = vbt.Portfolio.from_holding(price, init_cash=100)
-pf.total_profit
+print(pf.total_profit)
 ```
 
 ```plaintext
@@ -102,7 +102,7 @@ entries = fast_ma.ma_crossed_above(slow_ma)
 exits = fast_ma.ma_crossed_below(slow_ma)
 
 pf = vbt.Portfolio.from_signals(price, entries, exits, init_cash=100)
-pf.total_profit
+print(pf.total_profit)
 ```
 
 ```plaintext
@@ -120,8 +120,12 @@ price = vbt.YFData.fetch(symbols, missing_index='drop').get('Close')
 n = np.random.randint(10, 101, size=1000).tolist()
 pf = vbt.Portfolio.from_random_signals(price, n=n, init_cash=100, seed=42)
 
-mean_expectancy = pf.trades.expectancy().groupby(['randnx_n', 'symbol']).mean()
-fig = mean_expectancy.unstack().vbt.scatterplot(xaxis_title='randnx_n', yaxis_title='mean_expectancy')
+fig = pf.trades \
+    .expectancy \
+    .groupby(['randnx_n', 'symbol']) \
+    .mean() \
+    .unstack() \
+    .vbt.scatterplot(xaxis_title='randnx_n', yaxis_title='mean_expectancy')
 fig.show()
 ```
 
@@ -153,7 +157,7 @@ fig.show()
 Digging into each strategy configuration is as simple as indexing with pandas:
 
 ```python
-pf[(10, 20, 'ETH-USD')].stats()
+print(pf[(10, 20, 'ETH-USD')].stats())
 ```
 
 ```plaintext

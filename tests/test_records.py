@@ -2080,17 +2080,17 @@ class TestRanges:
             ])
         )
 
-    def test_to_mask(self):
+    def test_mask(self):
         pd.testing.assert_series_equal(
-            ranges['a'].to_mask(),
+            ranges['a'].mask,
             ts['a'] != -1
         )
         pd.testing.assert_frame_equal(
-            ranges.to_mask(),
+            ranges.mask,
             ts != -1
         )
         pd.testing.assert_frame_equal(
-            ranges_grouped.to_mask(),
+            ranges_grouped.mask,
             pd.DataFrame(
                 [
                     [True, True],
@@ -2105,12 +2105,12 @@ class TestRanges:
             )
         )
         pd.testing.assert_frame_equal(
-            ranges.to_mask(jitted=dict(parallel=True)),
-            ranges.to_mask(jitted=dict(parallel=False))
+            ranges.get_mask(jitted=dict(parallel=True)),
+            ranges.get_mask(jitted=dict(parallel=False))
         )
         pd.testing.assert_frame_equal(
-            ranges.to_mask(chunked=True),
-            ranges.to_mask(chunked=False)
+            ranges.get_mask(chunked=True),
+            ranges.get_mask(chunked=False)
         )
 
     def test_duration(self):
@@ -2132,107 +2132,107 @@ class TestRanges:
         )
 
     def test_avg_duration(self):
-        assert ranges['a'].avg_duration() == pd.Timedelta('1 days 00:00:00')
+        assert ranges['a'].avg_duration == pd.Timedelta('1 days 00:00:00')
         pd.testing.assert_series_equal(
-            ranges.avg_duration(),
+            ranges.avg_duration,
             pd.Series(
                 np.array([86400000000000, 259200000000000, 259200000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('avg_duration')
         )
         pd.testing.assert_series_equal(
-            ranges_grouped.avg_duration(),
+            ranges_grouped.avg_duration,
             pd.Series(
                 np.array([129600000000000, 259200000000000], dtype='timedelta64[ns]'),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_duration')
         )
         pd.testing.assert_series_equal(
-            ranges.avg_duration(jitted=dict(parallel=True)),
-            ranges.avg_duration(jitted=dict(parallel=False))
+            ranges.get_avg_duration(jitted=dict(parallel=True)),
+            ranges.get_avg_duration(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            ranges.avg_duration(chunked=True),
-            ranges.avg_duration(chunked=False)
+            ranges.get_avg_duration(chunked=True),
+            ranges.get_avg_duration(chunked=False)
         )
 
     def test_max_duration(self):
-        assert ranges['a'].max_duration() == pd.Timedelta('1 days 00:00:00')
+        assert ranges['a'].max_duration == pd.Timedelta('1 days 00:00:00')
         pd.testing.assert_series_equal(
-            ranges.max_duration(),
+            ranges.max_duration,
             pd.Series(
                 np.array([86400000000000, 259200000000000, 259200000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('max_duration')
         )
         pd.testing.assert_series_equal(
-            ranges_grouped.max_duration(),
+            ranges_grouped.max_duration,
             pd.Series(
                 np.array([259200000000000, 259200000000000], dtype='timedelta64[ns]'),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_duration')
         )
         pd.testing.assert_series_equal(
-            ranges.max_duration(jitted=dict(parallel=True)),
-            ranges.max_duration(jitted=dict(parallel=False))
+            ranges.get_max_duration(jitted=dict(parallel=True)),
+            ranges.get_max_duration(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            ranges.max_duration(chunked=True),
-            ranges.max_duration(chunked=False)
+            ranges.get_max_duration(chunked=True),
+            ranges.get_max_duration(chunked=False)
         )
 
     def test_coverage(self):
-        assert ranges['a'].coverage() == 0.5
+        assert ranges['a'].coverage == 0.5
         pd.testing.assert_series_equal(
-            ranges.coverage(),
+            ranges.coverage,
             pd.Series(
                 np.array([0.5, 0.5, 0.5, np.nan]),
                 index=ts2.columns
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            ranges.coverage(),
-            ranges.replace(records_arr=np.repeat(ranges.values, 2)).coverage()
+            ranges.coverage,
+            ranges.replace(records_arr=np.repeat(ranges.values, 2)).coverage
         )
         pd.testing.assert_series_equal(
-            ranges.replace(records_arr=np.repeat(ranges.values, 2)).coverage(overlapping=True),
+            ranges.replace(records_arr=np.repeat(ranges.values, 2)).get_coverage(overlapping=True),
             pd.Series(
                 np.array([1.0, 1.0, 1.0, np.nan]),
                 index=ts2.columns
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            ranges.coverage(normalize=False),
+            ranges.get_coverage(normalize=False),
             pd.Series(
                 np.array([3.0, 3.0, 3.0, np.nan]),
                 index=ts2.columns
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            ranges.replace(records_arr=np.repeat(ranges.values, 2)).coverage(overlapping=True, normalize=False),
+            ranges.replace(records_arr=np.repeat(ranges.values, 2)).get_coverage(overlapping=True, normalize=False),
             pd.Series(
                 np.array([3.0, 3.0, 3.0, np.nan]),
                 index=ts2.columns
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            ranges_grouped.coverage(),
+            ranges_grouped.coverage,
             pd.Series(
                 np.array([0.4166666666666667, 0.25]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            ranges_grouped.coverage(),
-            ranges_grouped.replace(records_arr=np.repeat(ranges_grouped.values, 2)).coverage()
+            ranges_grouped.coverage,
+            ranges_grouped.replace(records_arr=np.repeat(ranges_grouped.values, 2)).coverage
         )
         pd.testing.assert_series_equal(
-            ranges.coverage(jitted=dict(parallel=True)),
-            ranges.coverage(jitted=dict(parallel=False))
+            ranges.get_coverage(jitted=dict(parallel=True)),
+            ranges.get_coverage(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            ranges.coverage(chunked=True),
-            ranges.coverage(chunked=False)
+            ranges.get_coverage(chunked=True),
+            ranges.get_coverage(chunked=False)
         )
 
     def test_stats(self):
@@ -2475,53 +2475,53 @@ class TestDrawdowns:
         )
 
     def test_avg_drawdown(self):
-        assert drawdowns['a'].avg_drawdown() == -0.6388888888888888
+        assert drawdowns['a'].avg_drawdown == -0.6388888888888888
         pd.testing.assert_series_equal(
-            drawdowns.avg_drawdown(),
+            drawdowns.avg_drawdown,
             pd.Series(
                 np.array([-0.63888889, -0.58333333, -0.66666667, np.nan]),
                 index=wrapper.columns
             ).rename('avg_drawdown')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.avg_drawdown(),
+            drawdowns_grouped.avg_drawdown,
             pd.Series(
                 np.array([-0.6166666666666666, -0.6666666666666666]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_drawdown')
         )
         pd.testing.assert_series_equal(
-            drawdowns.avg_drawdown(jitted=dict(parallel=True)),
-            drawdowns.avg_drawdown(jitted=dict(parallel=False))
+            drawdowns.get_avg_drawdown(jitted=dict(parallel=True)),
+            drawdowns.get_avg_drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.avg_drawdown(chunked=True),
-            drawdowns.avg_drawdown(chunked=False)
+            drawdowns.get_avg_drawdown(chunked=True),
+            drawdowns.get_avg_drawdown(chunked=False)
         )
 
     def test_max_drawdown(self):
-        assert drawdowns['a'].max_drawdown() == -0.75
+        assert drawdowns['a'].max_drawdown == -0.75
         pd.testing.assert_series_equal(
-            drawdowns.max_drawdown(),
+            drawdowns.max_drawdown,
             pd.Series(
                 np.array([-0.75, -0.66666667, -0.66666667, np.nan]),
                 index=wrapper.columns
             ).rename('max_drawdown')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.max_drawdown(),
+            drawdowns_grouped.max_drawdown,
             pd.Series(
                 np.array([-0.75, -0.6666666666666666]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_drawdown')
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_drawdown(jitted=dict(parallel=True)),
-            drawdowns.max_drawdown(jitted=dict(parallel=False))
+            drawdowns.get_max_drawdown(jitted=dict(parallel=True)),
+            drawdowns.get_max_drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_drawdown(chunked=True),
-            drawdowns.max_drawdown(chunked=False)
+            drawdowns.get_max_drawdown(chunked=True),
+            drawdowns.get_max_drawdown(chunked=False)
         )
 
     def test_recovery_return(self):
@@ -2558,53 +2558,53 @@ class TestDrawdowns:
         )
 
     def test_avg_recovery_return(self):
-        assert drawdowns['a'].avg_recovery_return() == 1.6666666666666667
+        assert drawdowns['a'].avg_recovery_return == 1.6666666666666667
         pd.testing.assert_series_equal(
-            drawdowns.avg_recovery_return(),
+            drawdowns.avg_recovery_return,
             pd.Series(
                 np.array([1.6666666666666667, 2.5, 1.0, np.nan]),
                 index=wrapper.columns
             ).rename('avg_recovery_return')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.avg_recovery_return(),
+            drawdowns_grouped.avg_recovery_return,
             pd.Series(
                 np.array([2.0, 1.0]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_recovery_return')
         )
         pd.testing.assert_series_equal(
-            drawdowns.avg_recovery_return(jitted=dict(parallel=True)),
-            drawdowns.avg_recovery_return(jitted=dict(parallel=False))
+            drawdowns.get_avg_recovery_return(jitted=dict(parallel=True)),
+            drawdowns.get_avg_recovery_return(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.avg_recovery_return(chunked=True),
-            drawdowns.avg_recovery_return(chunked=False)
+            drawdowns.get_avg_recovery_return(chunked=True),
+            drawdowns.get_avg_recovery_return(chunked=False)
         )
 
     def test_max_recovery_return(self):
-        assert drawdowns['a'].max_recovery_return() == 3.0
+        assert drawdowns['a'].max_recovery_return == 3.0
         pd.testing.assert_series_equal(
-            drawdowns.max_recovery_return(),
+            drawdowns.max_recovery_return,
             pd.Series(
                 np.array([3.0, 3.0, 1.0, np.nan]),
                 index=wrapper.columns
             ).rename('max_recovery_return')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.max_recovery_return(),
+            drawdowns_grouped.max_recovery_return,
             pd.Series(
                 np.array([3.0, 1.0]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_recovery_return')
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_recovery_return(jitted=dict(parallel=True)),
-            drawdowns.max_recovery_return(jitted=dict(parallel=False))
+            drawdowns.get_max_recovery_return(jitted=dict(parallel=True)),
+            drawdowns.get_max_recovery_return(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_recovery_return(chunked=True),
-            drawdowns.max_recovery_return(chunked=False)
+            drawdowns.get_max_recovery_return(chunked=True),
+            drawdowns.get_max_recovery_return(chunked=False)
         )
 
     def test_duration(self):
@@ -2618,58 +2618,58 @@ class TestDrawdowns:
         )
 
     def test_avg_duration(self):
-        assert drawdowns['a'].avg_duration() == pd.Timedelta('1 days 00:00:00')
+        assert drawdowns['a'].avg_duration == pd.Timedelta('1 days 00:00:00')
         pd.testing.assert_series_equal(
-            drawdowns.avg_duration(),
+            drawdowns.avg_duration,
             pd.Series(
                 np.array([86400000000000, 86400000000000, 259200000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('avg_duration')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.avg_duration(),
+            drawdowns_grouped.avg_duration,
             pd.Series(
                 np.array([86400000000000, 259200000000000], dtype='timedelta64[ns]'),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('avg_duration')
         )
 
-    def test_max_duration(self):
-        assert drawdowns['a'].max_duration() == pd.Timedelta('1 days 00:00:00')
+    def test_get_mask_duration(self):
+        assert drawdowns['a'].max_duration == pd.Timedelta('1 days 00:00:00')
         pd.testing.assert_series_equal(
-            drawdowns.max_duration(),
+            drawdowns.max_duration,
             pd.Series(
                 np.array([86400000000000, 86400000000000, 259200000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('max_duration')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.max_duration(),
+            drawdowns_grouped.max_duration,
             pd.Series(
                 np.array([86400000000000, 259200000000000], dtype='timedelta64[ns]'),
                 index=pd.Index(['g1', 'g2'], dtype='object')
             ).rename('max_duration')
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_duration(jitted=dict(parallel=True)),
-            drawdowns.max_duration(jitted=dict(parallel=False))
+            drawdowns.get_max_duration(jitted=dict(parallel=True)),
+            drawdowns.get_max_duration(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.max_duration(chunked=True),
-            drawdowns.max_duration(chunked=False)
+            drawdowns.get_max_duration(chunked=True),
+            drawdowns.get_max_duration(chunked=False)
         )
 
     def test_coverage(self):
-        assert drawdowns['a'].coverage() == 0.5
+        assert drawdowns['a'].coverage == 0.5
         pd.testing.assert_series_equal(
-            drawdowns.coverage(),
+            drawdowns.coverage,
             pd.Series(
                 np.array([0.5, 0.3333333333333333, 0.5, np.nan]),
                 index=ts2.columns
             ).rename('coverage')
         )
         pd.testing.assert_series_equal(
-            drawdowns_grouped.coverage(),
+            drawdowns_grouped.coverage,
             pd.Series(
                 np.array([0.4166666666666667, 0.25]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
@@ -2764,103 +2764,103 @@ class TestDrawdowns:
         )
 
     def test_active_drawdown(self):
-        assert drawdowns['a'].active_drawdown() == -0.75
+        assert drawdowns['a'].active_drawdown == -0.75
         pd.testing.assert_series_equal(
-            drawdowns.active_drawdown(),
+            drawdowns.active_drawdown,
             pd.Series(
                 np.array([-0.75, np.nan, -0.3333333333333333, np.nan]),
                 index=wrapper.columns
             ).rename('active_drawdown')
         )
         with pytest.raises(Exception):
-            drawdowns_grouped.active_drawdown()
+            drawdowns_grouped.active_drawdown
         pd.testing.assert_series_equal(
-            drawdowns.active_drawdown(jitted=dict(parallel=True)),
-            drawdowns.active_drawdown(jitted=dict(parallel=False))
+            drawdowns.get_active_drawdown(jitted=dict(parallel=True)),
+            drawdowns.get_active_drawdown(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.active_drawdown(chunked=True),
-            drawdowns.active_drawdown(chunked=False)
+            drawdowns.get_active_drawdown(chunked=True),
+            drawdowns.get_active_drawdown(chunked=False)
         )
 
     def test_active_duration(self):
-        assert drawdowns['a'].active_duration() == np.timedelta64(86400000000000)
+        assert drawdowns['a'].active_duration == np.timedelta64(86400000000000)
         pd.testing.assert_series_equal(
-            drawdowns.active_duration(),
+            drawdowns.active_duration,
             pd.Series(
                 np.array([86400000000000, 'NaT', 259200000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('active_duration')
         )
         with pytest.raises(Exception):
-            drawdowns_grouped.active_duration()
+            drawdowns_grouped.active_duration
         pd.testing.assert_series_equal(
-            drawdowns.active_duration(jitted=dict(parallel=True)),
-            drawdowns.active_duration(jitted=dict(parallel=False))
+            drawdowns.get_active_duration(jitted=dict(parallel=True)),
+            drawdowns.get_active_duration(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.active_duration(chunked=True),
-            drawdowns.active_duration(chunked=False)
+            drawdowns.get_active_duration(chunked=True),
+            drawdowns.get_active_duration(chunked=False)
         )
 
     def test_active_recovery(self):
-        assert drawdowns['a'].active_recovery() == 0.
+        assert drawdowns['a'].active_recovery == 0.
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery(),
+            drawdowns.active_recovery,
             pd.Series(
                 np.array([0., np.nan, 0.5, np.nan]),
                 index=wrapper.columns
             ).rename('active_recovery')
         )
         with pytest.raises(Exception):
-            drawdowns_grouped.active_recovery()
+            drawdowns_grouped.active_recovery
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery(jitted=dict(parallel=True)),
-            drawdowns.active_recovery(jitted=dict(parallel=False))
+            drawdowns.get_active_recovery(jitted=dict(parallel=True)),
+            drawdowns.get_active_recovery(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery(chunked=True),
-            drawdowns.active_recovery(chunked=False)
+            drawdowns.get_active_recovery(chunked=True),
+            drawdowns.get_active_recovery(chunked=False)
         )
 
     def test_active_recovery_return(self):
-        assert drawdowns['a'].active_recovery_return() == 0.
+        assert drawdowns['a'].active_recovery_return == 0.
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_return(),
+            drawdowns.active_recovery_return,
             pd.Series(
                 np.array([0., np.nan, 1., np.nan]),
                 index=wrapper.columns
             ).rename('active_recovery_return')
         )
         with pytest.raises(Exception):
-            drawdowns_grouped.active_recovery_return()
+            drawdowns_grouped.active_recovery_return
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_return(jitted=dict(parallel=True)),
-            drawdowns.active_recovery_return(jitted=dict(parallel=False))
+            drawdowns.get_active_recovery_return(jitted=dict(parallel=True)),
+            drawdowns.get_active_recovery_return(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_return(chunked=True),
-            drawdowns.active_recovery_return(chunked=False)
+            drawdowns.get_active_recovery_return(chunked=True),
+            drawdowns.get_active_recovery_return(chunked=False)
         )
 
     def test_active_recovery_duration(self):
-        assert drawdowns['a'].active_recovery_duration() == pd.Timedelta('0 days 00:00:00')
+        assert drawdowns['a'].active_recovery_duration == pd.Timedelta('0 days 00:00:00')
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_duration(),
+            drawdowns.active_recovery_duration,
             pd.Series(
                 np.array([0, 'NaT', 86400000000000, 'NaT'], dtype='timedelta64[ns]'),
                 index=wrapper.columns
             ).rename('active_recovery_duration')
         )
         with pytest.raises(Exception):
-            drawdowns_grouped.active_recovery_duration()
+            drawdowns_grouped.active_recovery_duration
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_duration(jitted=dict(parallel=True)),
-            drawdowns.active_recovery_duration(jitted=dict(parallel=False))
+            drawdowns.get_active_recovery_duration(jitted=dict(parallel=True)),
+            drawdowns.get_active_recovery_duration(jitted=dict(parallel=False))
         )
         pd.testing.assert_series_equal(
-            drawdowns.active_recovery_duration(chunked=True),
-            drawdowns.active_recovery_duration(chunked=False)
+            drawdowns.get_active_recovery_duration(chunked=True),
+            drawdowns.get_active_recovery_duration(chunked=False)
         )
 
     def test_stats(self):
@@ -3448,16 +3448,16 @@ class TestExitTrades:
         )
 
     def test_win_rate(self):
-        assert exit_trades['a'].win_rate() == 0.75
+        assert exit_trades['a'].win_rate == 0.75
         pd.testing.assert_series_equal(
-            exit_trades.win_rate(),
+            exit_trades.win_rate,
             pd.Series(
                 np.array([0.75, 0., 0.6, np.nan]),
                 index=close.columns
             ).rename('win_rate')
         )
         pd.testing.assert_series_equal(
-            exit_trades_grouped.win_rate(),
+            exit_trades_grouped.win_rate,
             pd.Series(
                 np.array([0.375, 0.6]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
@@ -3465,16 +3465,16 @@ class TestExitTrades:
         )
 
     def test_profit_factor(self):
-        assert exit_trades['a'].profit_factor() == 18.9
+        assert exit_trades['a'].profit_factor == 18.9
         pd.testing.assert_series_equal(
-            exit_trades.profit_factor(),
+            exit_trades.profit_factor,
             pd.Series(
                 np.array([18.9, 0., 2.45853659, np.nan]),
                 index=ts2.columns
             ).rename('profit_factor')
         )
         pd.testing.assert_series_equal(
-            exit_trades_grouped.profit_factor(),
+            exit_trades_grouped.profit_factor,
             pd.Series(
                 np.array([0.81818182, 2.45853659]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
@@ -3482,16 +3482,16 @@ class TestExitTrades:
         )
 
     def test_expectancy(self):
-        assert exit_trades['a'].expectancy() == 0.716
+        assert exit_trades['a'].expectancy == 0.716
         pd.testing.assert_series_equal(
-            exit_trades.expectancy(),
+            exit_trades.expectancy,
             pd.Series(
                 np.array([0.716, -0.884, 0.3588, np.nan]),
                 index=ts2.columns
             ).rename('expectancy')
         )
         pd.testing.assert_series_equal(
-            exit_trades_grouped.expectancy(),
+            exit_trades_grouped.expectancy,
             pd.Series(
                 np.array([-0.084, 0.3588]),
                 index=pd.Index(['g1', 'g2'], dtype='object')
@@ -3499,16 +3499,16 @@ class TestExitTrades:
         )
 
     def test_sqn(self):
-        assert exit_trades['a'].sqn() == 1.634155521947584
+        assert exit_trades['a'].sqn == 1.634155521947584
         pd.testing.assert_series_equal(
-            exit_trades.sqn(),
+            exit_trades.sqn,
             pd.Series(
                 np.array([1.63415552, -2.13007307, 0.71660403, np.nan]),
                 index=ts2.columns
             ).rename('sqn')
         )
         pd.testing.assert_series_equal(
-            exit_trades_grouped.sqn(),
+            exit_trades_grouped.sqn,
             pd.Series(
                 np.array([-0.20404671, 0.71660403]),
                 index=pd.Index(['g1', 'g2'], dtype='object')

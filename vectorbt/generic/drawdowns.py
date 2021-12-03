@@ -50,8 +50,8 @@ Moreover, all generic accessors have a property `drawdowns` and a method `get_dr
 
 ```python-repl
 >>> # vectorbt.generic.accessors.GenericAccessor.drawdowns.coverage
->>> price.vbt.drawdowns.coverage()
-0.9354838709677419
+>>> price.vbt.drawdowns.coverage
+0.925531914893617
 ```
 
 ## Stats
@@ -175,11 +175,10 @@ from vectorbt.generic import nb
 from vectorbt.generic.enums import DrawdownStatus, drawdown_dt
 from vectorbt.generic.ranges import Ranges
 from vectorbt.jit_registry import jit_registry
-from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records.decorators import override_field_config, attach_fields, attach_shortcut_properties
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.decorators import cached_property
 from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
@@ -243,9 +242,67 @@ __pdoc__['dd_attach_field_config'] = f"""Config of fields to be attached to `Dra
 ```
 """
 
+dd_shortcut_config = Config(
+    dict(
+        drawdown=dict(
+            obj_type='mapped_array'
+        ),
+        avg_drawdown=dict(
+            obj_type='red_array'
+        ),
+        max_drawdown=dict(
+            obj_type='red_array'
+        ),
+        recovery_return=dict(
+            obj_type='mapped_array'
+        ),
+        avg_recovery_return=dict(
+            obj_type='red_array'
+        ),
+        max_recovery_return=dict(
+            obj_type='red_array'
+        ),
+        decline_duration=dict(
+            obj_type='mapped_array'
+        ),
+        recovery_duration=dict(
+            obj_type='mapped_array'
+        ),
+        recovery_duration_ratio=dict(
+            obj_type='mapped_array'
+        ),
+        active_drawdown=dict(
+            obj_type='red_array'
+        ),
+        active_duration=dict(
+            obj_type='red_array'
+        ),
+        active_recovery=dict(
+            obj_type='red_array'
+        ),
+        active_recovery_return=dict(
+            obj_type='red_array'
+        ),
+        active_recovery_duration=dict(
+            obj_type='red_array'
+        ),
+    ),
+    readonly=True,
+    as_attrs=False
+)
+"""_"""
+
+__pdoc__['dd_shortcut_config'] = f"""Config of shortcut properties to be attached to `Drawdowns`.
+
+```json
+{dd_shortcut_config.stringify()}
+```
+"""
+
 DrawdownsT = tp.TypeVar("DrawdownsT", bound="Drawdowns")
 
 
+@attach_shortcut_properties(dd_shortcut_config)
 @attach_fields(dd_attach_field_config)
 @override_field_config(dd_field_config)
 class Drawdowns(Ranges):
@@ -289,11 +346,6 @@ class Drawdowns(Ranges):
         wrapper = ArrayWrapper.from_obj(ts_pd, **resolve_dict(wrapper_kwargs))
         return cls(wrapper, records_arr, ts=ts_pd if attach_ts else None, **kwargs)
 
-    @property
-    def ts(self) -> tp.Optional[tp.SeriesFrame]:
-        """Original time series that records are built from (optional)."""
-        return self._ts
-
     # ############# Drawdown ############# #
 
     def get_drawdown(self,
@@ -311,18 +363,13 @@ class Drawdowns(Ranges):
         )
         return self.map_array(drawdown, **kwargs)
 
-    @cached_property
-    def drawdown(self) -> MappedArray:
-        """`Drawdowns.get_drawdown` with default arguments."""
-        return self.get_drawdown()
-
-    def avg_drawdown(self,
-                     group_by: tp.GroupByLike = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrap_kwargs: tp.KwargsLike = None,
-                     **kwargs) -> tp.MaybeSeries:
-        """Average drawdown (ADD).
+    def get_avg_drawdown(self,
+                         group_by: tp.GroupByLike = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrap_kwargs: tp.KwargsLike = None,
+                         **kwargs) -> tp.MaybeSeries:
+        """Get average drawdown (ADD).
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_drawdown'), wrap_kwargs)
@@ -334,13 +381,13 @@ class Drawdowns(Ranges):
             **kwargs
         )
 
-    def max_drawdown(self,
-                     group_by: tp.GroupByLike = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrap_kwargs: tp.KwargsLike = None,
-                     **kwargs) -> tp.MaybeSeries:
-        """Maximum drawdown (MDD).
+    def get_max_drawdown(self,
+                         group_by: tp.GroupByLike = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrap_kwargs: tp.KwargsLike = None,
+                         **kwargs) -> tp.MaybeSeries:
+        """Get maximum drawdown (MDD).
 
         Based on `Drawdowns.drawdown`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_drawdown'), wrap_kwargs)
@@ -369,18 +416,13 @@ class Drawdowns(Ranges):
         )
         return self.map_array(recovery_return, **kwargs)
 
-    @cached_property
-    def recovery_return(self) -> MappedArray:
-        """`Drawdowns.get_recovery_return` with default arguments."""
-        return self.get_recovery_return()
-
-    def avg_recovery_return(self,
-                            group_by: tp.GroupByLike = None,
-                            jitted: tp.JittedOption = None,
-                            chunked: tp.ChunkedOption = None,
-                            wrap_kwargs: tp.KwargsLike = None,
-                            **kwargs) -> tp.MaybeSeries:
-        """Average recovery return.
+    def get_avg_recovery_return(self,
+                                group_by: tp.GroupByLike = None,
+                                jitted: tp.JittedOption = None,
+                                chunked: tp.ChunkedOption = None,
+                                wrap_kwargs: tp.KwargsLike = None,
+                                **kwargs) -> tp.MaybeSeries:
+        """Get average recovery return.
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='avg_recovery_return'), wrap_kwargs)
@@ -392,13 +434,13 @@ class Drawdowns(Ranges):
             **kwargs
         )
 
-    def max_recovery_return(self,
-                            group_by: tp.GroupByLike = None,
-                            jitted: tp.JittedOption = None,
-                            chunked: tp.ChunkedOption = None,
-                            wrap_kwargs: tp.KwargsLike = None,
-                            **kwargs) -> tp.MaybeSeries:
-        """Maximum recovery return.
+    def get_max_recovery_return(self,
+                                group_by: tp.GroupByLike = None,
+                                jitted: tp.JittedOption = None,
+                                chunked: tp.ChunkedOption = None,
+                                wrap_kwargs: tp.KwargsLike = None,
+                                **kwargs) -> tp.MaybeSeries:
+        """Get maximum recovery return.
 
         Based on `Drawdowns.recovery_return`."""
         wrap_kwargs = merge_dicts(dict(name_or_index='max_recovery_return'), wrap_kwargs)
@@ -427,11 +469,6 @@ class Drawdowns(Ranges):
         )
         return self.map_array(decline_duration, **kwargs)
 
-    @cached_property
-    def decline_duration(self) -> MappedArray:
-        """`Drawdowns.get_decline_duration` with default arguments."""
-        return self.get_decline_duration()
-
     def get_recovery_duration(self,
                               jitted: tp.JittedOption = None,
                               chunked: tp.ChunkedOption = None,
@@ -449,11 +486,6 @@ class Drawdowns(Ranges):
         )
         return self.map_array(recovery_duration, **kwargs)
 
-    @cached_property
-    def recovery_duration(self) -> MappedArray:
-        """`Drawdowns.get_recovery_duration` with default arguments."""
-        return self.get_recovery_duration()
-
     def get_recovery_duration_ratio(self,
                                     jitted: tp.JittedOption = None,
                                     chunked: tp.ChunkedOption = None,
@@ -470,19 +502,14 @@ class Drawdowns(Ranges):
         )
         return self.map_array(recovery_duration_ratio, **kwargs)
 
-    @cached_property
-    def recovery_duration_ratio(self) -> MappedArray:
-        """`Drawdowns.get_recovery_duration_ratio` with default arguments."""
-        return self.get_recovery_duration_ratio()
-
     # ############# Status: Active ############# #
 
-    def active_drawdown(self,
-                        group_by: tp.GroupByLike = None,
-                        jitted: tp.JittedOption = None,
-                        chunked: tp.ChunkedOption = None,
-                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Drawdown of the last active drawdown only.
+    def get_active_drawdown(self,
+                            group_by: tp.GroupByLike = None,
+                            jitted: tp.JittedOption = None,
+                            chunked: tp.ChunkedOption = None,
+                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get drawdown of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -494,13 +521,13 @@ class Drawdowns(Ranges):
         curr_drawdown = (curr_end_val - curr_peak_val) / curr_peak_val
         return self.wrapper.wrap_reduced(curr_drawdown, group_by=group_by, **wrap_kwargs)
 
-    def active_duration(self,
-                        group_by: tp.GroupByLike = None,
-                        jitted: tp.JittedOption = None,
-                        chunked: tp.ChunkedOption = None,
-                        wrap_kwargs: tp.KwargsLike = None,
-                        **kwargs) -> tp.MaybeSeries:
-        """Duration of the last active drawdown only.
+    def get_active_duration(self,
+                            group_by: tp.GroupByLike = None,
+                            jitted: tp.JittedOption = None,
+                            chunked: tp.ChunkedOption = None,
+                            wrap_kwargs: tp.KwargsLike = None,
+                            **kwargs) -> tp.MaybeSeries:
+        """Get duration of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -515,12 +542,12 @@ class Drawdowns(Ranges):
             **kwargs
         )
 
-    def active_recovery(self,
-                        group_by: tp.GroupByLike = None,
-                        jitted: tp.JittedOption = None,
-                        chunked: tp.ChunkedOption = None,
-                        wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Recovery of the last active drawdown only.
+    def get_active_recovery(self,
+                            group_by: tp.GroupByLike = None,
+                            jitted: tp.JittedOption = None,
+                            chunked: tp.ChunkedOption = None,
+                            wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get recovery of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -533,13 +560,13 @@ class Drawdowns(Ranges):
         curr_recovery = (curr_end_val - curr_valley_val) / (curr_peak_val - curr_valley_val)
         return self.wrapper.wrap_reduced(curr_recovery, group_by=group_by, **wrap_kwargs)
 
-    def active_recovery_return(self,
-                               group_by: tp.GroupByLike = None,
-                               jitted: tp.JittedOption = None,
-                               chunked: tp.ChunkedOption = None,
-                               wrap_kwargs: tp.KwargsLike = None,
-                               **kwargs) -> tp.MaybeSeries:
-        """Recovery return of the last active drawdown only.
+    def get_active_recovery_return(self,
+                                   group_by: tp.GroupByLike = None,
+                                   jitted: tp.JittedOption = None,
+                                   chunked: tp.ChunkedOption = None,
+                                   wrap_kwargs: tp.KwargsLike = None,
+                                   **kwargs) -> tp.MaybeSeries:
+        """Get recovery return of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -554,13 +581,13 @@ class Drawdowns(Ranges):
             **kwargs
         )
 
-    def active_recovery_duration(self,
-                                 group_by: tp.GroupByLike = None,
-                                 jitted: tp.JittedOption = None,
-                                 chunked: tp.ChunkedOption = None,
-                                 wrap_kwargs: tp.KwargsLike = None,
-                                 **kwargs) -> tp.MaybeSeries:
-        """Recovery duration of the last active drawdown only.
+    def get_active_recovery_duration(self,
+                                     group_by: tp.GroupByLike = None,
+                                     jitted: tp.JittedOption = None,
+                                     chunked: tp.ChunkedOption = None,
+                                     wrap_kwargs: tp.KwargsLike = None,
+                                     **kwargs) -> tp.MaybeSeries:
+        """Get recovery duration of the last active drawdown only.
 
         Does not support grouping."""
         if self.wrapper.grouper.is_grouped(group_by=group_by):
@@ -670,25 +697,25 @@ class Drawdowns(Ranges):
             ),
             max_dd=dict(
                 title='Max Drawdown [%]',
-                calc_func=RepEval("'max_drawdown' if incl_active else 'recovered.max_drawdown'"),
+                calc_func=RepEval("'max_drawdown' if incl_active else 'recovered.get_max_drawdown'"),
                 post_calc_func=lambda self, out, settings: -out * 100,
                 tags=RepEval("['drawdowns'] if incl_active else ['drawdowns', 'recovered']")
             ),
             avg_dd=dict(
                 title='Avg Drawdown [%]',
-                calc_func=RepEval("'avg_drawdown' if incl_active else 'recovered.avg_drawdown'"),
+                calc_func=RepEval("'avg_drawdown' if incl_active else 'recovered.get_avg_drawdown'"),
                 post_calc_func=lambda self, out, settings: -out * 100,
                 tags=RepEval("['drawdowns'] if incl_active else ['drawdowns', 'recovered']")
             ),
             max_dd_duration=dict(
                 title='Max Drawdown Duration',
-                calc_func=RepEval("'max_duration' if incl_active else 'recovered.max_duration'"),
+                calc_func=RepEval("'max_duration' if incl_active else 'recovered.get_max_duration'"),
                 fill_wrap_kwargs=True,
                 tags=RepEval("['drawdowns', 'duration'] if incl_active else ['drawdowns', 'recovered', 'duration']")
             ),
             avg_dd_duration=dict(
                 title='Avg Drawdown Duration',
-                calc_func=RepEval("'avg_duration' if incl_active else 'recovered.avg_duration'"),
+                calc_func=RepEval("'avg_duration' if incl_active else 'recovered.get_avg_duration'"),
                 fill_wrap_kwargs=True,
                 tags=RepEval("['drawdowns', 'duration'] if incl_active else ['drawdowns', 'recovered', 'duration']")
             ),

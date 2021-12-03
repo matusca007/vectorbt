@@ -955,11 +955,11 @@ class TestAccessors:
     def test_max_drawdown(self):
         assert isclose(
             ret_acc['a'].max_drawdown(),
-            ret_acc['a'].drawdowns.max_drawdown(fill_value=0.)
+            ret_acc['a'].drawdowns.get_max_drawdown(fill_value=0.)
         )
         pd.testing.assert_series_equal(
             ret_acc.max_drawdown(),
-            ret_acc.drawdowns.max_drawdown(fill_value=0.)
+            ret_acc.drawdowns.get_max_drawdown(fill_value=0.)
         )
         pd.testing.assert_series_equal(
             ret_acc.max_drawdown(jitted=dict(parallel=True)),
@@ -997,9 +997,9 @@ class TestAccessors:
         assert ret_acc['a'].drawdowns.wrapper.freq == rets['a'].vbt.wrapper.freq
         assert ret_acc['a'].drawdowns.wrapper.ndim == rets['a'].ndim
         assert ret_acc.drawdowns.wrapper.ndim == rets.ndim
-        assert isclose(ret_acc['a'].drawdowns.max_drawdown(fill_value=0.), ret_acc['a'].max_drawdown())
+        assert isclose(ret_acc['a'].drawdowns.get_max_drawdown(fill_value=0.), ret_acc['a'].max_drawdown())
         pd.testing.assert_series_equal(
-            ret_acc.drawdowns.max_drawdown(fill_value=0.),
+            ret_acc.drawdowns.get_max_drawdown(fill_value=0.),
             ret_acc.max_drawdown()
         )
 

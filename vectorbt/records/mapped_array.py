@@ -686,7 +686,8 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             **kwargs
         ).regroup(group_by)
 
-    def top_n_mask(self, n: int,
+    def top_n_mask(self,
+                   n: int,
                    group_by: tp.GroupByLike = None,
                    jitted: tp.JittedOption = None,
                    chunked: tp.ChunkedOption = None) -> tp.Array1d:
@@ -696,7 +697,8 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
         func = ch_registry.resolve_option(func, chunked)
         return func(self.values, col_map, n)
 
-    def bottom_n_mask(self, n: int,
+    def bottom_n_mask(self,
+                      n: int,
                       group_by: tp.GroupByLike = None,
                       jitted: tp.JittedOption = None,
                       chunked: tp.ChunkedOption = None) -> tp.Array1d:

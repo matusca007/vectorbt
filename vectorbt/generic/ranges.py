@@ -40,7 +40,7 @@ are 0 and 20 (not 19!) respectively.
 2  Closed
 
 >>> ranges.duration.max(wrap_kwargs=dict(to_timedelta=True))
-Timedelta('74 days 00:00:00')
+Timedelta('156 days 00:00:00')
 ```
 
 ## From accessors
@@ -49,8 +49,8 @@ Moreover, all generic accessors have a property `ranges` and a method `get_range
 
 ```python-repl
 >>> # vectorbt.generic.accessors.GenericAccessor.ranges.coverage
->>> fast_below_slow.vbt.ranges.coverage()
-0.35792349726775957
+>>> fast_below_slow.vbt.ranges.coverage
+0.5081967213114754
 ```
 
 ## Stats
@@ -69,9 +69,9 @@ Moreover, all generic accessors have a property `ranges` and a method `get_range
 Start                             0
 End                               5
 Period              6 days 00:00:00
-Total Records                     2
 Coverage            4 days 00:00:00
 Overlap Coverage    0 days 00:00:00
+Total Records                     2
 Duration: Min       2 days 00:00:00
 Duration: Median    2 days 00:00:00
 Duration: Max       2 days 00:00:00
@@ -87,9 +87,9 @@ Name: a, dtype: object
 Start                                       0
 End                                         5
 Period                        6 days 00:00:00
-Total Records                               5
 Coverage                      5 days 00:00:00
 Overlap Coverage              2 days 00:00:00
+Total Records                               5
 Duration: Min                 1 days 00:00:00
 Duration: Median              1 days 00:00:00
 Duration: Max                 2 days 00:00:00
@@ -122,11 +122,10 @@ from vectorbt.generic import nb
 from vectorbt.generic.enums import RangeStatus, range_dt
 from vectorbt.jit_registry import jit_registry
 from vectorbt.records.base import Records
-from vectorbt.records.decorators import override_field_config, attach_fields
+from vectorbt.records.decorators import override_field_config, attach_fields, attach_shortcut_properties
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.colors import adjust_lightness
 from vectorbt.utils.config import resolve_dict, merge_dicts, Config
-from vectorbt.utils.decorators import cached_property
 
 __pdoc__ = {}
 
@@ -184,9 +183,44 @@ __pdoc__['ranges_attach_field_config'] = f"""Config of fields to be attached to 
 ```
 """
 
+ranges_shortcut_config = Config(
+    dict(
+        mask=dict(
+            obj_type='array'
+        ),
+        duration=dict(
+            obj_type='mapped_array'
+        ),
+        avg_duration=dict(
+            obj_type='red_array'
+        ),
+        max_duration=dict(
+            obj_type='red_array'
+        ),
+        coverage=dict(
+            obj_type='red_array'
+        ),
+        overlap_coverage=dict(
+            obj_type='red_array',
+            method_kwargs=dict(overlapping=True)
+        )
+    ),
+    readonly=True,
+    as_attrs=False
+)
+"""_"""
+
+__pdoc__['ranges_shortcut_config'] = f"""Config of shortcut properties to be attached to `Ranges`.
+
+```json
+{ranges_shortcut_config.stringify()}
+```
+"""
+
 RangesT = tp.TypeVar("RangesT", bound="Ranges")
 
 
+@attach_shortcut_properties(ranges_shortcut_config)
 @attach_fields(ranges_attach_field_config)
 @override_field_config(ranges_field_config)
 class Ranges(Records):
@@ -279,12 +313,12 @@ class Ranges(Records):
             return None
         return self.wrapper.wrap(self._ts, group_by=False)
 
-    def to_mask(self,
+    def get_mask(self,
                 group_by: tp.GroupByLike = None,
                 jitted: tp.JittedOption = None,
                 chunked: tp.ChunkedOption = None,
                 wrap_kwargs: tp.KwargsLike = None) -> tp.SeriesFrame:
-        """Convert ranges to a mask.
+        """Get mask from ranges.
 
         See `vectorbt.generic.nb.ranges_to_mask_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)
@@ -303,7 +337,7 @@ class Ranges(Records):
                      jitted: tp.JittedOption = None,
                      chunked: tp.ChunkedOption = None,
                      **kwargs) -> MappedArray:
-        """Duration of each range (in raw format)."""
+        """Get duration of each range (in raw format)."""
         func = jit_registry.resolve_option(nb.range_duration_nb, jitted)
         func = ch_registry.resolve_option(func, chunked)
         duration = func(
@@ -313,18 +347,13 @@ class Ranges(Records):
         )
         return self.map_array(duration, **kwargs)
 
-    @cached_property
-    def duration(self) -> MappedArray:
-        """`Ranges.get_duration` with default arguments."""
-        return self.get_duration()
-
-    def avg_duration(self,
-                     group_by: tp.GroupByLike = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrap_kwargs: tp.KwargsLike = None,
-                     **kwargs) -> tp.MaybeSeries:
-        """Average range duration (as timedelta)."""
+    def get_avg_duration(self,
+                         group_by: tp.GroupByLike = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrap_kwargs: tp.KwargsLike = None,
+                         **kwargs) -> tp.MaybeSeries:
+        """Get average range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='avg_duration'), wrap_kwargs)
         return self.duration.mean(
             group_by=group_by,
@@ -334,13 +363,13 @@ class Ranges(Records):
             **kwargs
         )
 
-    def max_duration(self,
-                     group_by: tp.GroupByLike = None,
-                     jitted: tp.JittedOption = None,
-                     chunked: tp.ChunkedOption = None,
-                     wrap_kwargs: tp.KwargsLike = None,
-                     **kwargs) -> tp.MaybeSeries:
-        """Maximum range duration (as timedelta)."""
+    def get_max_duration(self,
+                         group_by: tp.GroupByLike = None,
+                         jitted: tp.JittedOption = None,
+                         chunked: tp.ChunkedOption = None,
+                         wrap_kwargs: tp.KwargsLike = None,
+                         **kwargs) -> tp.MaybeSeries:
+        """Get maximum range duration (as timedelta)."""
         wrap_kwargs = merge_dicts(dict(to_timedelta=True, name_or_index='max_duration'), wrap_kwargs)
         return self.duration.max(
             group_by=group_by,
@@ -350,14 +379,14 @@ class Ranges(Records):
             **kwargs
         )
 
-    def coverage(self,
-                 overlapping: bool = False,
-                 normalize: bool = True,
-                 group_by: tp.GroupByLike = None,
-                 jitted: tp.JittedOption = None,
-                 chunked: tp.ChunkedOption = None,
-                 wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
-        """Coverage, that is, the number of steps that are covered by all ranges.
+    def get_coverage(self,
+                     overlapping: bool = False,
+                     normalize: bool = True,
+                     group_by: tp.GroupByLike = None,
+                     jitted: tp.JittedOption = None,
+                     chunked: tp.ChunkedOption = None,
+                     wrap_kwargs: tp.KwargsLike = None) -> tp.MaybeSeries:
+        """Get coverage, that is, the number of steps that are covered by all ranges.
 
         See `vectorbt.generic.nb.range_coverage_nb`."""
         col_map = self.col_mapper.get_col_map(group_by=group_by)

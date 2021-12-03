@@ -1353,13 +1353,13 @@ class ReturnsAccessor(GenericAccessor):
             ),
             max_dd=dict(
                 title='Max Drawdown [%]',
-                calc_func='drawdowns.max_drawdown',
+                calc_func='drawdowns.get_max_drawdown',
                 post_calc_func=lambda self, out, settings: -out * 100,
                 tags=['returns', 'drawdowns']
             ),
             max_dd_duration=dict(
                 title='Max Drawdown Duration',
-                calc_func='drawdowns.max_duration',
+                calc_func='drawdowns.get_max_duration',
                 fill_wrap_kwargs=True,
                 tags=['returns', 'drawdowns', 'duration']
             ),
