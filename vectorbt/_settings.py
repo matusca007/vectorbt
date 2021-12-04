@@ -324,7 +324,7 @@ _settings['config'] = config
 configured = dict(
     config=Config(  # flex
         dict(
-            readonly=True
+            readonly_=True
         )
     ),
 )
@@ -1140,12 +1140,12 @@ class SettingsConfig(Config):
 
 settings = SettingsConfig(
     _settings,
-    reset_dct_copy_kwargs=dict(
+    reset_dct_copy_kwargs_=dict(
         copy_mode='deep'
     ),
-    frozen_keys=True,
-    convert_dicts=Config,
-    as_attrs=True
+    frozen_keys_=True,
+    convert_dicts_=Config,
+    as_attrs_=True
 )
 """Global settings config.
 

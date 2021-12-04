@@ -115,7 +115,7 @@ class TestConfig:
         def init_config_(**kwargs):
             return config.Config(dict(lst=[1, 2, 3], dct=config.Config(dict(lst=[4, 5, 6]), **kwargs)), **kwargs)
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         _cfg = config.copy_dict(cfg, 'shallow', nested=False)
         assert isinstance(_cfg, config.Config)
         assert _cfg.readonly_
@@ -126,7 +126,7 @@ class TestConfig:
         assert cfg['lst'] == [0, 2, 3]
         assert cfg['dct']['lst'] == [0, 5, 6]
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         _cfg = config.copy_dict(cfg, 'shallow', nested=True)
         assert isinstance(_cfg, config.Config)
         assert _cfg.readonly_
@@ -137,7 +137,7 @@ class TestConfig:
         assert cfg['lst'] == [0, 2, 3]
         assert cfg['dct']['lst'] == [0, 5, 6]
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         _cfg = config.copy_dict(cfg, 'hybrid', nested=False)
         assert isinstance(_cfg, config.Config)
         assert _cfg.readonly_
@@ -148,7 +148,7 @@ class TestConfig:
         assert cfg['lst'] == [1, 2, 3]
         assert cfg['dct']['lst'] == [0, 5, 6]
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         _cfg = config.copy_dict(cfg, 'hybrid', nested=True)
         assert isinstance(_cfg, config.Config)
         assert _cfg.readonly_
@@ -159,7 +159,7 @@ class TestConfig:
         assert cfg['lst'] == [1, 2, 3]
         assert cfg['dct']['lst'] == [4, 5, 6]
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         _cfg = config.copy_dict(cfg, 'deep')
         assert isinstance(_cfg, config.Config)
         assert _cfg.readonly_
@@ -192,19 +192,19 @@ class TestConfig:
         config.update_dict(cfg, dict(b=dict(c=2)), nested=True)
         assert cfg == config.Config(dict(a=0, b=config.Config(dict(c=2))))
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         with pytest.raises(Exception):
             config.update_dict(cfg, dict(b=dict(c=2)), nested=True)
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         config.update_dict(cfg, dict(b=dict(c=2)), nested=True, force=True)
         assert cfg == config.Config(dict(a=0, b=config.Config(dict(c=2))))
         assert cfg.readonly_
         assert cfg['b'].readonly_
 
-        cfg = init_config_(readonly=True)
+        cfg = init_config_(readonly_=True)
         config.update_dict(
-            cfg, config.Config(dict(b=config.Config(dict(c=2), readonly=False)), readonly=False),
+            cfg, config.Config(dict(b=config.Config(dict(c=2), readonly_=False)), readonly_=False),
             nested=True, force=True)
         assert cfg == config.Config(dict(a=0, b=config.Config(dict(c=2))))
         assert cfg.readonly_
@@ -222,7 +222,7 @@ class TestConfig:
                    config.Config(dict(lst=lists[0], dct=dict(a=1, lst=lists[1])), **kwargs), \
                    dict(lst=lists[2], dct=config.Config(dict(b=2, lst=lists[3]), **kwargs))
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=True,
@@ -235,7 +235,7 @@ class TestConfig:
         assert _cfg['lst'] == [0, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=True,
@@ -248,7 +248,7 @@ class TestConfig:
         assert _cfg['lst'] == [0, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         cfg2['dct'] = config.atomic_dict(cfg2['dct'])
         _cfg = config.merge_dicts(
             cfg1, cfg2,
@@ -262,7 +262,7 @@ class TestConfig:
         assert _cfg['lst'] == [0, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, config.atomic_dict(cfg2),
             to_dict=True,
@@ -275,7 +275,7 @@ class TestConfig:
         assert _cfg['lst'] == [0, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=False,
@@ -289,7 +289,7 @@ class TestConfig:
         assert _cfg['lst'] == [0, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=False,
@@ -303,7 +303,7 @@ class TestConfig:
         assert _cfg['lst'] == [7, 8, 9]
         assert _cfg['dct']['lst'] == [0, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=False,
@@ -317,7 +317,7 @@ class TestConfig:
         assert _cfg['lst'] == [7, 8, 9]
         assert _cfg['dct']['lst'] == [10, 11, 12]
 
-        lists, cfg1, cfg2 = init_configs(readonly=True)
+        lists, cfg1, cfg2 = init_configs(readonly_=True)
         _cfg = config.merge_dicts(
             cfg1, cfg2,
             to_dict=False,
@@ -343,7 +343,7 @@ class TestConfig:
             )
             return dct, config.Config(dct, **kwargs)
 
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='shallow'), nested=False)
+        dct, cfg = init_config(copy_kwargs_=dict(copy_mode='shallow'), nested_=False)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -353,7 +353,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=3, lst=[0, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=3, lst=[0, 5, 6])))
 
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='shallow'), nested=True)
+        dct, cfg = init_config(copy_kwargs_=dict(copy_mode='shallow'), nested_=True)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -363,7 +363,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=1, lst=[0, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=1, lst=[0, 5, 6])))
 
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='hybrid'), nested=True)
+        dct, cfg = init_config(copy_kwargs_=dict(copy_mode='hybrid'), nested_=True)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -374,9 +374,9 @@ class TestConfig:
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
         dct, cfg = init_config(
-            copy_kwargs=dict(copy_mode='shallow'),
-            reset_dct_copy_kwargs=dict(copy_mode='hybrid'),
-            nested=True
+            copy_kwargs_=dict(copy_mode='shallow'),
+            reset_dct_copy_kwargs_=dict(copy_mode='hybrid'),
+            nested_=True
         )
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
@@ -387,7 +387,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=1, lst=[0, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='deep'), nested=True)
+        dct, cfg = init_config(copy_kwargs_=dict(copy_mode='deep'), nested_=True)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -399,7 +399,7 @@ class TestConfig:
 
         init_d, _ = init_config()
         init_d = config.copy_dict(init_d, 'deep')
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='hybrid'), reset_dct=init_d, nested=True)
+        dct, cfg = init_config(copy_kwargs_=dict(copy_mode='hybrid'), reset_dct_=init_d, nested_=True)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -413,10 +413,10 @@ class TestConfig:
         init_d, _ = init_config()
         init_d = config.copy_dict(init_d, 'deep')
         dct, cfg = init_config(
-            copy_kwargs=dict(copy_mode='hybrid'),
-            reset_dct=init_d,
-            reset_dct_copy_kwargs=dict(copy_mode='shallow'),
-            nested=True
+            copy_kwargs_=dict(copy_mode='hybrid'),
+            reset_dct_=init_d,
+            reset_dct_copy_kwargs_=dict(copy_mode='shallow'),
+            nested_=True
         )
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
@@ -431,7 +431,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=1, lst=[0, 5, 6])))
 
-        _, cfg = init_config(nested=True)
+        _, cfg = init_config(nested_=True)
         _cfg = copy(cfg)
         _cfg['const'] = 2
         _cfg['dct']['const'] = 3
@@ -444,7 +444,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=3, lst=[0, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=2, lst=[0, 2, 3], dct=config.Config(dict(const=3, lst=[0, 5, 6])))
 
-        _, cfg = init_config(nested=True)
+        _, cfg = init_config(nested_=True)
         _cfg = deepcopy(cfg)
         _cfg['const'] = 2
         _cfg['dct']['const'] = 3
@@ -457,7 +457,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
-        _, cfg = init_config(copy_kwargs=dict(copy_mode='hybrid'), nested=True)
+        _, cfg = init_config(copy_kwargs_=dict(copy_mode='hybrid'), nested_=True)
         _cfg = cfg.copy()
         _cfg['const'] = 2
         _cfg['dct']['const'] = 3
@@ -470,7 +470,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
-        _, cfg = init_config(copy_kwargs=dict(copy_mode='hybrid'), nested=True)
+        _, cfg = init_config(copy_kwargs_=dict(copy_mode='hybrid'), nested_=True)
         _cfg = cfg.copy(reset_dct_copy_kwargs=dict(copy_mode='shallow'))
         _cfg['const'] = 2
         _cfg['dct']['const'] = 3
@@ -483,7 +483,7 @@ class TestConfig:
         assert cfg == config.Config(dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6]))))
         assert cfg.reset_dct_ == dict(const=0, lst=[0, 2, 3], dct=config.Config(dict(const=1, lst=[0, 5, 6])))
 
-        _, cfg = init_config(nested=True)
+        _, cfg = init_config(nested_=True)
         _cfg = cfg.copy(copy_mode='deep')
         _cfg['const'] = 2
         _cfg['dct']['const'] = 3
@@ -497,7 +497,7 @@ class TestConfig:
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
     def test_config_convert_dicts(self):
-        cfg = config.Config(dict(dct=dict(dct=config.Config(dict(), nested=False))), nested=True, convert_dicts=True)
+        cfg = config.Config(dict(dct=dict(dct=config.Config(dict(), nested_=False))), nested_=True, convert_dicts_=True)
         assert cfg.nested_
         assert cfg.convert_dicts_
         assert isinstance(cfg['dct'], config.Config)
@@ -509,21 +509,21 @@ class TestConfig:
 
     def test_config_from_config(self):
         cfg = config.Config(config.Config(
-            dct=dict(a=0),
-            copy_kwargs=dict(
+            dict(a=0),
+            copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            reset_dct=dict(b=0),
-            reset_dct_copy_kwargs=dict(
+            reset_dct_=dict(b=0),
+            reset_dct_copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            frozen_keys=True,
-            readonly=True,
-            nested=True,
-            convert_dicts=True,
-            as_attrs=True
+            frozen_keys_=True,
+            readonly_=True,
+            nested_=True,
+            convert_dicts_=True,
+            as_attrs_=True
         ))
         assert dict(cfg) == dict(a=0)
         assert cfg.copy_kwargs_ == dict(
@@ -542,19 +542,19 @@ class TestConfig:
         assert cfg.as_attrs_
 
         c2 = config.Config(
-            dct=cfg,
-            copy_kwargs=dict(
+            cfg,
+            copy_kwargs_=dict(
                 copy_mode='hybrid'
             ),
-            reset_dct=dict(b=0),
-            reset_dct_copy_kwargs=dict(
+            reset_dct_=dict(b=0),
+            reset_dct_copy_kwargs_=dict(
                 nested=False
             ),
-            frozen_keys=False,
-            readonly=False,
-            nested=False,
-            convert_dicts=False,
-            as_attrs=False
+            frozen_keys_=False,
+            readonly_=False,
+            nested_=False,
+            convert_dicts_=False,
+            as_attrs_=False
         )
         assert dict(c2) == dict(a=0)
         assert c2.copy_kwargs_ == dict(
@@ -591,13 +591,13 @@ class TestConfig:
         assert not cfg.as_attrs_
 
         vbt.settings.config.reset()
-        vbt.settings.config['copy_kwargs'] = dict(copy_mode='deep')
-        vbt.settings.config['reset_dct_copy_kwargs'] = dict(copy_mode='deep')
-        vbt.settings.config['frozen_keys'] = True
-        vbt.settings.config['readonly'] = True
-        vbt.settings.config['nested'] = False
-        vbt.settings.config['convert_dicts'] = True
-        vbt.settings.config['as_attrs'] = True
+        vbt.settings.config['copy_kwargs_'] = dict(copy_mode='deep')
+        vbt.settings.config['reset_dct_copy_kwargs_'] = dict(copy_mode='deep')
+        vbt.settings.config['frozen_keys_'] = True
+        vbt.settings.config['readonly_'] = True
+        vbt.settings.config['nested_'] = False
+        vbt.settings.config['convert_dicts_'] = True
+        vbt.settings.config['as_attrs_'] = True
 
         cfg = config.Config(dict(a=0))
         assert dict(cfg) == dict(a=0)
@@ -619,7 +619,7 @@ class TestConfig:
         vbt.settings.config.reset()
 
     def test_config_as_attrs(self):
-        cfg = config.Config(dict(a=0, b=0, dct=dict(d=0)), as_attrs=True)
+        cfg = config.Config(dict(a=0, b=0, dct=dict(d=0)), as_attrs_=True)
         assert cfg.a == 0
         assert cfg.b == 0
         with pytest.raises(Exception):
@@ -648,171 +648,171 @@ class TestConfig:
         cfg.popitem()
         assert not hasattr(cfg, 'b')
 
-        cfg = config.Config(dict(a=0, b=0, dct=dict(d=0)), as_attrs=True, nested=True, convert_dicts=True)
+        cfg = config.Config(dict(a=0, b=0, dct=dict(d=0)), as_attrs_=True, nested_=True, convert_dicts_=True)
         assert cfg.a == 0
         assert cfg.b == 0
         assert cfg.dct.d == 0
 
         with pytest.raises(Exception):
-            config.Config(dict(readonly_=True), as_attrs=True)
+            config.Config(dict(readonly_=True), as_attrs_=True)
         with pytest.raises(Exception):
-            config.Config(dict(values=True), as_attrs=True)
+            config.Config(dict(values=True), as_attrs_=True)
         with pytest.raises(Exception):
-            config.Config(dict(update=True), as_attrs=True)
+            config.Config(dict(update=True), as_attrs_=True)
 
     def test_config_frozen_keys(self):
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg.pop('a')
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg.popitem()
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg.clear()
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg.update(dict(a=1))
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg.update(dict(b=0))
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         del cfg['a']
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg['a'] = 1
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), frozen_keys=False)
+        cfg = config.Config(dict(a=0), frozen_keys_=False)
         cfg['b'] = 0
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             cfg.pop('a')
         cfg.pop('a', force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             cfg.popitem()
         cfg.popitem(force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             cfg.clear()
         cfg.clear(force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         cfg.update(dict(a=1))
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             cfg.update(dict(b=0))
         cfg.update(dict(b=0), force=True)
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             del cfg['a']
         cfg.__delitem__('a', force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         cfg['a'] = 1
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), frozen_keys=True)
+        cfg = config.Config(dict(a=0), frozen_keys_=True)
         with pytest.raises(Exception):
             cfg['b'] = 0
         cfg.__setitem__('b', 0, force=True)
         assert dict(cfg) == dict(a=0, b=0)
 
     def test_config_readonly(self):
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg.pop('a')
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg.popitem()
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg.clear()
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg.update(dict(a=1))
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg.update(dict(b=0))
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         del cfg['a']
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg['a'] = 1
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), readonly=False)
+        cfg = config.Config(dict(a=0), readonly_=False)
         cfg['b'] = 0
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg.pop('a')
         cfg.pop('a', force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg.popitem()
         cfg.popitem(force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg.clear()
         cfg.clear(force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg.update(dict(a=1))
         cfg.update(dict(a=1), force=True)
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg.update(dict(b=0))
         cfg.update(dict(b=0), force=True)
         assert dict(cfg) == dict(a=0, b=0)
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             del cfg['a']
         cfg.__delitem__('a', force=True)
         assert dict(cfg) == dict()
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg['a'] = 1
         cfg.__setitem__('a', 1, force=True)
         assert dict(cfg) == dict(a=1)
 
-        cfg = config.Config(dict(a=0), readonly=True)
+        cfg = config.Config(dict(a=0), readonly_=True)
         with pytest.raises(Exception):
             cfg['b'] = 0
         cfg.__setitem__('b', 0, force=True)
@@ -820,11 +820,11 @@ class TestConfig:
 
     def test_config_merge_with(self):
         cfg1 = config.Config(
-            dict(a=0, dct=dict(b=1, dct=config.Config(dict(c=2), readonly=False))),
-            readonly=False, nested=False)
+            dict(a=0, dct=dict(b=1, dct=config.Config(dict(c=2), readonly_=False))),
+            readonly_=False, nested_=False)
         cfg2 = config.Config(
-            dict(d=3, dct=config.Config(dict(e=4, dct=dict(f=5)), readonly=True)),
-            readonly=True, nested=False)
+            dict(d=3, dct=config.Config(dict(e=4, dct=dict(f=5)), readonly_=True)),
+            readonly_=True, nested_=False)
         _cfg = cfg1.merge_with(cfg2)
         assert _cfg == dict(a=0, d=3, dct=cfg2['dct'])
         assert not isinstance(_cfg, config.Config)
@@ -846,37 +846,37 @@ class TestConfig:
         assert not _cfg['dct']['dct'].readonly_
 
     def test_config_reset(self):
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='shallow'), nested=False)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='shallow'), nested_=False)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=1)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='hybrid'), nested=False)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='hybrid'), nested_=False)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='deep'), nested=False)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='deep'), nested_=False)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='shallow'), nested=True)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='shallow'), nested_=True)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='hybrid'), nested=True)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='hybrid'), nested_=True)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='deep'), nested=True)
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs_=dict(copy_mode='deep'), nested_=True)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
@@ -884,21 +884,21 @@ class TestConfig:
 
     def test_config_save_and_load(self, tmp_path):
         cfg = config.Config(
-            dct=dict(a=0, dct=dict(b=[1, 2, 3], dct=config.Config(readonly=False))),
-            copy_kwargs=dict(
+            dict(a=0, dct=dict(b=[1, 2, 3], dct=config.Config(readonly_=False))),
+            copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            reset_dct=dict(b=0),
-            reset_dct_copy_kwargs=dict(
+            reset_dct_=dict(b=0),
+            reset_dct_copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            frozen_keys=True,
-            readonly=True,
-            nested=True,
-            convert_dicts=True,
-            as_attrs=True
+            frozen_keys_=True,
+            readonly_=True,
+            nested_=True,
+            convert_dicts_=True,
+            as_attrs_=True
         )
         cfg.save(tmp_path / "config", dump_reset_dct=True)
         new_cfg = config.Config.load(tmp_path / "config")
@@ -907,38 +907,38 @@ class TestConfig:
 
     def test_config_load_update(self, tmp_path):
         cfg1 = config.Config(
-            dct=dict(a=0, dct=dict(b=[1, 2, 3], dct=config.Config(readonly=False))),
-            copy_kwargs=dict(
+            dict(a=0, dct=dict(b=[1, 2, 3], dct=config.Config(readonly_=False))),
+            copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            reset_dct=dict(b=0),
-            reset_dct_copy_kwargs=dict(
+            reset_dct_=dict(b=0),
+            reset_dct_copy_kwargs_=dict(
                 copy_mode='deep',
                 nested=True
             ),
-            frozen_keys=True,
-            readonly=True,
-            nested=True,
-            convert_dicts=True,
-            as_attrs=True
+            frozen_keys_=True,
+            readonly_=True,
+            nested_=True,
+            convert_dicts_=True,
+            as_attrs_=True
         )
         cfg2 = config.Config(
-            dct=dict(a=1, dct=dict(b=[4, 5, 6], dct=config.Config(readonly=True))),
-            copy_kwargs=dict(
+            dct=dict(a=1, dct=dict(b=[4, 5, 6], dct=config.Config(readonly_=True))),
+            copy_kwargs_=dict(
                 copy_mode='shallow',
                 nested=False
             ),
-            reset_dct=dict(b=1),
-            reset_dct_copy_kwargs=dict(
+            reset_dct_=dict(b=1),
+            reset_dct_copy_kwargs_=dict(
                 copy_mode='shallow',
                 nested=False
             ),
-            frozen_keys=False,
-            readonly=False,
-            nested=False,
-            convert_dicts=False,
-            as_attrs=False
+            frozen_keys_=False,
+            readonly_=False,
+            nested_=False,
+            convert_dicts_=False,
+            as_attrs_=False
         )
         cfg1.save(tmp_path / "config", dump_reset_dct=True)
         cfg2.load_update(tmp_path / "config", clear=True)

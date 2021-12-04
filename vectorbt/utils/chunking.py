@@ -1069,8 +1069,8 @@ def chunked(*args,
                 silence_warnings=silence_warnings,
                 disable=disable
             ),
-            frozen_keys=True,
-            as_attrs=True
+            frozen_keys_=True,
+            as_attrs_=True
         )
 
         if prepend_chunk_meta:
