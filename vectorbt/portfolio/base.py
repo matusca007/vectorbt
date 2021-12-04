@@ -1653,7 +1653,7 @@ from vectorbt.signals.generators import RANDNX, RPROBNX
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.colors import adjust_opacity
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, ReadonlyConfig, HybridConfig
 from vectorbt.utils.decorators import custom_property, cached_property, class_or_instancemethod
 from vectorbt.utils.enum_ import map_enum_fields
 from vectorbt.utils.mapping import to_mapping
@@ -1678,7 +1678,7 @@ def fix_wrapper_for_records(pf: "Portfolio") -> ArrayWrapper:
     return pf.wrapper
 
 
-returns_acc_config = Config(
+returns_acc_config = ReadonlyConfig(
     {
         'daily_returns': dict(
             source_name='daily'
@@ -1710,9 +1710,7 @@ returns_acc_config = Config(
         'down_capture': dict(),
         'drawdown': dict(),
         'max_drawdown': dict()
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -1723,7 +1721,7 @@ __pdoc__['returns_acc_config'] = f"""Config of returns accessor methods to be at
 ```
 """
 
-shortcut_config = Config(
+shortcut_config = ReadonlyConfig(
     {
         'filled_close': dict(
             group_by_aware=False,
@@ -1936,9 +1934,7 @@ shortcut_config = Config(
         'max_drawdown': dict(
             obj_type='red_array'
         )
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -4552,9 +4548,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
 
         ```python-repl
         >>> @njit
-        ... def flex_order_func_nb(c, open, size):
+        ... def flex_order_func_nb(c, size):
         ...     if c.call_idx == 0:
-        ...         return c.from_col, nb.order_nb(size=size, price=open[c.i, c.from_col])
+        ...         return c.from_col, nb.order_nb(size=size, price=c.open[c.i, c.from_col])
         ...     if c.call_idx == 1:
         ...         return c.from_col, nb.close_position_nb(price=c.close[c.i, c.from_col])
         ...     return -1, NoOrder
@@ -4564,9 +4560,10 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         >>> size = 1
         >>> pf = vbt.Portfolio.from_order_func(
         ...     close,
-        ...     flex_order_func_nb,
-        ...     to_2d_array(open), size,
-        ...     flexible=True, max_orders=close.shape[0] * 2)
+        ...     flex_order_func_nb, size,
+        ...     open=open,
+        ...     flexible=True,
+        ...     max_orders=close.shape[0] * 2)
 
         >>> pf.orders.records_readable
             Order Id Column  Timestamp  Size  Price  Fees  Side
@@ -4585,9 +4582,9 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
         ```
 
         !!! warning
-            Each bar is effectively a black box - we don't know how the price moves inside.
-            Since trades must come in an order that replicates that of the real world, the only
-            pieces of information that are always in the correct order are the opening and the closing price.
+            Each bar is effectively a black box - we don't know how the price moves in-between.
+            Since trades should come in an order that closely replicates that of the real world, the only
+            pieces of information that always remain in the correct order are the opening and closing price.
         """
         # Get defaults
         from vectorbt._settings import settings
@@ -6861,7 +6858,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
             portfolio_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -7030,8 +7027,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 check_has_year_freq=True,
                 tags=['portfolio', 'returns']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -7797,8 +7793,7 @@ class Portfolio(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaPo
                 pass_add_trace_kwargs=True,
                 tags=['portfolio', 'exposure']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     plot = PlotsBuilderMixin.plots

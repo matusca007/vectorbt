@@ -7,11 +7,11 @@ import importlib
 import warnings
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import ReadonlyConfig
 
 __pdoc__ = {}
 
-opt_package_config = Config(
+opt_package_config = ReadonlyConfig(
     dict(
         yfinance=dict(
             name="Yahoo! Finance",
@@ -81,9 +81,7 @@ opt_package_config = Config(
             name="dill",
             link="https://github.com/uqfoundation/dill"
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 

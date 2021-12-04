@@ -6,11 +6,11 @@
 import numpy as np
 
 from vectorbt import _typing as tp
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import Config, ReadonlyConfig
 
 __pdoc__ = {}
 
-binary_magic_config = Config(
+binary_magic_config = ReadonlyConfig(
     {
         '__eq__': dict(func=np.equal),
         '__ne__': dict(func=np.not_equal),
@@ -40,9 +40,7 @@ binary_magic_config = Config(
         '__rand__': dict(func=lambda x, y: np.bitwise_and(y, x)),
         '__ror__': dict(func=lambda x, y: np.bitwise_or(y, x)),
         '__rxor__': dict(func=lambda x, y: np.bitwise_xor(y, x))
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -92,15 +90,13 @@ def attach_binary_magic_methods(translate_func: BinaryTranslateFuncT,
     return wrapper
 
 
-unary_magic_config = Config(
+unary_magic_config = ReadonlyConfig(
     {
         '__neg__': dict(func=np.negative),
         '__pos__': dict(func=np.positive),
         '__abs__': dict(func=np.absolute),
         '__invert__': dict(func=np.invert)
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 

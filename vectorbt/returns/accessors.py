@@ -151,7 +151,7 @@ from vectorbt.returns import nb, metrics
 from vectorbt.root_accessors import register_vbt_accessor, register_df_vbt_accessor, register_sr_vbt_accessor
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, HybridConfig, Config
 from vectorbt.utils.datetime_ import freq_to_timedelta, DatetimeIndexes
 
 __pdoc__ = {}
@@ -1298,7 +1298,7 @@ class ReturnsAccessor(GenericAccessor):
             returns_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -1432,8 +1432,7 @@ class ReturnsAccessor(GenericAccessor):
                 check_has_benchmark_rets=True,
                 tags='returns'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

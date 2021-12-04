@@ -285,7 +285,7 @@ from vectorbt.base.wrapping import ArrayWrapper, Wrapping
 from vectorbt.generic.plots_builder import PlotsBuilderMixin
 from vectorbt.generic.stats_builder import StatsBuilderMixin
 from vectorbt.utils import checks
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import merge_dicts, Config, HybridConfig
 from vectorbt.utils.datetime_ import is_tz_aware, to_timezone
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.pbar import get_pbar
@@ -903,7 +903,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
             data_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -939,8 +939,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 },
                 tags='data'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -1004,8 +1003,7 @@ class Data(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=MetaData):
                 pass_add_trace_kwargs=True,
                 tags='data'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

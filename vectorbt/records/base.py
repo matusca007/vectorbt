@@ -429,7 +429,7 @@ from vectorbt.records.col_mapper import ColumnMapper
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils import checks
 from vectorbt.utils.attr_ import get_dict_attr
-from vectorbt.utils.config import merge_dicts, Config, Configured
+from vectorbt.utils.config import merge_dicts, Config, ReadonlyConfig, HybridConfig, Configured
 from vectorbt.utils.decorators import cached_method, class_or_instancemethod
 
 __pdoc__ = {}
@@ -488,7 +488,9 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             Useful if any subclass wants to extend the config.
     """
 
-    _field_config: tp.ClassVar[Config] = Config(
+    _writeable_attrs: tp.ClassVar[tp.Optional[tp.Set[str]]] = {'_field_config'}
+
+    _field_config: tp.ClassVar[Config] = HybridConfig(
         dict(
             dtype=None,
             settings=dict(
@@ -507,9 +509,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                     mapping='index'
                 )
             )
-        ),
-        readonly=True,
-        as_attrs=False
+        )
     )
 
     @property
@@ -519,6 +519,12 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         ```json
         ${field_config}
         ```
+
+        Returns `${cls_name}._field_config`, which gets (hybrid-) copied upon creation of each instance.
+        Thus, changing this config won't affect the class.
+
+        To change fields, you can either change the config in-place, override this property,
+        or overwrite the instance variable `${cls_name}._field_config`.
         """
         return self._field_config
 
@@ -557,6 +563,9 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
         self._records_arr = records_arr
         self._col_mapper = col_mapper
 
+        # Copy writeable attrs
+        self._field_config = type(self)._field_config.copy()
+
     def replace(self: RecordsT, **kwargs) -> RecordsT:
         """See `vectorbt.utils.config.Configured.replace`.
 
@@ -568,7 +577,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             if 'records_arr' in kwargs:
                 if self.records_arr is not kwargs.get('records_arr'):
                     kwargs['col_mapper'] = None
-        return Configured.replace(self, **kwargs)
+        return Wrapping.replace(self, **kwargs)
 
     def get_by_col_idxs(self, col_idxs: tp.Array1d, jitted: tp.JittedOption = None) -> tp.RecordArray:
         """Get records corresponding to column indices.
@@ -881,7 +890,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
             records_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -907,8 +916,7 @@ class Records(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, RecordsWithFields,
                 calc_func='count',
                 tags='records'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

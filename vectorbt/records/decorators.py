@@ -10,7 +10,7 @@ from functools import partial
 from vectorbt import _typing as tp
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils import checks
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, HybridConfig
 from vectorbt.utils.decorators import cacheable_property, cached_property
 from vectorbt.utils.mapping import to_mapping
 
@@ -28,8 +28,6 @@ def override_field_config(*args, merge_configs: bool = True) -> tp.FlexClassWrap
 
         if config is None:
             config = cls.field_config
-        if not isinstance(config, Config):
-            config = Config(config, readonly=True, as_attrs=False)
         if merge_configs:
             configs = []
             for base_cls in cls.mro()[::-1]:
@@ -37,7 +35,9 @@ def override_field_config(*args, merge_configs: bool = True) -> tp.FlexClassWrap
                     if checks.is_subclass_of(base_cls, "Records"):
                         configs.append(base_cls.field_config)
             configs.append(config)
-            config = merge_dicts(*configs, to_dict=False)
+            config = merge_dicts(*configs)
+        if not isinstance(config, Config):
+            config = HybridConfig(config)
 
         setattr(cls, "_field_config", config)
         return cls

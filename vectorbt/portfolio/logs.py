@@ -99,11 +99,11 @@ from vectorbt.portfolio.enums import (
 )
 from vectorbt.records.base import Records
 from vectorbt.records.decorators import attach_fields, override_field_config
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import merge_dicts, Config, ReadonlyConfig, HybridConfig
 
 __pdoc__ = {}
 
-logs_field_config = Config(
+logs_field_config = ReadonlyConfig(
     dict(
         dtype=log_dt,
         settings=dict(
@@ -242,9 +242,7 @@ logs_field_config = Config(
                 title=('Result', 'Order Id')
             )
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -255,7 +253,7 @@ __pdoc__['logs_field_config'] = f"""Field config for `Logs`.
 ```
 """
 
-logs_attach_field_config = Config(
+logs_attach_field_config = ReadonlyConfig(
     dict(
         res_side=dict(
             attach_filters=True
@@ -266,9 +264,7 @@ logs_attach_field_config = Config(
         res_status_info=dict(
             attach_filters=True
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -307,7 +303,7 @@ class Logs(Records):
             logs_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -346,8 +342,7 @@ class Logs(Records):
                 post_calc_func=lambda self, out, settings: to_dict(out, orient='index_series'),
                 tags=['logs', 'res_status_info', 'value_counts']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

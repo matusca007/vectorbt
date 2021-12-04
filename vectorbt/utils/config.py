@@ -6,6 +6,7 @@
 import inspect
 from collections import namedtuple
 from copy import copy, deepcopy
+import functools
 
 import humanize
 
@@ -15,7 +16,6 @@ from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.docs import SafeToStr, Documented, stringify
 from vectorbt.utils.hashing import Hashable
-from vectorbt.utils.parsing import get_func_arg_names
 
 
 class Default(Hashable, SafeToStr):
@@ -140,18 +140,20 @@ def copy_dict(dct: InConfigLikeT, copy_mode: str = 'shallow', nested: bool = Tru
 
     The following modes are supported:
 
-    * 'shallow': Copies keys only.
-    * 'hybrid': Copies keys and values using `copy.copy`.
-    * 'deep': Copies the whole thing using `copy.deepcopy`.
+    * 'none': Does not copy
+    * 'shallow': Copies keys only
+    * 'hybrid': Copies keys and values using `copy.copy`
+    * 'deep': Copies the whole thing using `copy.deepcopy`
 
     Set `nested` to True to copy all child dicts in recursive manner."""
     if dct is None:
-        dct = {}
-    checks.assert_instance_of(copy_mode, str)
+        return {}
     copy_mode = copy_mode.lower()
-    if copy_mode not in ['shallow', 'hybrid', 'deep']:
+    if copy_mode not in {'none', 'shallow', 'hybrid', 'deep'}:
         raise ValueError(f"Copy mode '{copy_mode}' not supported")
 
+    if copy_mode == 'none':
+        return dct
     if copy_mode == 'deep':
         return deepcopy(dct)
     if isinstance(dct, Config):
@@ -208,7 +210,7 @@ def update_dict(x: InConfigLikeT,
 
 def merge_dicts(*dicts: InConfigLikeT,
                 to_dict: bool = True,
-                copy_mode: tp.Optional[str] = 'shallow',
+                copy_mode: str = 'shallow',
                 nested: tp.Optional[bool] = None,
                 same_keys: bool = False) -> OutConfigLikeT:
     """Merge dicts.
@@ -217,13 +219,23 @@ def merge_dicts(*dicts: InConfigLikeT,
         *dicts (dict): Dicts.
         to_dict (bool): Whether to call `convert_to_dict` on each dict prior to copying.
         copy_mode (str): Mode for `copy_dict` to copy each dict prior to merging.
-
-            Pass None to not copy.
         nested (bool): Whether to merge all child dicts in recursive manner.
 
             If None, checks whether any dict is nested.
         same_keys (bool): Whether to merge on the overlapping keys only."""
-    # copy only once
+    # Shortcut when both dicts are None
+    if dicts[0] is None and dicts[1] is None:
+        if len(dicts) > 2:
+            return merge_dicts(
+                None, *dicts[2:],
+                to_dict=to_dict,
+                copy_mode=copy_mode,
+                nested=nested,
+                same_keys=same_keys
+            )
+        return {}
+
+    # Check whether any dict is nested
     if nested is None:
         for dct in dicts:
             if dct is not None:
@@ -233,18 +245,24 @@ def merge_dicts(*dicts: InConfigLikeT,
                         break
             if nested:
                 break
+
+    # Convert dict-like objects to regular dicts
     if to_dict:
-        if not nested and copy_mode == 'shallow':  # shortcut
-            out = dict()
+        # Shortcut when all dicts are already regular
+        if not nested and copy_mode in {'none', 'shallow'}:  # shortcut
+            out = {}
             for dct in dicts:
                 if dct is not None:
                     out.update(dct)
             return out
         dicts = tuple([convert_to_dict(dct, nested=True) for dct in dicts])
-    if copy_mode is not None:
-        if not to_dict or copy_mode != 'shallow':
-            # to_dict already does a shallow copy
-            dicts = tuple([copy_dict(dct, copy_mode=copy_mode, nested=nested) for dct in dicts])
+
+    # Copy all dicts
+    if not to_dict or copy_mode not in {'none', 'shallow'}:
+        # to_dict already does a shallow copy
+        dicts = tuple([copy_dict(dct, copy_mode=copy_mode, nested=nested) for dct in dicts])
+
+    # Merge both dicts
     x, y = dicts[0], dicts[1]
     should_update = True
     if type(x) is dict and type(y) is dict and len(x) == 0:
@@ -255,11 +273,13 @@ def merge_dicts(*dicts: InConfigLikeT,
         should_update = False
     if should_update:
         update_dict(x, y, nested=nested, force=True, same_keys=same_keys)
+
+    # Merge resulting dict with remaining dicts
     if len(dicts) > 2:
         return merge_dicts(
             x, *dicts[2:],
             to_dict=False,  # executed only once
-            copy_mode=None,  # executed only once
+            copy_mode='none',  # executed only once
             nested=nested,
             same_keys=same_keys
         )
@@ -337,7 +357,7 @@ class PickleableDict(Pickleable, dict):
         except ImportError:
             import pickle
 
-        dct = dict()
+        dct = {}
         for k, v in self.items():
             if isinstance(v, Pickleable):
                 dct[k] = DumpTuple(cls=type(v), dumps=v.dumps(**kwargs))
@@ -372,17 +392,22 @@ ConfigT = tp.TypeVar("ConfigT", bound="Config")
 
 
 class Config(PickleableDict, Documented):
-    """Extends dict with config features such as nested updates, frozen keys/values, and pickling.
+    """Extends pickleable dict with config features such as nested updates, freezing, and resetting.
 
     Args:
         dct (dict): Dict to construct this config from.
         copy_kwargs (dict): Keyword arguments passed to `copy_dict` for copying `dct` and `reset_dct`.
 
-            Copy mode defaults to 'shallow' if `readonly`, otherwise to 'hybrid'.
+            Copy mode defaults to 'none'.
         reset_dct (dict): Dict to fall back to in case of resetting.
 
-            If None, copies `dct` using `reset_dct_copy_kwargs`.
+            Defaults to None. If None, copies `dct` using `reset_dct_copy_kwargs`.
+
+            !!! note
+                Defaults to `dct` in case it's None and `readonly` is True.
         reset_dct_copy_kwargs (dict): Keyword arguments that override `copy_kwargs` for `reset_dct`.
+
+            Copy mode defaults to 'none' if `readonly` is True, else to 'hybrid'.
         frozen_keys (bool): Whether to deny updates to the keys of the config.
 
             Defaults to False.
@@ -440,7 +465,7 @@ class Config(PickleableDict, Documented):
             config_cfg = {}
 
         if dct is None:
-            dct = dict()
+            dct = {}
 
         # Resolve params
         def _resolve_param(pname: str, p: tp.Any, default: tp.Any, merge: bool = False) -> tp.Any:
@@ -460,15 +485,15 @@ class Config(PickleableDict, Documented):
         reset_dct = _resolve_param('reset_dct', reset_dct, None)
         frozen_keys = _resolve_param('frozen_keys', frozen_keys, False)
         readonly = _resolve_param('readonly', readonly, False)
-        nested = _resolve_param('nested', nested, False)
+        nested = _resolve_param('nested', nested, True)
         convert_dicts = _resolve_param('convert_dicts', convert_dicts, False)
-        as_attrs = _resolve_param('as_attrs', as_attrs, frozen_keys or readonly)
+        as_attrs = _resolve_param('as_attrs', as_attrs, False)
         reset_dct_copy_kwargs = merge_dicts(copy_kwargs, reset_dct_copy_kwargs)
         copy_kwargs = _resolve_param(
             'copy_kwargs',
             copy_kwargs,
             dict(
-                copy_mode='shallow' if readonly else 'hybrid',
+                copy_mode='none',
                 nested=nested
             ),
             merge=True
@@ -477,7 +502,7 @@ class Config(PickleableDict, Documented):
             'reset_dct_copy_kwargs',
             reset_dct_copy_kwargs,
             dict(
-                copy_mode='shallow' if readonly else 'hybrid',
+                copy_mode='none' if readonly else 'hybrid',
                 nested=nested
             ),
             merge=True
@@ -487,9 +512,7 @@ class Config(PickleableDict, Documented):
         dct = copy_dict(dict(dct), **copy_kwargs)
 
         # Convert child dicts
-        if convert_dicts:
-            if not nested:
-                raise ValueError("convert_dicts requires nested to be True")
+        if convert_dicts and nested:
             for k, v in dct.items():
                 if isinstance(v, dict) and not isinstance(v, Config):
                     if isinstance(convert_dicts, bool):
@@ -516,16 +539,6 @@ class Config(PickleableDict, Documented):
 
         dict.__init__(self, dct)
 
-        # Store params in an instance variable
-        checks.assert_instance_of(copy_kwargs, dict)
-        checks.assert_instance_of(reset_dct, dict)
-        checks.assert_instance_of(reset_dct_copy_kwargs, dict)
-        checks.assert_instance_of(frozen_keys, bool)
-        checks.assert_instance_of(readonly, bool)
-        checks.assert_instance_of(nested, bool)
-        checks.assert_instance_of(convert_dicts, (bool, type))
-        checks.assert_instance_of(as_attrs, bool)
-
         self.__dict__['_copy_kwargs_'] = copy_kwargs
         self.__dict__['_reset_dct_'] = reset_dct
         self.__dict__['_reset_dct_copy_kwargs_'] = reset_dct_copy_kwargs
@@ -537,8 +550,9 @@ class Config(PickleableDict, Documented):
 
         # Set keys as attributes for autocomplete
         if as_attrs:
+            self_dir = set(self.__dir__())
             for k, v in self.items():
-                if k in self.__dir__():
+                if k in self_dir:
                     raise ValueError(f"Cannot set key '{k}' as attribute of the config. Disable as_attrs.")
                 self.__dict__[k] = v
 
@@ -688,33 +702,54 @@ class Config(PickleableDict, Documented):
         self_copy.update(deepcopy(dict(self), memo), nested=False, force=True)
         return self_copy
 
-    def copy(self: ConfigT, reset_dct_copy_kwargs: tp.KwargsLike = None, **copy_kwargs) -> ConfigT:
-        """Copy the instance in the same way it's done during initialization.
+    def copy(self: ConfigT,
+             reset_dct_copy_kwargs: tp.KwargsLike = None,
+             copy_mode: tp.Optional[str] = None,
+             nested: tp.Optional[bool] = None) -> ConfigT:
+        """Copy the instance.
 
-        `copy_kwargs` override `Config.copy_kwargs_` and `Config.reset_dct_copy_kwargs_` via merging.
-        `reset_dct_copy_kwargs` override merged `Config.reset_dct_copy_kwargs_`."""
+        By default, copies in the same way as during the initialization."""
+        if copy_mode is None:
+            copy_mode = self.copy_kwargs_['copy_mode']
+            reset_dct_copy_mode = self.reset_dct_copy_kwargs_['copy_mode']
+        else:
+            reset_dct_copy_mode = copy_mode
+        if nested is None:
+            nested = self.copy_kwargs_['nested']
+            reset_dct_nested = self.reset_dct_copy_kwargs_['nested']
+        else:
+            reset_dct_nested = nested
+        reset_dct_copy_kwargs = resolve_dict(reset_dct_copy_kwargs)
+        if 'copy_mode' in reset_dct_copy_kwargs:
+            if reset_dct_copy_kwargs['copy_mode'] is not None:
+                reset_dct_copy_mode = reset_dct_copy_kwargs['copy_mode']
+        if 'nested' in reset_dct_copy_kwargs:
+            if reset_dct_copy_kwargs['nested'] is not None:
+                reset_dct_nested = reset_dct_copy_kwargs['nested']
+
         self_copy = self.__copy__()
 
-        reset_dct_copy_kwargs = merge_dicts(self.reset_dct_copy_kwargs_, copy_kwargs, reset_dct_copy_kwargs)
-        reset_dct = copy_dict(dict(self.reset_dct_), **reset_dct_copy_kwargs)
+        reset_dct = copy_dict(dict(self.reset_dct_), copy_mode=reset_dct_copy_mode, nested=reset_dct_nested)
         self.__dict__['_reset_dct_'] = reset_dct
 
-        copy_kwargs = merge_dicts(self.copy_kwargs_, copy_kwargs)
-        dct = copy_dict(dict(self), **copy_kwargs)
+        dct = copy_dict(dict(self), copy_mode=copy_mode, nested=nested)
         self_copy.update(dct, nested=False, force=True)
 
         return self_copy
 
     def merge_with(self: ConfigT,
                    other: InConfigLikeT,
+                   copy_mode: tp.Optional[str] = None,
                    nested: tp.Optional[bool] = None,
                    **kwargs) -> OutConfigLikeT:
         """Merge with another dict into one single dict.
 
         See `merge_dicts`."""
+        if copy_mode is None:
+            copy_mode = 'shallow'
         if nested is None:
             nested = self.nested_
-        return merge_dicts(self, other, nested=nested, **kwargs)
+        return merge_dicts(self, other, copy_mode=copy_mode, nested=nested, **kwargs)
 
     def to_dict(self, nested: tp.Optional[bool] = None) -> dict:
         """Convert to dict."""
@@ -809,9 +844,6 @@ class Config(PickleableDict, Documented):
             nested = self.nested_
         self.update(loaded, nested=nested, force=True)
 
-    def __eq__(self, other: tp.Any) -> bool:
-        return checks.is_deep_equal(dict(self), dict(other))
-
     def stringify(self, with_params: bool = False, **kwargs) -> str:
         """Stringify using JSON."""
         doc = type(self).__name__ + "(" + stringify(dict(self), **kwargs) + ")"
@@ -828,10 +860,20 @@ class Config(PickleableDict, Documented):
             ), **kwargs)
         return doc
 
+    def __eq__(self, other: tp.Any) -> bool:
+        return checks.is_deep_equal(dict(self), dict(other))
+
 
 class AtomicConfig(Config, atomic_dict):
     """Config that behaves like a single value when merging."""
     pass
+
+
+ReadonlyConfig = functools.partial(Config, readonly=True)
+"""`Config` with `readonly` flag set to True."""
+
+HybridConfig = functools.partial(Config, copy_kwargs=dict(copy_mode='hybrid'))
+"""`Config` with `copy_kwargs` set to `copy_mode='hybrid'`."""
 
 
 ConfiguredT = tp.TypeVar("ConfiguredT", bound="Configured")
@@ -880,7 +922,7 @@ class Configured(Cacheable, Pickleable, Documented):
         return writeable_attrs
 
     def replace(self: ConfiguredT,
-                copy_mode_: tp.Optional[str] = 'shallow',
+                copy_mode_: tp.Optional[str] = None,
                 nested_: tp.Optional[bool] = None,
                 cls_: tp.Optional[type] = None,
                 **new_config) -> ConfiguredT:
@@ -910,7 +952,7 @@ class Configured(Cacheable, Pickleable, Documented):
         return new_instance
 
     def copy(self: ConfiguredT,
-             copy_mode: tp.Optional[str] = 'shallow',
+             copy_mode: tp.Optional[str] = None,
              nested: tp.Optional[bool] = None,
              cls: tp.Optional[type] = None) -> ConfiguredT:
         """Create a new instance by copying the config.

@@ -234,7 +234,7 @@ from vectorbt.jit_registry import jit_registry
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
-from vectorbt.utils.config import Config, merge_dicts, resolve_dict
+from vectorbt.utils.config import merge_dicts, resolve_dict, Config, ReadonlyConfig, HybridConfig
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.mapping import apply_mapping, to_mapping
 from vectorbt.utils.template import deep_substitute
@@ -283,7 +283,7 @@ class TransformerT(tp.Protocol):
         ...
 
 
-nb_config = Config(
+nb_config = ReadonlyConfig(
     {
         'shuffle': dict(func=nb.shuffle_nb, disable_chunked=True),
         'fillna': dict(func=nb.fillna_nb),
@@ -302,9 +302,7 @@ nb_config = Config(
         'expanding_max': dict(func=nb.expanding_max_nb),
         'expanding_mean': dict(func=nb.expanding_mean_nb),
         'product': dict(func=nb.nanprod_nb, is_reducing=True)
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -315,7 +313,7 @@ __pdoc__['nb_config'] = f"""Config of Numba methods to be attached to `GenericAc
 ```
 """
 
-transform_config = Config(
+transform_config = ReadonlyConfig(
     {
         'binarize': dict(
             transformer=Binarizer,
@@ -349,9 +347,7 @@ transform_config = Config(
             transformer=PowerTransformer,
             docstring="See `sklearn.preprocessing.PowerTransformer`."
         )
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -2698,7 +2694,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
             generic_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -2776,8 +2772,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 check_has_mapping=True,
                 tags=['generic', 'value_counts']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -2962,8 +2957,7 @@ class GenericAccessor(BaseAccessor, StatsBuilderMixin, PlotsBuilderMixin, metacl
                 pass_trace_names=False,
                 tags='generic'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

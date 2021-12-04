@@ -431,7 +431,7 @@ from vectorbt.records.col_mapper import ColumnMapper
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.array_ import index_repeating_rows_nb
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config, Configured
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, HybridConfig, Configured
 from vectorbt.utils.decorators import class_or_instancemethod, cached_method
 from vectorbt.utils.magic_decorators import attach_binary_magic_methods, attach_unary_magic_methods
 from vectorbt.utils.mapping import to_mapping, apply_mapping
@@ -563,7 +563,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             if 'col_arr' in kwargs:
                 if self.col_arr is not kwargs.get('col_arr'):
                     kwargs['col_mapper'] = None
-        return Configured.replace(self, **kwargs)
+        return Wrapping.replace(self, **kwargs)
 
     def indexing_func_meta(self, pd_indexing_func: tp.PandasIndexingFunc, **kwargs) -> IndexingMetaT:
         """Perform indexing on `MappedArray` and return metadata."""
@@ -1502,7 +1502,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
             mapped_array_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -1579,8 +1579,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 check_has_mapping=True,
                 tags=['mapped_array', 'value_counts']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -1619,8 +1618,7 @@ class MappedArray(Wrapping, StatsBuilderMixin, PlotsBuilderMixin, metaclass=Meta
                 pass_trace_names=False,
                 tags='mapped_array'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

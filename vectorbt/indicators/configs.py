@@ -3,9 +3,9 @@
 
 """Configs."""
 
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import ReadonlyConfig
 
-flex_elem_param_config = Config(
+flex_elem_param_config = ReadonlyConfig(
     dict(
         is_array_like=True,  # passing a NumPy array means passing one value, for multiple use list
         bc_to_input=True,  # broadcast to input
@@ -16,7 +16,7 @@ flex_elem_param_config = Config(
 )
 """Config for flexible element-wise parameters."""
 
-flex_col_param_config = Config(
+flex_col_param_config = ReadonlyConfig(
     dict(
         is_array_like=True,
         bc_to_input=1,  # broadcast to axis 1 (columns)

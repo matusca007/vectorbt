@@ -54,8 +54,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
         )
 
     _subplots: tp.ClassVar[Config] = Config(
-        dict(),
-        copy_kwargs=dict(copy_mode='deep')
+        dict()
     )
 
     @property
@@ -66,7 +65,7 @@ class PlotsBuilderMixin(metaclass=MetaPlotsBuilderMixin):
         ${subplots}
         ```
 
-        Returns `${cls_name}._subplots`, which gets (deep) copied upon creation of each instance.
+        Returns `${cls_name}._subplots`, which gets (hybrid-) copied upon creation of each instance.
         Thus, changing this config won't affect the class.
 
         To change subplots, you can either change the config in-place, override this property,

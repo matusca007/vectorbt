@@ -10,7 +10,7 @@ from vectorbt.base.chunking import GroupLensMapper, FlexArraySlicer, group_lens_
 from vectorbt.portfolio.enums import SimulationOutput
 from vectorbt.records.chunking import merge_records
 from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import ReadonlyConfig
 from vectorbt.utils.template import Rep
 
 flex_1d_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper, flex_2d=True)
@@ -98,7 +98,7 @@ def merge_sim_outs(results: tp.List[SimulationOutput],
     )
 
 
-merge_sim_outs_config = Config(
+merge_sim_outs_config = ReadonlyConfig(
     dict(
         merge_func=merge_sim_outs,
         merge_kwargs=dict(

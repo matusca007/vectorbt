@@ -343,7 +343,7 @@ class TestConfig:
             )
             return dct, config.Config(dct, **kwargs)
 
-        dct, cfg = init_config(copy_kwargs=dict(copy_mode='shallow'))
+        dct, cfg = init_config(copy_kwargs=dict(copy_mode='shallow'), nested=False)
         assert isinstance(cfg['dct'], config.Config)
         assert isinstance(cfg.reset_dct_['dct'], config.Config)
         dct['const'] = 2
@@ -497,7 +497,7 @@ class TestConfig:
         assert cfg.reset_dct_ == dict(const=0, lst=[1, 2, 3], dct=config.Config(dict(const=1, lst=[4, 5, 6])))
 
     def test_config_convert_dicts(self):
-        cfg = config.Config(dict(dct=dict(dct=config.Config(dict()))), nested=True, convert_dicts=True)
+        cfg = config.Config(dict(dct=dict(dct=config.Config(dict(), nested=False))), nested=True, convert_dicts=True)
         assert cfg.nested_
         assert cfg.convert_dicts_
         assert isinstance(cfg['dct'], config.Config)
@@ -576,17 +576,17 @@ class TestConfig:
         cfg = config.Config(dict(a=0))
         assert dict(cfg) == dict(a=0)
         assert cfg.copy_kwargs_ == dict(
-            copy_mode='hybrid',
-            nested=False
+            copy_mode='none',
+            nested=True
         )
         assert cfg.reset_dct_ == dict(a=0)
         assert cfg.reset_dct_copy_kwargs_ == dict(
             copy_mode='hybrid',
-            nested=False
+            nested=True
         )
         assert not cfg.frozen_keys_
         assert not cfg.readonly_
-        assert not cfg.nested_
+        assert cfg.nested_
         assert not cfg.convert_dicts_
         assert not cfg.as_attrs_
 
@@ -595,7 +595,7 @@ class TestConfig:
         vbt.settings.config['reset_dct_copy_kwargs'] = dict(copy_mode='deep')
         vbt.settings.config['frozen_keys'] = True
         vbt.settings.config['readonly'] = True
-        vbt.settings.config['nested'] = True
+        vbt.settings.config['nested'] = False
         vbt.settings.config['convert_dicts'] = True
         vbt.settings.config['as_attrs'] = True
 
@@ -603,16 +603,16 @@ class TestConfig:
         assert dict(cfg) == dict(a=0)
         assert cfg.copy_kwargs_ == dict(
             copy_mode='deep',
-            nested=True
+            nested=False
         )
         assert cfg.reset_dct_ == dict(a=0)
         assert cfg.reset_dct_copy_kwargs_ == dict(
             copy_mode='deep',
-            nested=True
+            nested=False
         )
         assert cfg.frozen_keys_
         assert cfg.readonly_
-        assert cfg.nested_
+        assert not cfg.nested_
         assert cfg.convert_dicts_
         assert cfg.as_attrs_
 
@@ -819,8 +819,12 @@ class TestConfig:
         assert dict(cfg) == dict(a=0, b=0)
 
     def test_config_merge_with(self):
-        cfg1 = config.Config(dict(a=0, dct=dict(b=1, dct=config.Config(dict(c=2), readonly=False))), readonly=False)
-        cfg2 = config.Config(dict(d=3, dct=config.Config(dict(e=4, dct=dict(f=5)), readonly=True)), readonly=True)
+        cfg1 = config.Config(
+            dict(a=0, dct=dict(b=1, dct=config.Config(dict(c=2), readonly=False))),
+            readonly=False, nested=False)
+        cfg2 = config.Config(
+            dict(d=3, dct=config.Config(dict(e=4, dct=dict(f=5)), readonly=True)),
+            readonly=True, nested=False)
         _cfg = cfg1.merge_with(cfg2)
         assert _cfg == dict(a=0, d=3, dct=cfg2['dct'])
         assert not isinstance(_cfg, config.Config)
@@ -842,19 +846,37 @@ class TestConfig:
         assert not _cfg['dct']['dct'].readonly_
 
     def test_config_reset(self):
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='shallow'))
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='shallow'), nested=False)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=1)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='hybrid'))
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='hybrid'), nested=False)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()
         assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
 
-        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='deep'))
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='deep'), nested=False)
+        cfg['a'] = 1
+        cfg['dct']['b'] = 1
+        cfg.reset()
+        assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
+
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='shallow'), nested=True)
+        cfg['a'] = 1
+        cfg['dct']['b'] = 1
+        cfg.reset()
+        assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
+
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='hybrid'), nested=True)
+        cfg['a'] = 1
+        cfg['dct']['b'] = 1
+        cfg.reset()
+        assert cfg == config.Config(dict(a=0, dct=dict(b=0)))
+
+        cfg = config.Config(dict(a=0, dct=dict(b=0)), copy_kwargs=dict(copy_mode='deep'), nested=True)
         cfg['a'] = 1
         cfg['dct']['b'] = 1
         cfg.reset()

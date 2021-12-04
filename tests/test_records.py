@@ -9,6 +9,7 @@ import vectorbt as vbt
 from tests.utils import assert_records_close
 from vectorbt.generic.enums import range_dt, drawdown_dt
 from vectorbt.portfolio.enums import order_dt, trade_dt, log_dt
+from vectorbt.records.base import Records
 
 day_dt = np.timedelta64(86400000000000)
 
@@ -1570,6 +1571,33 @@ class TestRecords:
         assert vbt.Records.loads(records.dumps()) == records
         records.save(tmp_path / 'records')
         assert vbt.Records.load(tmp_path / 'records') == records
+
+    def test_field_config(self):
+        records2 = vbt.records.Records(wrapper, records_arr)
+        records2.field_config['settings']['id']['title'] = "My id"
+        assert Records.field_config['settings']['id']['title'] == 'Id'
+        records2_copy = records2.copy()
+        records2_copy.field_config['settings']['id']['title'] = "My id 2"
+        assert records2.field_config['settings']['id']['title'] == 'My id'
+        assert Records.field_config['settings']['id']['title'] == 'Id'
+
+    def test_metrics_config(self):
+        records2 = vbt.records.Records(wrapper, records_arr)
+        records2.metrics['hello'] = "world"
+        assert 'hello' not in Records.metrics
+        records2_copy = records2.copy()
+        records2_copy.metrics['hello'] = "world2"
+        assert records2.metrics['hello'] == 'world'
+        assert 'hello' not in Records.metrics
+
+    def test_subplots_config(self):
+        records2 = vbt.records.Records(wrapper, records_arr)
+        records2.subplots['hello'] = "world"
+        assert 'hello' not in Records.subplots
+        records2_copy = records2.copy()
+        records2_copy.subplots['hello'] = "world2"
+        assert records2.subplots['hello'] == 'world'
+        assert 'hello' not in Records.subplots
 
     def test_records(self):
         pd.testing.assert_frame_equal(

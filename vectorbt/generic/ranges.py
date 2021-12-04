@@ -125,11 +125,11 @@ from vectorbt.records.base import Records
 from vectorbt.records.decorators import override_field_config, attach_fields, attach_shortcut_properties
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, ReadonlyConfig, HybridConfig
 
 __pdoc__ = {}
 
-ranges_field_config = Config(
+ranges_field_config = ReadonlyConfig(
     dict(
         dtype=range_dt,
         settings=dict(
@@ -152,9 +152,7 @@ ranges_field_config = Config(
                 mapping=RangeStatus
             )
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -165,14 +163,12 @@ __pdoc__['ranges_field_config'] = f"""Field config for `Ranges`.
 ```
 """
 
-ranges_attach_field_config = Config(
+ranges_attach_field_config = ReadonlyConfig(
     dict(
         status=dict(
             attach_filters=True
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -183,7 +179,7 @@ __pdoc__['ranges_attach_field_config'] = f"""Config of fields to be attached to 
 ```
 """
 
-ranges_shortcut_config = Config(
+ranges_shortcut_config = ReadonlyConfig(
     dict(
         mask=dict(
             obj_type='array'
@@ -204,9 +200,7 @@ ranges_shortcut_config = Config(
             obj_type='red_array',
             method_kwargs=dict(overlapping=True)
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -421,7 +415,7 @@ class Ranges(Records):
             ranges_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -476,8 +470,7 @@ class Ranges(Records):
                 apply_to_timedelta=True,
                 tags=['ranges', 'duration']
             ),
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -731,8 +724,7 @@ class Ranges(Records):
                 plot_func='plot',
                 tags='ranges'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

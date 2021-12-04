@@ -178,12 +178,12 @@ from vectorbt.jit_registry import jit_registry
 from vectorbt.records.decorators import override_field_config, attach_fields, attach_shortcut_properties
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, ReadonlyConfig, HybridConfig
 from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
 
-dd_field_config = Config(
+dd_field_config = ReadonlyConfig(
     dict(
         dtype=drawdown_dt,
         settings=dict(
@@ -211,9 +211,7 @@ dd_field_config = Config(
                 mapping=DrawdownStatus
             )
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -224,14 +222,12 @@ __pdoc__['dd_field_config'] = f"""Field config for `Drawdowns`.
 ```
 """
 
-dd_attach_field_config = Config(
+dd_attach_field_config = ReadonlyConfig(
     dict(
         status=dict(
             attach_filters=True
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -242,7 +238,7 @@ __pdoc__['dd_attach_field_config'] = f"""Config of fields to be attached to `Dra
 ```
 """
 
-dd_shortcut_config = Config(
+dd_shortcut_config = ReadonlyConfig(
     dict(
         drawdown=dict(
             obj_type='mapped_array'
@@ -286,9 +282,7 @@ dd_shortcut_config = Config(
         active_recovery_duration=dict(
             obj_type='red_array'
         ),
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -618,7 +612,7 @@ class Drawdowns(Ranges):
             drawdowns_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -748,8 +742,7 @@ class Drawdowns(Ranges):
                 calc_func='recovered.recovery_duration_ratio.mean',
                 tags=['drawdowns', 'recovered']
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -1091,8 +1084,7 @@ class Drawdowns(Ranges):
                 plot_func='plot',
                 tags='drawdowns'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

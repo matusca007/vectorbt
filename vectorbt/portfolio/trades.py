@@ -496,14 +496,14 @@ from vectorbt.records.decorators import attach_fields, override_field_config, at
 from vectorbt.records.mapped_array import MappedArray
 from vectorbt.utils.array_ import min_rel_rescale, max_rel_rescale
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import merge_dicts, Config, ReadonlyConfig, HybridConfig
 from vectorbt.utils.template import RepEval
 
 __pdoc__ = {}
 
 # ############# Trades ############# #
 
-trades_field_config = Config(
+trades_field_config = ReadonlyConfig(
     dict(
         dtype=trade_dt,
         settings={
@@ -560,9 +560,7 @@ trades_field_config = Config(
                 title='Position Id'
             )
         }
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -573,7 +571,7 @@ __pdoc__['trades_field_config'] = f"""Field config for `Trades`.
 ```
 """
 
-trades_attach_field_config = Config(
+trades_attach_field_config = ReadonlyConfig(
     {
         'return': dict(
             attach='returns'
@@ -585,9 +583,7 @@ trades_attach_field_config = Config(
             attach_filters=True,
             on_conflict='ignore'
         )
-    },
-    readonly=True,
-    as_attrs=False
+    }
 )
 """_"""
 
@@ -598,7 +594,7 @@ __pdoc__['trades_attach_field_config'] = f"""Config of fields to be attached to 
 ```
 """
 
-trades_shortcut_config = Config(
+trades_shortcut_config = ReadonlyConfig(
     dict(
         winning=dict(),
         losing=dict(),
@@ -620,9 +616,7 @@ trades_shortcut_config = Config(
         sqn=dict(
             obj_type='red_array'
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -803,7 +797,7 @@ class Trades(Ranges):
             trades_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -953,8 +947,7 @@ class Trades(Ranges):
                 calc_func=RepEval("'sqn' if incl_open else 'closed.get_sqn'"),
                 tags=RepEval("['trades', *incl_open_tags]")
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -1521,8 +1514,7 @@ class Trades(Ranges):
                 plot_func='plot_pnl',
                 tags='trades'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -1536,16 +1528,14 @@ Trades.override_subplots_doc(__pdoc__)
 
 # ############# EntryTrades ############# #
 
-entry_trades_field_config = Config(
+entry_trades_field_config = ReadonlyConfig(
     dict(
         settings={
             'id': dict(
                 title='Entry Trade Id'
             )
         }
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -1588,16 +1578,14 @@ class EntryTrades(Trades):
 
 # ############# ExitTrades ############# #
 
-exit_trades_field_config = Config(
+exit_trades_field_config = ReadonlyConfig(
     dict(
         settings={
             'id': dict(
                 title='Exit Trade Id'
             )
         }
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -1640,7 +1628,7 @@ class ExitTrades(Trades):
 
 # ############# Positions ############# #
 
-positions_field_config = Config(
+positions_field_config = ReadonlyConfig(
     dict(
         settings={
             'id': dict(
@@ -1651,9 +1639,7 @@ positions_field_config = Config(
                 ignore=True
             )
         }
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 

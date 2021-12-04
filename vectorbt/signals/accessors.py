@@ -207,7 +207,7 @@ from vectorbt.signals import nb
 from vectorbt.utils import checks
 from vectorbt.utils import chunking as ch
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import resolve_dict, merge_dicts, Config
+from vectorbt.utils.config import resolve_dict, merge_dicts, Config, HybridConfig
 from vectorbt.utils.decorators import class_or_instancemethod
 from vectorbt.utils.random_ import set_seed_nb
 from vectorbt.utils.template import RepEval, deep_substitute
@@ -1927,7 +1927,7 @@ class SignalsAccessor(GenericAccessor):
             signals_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -2042,8 +2042,7 @@ class SignalsAccessor(GenericAccessor):
                 apply_to_timedelta=True,
                 tags=['signals', 'partitions', 'distance']
             ),
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

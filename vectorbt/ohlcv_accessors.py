@@ -94,7 +94,7 @@ from vectorbt import _typing as tp
 from vectorbt.generic import nb
 from vectorbt.generic.accessors import GenericAccessor, GenericDFAccessor
 from vectorbt.root_accessors import register_df_vbt_accessor
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import merge_dicts, Config, HybridConfig
 
 __pdoc__ = {}
 
@@ -184,7 +184,7 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
             ohlcv_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -253,8 +253,7 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
                 resolve_volume=True,
                 tags=['ohlcv', 'volume']
             ),
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -429,8 +428,7 @@ class OHLCVDFAccessor(GenericDFAccessor):  # pragma: no cover
                 show_volume=False,
                 tags='ohlcv'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

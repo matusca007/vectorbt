@@ -1140,12 +1140,12 @@ class SettingsConfig(Config):
 
 settings = SettingsConfig(
     _settings,
-    copy_kwargs=dict(
+    reset_dct_copy_kwargs=dict(
         copy_mode='deep'
     ),
     frozen_keys=True,
-    nested=True,
-    convert_dicts=Config
+    convert_dicts=Config,
+    as_attrs=True
 )
 """Global settings config.
 

@@ -15,7 +15,7 @@ from vectorbt import _typing as tp
 from vectorbt.base.wrapping import Wrapping
 from vectorbt.utils import checks
 from vectorbt.utils.attr_ import get_dict_attr, AttrResolver
-from vectorbt.utils.config import Config, merge_dicts
+from vectorbt.utils.config import merge_dicts, Config, HybridConfig
 from vectorbt.utils.parsing import get_func_arg_names
 from vectorbt.utils.tagging import match_tags
 from vectorbt.utils.template import deep_substitute
@@ -56,7 +56,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
             dict(settings=dict(freq=self.wrapper.freq))
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -77,8 +77,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
                 agg_func=None,
                 tags='wrapper'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -89,7 +88,7 @@ class StatsBuilderMixin(metaclass=MetaStatsBuilderMixin):
         ${metrics}
         ```
 
-        Returns `${cls_name}._metrics`, which gets (deep) copied upon creation of each instance.
+        Returns `${cls_name}._metrics`, which gets (hybrid-) copied upon creation of each instance.
         Thus, changing this config won't affect the class.
 
         To change metrics, you can either change the config in-place, override this property,

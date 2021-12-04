@@ -114,11 +114,11 @@ from vectorbt.portfolio.enums import order_dt, OrderSide
 from vectorbt.records.base import Records
 from vectorbt.records.decorators import attach_fields, override_field_config
 from vectorbt.utils.colors import adjust_lightness
-from vectorbt.utils.config import merge_dicts, Config
+from vectorbt.utils.config import merge_dicts, Config, ReadonlyConfig, HybridConfig
 
 __pdoc__ = {}
 
-orders_field_config = Config(
+orders_field_config = ReadonlyConfig(
     dict(
         dtype=order_dt,
         settings=dict(
@@ -139,9 +139,7 @@ orders_field_config = Config(
                 mapping=OrderSide
             )
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -152,14 +150,12 @@ __pdoc__['orders_field_config'] = f"""Field config for `Orders`.
 ```
 """
 
-orders_attach_field_config = Config(
+orders_attach_field_config = ReadonlyConfig(
     dict(
         side=dict(
             attach_filters=True
         )
-    ),
-    readonly=True,
-    as_attrs=False
+    )
 )
 """_"""
 
@@ -233,7 +229,7 @@ class Orders(Records):
             orders_stats_cfg
         )
 
-    _metrics: tp.ClassVar[Config] = Config(
+    _metrics: tp.ClassVar[Config] = HybridConfig(
         dict(
             start=dict(
                 title='Start',
@@ -334,8 +330,7 @@ class Orders(Records):
                 calc_func='sell.fees.mean',
                 tags=['orders', 'sell', 'fees']
             ),
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property
@@ -519,8 +514,7 @@ class Orders(Records):
                 plot_func='plot',
                 tags='orders'
             )
-        ),
-        copy_kwargs=dict(copy_mode='deep')
+        )
     )
 
     @property

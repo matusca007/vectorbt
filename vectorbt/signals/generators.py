@@ -16,7 +16,7 @@ from vectorbt.signals.nb import (
     ohlc_stop_place_nb,
     rand_place_nb
 )
-from vectorbt.utils.config import Config
+from vectorbt.utils.config import ReadonlyConfig
 
 # ############# RAND ############# #
 
@@ -269,7 +269,7 @@ class _RPROB(RPROB):
 
 setattr(RPROB, '__doc__', _RPROB.__doc__)
 
-rprobx_config = Config(
+rprobx_config = ReadonlyConfig(
     dict(
         class_name='RPROBX',
         module_name=__name__,
@@ -280,7 +280,7 @@ rprobx_config = Config(
 )
 """Factory config for `RPROBX`."""
 
-rprobx_func_config = Config(
+rprobx_func_config = ReadonlyConfig(
     dict(
         exit_place_func=rand_by_prob_place_nb,
         exit_settings=dict(
@@ -444,7 +444,7 @@ setattr(RPROBNX, '__doc__', _RPROBNX.__doc__)
 
 # ############# ST ############# #
 
-stx_config = Config(
+stx_config = ReadonlyConfig(
     dict(
         class_name='STX',
         module_name=__name__,
@@ -456,7 +456,7 @@ stx_config = Config(
 )
 """Factory config for `STX`."""
 
-stx_func_config = Config(
+stx_func_config = ReadonlyConfig(
     dict(
         exit_place_func=stop_place_nb,
         exit_settings=dict(
@@ -521,7 +521,7 @@ setattr(STCX, '__doc__', _STCX.__doc__)
 
 # ############# OHLCST ############# #
 
-ohlcstx_config = Config(
+ohlcstx_config = ReadonlyConfig(
     dict(
         class_name='OHLCSTX',
         module_name=__name__,
@@ -537,7 +537,7 @@ ohlcstx_config = Config(
 )
 """Factory config for `OHLCSTX`."""
 
-ohlcstx_func_config = Config(
+ohlcstx_func_config = ReadonlyConfig(
     dict(
         exit_place_func=ohlc_stop_place_nb,
         exit_settings=dict(
