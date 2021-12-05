@@ -33,11 +33,11 @@ function over and over again, each setup can be uniquely identified by its funct
 
 >>> # Wrapper registers a new setup
 >>> my_ca_func.get_ca_setup()
-<vectorbt.ca_registry.CARunSetup at 0x7f9fd6775a20>
+CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function <lambda> at 0x7fe14e94cae8>, instance=None, max_size=None, ignore_args=None, cache={})
 
 >>> # Another call won't register a new setup but return the existing one
 >>> my_ca_func.get_ca_setup()
-<vectorbt.ca_registry.CARunSetup at 0x7f9fd6775a20>
+CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function <lambda> at 0x7fe14e94cae8>, instance=None, max_size=None, ignore_args=None, cache={})
 
 >>> # Only one CARunSetup object per wrapper and optionally the instance the wrapper is bound to
 >>> hash(my_ca_func.get_ca_setup()) == hash((my_ca_func, None))
@@ -321,30 +321,31 @@ For example, let's look which setups have been registered so far:
 >>> from vectorbt.ca_registry import ca_registry
 
 >>> ca_registry.match_setups(kind=None)
-{<vectorbt.ca_registry.CAClassSetup at 0x7f7fa5df3668>,
- <vectorbt.ca_registry.CAClassSetup at 0x7f7fa0fe3ef0>,
- <vectorbt.ca_registry.CAInstanceSetup at 0x7f7fa5df36d8>,
- <vectorbt.ca_registry.CAInstanceSetup at 0x7f7fa0fe38d0>,
- <vectorbt.ca_registry.CAInstanceSetup at 0x7f7fd056ab38>,
- <vectorbt.ca_registry.CAInstanceSetup at 0x7f7fa5df3f60>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fd056a7b8>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5df36a0>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5e13048>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5df3630>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fd056aa58>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5df3208>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5e13080>,
- <vectorbt.ca_registry.CAUnboundSetup at 0x7f7fa5df3588>,
- <vectorbt.ca_registry.CAUnboundSetup at 0x7f7fa5df34e0>}
+{
+    CAClassSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=None, whitelist=None, cls=<class '__main__.B'>),
+    CAClassSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=None, whitelist=None, cls=<class '__main__.C'>),
+    CAInstanceSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=None, whitelist=None, instance=<weakref at 0x7fe14e9d83b8; to 'B' at 0x7fe14e944978>),
+    CAInstanceSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=None, whitelist=None, instance=<weakref at 0x7fe14e9d84f8; to 'C' at 0x7fe14e9448d0>),
+    CAInstanceSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=None, whitelist=None, instance=<weakref at 0x7fe14e9d8688; to 'C' at 0x7fe1495111d0>),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function <lambda> at 0x7fe14e94cae8>, instance=None, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function C.f2 at 0x7fe13959ee18>, instance=<weakref at 0x7fe14e9d85e8; to 'C' at 0x7fe14e9448d0>, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function C.f2 at 0x7fe13959ee18>, instance=<weakref at 0x7fe14e9d8728; to 'C' at 0x7fe1495111d0>, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<vectorbt.utils.decorators.cached_property object at 0x7fe118045408>, instance=<weakref at 0x7fe14e9d8458; to 'B' at 0x7fe14e944978>, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<vectorbt.utils.decorators.cached_property object at 0x7fe118045408>, instance=<weakref at 0x7fe14e9d8598; to 'C' at 0x7fe14e9448d0>, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<vectorbt.utils.decorators.cached_property object at 0x7fe118045408>, instance=<weakref at 0x7fe14e9d86d8; to 'C' at 0x7fe1495111d0>, max_size=None, ignore_args=None, cache={}),
+    CAUnboundSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function C.f2 at 0x7fe13959ee18>),
+    CAUnboundSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<vectorbt.utils.decorators.cached_property object at 0x7fe118045408>)
+}
 ```
 
 Let's get the runnable setup of any property and method called `f2`:
 
 ```python-repl
 >>> ca_registry.match_setups('f2', kind='runnable')
-{<vectorbt.ca_registry.CARunSetup at 0x7f7fd056a7b8>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5df36a0>,
- <vectorbt.ca_registry.CARunSetup at 0x7f7fa5e13048>}
+{
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function C.f2 at 0x7fe13959ee18>, instance=<weakref at 0x7fe14e9d85e8; to 'C' at 0x7fe14e9448d0>, max_size=None, ignore_args=None, cache={}),
+    CARunSetup(registry=<vectorbt.ca_registry.CacheableRegistry object at 0x7fe14c27df60>, use_cache=True, whitelist=False, cacheable=<function C.f2 at 0x7fe13959ee18>, instance=<weakref at 0x7fe14e9d8728; to 'C' at 0x7fe1495111d0>, max_size=None, ignore_args=None, cache={})
+}
 ```
 
 But there is a better way to get an overview: `CAQueryDelegator.get_status_overview`.
@@ -406,8 +407,9 @@ To remove all setups:
 import inspect
 import sys
 import warnings
-import weakref
+from weakref import ref, ReferenceType
 from datetime import datetime, timezone, timedelta
+import attr
 
 import humanize
 import pandas as pd
@@ -417,7 +419,6 @@ from vectorbt.utils import checks
 from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.datetime_ import to_naive_datetime
 from vectorbt.utils.decorators import cacheableT, cacheable_property
-from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.parsing import Regex, hash_args, UnhashableArgsError
 from vectorbt.utils.profiling import Timer
@@ -467,9 +468,34 @@ def get_obj_id(instance: object) -> tp.Tuple[type, int]:
 
 CAQueryT = tp.TypeVar("CAQueryT", bound="CAQuery")
 
+InstanceT = tp.Optional[tp.Union[Cacheable, ReferenceType]]
 
-class CAQuery(Hashable, SafeToStr):
-    """Class that represents a query for matching and ranking setups."""
+
+def _instance_converter(instance: InstanceT) -> InstanceT:
+    """Make the reference to the instance weak."""
+    if instance is not None and instance is not _GARBAGE and not isinstance(instance, ReferenceType):
+        return ref(instance)
+    return instance
+
+
+@attr.s(frozen=True, eq=False)
+class CAQuery(Hashable):
+    """Data class that represents a query for matching and ranking setups."""
+
+    cacheable: tp.Optional[tp.Union[tp.Callable, cacheableT, str, Regex]] = attr.ib(default=None)
+    """Cacheable object or its name (case-sensitive)."""
+
+    instance: InstanceT = attr.ib(default=None, converter=_instance_converter)
+    """Weak reference to the instance `CAQuery.cacheable` is bound to."""
+
+    cls: tp.Optional[tp.TypeLike] = attr.ib(default=None)
+    """Class of the instance or its name (case-sensitive) `CAQuery.cacheable` is bound to."""
+
+    base_cls: tp.Optional[tp.TypeLike] = attr.ib(default=None)
+    """Base class of the instance or its name (case-sensitive) `CAQuery.cacheable` is bound to."""
+
+    options: tp.Optional[dict] = attr.ib(factory=dict)
+    """Options to match."""
 
     @classmethod
     def parse(cls: tp.Type[CAQueryT], query_like: tp.Any, use_base_cls: bool = True) -> CAQueryT:
@@ -484,29 +510,26 @@ class CAQuery(Hashable, SafeToStr):
         ```python-repl
         >>> import vectorbt as vbt
 
-        >>> CAQuery.parse(func)
-        <=> CAQuery(cacheable=func)
+        >>> vbt.CAQuery.parse(lambda x: x)
+        CAQuery(cacheable=<function <lambda> at 0x7fd4766c7730>, instance=None, cls=None, base_cls=None, options=None)
 
-        >>> CAQuery.parse("a")
-        <=> CAQuery(cacheable='a')
+        >>> vbt.CAQuery.parse("a")
+        CAQuery(cacheable='a', instance=None, cls=None, base_cls=None, options=None)
 
-        >>> CAQuery.parse("A.a")
-        <=> CAQuery(base_cls='A', cacheable='a')
+        >>> vbt.CAQuery.parse("A.a")
+        CAQuery(cacheable='a', instance=None, cls=None, base_cls='A', options=None)
 
-        >>> CAQuery.parse("A")
-        <=> CAQuery(base_cls='A')
+        >>> vbt.CAQuery.parse("A")
+        CAQuery(cacheable=None, instance=None, cls=None, base_cls='A', options=None)
 
-        >>> CAQuery.parse("A", use_base_cls=False)
-        <=> CAQuery(cls='A')
+        >>> vbt.CAQuery.parse("A", use_base_cls=False)
+        CAQuery(cacheable=None, instance=None, cls='A', base_cls=None, options=None)
 
-        >>> CAQuery.parse(vbt.Regex("[A-B]"))
-        <=> CAQuery(base_cls=vbt.Regex("[A-B]"))
+        >>> vbt.CAQuery.parse(vbt.Regex("[A-B]"))
+        CAQuery(cacheable=None, instance=None, cls=None, base_cls=Regex(pattern='[A-B]', flags=0), options=None)
 
-        >>> CAQuery.parse(dict(my_option=100))
-        <=> CAQuery(options=dict(my_option=100))
-
-        >>> CAQuery.parse(123)
-        <=> CAQuery(instance=123)
+        >>> vbt.CAQuery.parse(dict(my_option=100))
+        CAQuery(cacheable=None, instance=None, cls=None, base_cls=None, options={'my_option': 100})
         ```"""
         if query_like is None:
             return CAQuery()
@@ -544,48 +567,14 @@ class CAQuery(Hashable, SafeToStr):
             return cls(cacheable=query_like)
         return cls(instance=query_like)
 
-    def __init__(self,
-                 cacheable: tp.Optional[tp.Union[tp.Callable, cacheableT, str, Regex]] = None,
-                 instance: tp.Optional[Cacheable] = None,
-                 cls: tp.Optional[tp.TypeLike] = None,
-                 base_cls: tp.Optional[tp.TypeLike] = None,
-                 options: tp.Optional[dict] = None) -> None:
-        self._cacheable = cacheable
-        if instance is not None and instance is not _GARBAGE:
-            instance = weakref.ref(instance)
-        self._instance = instance
-        self._cls = cls
-        self._base_cls = base_cls
-        self._options = options
-
     @property
-    def cacheable(self) -> tp.Optional[tp.Union[tp.Callable, cacheableT, str, Regex]]:
-        """Cacheable object or its name (case-sensitive)."""
-        return self._cacheable
-
-    @property
-    def instance(self) -> tp.Optional[tp.Union[Cacheable, object]]:
-        """Weak reference to the instance `CAQuery.cacheable` is bound to."""
-        if self._instance is _GARBAGE:
+    def instance_obj(self) -> tp.Optional[tp.Union[Cacheable, object]]:
+        """Instance object."""
+        if self.instance is _GARBAGE:
             return _GARBAGE
-        if self._instance is not None and self._instance() is None:
+        if self.instance is not None and self.instance() is None:
             return _GARBAGE
-        return self._instance() if self._instance is not None else None
-
-    @property
-    def cls(self) -> tp.Optional[tp.TypeLike]:
-        """Class of the instance or its name (case-sensitive) `CAQuery.cacheable` is bound to."""
-        return self._cls
-
-    @property
-    def base_cls(self) -> tp.Optional[tp.TypeLike]:
-        """Base class of the instance or its name (case-sensitive) `CAQuery.cacheable` is bound to."""
-        return self._base_cls
-
-    @property
-    def options(self) -> tp.Optional[dict]:
-        """Options to match."""
-        return self._options
+        return self.instance() if self.instance is not None else None
 
     def matches_setup(self, setup: 'CABaseSetup') -> bool:
         """Return whether the setup matches this query.
@@ -682,20 +671,20 @@ class CAQuery(Hashable, SafeToStr):
             else:
                 return False
 
-        if self.instance is not None:
+        if self.instance_obj is not None:
             if not isinstance(setup, (CARunSetup, CAInstanceSetup)):
                 return False
-            if setup.instance is not self.instance:
+            if setup.instance_obj is not self.instance_obj:
                 return False
 
         if self.cls is not None:
             if not isinstance(setup, (CARunSetup, CAInstanceSetup, CAClassSetup)):
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and setup.instance is _GARBAGE:
+                    and setup.instance_obj is _GARBAGE:
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and not checks.is_class(type(setup.instance), self.cls):
+                    and not checks.is_class(type(setup.instance_obj), self.cls):
                 return False
             if isinstance(setup, CAClassSetup) \
                     and not checks.is_class(setup.cls, self.cls):
@@ -705,16 +694,16 @@ class CAQuery(Hashable, SafeToStr):
             if not isinstance(setup, (CARunSetup, CAInstanceSetup, CAClassSetup)):
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and setup.instance is _GARBAGE:
+                    and setup.instance_obj is _GARBAGE:
                 return False
             if isinstance(setup, (CARunSetup, CAInstanceSetup)) \
-                    and not checks.is_subclass_of(type(setup.instance), self.base_cls):
+                    and not checks.is_subclass_of(type(setup.instance_obj), self.base_cls):
                 return False
             if isinstance(setup, CAClassSetup) \
                     and not checks.is_subclass_of(setup.cls, self.base_cls):
                 return False
 
-        if self.options is not None:
+        if self.options is not None and len(self.options) > 0:
             if not isinstance(setup, (CARunSetup, CAUnboundSetup)):
                 return False
             for k, v in self.options.items():
@@ -723,19 +712,11 @@ class CAQuery(Hashable, SafeToStr):
 
         return True
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"cacheable={self.cacheable}, " \
-               f"instance={self.instance}, " \
-               f"cls={self.cls}, " \
-               f"base_cls={self.base_cls}, " \
-               f"options={prepare_for_doc(self.options)})"
-
     @property
     def hash_key(self) -> tuple:
         return (
             self.cacheable,
-            get_obj_id(self.instance) if self.instance is not None else None,
+            get_obj_id(self.instance_obj) if self.instance_obj is not None else None,
             self.cls,
             self.base_cls,
             tuple(self.options.items()) if self.options is not None else None
@@ -822,7 +803,7 @@ class CacheableRegistry:
                       instance: tp.Optional[Cacheable] = None) -> tp.Optional['CARunSetup']:
         """Get a setup of type `CARunSetup` with this cacheable and instance, or return None."""
         run_setup = self.run_setups.get(CARunSetup.get_hash(cacheable, instance=instance), None)
-        if run_setup is not None and run_setup.instance is _GARBAGE:
+        if run_setup is not None and run_setup.instance_obj is _GARBAGE:
             self.deregister_setup(run_setup)
             return None
         return run_setup
@@ -834,7 +815,7 @@ class CacheableRegistry:
     def get_instance_setup(self, instance: Cacheable) -> tp.Optional['CAInstanceSetup']:
         """Get a setup of type `CAInstanceSetup` with this instance or return None."""
         instance_setup = self.instance_setups.get(CAInstanceSetup.get_hash(instance), None)
-        if instance_setup is not None and instance_setup.instance is _GARBAGE:
+        if instance_setup is not None and instance_setup.instance_obj is _GARBAGE:
             self.deregister_setup(instance_setup)
             return None
         return instance_setup
@@ -1037,39 +1018,28 @@ class CAMetrics:
         )
 
 
-class CABaseSetup(CAMetrics):
+@attr.s(frozen=True, eq=False)
+class CABaseSetup(CAMetrics, Hashable):
     """Base class that exposes properties and methods for cache management."""
 
-    def __init__(self,
-                 registry: CacheableRegistry = ca_registry,
-                 use_cache: tp.Optional[bool] = None,
-                 whitelist: tp.Optional[bool] = None) -> None:
-        self._registry = registry
-        self._use_cache = use_cache
-        self._whitelist = whitelist
-        self._creation_time = datetime.now(timezone.utc)
-        self._use_cache_lut = None
-        self._whitelist_lut = None
+    registry: CacheableRegistry = attr.ib(default=ca_registry)
+    """Registry of type `CacheableRegistry`."""
+
+    use_cache: tp.Optional[bool] = attr.ib(default=None)
+    """Whether caching is enabled."""
+
+    whitelist: tp.Optional[bool] = attr.ib(default=None)
+    """Whether to cache even if caching was disabled globally."""
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_creation_time", datetime.now(timezone.utc))
+        object.__setattr__(self, "_use_cache_lut", None)
+        object.__setattr__(self, "_whitelist_lut", None)
 
     @property
     def query(self) -> CAQuery:
         """Query to match this setup."""
         raise NotImplementedError
-
-    @property
-    def registry(self) -> CacheableRegistry:
-        """Registry of type `CacheableRegistry`."""
-        return self._registry
-
-    @property
-    def use_cache(self) -> tp.Optional[bool]:
-        """Whether caching is enabled."""
-        return self._use_cache
-
-    @property
-    def whitelist(self) -> tp.Optional[bool]:
-        """Whether to cache even if caching was disabled globally."""
-        return self._whitelist
 
     @property
     def caching_enabled(self) -> tp.Optional[bool]:
@@ -1107,13 +1077,13 @@ class CABaseSetup(CAMetrics):
 
     def enable_whitelist(self) -> None:
         """Enable whitelisting."""
-        self._whitelist = True
-        self._whitelist_lut = datetime.now(timezone.utc)
+        object.__setattr__(self, "whitelist", True)
+        object.__setattr__(self, "_whitelist_lut", datetime.now(timezone.utc))
 
     def disable_whitelist(self) -> None:
         """Disable whitelisting."""
-        self._whitelist = False
-        self._whitelist_lut = datetime.now(timezone.utc)
+        object.__setattr__(self, "whitelist", False)
+        object.__setattr__(self, "_whitelist_lut", datetime.now(timezone.utc))
 
     def enable_caching(self, force: bool = False, silence_warnings: tp.Optional[bool] = None) -> None:
         """Enable caching.
@@ -1125,9 +1095,9 @@ class CABaseSetup(CAMetrics):
         if silence_warnings is None:
             silence_warnings = caching_cfg['silence_warnings']
 
-        self._use_cache = True
+        object.__setattr__(self, "use_cache", True)
         if force:
-            self._whitelist = True
+            object.__setattr__(self, "whitelist", True)
         else:
             if caching_cfg['disable'] and not caching_cfg['disable_whitelist'] and not silence_warnings:
                 warnings.warn("This operation has no effect: caching is disabled globally and this setup "
@@ -1135,31 +1105,31 @@ class CABaseSetup(CAMetrics):
         if caching_cfg['disable'] and caching_cfg['disable_whitelist'] and not silence_warnings:
             warnings.warn("This operation has no effect: caching and whitelisting "
                           "are disabled globally", stacklevel=2)
-        self._use_cache_lut = datetime.now(timezone.utc)
+        object.__setattr__(self, "_use_cache_lut", datetime.now(timezone.utc))
 
     def disable_caching(self, clear_cache: bool = True) -> None:
         """Disable caching.
 
         Set `clear_cache` to True to also clear the cache."""
-        self._use_cache = False
+        object.__setattr__(self, "use_cache", False)
         if clear_cache:
             self.clear_cache()
-        self._use_cache_lut = datetime.now(timezone.utc)
+        object.__setattr__(self, "_use_cache_lut", datetime.now(timezone.utc))
 
     @property
     def creation_time(self) -> tp.datetime:
         """Time when this setup was created."""
-        return self._creation_time
+        return object.__getattribute__(self, '_creation_time')
 
     @property
     def use_cache_lut(self) -> tp.Optional[datetime]:
         """Last time `CABaseSetup.use_cache` was updated."""
-        return self._use_cache_lut
+        return object.__getattribute__(self, '_use_cache_lut')
 
     @property
     def whitelist_lut(self) -> tp.Optional[datetime]:
         """Last time `CABaseSetup.whitelist` was updated."""
-        return self._whitelist_lut
+        return object.__getattribute__(self, '_whitelist_lut')
 
     @property
     def last_update_time(self) -> tp.Optional[datetime]:
@@ -1428,10 +1398,17 @@ class CABaseDelegatorSetup(CABaseSetup, CASetupDelegatorMixin):
         CASetupDelegatorMixin.clear_cache(self, **kwargs)
 
 
+def _assert_value_not_none(instance: object, attribute: attr.Attribute, value: tp.Any) -> None:
+    """Assert that value is not None."""
+    if value is None:
+        raise ValueError("Please provide {}".format(attribute.name))
+
+
 CAClassSetupT = tp.TypeVar("CAClassSetupT", bound="CAClassSetup")
 
 
-class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class CAClassSetup(CABaseDelegatorSetup):
     """Class that represents a setup of a cacheable class.
 
     The provided class must subclass `vectorbt.utils.caching.Cacheable`.
@@ -1444,6 +1421,28 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
 
     !!! note
         Unbound setups are not children of class setups. See notes on `CAUnboundSetup`."""
+
+    cls: tp.Type[Cacheable] = attr.ib(default=None, validator=_assert_value_not_none)
+    """Cacheable class."""
+
+    def __attrs_post_init__(self) -> None:
+        CABaseSetup.__attrs_post_init__(self)
+
+        checks.assert_subclass_of(self.cls, Cacheable)
+
+        use_cache = self.use_cache
+        whitelist = self.whitelist
+        if use_cache is None or whitelist is None:
+            superclass_setups = self.superclass_setups[::-1]
+            for setup in superclass_setups:
+                if use_cache is None:
+                    if setup.use_cache is not None:
+                        object.__setattr__(self, "use_cache", setup.use_cache)
+                if whitelist is None:
+                    if setup.whitelist is not None:
+                        object.__setattr__(self, "whitelist", setup.whitelist)
+
+        self.register()
 
     @staticmethod
     def get_hash(cls: tp.Type[Cacheable]) -> int:
@@ -1520,44 +1519,11 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         setup = registry.get_class_setup(cls_)
         if setup is not None:
             return setup
-        return cls(cls_, registry=registry, **kwargs)
-
-    def __init__(self,
-                 cls_: tp.Type[Cacheable],
-                 registry: CacheableRegistry = ca_registry,
-                 use_cache: tp.Optional[bool] = None,
-                 whitelist: tp.Optional[bool] = None) -> None:
-        checks.assert_subclass_of(cls_, Cacheable)
-
-        CABaseDelegatorSetup.__init__(
-            self,
-            registry=registry,
-            use_cache=use_cache,
-            whitelist=whitelist
-        )
-
-        self._cls = cls_
-
-        if use_cache is None or whitelist is None:
-            superclass_setups = self.superclass_setups[::-1]
-            for setup in superclass_setups:
-                if use_cache is None:
-                    if setup.use_cache is not None:
-                        self._use_cache = setup.use_cache
-                if whitelist is None:
-                    if setup.whitelist is not None:
-                        self._whitelist = setup.whitelist
-
-        self.register()
+        return cls(cls=cls_, registry=registry, **kwargs)
 
     @property
     def query(self) -> CAQuery:
         return CAQuery(base_cls=self.cls)
-
-    @property
-    def cls(self) -> tp.Type[Cacheable]:
-        """Cacheable class."""
-        return self._cls
 
     @property
     def superclass_setups(self) -> tp.List['CAClassSetup']:
@@ -1607,10 +1573,6 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
     def child_setups(self) -> tp.Set[tp.Union['CAClassSetup', 'CAInstanceSetup']]:
         return set(self.subclass_setups) | self.instance_setups
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"cls={self.cls})"
-
     @property
     def short_str(self) -> str:
         return f"<class {self.cls.__module__}.{self.cls.__name__}>"
@@ -1623,7 +1585,8 @@ class CAClassSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
 CAInstanceSetupT = tp.TypeVar("CAInstanceSetupT", bound="CAInstanceSetup")
 
 
-class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class CAInstanceSetup(CABaseDelegatorSetup):
     """Class that represents a setup of an instance that has cacheables bound to it.
 
     The provided instance must be of `vectorbt.utils.caching.Cacheable`.
@@ -1631,6 +1594,28 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
     Delegates cache management to its child setups of type `CARunSetup`.
 
     If `use_cash` or `whitelist` are None, inherits a non-empty value from its parent class setup."""
+
+    instance: tp.Union[Cacheable, ReferenceType] = attr.ib(default=None, validator=_assert_value_not_none)
+    """Cacheable instance."""
+
+    def __attrs_post_init__(self) -> None:
+        CABaseSetup.__attrs_post_init__(self)
+
+        if not isinstance(self.instance, ReferenceType):
+            checks.assert_instance_of(self.instance, Cacheable)
+            instance_ref = ref(self.instance, lambda ref: self.registry.deregister_setup(self))
+            object.__setattr__(self, "instance", instance_ref)
+
+        if self.use_cache is None or self.whitelist is None:
+            class_setup = self.class_setup
+            if self.use_cache is None:
+                if class_setup.use_cache is not None:
+                    object.__setattr__(self, "use_cache", class_setup.use_cache)
+            if self.whitelist is None:
+                if class_setup.whitelist is not None:
+                    object.__setattr__(self, "whitelist", class_setup.whitelist)
+
+        self.register()
 
     @staticmethod
     def get_hash(instance: Cacheable) -> int:
@@ -1653,57 +1638,30 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         setup = registry.get_instance_setup(instance)
         if setup is not None:
             return setup
-        return cls(instance, registry=registry, **kwargs)
-
-    def __init__(self,
-                 instance: Cacheable,
-                 registry: CacheableRegistry = ca_registry,
-                 use_cache: tp.Optional[bool] = None,
-                 whitelist: tp.Optional[bool] = None) -> None:
-        checks.assert_instance_of(instance, Cacheable)
-
-        CABaseDelegatorSetup.__init__(
-            self,
-            registry=registry,
-            use_cache=use_cache,
-            whitelist=whitelist
-        )
-
-        self._instance = weakref.ref(instance, lambda ref: registry.deregister_setup(self))
-
-        if use_cache is None or whitelist is None:
-            class_setup = self.class_setup
-            if use_cache is None:
-                if class_setup.use_cache is not None:
-                    self._use_cache = class_setup.use_cache
-            if whitelist is None:
-                if class_setup.whitelist is not None:
-                    self._whitelist = class_setup.whitelist
-
-        self.register()
+        return cls(instance=instance, registry=registry, **kwargs)
 
     @property
     def query(self) -> CAQuery:
-        return CAQuery(instance=self.instance)
+        return CAQuery(instance=self.instance_obj)
 
     @property
-    def instance(self) -> tp.Union[Cacheable, object]:
-        """Weak reference to the instance."""
-        if self._instance() is None:
+    def instance_obj(self) -> tp.Union[Cacheable, object]:
+        """Instance object."""
+        if self.instance() is None:
             return _GARBAGE
-        return self._instance()
+        return self.instance()
 
     @property
     def contains_garbage(self) -> bool:
         """Whether instance was destroyed."""
-        return self.instance is _GARBAGE
+        return self.instance_obj is _GARBAGE
 
     @property
     def class_setup(self) -> tp.Optional[CAClassSetup]:
         """Setup of type `CAClassSetup` of the cacheable class of the instance."""
         if self.contains_garbage:
             return None
-        return CAClassSetup.get(type(self.instance), self.registry)
+        return CAClassSetup.get(type(self.instance_obj), self.registry)
 
     @property
     def unbound_setups(self) -> tp.Set['CAUnboundSetup']:
@@ -1727,25 +1685,22 @@ class CAInstanceSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
     def child_setups(self) -> tp.Set['CARunSetup']:
         return self.run_setups
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"instance={self.instance})"
-
     @property
     def short_str(self) -> str:
         if self.contains_garbage:
             return "<destroyed object>"
-        return f"<instance of {type(self.instance).__module__}.{type(self.instance).__name__}>"
+        return f"<instance of {type(self.instance_obj).__module__}.{type(self.instance_obj).__name__}>"
 
     @property
     def hash_key(self) -> tuple:
-        return (get_obj_id(self.instance),)
+        return (get_obj_id(self.instance_obj),)
 
 
 CAUnboundSetupT = tp.TypeVar("CAUnboundSetupT", bound="CAUnboundSetup")
 
 
-class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class CAUnboundSetup(CABaseDelegatorSetup):
     """Class that represents a setup of an unbound cacheable property or method.
 
     An unbound callable is a callable that was declared in a class but is not bound
@@ -1763,6 +1718,17 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
 
     !!! hint
         Use class attributes instead of instance attributes to access unbound callables."""
+
+    cacheable: cacheableT = attr.ib(default=None, validator=_assert_value_not_none)
+    """Cacheable object."""
+
+    def __attrs_post_init__(self) -> None:
+        CABaseSetup.__attrs_post_init__(self)
+
+        if not is_bindable_cacheable(self.cacheable):
+            raise TypeError("cacheable must be either cacheable_property or cacheable_method")
+
+        self.register()
 
     @staticmethod
     def get_hash(cacheable: cacheableT) -> int:
@@ -1785,34 +1751,11 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
         setup = registry.get_unbound_setup(cacheable)
         if setup is not None:
             return setup
-        return cls(cacheable, registry=registry, **kwargs)
-
-    def __init__(self,
-                 cacheable: cacheableT,
-                 registry: CacheableRegistry = ca_registry,
-                 use_cache: bool = False,
-                 whitelist: bool = False) -> None:
-        if not is_bindable_cacheable(cacheable):
-            raise TypeError("cacheable must be either cacheable_property or cacheable_method")
-
-        CABaseDelegatorSetup.__init__(
-            self,
-            registry=registry,
-            use_cache=use_cache,
-            whitelist=whitelist
-        )
-        self._cacheable = cacheable
-
-        self.register()
+        return cls(cacheable=cacheable, registry=registry, **kwargs)
 
     @property
     def query(self) -> CAQuery:
         return CAQuery(cacheable=self.cacheable)
-
-    @property
-    def cacheable(self) -> cacheableT:
-        """Cacheable object."""
-        return self._cacheable
 
     @property
     def run_setups(self) -> tp.Set['CARunSetup']:
@@ -1826,10 +1769,6 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
     @property
     def child_setups(self) -> tp.Set['CARunSetup']:
         return self.run_setups
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"cacheable={self.cacheable})"
 
     @property
     def short_str(self) -> str:
@@ -1845,39 +1784,31 @@ class CAUnboundSetup(CABaseDelegatorSetup, Hashable, SafeToStr):
 CARunSetupT = tp.TypeVar("CARunSetupT", bound="CARunSetup")
 
 
-class CARunResult(Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class CARunResult(Hashable):
     """Class that represents a cached result of a run.
 
     !!! note
         Hashed solely by the hash of the arguments `args_hash`."""
 
+    args_hash: int = attr.ib()
+    """Hash of the arguments."""
+
+    result: tp.Any = attr.ib()
+    """Result of the run."""
+
+    timer: Timer = attr.ib()
+    """Timer used to measure the execution time."""
+
+    def __attrs_post_init__(self) -> None:
+        object.__setattr__(self, "_run_time", datetime.now(timezone.utc))
+        object.__setattr__(self, "_hits", 0)
+        object.__setattr__(self, "_first_hit_time", None)
+        object.__setattr__(self, "_last_hit_time", None)
+
     @staticmethod
     def get_hash(args_hash: int) -> int:
         return hash((args_hash,))
-
-    def __init__(self, args_hash: int, result: tp.Any, timer: Timer) -> None:
-        self._args_hash = args_hash
-        self._result = result
-        self._timer = timer
-        self._run_time = datetime.now(timezone.utc)
-        self._hits = 0
-        self._first_hit_time = None
-        self._last_hit_time = None
-
-    @property
-    def args_hash(self) -> int:
-        """Hash of the arguments."""
-        return self._args_hash
-
-    @property
-    def result(self) -> tp.Any:
-        """Result of the run."""
-        return self._result
-
-    @property
-    def timer(self) -> Timer:
-        """Timer used to measure the execution time."""
-        return self._timer
 
     @property
     def result_size(self) -> int:
@@ -1887,42 +1818,38 @@ class CARunResult(Hashable, SafeToStr):
     @property
     def run_time(self) -> datetime:
         """Time of the run."""
-        return self._run_time
+        return object.__getattribute__(self, '_run_time')
 
     @property
     def hits(self) -> int:
-        return self._hits
+        return object.__getattribute__(self, '_hits')
 
     @property
     def first_hit_time(self) -> tp.Optional[datetime]:
         """Time of the first hit."""
-        return self._first_hit_time
+        return object.__getattribute__(self, '_first_hit_time')
 
     @property
     def last_hit_time(self) -> tp.Optional[datetime]:
         """Time of the last hit."""
-        return self._last_hit_time
+        return object.__getattribute__(self, '_last_hit_time')
 
     def hit(self) -> tp.Any:
         """Hit the result."""
         hit_time = datetime.now(timezone.utc)
         if self.first_hit_time is None:
-            self._first_hit_time = hit_time
-        self._last_hit_time = hit_time
-        self._hits += 1
+            object.__setattr__(self, "_first_hit_time", hit_time)
+        object.__setattr__(self, "_last_hit_time", hit_time)
+        object.__setattr__(self, "_hits", self.hits + 1)
         return self.result
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"args_hash={self.args_hash}, " \
-               f"result={self.result})"
 
     @property
     def hash_key(self) -> tuple:
         return (self.args_hash,)
 
 
-class CARunSetup(CABaseSetup, Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class CARunSetup(CABaseSetup):
     """Class that represents a runnable cacheable setup.
 
     Takes care of running functions and caching the results using `CARunSetup.run`.
@@ -1948,6 +1875,79 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         Otherwise, creates and registers a new one. Using `CARunSetup.__init__` will throw an error if there
         is a setup with the same hash."""
 
+    cacheable: cacheableT = attr.ib(default=None, validator=_assert_value_not_none)
+    """Cacheable object."""
+
+    instance: tp.Union[Cacheable, ReferenceType] = attr.ib(default=None)
+    """Cacheable instance."""
+
+    max_size: tp.Optional[int] = attr.ib(default=None)
+    """Maximum number of entries in `CARunSetup.cache`."""
+
+    ignore_args: tp.Optional[tp.Iterable[tp.AnnArgQuery]] = attr.ib(default=None)
+    """Arguments to ignore when hashing."""
+
+    cache: tp.Dict[int, CARunResult] = attr.ib(factory=dict)
+    """Dict of cached `CARunResult` instances by their hash."""
+
+    def __attrs_post_init__(self) -> None:
+        CABaseSetup.__attrs_post_init__(self)
+
+        if not is_cacheable(self.cacheable):
+            raise TypeError("cacheable must be either cacheable_property, cacheable_method, or cacheable")
+        if self.instance is None:
+            if is_cacheable_property(self.cacheable):
+                raise ValueError("CARunSetup requires an instance for cacheable_property")
+            elif is_cacheable_method(self.cacheable):
+                raise ValueError("CARunSetup requires an instance for cacheable_method")
+        else:
+            checks.assert_instance_of(self.instance, Cacheable)
+            if is_cacheable_function(self.cacheable):
+                raise ValueError("Cacheable functions can't have an instance")
+
+        if self.instance is not None and not isinstance(self.instance, ReferenceType):
+            checks.assert_instance_of(self.instance, Cacheable)
+            instance_ref = ref(self.instance, lambda ref: self.registry.deregister_setup(self))
+            object.__setattr__(self, "instance", instance_ref)
+
+        if self.use_cache is None or self.whitelist is None:
+            instance_setup = self.instance_setup
+            unbound_setup = self.unbound_setup
+            if self.use_cache is None:
+                if instance_setup is not None \
+                        and unbound_setup is not None \
+                        and instance_setup.use_cache is not None \
+                        and unbound_setup.use_cache is not None:
+                    if unbound_setup.use_cache_lut is not None \
+                            and (instance_setup.class_setup.any_use_cache_lut is None or
+                                 unbound_setup.use_cache_lut > instance_setup.class_setup.any_use_cache_lut):
+                        # Unbound setup was updated more recently than any superclass setup
+                        object.__setattr__(self, "use_cache", unbound_setup.use_cache)
+                    else:
+                        object.__setattr__(self, "use_cache", instance_setup.use_cache)
+                elif instance_setup is not None and instance_setup.use_cache is not None:
+                    object.__setattr__(self, "use_cache", instance_setup.use_cache)
+                elif unbound_setup is not None and unbound_setup.use_cache is not None:
+                    object.__setattr__(self, "use_cache", unbound_setup.use_cache)
+            if self.whitelist is None:
+                if instance_setup is not None \
+                        and unbound_setup is not None \
+                        and instance_setup.whitelist is not None \
+                        and unbound_setup.whitelist is not None:
+                    if unbound_setup.whitelist_lut is not None \
+                            and (instance_setup.class_setup.any_whitelist_lut is None or
+                                 unbound_setup.whitelist_lut > instance_setup.class_setup.any_whitelist_lut):
+                        # Unbound setup was updated more recently than any superclass setup
+                        object.__setattr__(self, "whitelist", unbound_setup.whitelist)
+                    else:
+                        object.__setattr__(self, "whitelist", instance_setup.whitelist)
+                elif instance_setup is not None and instance_setup.whitelist is not None:
+                    object.__setattr__(self, "whitelist", instance_setup.whitelist)
+                elif unbound_setup is not None and unbound_setup.whitelist is not None:
+                    object.__setattr__(self, "whitelist", unbound_setup.whitelist)
+
+        self.register()
+
     @staticmethod
     def get_hash(cacheable: cacheableT, instance: tp.Optional[Cacheable] = None) -> int:
         return hash((cacheable, get_obj_id(instance) if instance is not None else None))
@@ -1970,128 +1970,35 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         setup = registry.get_run_setup(cacheable, instance=instance)
         if setup is not None:
             return setup
-        return cls(cacheable, instance=instance, registry=registry, **kwargs)
-
-    def __init__(self,
-                 cacheable: cacheableT,
-                 instance: tp.Optional[Cacheable] = None,
-                 registry: CacheableRegistry = ca_registry,
-                 use_cache: tp.Optional[bool] = None,
-                 whitelist: tp.Optional[bool] = None,
-                 max_size: tp.Optional[int] = None,
-                 ignore_args: tp.Optional[tp.Iterable[tp.AnnArgQuery]] = None) -> None:
-        if not is_cacheable(cacheable):
-            raise TypeError("cacheable must be either cacheable_property, cacheable_method, or cacheable")
-        if instance is None:
-            if is_cacheable_property(cacheable):
-                raise ValueError("CARunSetup requires an instance for cacheable_property")
-            elif is_cacheable_method(cacheable):
-                raise ValueError("CARunSetup requires an instance for cacheable_method")
-        else:
-            checks.assert_instance_of(instance, Cacheable)
-            if is_cacheable_function(cacheable):
-                raise ValueError("Cacheable functions can't have an instance")
-
-        CABaseSetup.__init__(
-            self,
-            registry=registry,
-            use_cache=use_cache,
-            whitelist=whitelist
-        )
-
-        self._cacheable = cacheable
-        if instance is not None:
-            instance = weakref.ref(instance, lambda ref: registry.deregister_setup(self))
-        self._instance = instance
-        self._max_size = max_size
-        self._ignore_args = ignore_args
-        self._cache = {}
-
-        if use_cache is None or whitelist is None:
-            instance_setup = self.instance_setup
-            unbound_setup = self.unbound_setup
-            if use_cache is None:
-                if instance_setup is not None \
-                        and unbound_setup is not None \
-                        and instance_setup.use_cache is not None \
-                        and unbound_setup.use_cache is not None:
-                    if unbound_setup.use_cache_lut is not None \
-                            and (instance_setup.class_setup.any_use_cache_lut is None or
-                                 unbound_setup.use_cache_lut > instance_setup.class_setup.any_use_cache_lut):
-                        # Unbound setup was updated more recently than any superclass setup
-                        self._use_cache = unbound_setup.use_cache
-                    else:
-                        self._use_cache = instance_setup.use_cache
-                elif instance_setup is not None and instance_setup.use_cache is not None:
-                    self._use_cache = instance_setup.use_cache
-                elif unbound_setup is not None and unbound_setup.use_cache is not None:
-                    self._use_cache = unbound_setup.use_cache
-            if whitelist is None:
-                if instance_setup is not None \
-                        and unbound_setup is not None \
-                        and instance_setup.whitelist is not None \
-                        and unbound_setup.whitelist is not None:
-                    if unbound_setup.whitelist_lut is not None \
-                            and (instance_setup.class_setup.any_whitelist_lut is None or
-                                 unbound_setup.whitelist_lut > instance_setup.class_setup.any_whitelist_lut):
-                        # Unbound setup was updated more recently than any superclass setup
-                        self._whitelist = unbound_setup.whitelist
-                    else:
-                        self._whitelist = instance_setup.whitelist
-                elif instance_setup is not None and instance_setup.whitelist is not None:
-                    self._whitelist = instance_setup.whitelist
-                elif unbound_setup is not None and unbound_setup.whitelist is not None:
-                    self._whitelist = unbound_setup.whitelist
-
-        self.register()
+        return cls(cacheable=cacheable, instance=instance, registry=registry, **kwargs)
 
     @property
     def query(self) -> CAQuery:
-        return CAQuery(cacheable=self.cacheable, instance=self.instance)
+        return CAQuery(cacheable=self.cacheable, instance=self.instance_obj)
 
     @property
-    def cacheable(self) -> cacheableT:
-        """Cacheable object."""
-        return self._cacheable
-
-    @property
-    def instance(self) -> tp.Optional[tp.Union[Cacheable, object]]:
-        """Weak reference to the instance `CARunSetup.cacheable` is bound to."""
-        if self._instance is not None and self._instance() is None:
+    def instance_obj(self) -> tp.Union[Cacheable, object]:
+        """Instance object."""
+        if self.instance is not None and self.instance() is None:
             return _GARBAGE
-        return self._instance() if self._instance is not None else None
+        return self.instance() if self.instance is not None else None
 
     @property
     def contains_garbage(self) -> bool:
         """Whether instance was destroyed."""
-        return self.instance is _GARBAGE
+        return self.instance_obj is _GARBAGE
 
     @property
     def instance_setup(self) -> tp.Optional[CAInstanceSetup]:
         """Setup of type `CAInstanceSetup` of the instance this cacheable is bound to."""
-        if self.instance is None or self.contains_garbage:
+        if self.instance_obj is None or self.contains_garbage:
             return None
-        return CAInstanceSetup.get(self.instance, self.registry)
+        return CAInstanceSetup.get(self.instance_obj, self.registry)
 
     @property
     def unbound_setup(self) -> tp.Optional[CAUnboundSetup]:
         """Setup of type `CAUnboundSetup` of the unbound cacheable."""
         return self.registry.get_unbound_setup(self.cacheable)
-
-    @property
-    def max_size(self) -> tp.Optional[int]:
-        """Maximum number of entries in `CARunSetup.cache`."""
-        return self._max_size
-
-    @property
-    def ignore_args(self) -> tp.Optional[tp.Iterable[tp.AnnArgQuery]]:
-        """Arguments to ignore when hashing."""
-        return self._ignore_args
-
-    @property
-    def cache(self) -> tp.Dict[int, CARunResult]:
-        """Dict of cached `CARunResult` instances by their hash."""
-        return self._cache
 
     @property
     def hits(self) -> int:
@@ -2161,8 +2068,8 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
 
     def run_func(self, *args, **kwargs) -> tp.Any:
         """Run the setup's function without caching."""
-        if self.instance is not None:
-            return self.cacheable.func(self.instance, *args, **kwargs)
+        if self.instance_obj is not None:
+            return self.cacheable.func(self.instance_obj, *args, **kwargs)
         return self.cacheable.func(*args, **kwargs)
 
     def get_args_hash(self, *args, **kwargs) -> int:
@@ -2179,7 +2086,7 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
 
         return hash_args(
             self.cacheable.func,
-            args if self.instance is None else (get_obj_id(self.instance), *args),
+            args if self.instance_obj is None else (get_obj_id(self.instance_obj), *args),
             kwargs,
             ignore_args=ignore_args
         )
@@ -2218,26 +2125,21 @@ class CARunSetup(CABaseSetup, Hashable, SafeToStr):
         """Clear the cache."""
         self.cache.clear()
 
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"cacheable={self.cacheable}, " \
-               f"instance={self.instance})"
-
     @property
     def short_str(self) -> str:
         if self.contains_garbage:
             return "<destroyed object>"
         if is_cacheable_property(self.cacheable):
-            return f"<instance property {type(self.instance).__module__}." \
-                   f"{type(self.instance).__name__}.{self.cacheable.func.__name__}>"
+            return f"<instance property {type(self.instance_obj).__module__}." \
+                   f"{type(self.instance_obj).__name__}.{self.cacheable.func.__name__}>"
         if is_cacheable_method(self.cacheable):
-            return f"<instance method {type(self.instance).__module__}." \
-                   f"{type(self.instance).__name__}.{self.cacheable.func.__name__}>"
+            return f"<instance method {type(self.instance_obj).__module__}." \
+                   f"{type(self.instance_obj).__name__}.{self.cacheable.func.__name__}>"
         return f"<func {self.cacheable.__module__}.{self.cacheable.__name__}>"
 
     @property
     def hash_key(self) -> tuple:
-        return self.cacheable, get_obj_id(self.instance) if self.instance is not None else None
+        return self.cacheable, get_obj_id(self.instance_obj) if self.instance_obj is not None else None
 
 
 class CAQueryDelegator(CASetupDelegatorMixin):

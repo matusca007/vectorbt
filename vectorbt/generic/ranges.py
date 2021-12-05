@@ -197,6 +197,7 @@ ranges_shortcut_config = ReadonlyConfig(
             obj_type='red_array'
         ),
         overlap_coverage=dict(
+            method_name='get_coverage',
             obj_type='red_array',
             method_kwargs=dict(overlapping=True)
         )

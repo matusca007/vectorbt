@@ -85,7 +85,7 @@ class MemTracer:
     >>>     np.random.uniform(size=1000000)
 
     >>> tracer.peak_usage()
-    '1.01 seconds'
+    '8.0 MB'
 
     >>> tracer.peak_usage(readable=False)
     8005360

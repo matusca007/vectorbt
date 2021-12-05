@@ -35,7 +35,8 @@ setup(
         'pytz',
         'typing_extensions; python_version < "3.8"',
         'mypy_extensions',
-        'humanize'
+        'humanize',
+        'attrs'
     ],
     extras_require={
         'data': [

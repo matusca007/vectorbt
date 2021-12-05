@@ -142,12 +142,12 @@ def fill_entry_trades_in_position_nb(order_records: tp.RecordArray,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        close=ch.ArraySlicer(1),
+        order_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        close=ch.ArraySlicer(axis=1),
         col_map=records_ch.ColMapSlicer(),
-        init_position=base_ch.FlexArraySlicer(1, flex_2d=True)
+        init_position=base_ch.FlexArraySlicer(axis=1, flex_2d=True)
     ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
@@ -419,12 +419,12 @@ def get_entry_trades_nb(order_records: tp.RecordArray,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        close=ch.ArraySlicer(1),
+        order_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        close=ch.ArraySlicer(axis=1),
         col_map=records_ch.ColMapSlicer(),
-        init_position=base_ch.FlexArraySlicer(1, flex_2d=True)
+        init_position=base_ch.FlexArraySlicer(axis=1, flex_2d=True)
     ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
@@ -724,9 +724,9 @@ def copy_trade_record_nb(new_records: tp.RecordArray, r: int, trade_record: tp.R
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        trade_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        trade_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer()
     ),
     merge_func=base_ch.concat

@@ -316,7 +316,7 @@ respectively. Caching can be disabled globally via `caching` in `vectorbt._setti
 
 ## Saving and loading
 
-Like any other class subclassing `vectorbt.utils.config.Pickleable`, we can save a `MappedArray`
+Like any other class subclassing `vectorbt.utils.pickling.Pickleable`, we can save a `MappedArray`
 instance to the disk with `MappedArray.save` and load it with `MappedArray.load`.
 
 ## Stats

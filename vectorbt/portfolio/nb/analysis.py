@@ -88,12 +88,12 @@ def get_short_size_nb(position_before: float, position_now: float) -> float:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
-        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        target_shape=ch.ShapeSlicer(axis=1),
+        order_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        init_position=base_ch.FlexArraySlicer(1, flex_2d=True),
+        init_position=base_ch.FlexArraySlicer(axis=1, flex_2d=True),
         direction=None
     ),
     merge_func=base_ch.column_stack
@@ -144,10 +144,10 @@ def asset_flow_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('asset_flow', 1),
+    size=ch.ArraySizer(arg_query='asset_flow', axis=1),
     arg_take_spec=dict(
-        asset_flow=ch.ArraySlicer(1),
-        init_position=base_ch.FlexArraySlicer(1, flex_2d=True)
+        asset_flow=ch.ArraySlicer(axis=1),
+        init_position=base_ch.FlexArraySlicer(axis=1, flex_2d=True)
     ),
     merge_func=base_ch.column_stack
 )
@@ -234,13 +234,13 @@ def get_free_cash_diff_nb(position_before: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
-        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        target_shape=ch.ShapeSlicer(axis=1),
+        order_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         free=None,
-        cash_earnings=base_ch.FlexArraySlicer(1),
+        cash_earnings=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack
@@ -301,10 +301,10 @@ def cash_flow_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0)
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.column_stack
 )
@@ -330,10 +330,10 @@ def cash_flow_grouped_nb(cash_flow: tp.Array2d, group_lens: tp.Array1d) -> tp.Ar
 
 
 @register_chunkable(
-    size=ch.ArraySizer('cash_flow', 1),
+    size=ch.ArraySizer(arg_query='cash_flow', axis=1),
     arg_take_spec=dict(
         init_cash_raw=None,
-        cash_flow=ch.ArraySlicer(1)
+        cash_flow=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -400,11 +400,11 @@ def init_cash_nb(init_cash_raw: tp.FlexArray, group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
         cash_deposits_raw=RepFunc(portfolio_ch.get_cash_deposits_slicer),
-        group_lens=ch.ArraySlicer(0),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
         flex_2d=None
     ),
@@ -437,11 +437,11 @@ def cash_deposits_grouped_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
         cash_deposits_raw=RepFunc(portfolio_ch.get_cash_deposits_slicer),
-        group_lens=ch.ArraySlicer(0),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
         split_shared=None,
         flex_2d=None
@@ -478,11 +478,11 @@ def cash_deposits_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('cash_flow', 1),
+    size=ch.ArraySizer(arg_query='cash_flow', axis=1),
     arg_take_spec=dict(
-        cash_flow=ch.ArraySlicer(1),
-        init_cash=base_ch.FlexArraySlicer(1, flex_2d=True),
-        cash_deposits=base_ch.FlexArraySlicer(1),
+        cash_flow=ch.ArraySlicer(axis=1),
+        init_cash=base_ch.FlexArraySlicer(axis=1, flex_2d=True),
+        cash_deposits=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack
@@ -507,13 +507,13 @@ def cash_nb(cash_flow: tp.Array2d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        cash_flow_grouped=ch.ArraySlicer(1),
-        group_lens=ch.ArraySlicer(0),
-        init_cash_grouped=base_ch.FlexArraySlicer(1, flex_2d=True),
-        cash_deposits_grouped=base_ch.FlexArraySlicer(1),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        cash_flow_grouped=ch.ArraySlicer(axis=1),
+        group_lens=ch.ArraySlicer(axis=0),
+        init_cash_grouped=base_ch.FlexArraySlicer(axis=1, flex_2d=True),
+        cash_deposits_grouped=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack
@@ -593,10 +593,10 @@ def asset_value_grouped_nb(asset_value: tp.Array2d, group_lens: tp.Array1d) -> t
 
 
 @register_chunkable(
-    size=ch.ArraySizer('asset_value', 1),
+    size=ch.ArraySizer(arg_query='asset_value', axis=1),
     arg_take_spec=dict(
-        asset_value=ch.ArraySlicer(1),
-        cash=ch.ArraySlicer(1)
+        asset_value=ch.ArraySlicer(axis=1),
+        cash=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -621,14 +621,14 @@ def value_nb(cash: tp.Array2d, asset_value: tp.Array2d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
-        close=ch.ArraySlicer(1),
-        order_records=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        target_shape=ch.ShapeSlicer(axis=1),
+        close=ch.ArraySlicer(axis=1),
+        order_records=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        init_position=base_ch.FlexArraySlicer(1, flex_2d=True),
-        cash_earnings=base_ch.FlexArraySlicer(1),
+        init_position=base_ch.FlexArraySlicer(axis=1, flex_2d=True),
+        cash_earnings=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.concat
@@ -709,11 +709,11 @@ def total_profit_grouped_nb(total_profit: tp.Array1d, group_lens: tp.Array1d) ->
 
 
 @register_chunkable(
-    size=ch.ArraySizer('value', 1),
+    size=ch.ArraySizer(arg_query='value', axis=1),
     arg_take_spec=dict(
-        value=ch.ArraySlicer(1),
-        init_value=ch.ArraySlicer(0),
-        cash_deposits=base_ch.FlexArraySlicer(1),
+        value=ch.ArraySlicer(axis=1),
+        init_value=ch.ArraySlicer(axis=0),
+        cash_deposits=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack
@@ -748,11 +748,11 @@ def get_asset_return_nb(input_asset_value: float, output_asset_value: float, cas
 
 
 @register_chunkable(
-    size=ch.ArraySizer('init_position_value', 0),
+    size=ch.ArraySizer(arg_query='init_position_value', axis=0),
     arg_take_spec=dict(
-        init_position_value=ch.ArraySlicer(0),
-        asset_value=ch.ArraySlicer(1),
-        cash_flow=ch.ArraySlicer(1)
+        init_position_value=ch.ArraySlicer(axis=0),
+        asset_value=ch.ArraySlicer(axis=1),
+        cash_flow=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -773,11 +773,11 @@ def asset_returns_nb(init_position_value: tp.Array1d, asset_value: tp.Array2d, c
 
 
 @register_chunkable(
-    size=ch.ArraySizer('close', 1),
+    size=ch.ArraySizer(arg_query='close', axis=1),
     arg_take_spec=dict(
-        close=ch.ArraySlicer(1),
-        init_value=base_ch.ArraySlicer(0),
-        cash_deposits=base_ch.FlexArraySlicer(1),
+        close=ch.ArraySlicer(axis=1),
+        init_value=base_ch.ArraySlicer(axis=0),
+        cash_deposits=base_ch.FlexArraySlicer(axis=1),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack
@@ -800,12 +800,12 @@ def market_value_nb(close: tp.Array2d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        close=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
-        init_value=ch.ArraySlicer(0, mapper=base_ch.group_lens_mapper),
-        cash_deposits=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        close=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
+        init_value=ch.ArraySlicer(axis=0, mapper=base_ch.group_lens_mapper),
+        cash_deposits=base_ch.FlexArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
         flex_2d=None
     ),
     merge_func=base_ch.column_stack

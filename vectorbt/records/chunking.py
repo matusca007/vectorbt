@@ -3,6 +3,7 @@
 
 """Extensions to `vectorbt.utils.chunking`."""
 
+import attr
 import uuid
 
 import numpy as np
@@ -10,7 +11,7 @@ import numpy as np
 from vectorbt import _typing as tp
 from vectorbt.base.chunking import get_group_lens_slice
 from vectorbt.utils.chunking import (
-    ArgGetterMixin,
+    ArgGetter,
     ChunkMeta,
     ArgSizer,
     ChunkSlicer,
@@ -39,14 +40,11 @@ class ColLensSlicer(ChunkSlicer):
         return obj[chunk_meta.start:chunk_meta.end]
 
 
-class ColLensMapper(ChunkMapper, ArgGetterMixin):
+@attr.s(frozen=True)
+class ColLensMapper(ChunkMapper, ArgGetter):
     """Class for mapping chunk metadata to per-column record lengths.
 
     Argument can be either a column map tuple or a column lengths array."""
-
-    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
-        ChunkMapper.__init__(self)
-        ArgGetterMixin.__init__(self, arg_query)
 
     def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> ChunkMeta:
         col_lens = self.get_arg(ann_args)
@@ -62,7 +60,7 @@ class ColLensMapper(ChunkMapper, ArgGetterMixin):
         )
 
 
-col_lens_mapper = ColLensMapper(r'(col_lens|col_map)')
+col_lens_mapper = ColLensMapper(arg_query=r'(col_lens|col_map)')
 """Default instance of `ColLensMapper`."""
 
 
@@ -75,14 +73,11 @@ class ColMapSlicer(ChunkSlicer):
         return np.arange(np.sum(col_lens)), col_lens
 
 
-class ColIdxsMapper(ChunkMapper, ArgGetterMixin):
+@attr.s(frozen=True)
+class ColIdxsMapper(ChunkMapper, ArgGetter):
     """Class for mapping chunk metadata to per-column record indices.
 
     Argument must be a column map tuple."""
-
-    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
-        ChunkMapper.__init__(self)
-        ArgGetterMixin.__init__(self, arg_query)
 
     def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> ChunkMeta:
         col_map = self.get_arg(ann_args)
@@ -97,7 +92,7 @@ class ColIdxsMapper(ChunkMapper, ArgGetterMixin):
         )
 
 
-col_idxs_mapper = ColIdxsMapper('col_map')
+col_idxs_mapper = ColIdxsMapper(arg_query='col_map')
 """Default instance of `ColIdxsMapper`."""
 
 

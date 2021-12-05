@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import numpy as np
@@ -57,9 +58,9 @@ records_nosort_grouped = vbt.records.Records(wrapper_grouped, records_nosort_arr
 # ############# Global ############# #
 
 def setup_module():
+    if os.environ.get('VBT_DISABLE_CACHING', '0') == '1':
+        vbt.settings.caching['disable_machinery'] = True
     vbt.settings.pbar['disable'] = True
-    vbt.settings.caching['disable'] = True
-    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.chunking['n_chunks'] = 2
 
@@ -500,7 +501,7 @@ class TestMappedArray:
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)).values
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         np.testing.assert_array_equal(
             type(mapped_array).apply(
                 cumsum_apply_meta_nb, mapped_array.values,
@@ -652,7 +653,7 @@ class TestMappedArray:
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         pd.testing.assert_series_equal(
             type(mapped_array).reduce(
                 mean_reduce_meta_nb, mapped_array.values,
@@ -707,7 +708,7 @@ class TestMappedArray:
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         pd.testing.assert_series_equal(
             type(mapped_array).reduce(
                 argmin_reduce_meta_nb, mapped_array.values, returns_idx=True,
@@ -811,7 +812,7 @@ class TestMappedArray:
                 col_mapper=mapped_array.col_mapper, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         pd.testing.assert_frame_equal(
             type(mapped_array).reduce(
                 min_max_reduce_meta_nb, mapped_array.values, returns_array=True,
@@ -917,7 +918,7 @@ class TestMappedArray:
                 col_mapper=mapped_array.col_mapper, idx_arr=mapped_array.idx_arr, jitted=dict(parallel=False)),
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         pd.testing.assert_frame_equal(
             type(mapped_array).reduce(
                 idxmin_idxmax_reduce_meta_nb, mapped_array.values, returns_array=True, returns_idx=True,
@@ -1705,7 +1706,7 @@ class TestRecords:
                 map_func_meta_nb, records.values,
                 col_mapper=records.col_mapper, jitted=dict(parallel=False)).values
         )
-        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(0), )))
+        count_chunked = dict(arg_take_spec=dict(args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0), )))
         np.testing.assert_array_equal(
             type(records).map(
                 map_func_meta_nb, records.values,
@@ -1778,7 +1779,7 @@ class TestRecords:
                 col_mapper=records.col_mapper, jitted=dict(parallel=False)).values
         )
         chunked = dict(arg_take_spec=dict(
-            args=vbt.ArgsTaker(vbt.ArraySlicer(0, mapper=vbt.ColIdxsMapper('col_map')), )))
+            args=vbt.ArgsTaker(vbt.ArraySlicer(axis=0, mapper=vbt.ColIdxsMapper(arg_query='col_map')), )))
         np.testing.assert_array_equal(
             type(records).apply(
                 cumsum_apply_meta_nb, records.values,

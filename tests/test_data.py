@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
@@ -15,9 +16,9 @@ seed = 42
 # ############# Global ############# #
 
 def setup_module():
+    if os.environ.get('VBT_DISABLE_CACHING', '0') == '1':
+        vbt.settings.caching['disable_machinery'] = True
     vbt.settings.pbar['disable'] = True
-    vbt.settings.caching['disable'] = True
-    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
 
 

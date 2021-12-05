@@ -788,7 +788,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=1), ch.ArraySlicer(axis=1), None))
         )
         return type(self).rolling_apply(
             window,
@@ -841,7 +841,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=1), ch.ArraySlicer(axis=1), None))
         )
         return type(self).rolling_apply(
             window,
@@ -1049,7 +1049,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=1), ch.ArraySlicer(axis=1), None, None))
         )
         return type(self).rolling_apply(
             window,
@@ -1101,7 +1101,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=1), ch.ArraySlicer(axis=1), None, None))
         )
         return type(self).rolling_apply(
             window,
@@ -1153,7 +1153,7 @@ class ReturnsAccessor(GenericAccessor):
         benchmark_rets = broadcast_to(benchmark_rets, self.obj)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(1), ch.ArraySlicer(1), None, None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=1), ch.ArraySlicer(axis=1), None, None))
         )
         return type(self).rolling_apply(
             window,

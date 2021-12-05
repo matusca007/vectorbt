@@ -716,7 +716,7 @@ concatenates their total returns:
 
 ```python-repl
 >>> @vbt.chunked(
-...     size=vbt.LenSizer('fast_windows'),
+...     size=vbt.LenSizer(arg_query='fast_windows'),
 ...     arg_take_spec=dict(
 ...         price=None,
 ...         fast_windows=vbt.ChunkSlicer(),
@@ -792,7 +792,7 @@ We see that the function correctly chunked `fast_windows` and `slow_windows` and
 
 ## Saving and loading
 
-Like any other class subclassing `vectorbt.utils.config.Pickleable`, we can save a `Portfolio`
+Like any other class subclassing `vectorbt.utils.pickling.Pickleable`, we can save a `Portfolio`
 instance to the disk with `Portfolio.save` and load it with `Portfolio.load`:
 
 ```python-repl

@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oleg Polakow. All rights reserved.
 # This code is licensed under Apache 2.0 with Commons Clause license (see LICENSE.md for details)
 
-"""Base data class.
+"""Base class for working with data.
 
 Class `Data` allows storing, downloading, updating, and managing data. It stores data
 as a dictionary of Series/DataFrames keyed by symbol, and makes sure that
@@ -210,7 +210,7 @@ symbol         RANDNX1     RANDNX2
 
 ## Saving and loading
 
-Like any other class subclassing `vectorbt.utils.config.Pickleable`, we can save a `Data`
+Like any other class subclassing `vectorbt.utils.pickling.Pickleable`, we can save a `Data`
 instance to the disk with `Data.save` and load it with `Data.load`:
 
 ```python-repl

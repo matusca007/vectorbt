@@ -3,6 +3,7 @@
 
 """Extensions to `vectorbt.utils.chunking`."""
 
+import attr
 import uuid
 
 import numpy as np
@@ -10,7 +11,7 @@ from numba.typed import List
 
 from vectorbt import _typing as tp
 from vectorbt.utils.chunking import (
-    ArgGetterMixin,
+    ArgGetter,
     ChunkMeta,
     ChunkMapper,
     ArraySelector,
@@ -48,12 +49,11 @@ def get_group_lens_slice(group_lens: tp.Array1d, chunk_meta: ChunkMeta) -> slice
     return slice(start, end)
 
 
-class GroupLensMapper(ChunkMapper, ArgGetterMixin):
+@attr.s(frozen=True)
+class GroupLensMapper(ChunkMapper, ArgGetter):
     """Class for mapping chunk metadata using group lengths."""
 
-    def __init__(self, arg_query: tp.AnnArgQuery = 'group_lens') -> None:
-        ChunkMapper.__init__(self)
-        ArgGetterMixin.__init__(self, arg_query)
+    arg_query: tp.AnnArgQuery = attr.ib(default='group_lens')
 
     def map(self, chunk_meta: ChunkMeta, ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> ChunkMeta:
         group_lens = self.get_arg(ann_args)
@@ -71,16 +71,12 @@ group_lens_mapper = GroupLensMapper()
 """Default instance of `GroupLensMapper`."""
 
 
-class FlexMixin:
-    """Mixin class with an attribute for specifying `flex_2d`."""
+@attr.s(frozen=True)
+class FlexSpecifier:
+    """Class with an attribute for specifying `flex_2d`."""
 
-    def __init__(self, flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d') -> None:
-        self._flex_2d = flex_2d
-
-    @property
-    def flex_2d(self) -> tp.Union[bool, tp.AnnArgQuery]:
-        """`flex_2d` or the query to match in the arguments."""
-        return self._flex_2d
+    flex_2d: tp.Union[bool, tp.AnnArgQuery] = attr.ib(default='flex_2d')
+    """`flex_2d` or the query to match in the arguments."""
 
     def get_flex_2d(self, ann_args: tp.AnnArgs) -> bool:
         """Get `flex_2d` from the arguments."""
@@ -89,14 +85,11 @@ class FlexMixin:
         return match_ann_arg(ann_args, self.flex_2d)
 
 
-class FlexArraySelector(ArraySelector, FlexMixin):
+@attr.s(frozen=True)
+class FlexArraySelector(ArraySelector, FlexSpecifier):
     """Class for selecting one element from a NumPy array's axis flexibly based on the chunk index.
 
     The result is intended to be used together with `vectorbt.base.indexing.flex_select_auto_nb`."""
-
-    def __init__(self, axis: int, flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d', **kwargs) -> None:
-        ArraySelector.__init__(self, axis, **kwargs)
-        FlexMixin.__init__(self, flex_2d=flex_2d)
 
     def take(self, obj: tp.ArrayLike, chunk_meta: ChunkMeta,
              ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.ArrayLike:
@@ -133,14 +126,11 @@ class FlexArraySelector(ArraySelector, FlexMixin):
         raise ValueError(f"FlexArraySelector supports max 2 dimensions, not {obj.ndim}")
 
 
-class FlexArraySlicer(ArraySlicer, FlexMixin):
+@attr.s(frozen=True)
+class FlexArraySlicer(ArraySlicer, FlexSpecifier):
     """Class for selecting one element from a NumPy array's axis flexibly based on the chunk index.
 
     The result is intended to be used together with `vectorbt.base.indexing.flex_select_auto_nb`."""
-
-    def __init__(self, axis: int, flex_2d: tp.Union[bool, tp.AnnArgQuery] = 'flex_2d', **kwargs) -> None:
-        ArraySlicer.__init__(self, axis, **kwargs)
-        FlexMixin.__init__(self, flex_2d=flex_2d)
 
     def take(self, obj: tp.ArrayLike, chunk_meta: ChunkMeta,
              ann_args: tp.Optional[tp.AnnArgs] = None, **kwargs) -> tp.ArrayLike:

@@ -3,59 +3,34 @@
 
 """Utilities for configuration."""
 
+import attr
 import inspect
 from collections import namedtuple
 from copy import copy, deepcopy
 import functools
 
-import humanize
-
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.caching import Cacheable
 from vectorbt.utils.decorators import class_or_instancemethod
-from vectorbt.utils.docs import SafeToStr, Documented, stringify
-from vectorbt.utils.hashing import Hashable
+from vectorbt.utils.docs import Documented, stringify
+from vectorbt.utils.pickling import Pickleable
 
 
-class Default(Hashable, SafeToStr):
+@attr.s(frozen=True)
+class Default:
     """Class for wrapping default values."""
 
-    def __init__(self, value: tp.Any) -> None:
-        self._value = value
-
-    @property
-    def value(self) -> tp.Any:
-        """Default value."""
-        return self._value
-
-    @property
-    def hash_key(self) -> tuple:
-        return (self.value,)
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"key=\"{self.value}\")"
+    value: tp.Any = attr.ib()
+    """Default value."""
 
 
-class Ref(Hashable, SafeToStr):
+@attr.s(frozen=True)
+class Ref:
     """Class for wrapping references to other keys."""
 
-    def __init__(self, key: tp.Hashable) -> None:
-        self._key = key
-
-    @property
-    def key(self) -> tp.Any:
-        """Reference to another key."""
-        return self._key
-
-    @property
-    def hash_key(self) -> tuple:
-        return (self.key,)
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"key=\"{self.key}\")"
+    key: tp.Hashable = attr.ib()
+    """Reference to another key."""
 
 
 def resolve_ref(dct: dict, k: tp.Hashable, keep_defaults: bool = True) -> tp.Any:
@@ -289,57 +264,6 @@ def merge_dicts(*dicts: InConfigLikeT,
 _RaiseKeyError = object()
 
 DumpTuple = namedtuple('DumpTuple', ('cls', 'dumps'))
-
-PickleableT = tp.TypeVar("PickleableT", bound="Pickleable")
-
-
-class Pickleable:
-    """Superclass that defines abstract properties and methods for pickle-able classes."""
-
-    def dumps(self, **kwargs) -> bytes:
-        """Pickle to bytes."""
-        from vectorbt.opt_packages import warn_cannot_import
-        warn_cannot_import('dill')
-        try:
-            import dill as pickle
-        except ImportError:
-            import pickle
-
-        return pickle.dumps(self, protocol=pickle.HIGHEST_PROTOCOL)
-
-    @classmethod
-    def loads(cls: tp.Type[PickleableT], dumps: bytes, **kwargs) -> PickleableT:
-        """Unpickle from bytes."""
-        from vectorbt.opt_packages import warn_cannot_import
-        warn_cannot_import('dill')
-        try:
-            import dill as pickle
-        except ImportError:
-            import pickle
-
-        return pickle.loads(dumps)
-
-    def save(self, fname: tp.PathLike, **kwargs) -> None:
-        """Save dumps to a file."""
-        dumps = self.dumps(**kwargs)
-        with open(fname, "wb") as f:
-            f.write(dumps)
-
-    @classmethod
-    def load(cls: tp.Type[PickleableT], fname: tp.PathLike, **kwargs) -> PickleableT:
-        """Load dumps from a file and create new instance."""
-        with open(fname, "rb") as f:
-            dumps = f.read()
-        return cls.loads(dumps, **kwargs)
-
-    def __sizeof__(self) -> int:
-        return len(self.dumps())
-
-    def getsize(self, readable: bool = True, **kwargs) -> tp.Union[str, int]:
-        """Get size of this object."""
-        if readable:
-            return humanize.naturalsize(self.__sizeof__(), **kwargs)
-        return self.__sizeof__()
 
 
 PickleableDictT = tp.TypeVar("PickleableDictT", bound="PickleableDict")

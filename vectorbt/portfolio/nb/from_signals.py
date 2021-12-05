@@ -336,16 +336,16 @@ AdjustTPFuncT = tp.Callable[[AdjustTPContext, tp.VarArg()], float]
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
-        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        init_cash=ch.ArraySlicer(0),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
+        call_seq=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        init_cash=ch.ArraySlicer(axis=0),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
-        cash_deposits=base_ch.FlexArraySlicer(1),
-        cash_earnings=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        cash_dividends=base_ch.FlexArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        cash_deposits=base_ch.FlexArraySlicer(axis=1),
+        cash_earnings=base_ch.FlexArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        cash_dividends=base_ch.FlexArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
         signal_func_nb=None,
         signal_args=ch.ArgsTaker(),
         size=portfolio_ch.flex_array_gl_slicer,

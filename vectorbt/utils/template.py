@@ -3,6 +3,7 @@
 
 """Utilities for working with templates."""
 
+import attr
 from copy import copy
 from string import Template
 
@@ -13,49 +14,29 @@ import vectorbt as vbt
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import set_dict_item, merge_dicts
-from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.parsing import get_func_arg_names
 
 
-class CustomTemplate(Hashable, SafeToStr):
-    """Base class for substituting templates."""
+@attr.s(frozen=True)
+class CustomTemplate:
+    """Class for substituting templates."""
 
-    def __init__(self,
-                 template: tp.Any,
-                 mapping: tp.Optional[tp.Mapping] = None,
-                 strict: tp.Optional[bool] = None,
-                 sub_id: tp.Optional[tp.MaybeCollection[Hashable]] = None) -> None:
-        self._template = template
-        if mapping is None:
-            mapping = {}
-        self._mapping = mapping
-        self._strict = strict
-        self._sub_id = sub_id
+    template: tp.Any = attr.ib()
+    """Template to be processed."""
 
-    @property
-    def template(self) -> tp.Any:
-        """Template to be processed."""
-        return self._template
+    mapping: tp.Optional[tp.Mapping] = attr.ib(factory=dict)
+    """Mapping object passed to the initializer."""
 
-    @property
-    def mapping(self) -> tp.Mapping:
-        """Mapping object passed to the initializer."""
-        return self._mapping
+    strict: tp.Optional[bool] = attr.ib(default=None)
+    """Whether to raise an error if processing template fails.
 
-    @property
-    def strict(self) -> tp.Optional[bool]:
-        """Whether to raise an error if processing template fails.
+    If not None, overrides `strict` passed by `deep_substitute`."""
 
-        If not None, overrides `strict` passed by `deep_substitute`."""
-        return self._strict
+    sub_id: tp.Optional[tp.MaybeCollection[Hashable]] = attr.ib(default=None)
+    """Substitution id or ids at which to evaluate this template
 
-    @property
-    def sub_id(self) -> tp.Optional[tp.MaybeCollection[Hashable]]:
-        """Substitution id or ids at which to evaluate this template
-
-        Checks against `sub_id` passed by `deep_substitute`."""
-        return self._sub_id
+    Checks against `sub_id` passed by `deep_substitute`."""
 
     def meets_sub_id(self, sub_id: tp.Optional[Hashable] = None) -> bool:
         """Return whether the substitution id of the template meets the global substitution id."""
@@ -109,22 +90,6 @@ class CustomTemplate(Hashable, SafeToStr):
         """Abstract method to substitute the template `CustomTemplate.template` using
         the mapping from merging `CustomTemplate.mapping` and `mapping`."""
         raise NotImplementedError
-
-    @property
-    def hash_key(self) -> tuple:
-        return (
-            self.template,
-            tuple(self.mapping.items()),
-            self.strict,
-            self.sub_id if (self.sub_id is None or isinstance(self.sub_id, int)) else tuple(self.sub_id)
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"template=\"{self.template}\", " \
-               f"mapping={prepare_for_doc(self.mapping)}, " \
-               f"strict=\"{self.strict}\", " \
-               f"sub_id={self.sub_id})"
 
 
 class Sub(CustomTemplate):

@@ -3,6 +3,7 @@
 
 """Utilities for documentation."""
 
+import attr
 import json
 
 import numpy as np
@@ -28,13 +29,9 @@ class Documented:
             return repr(self)
 
 
-class SafeToStr:
-    """Class that can be safely converted into a string in `prepare_for_doc`."""
-
-
 def prepare_for_doc(obj: tp.Any, replace: tp.DictLike = None, path: str = None) -> tp.Any:
     """Prepare object for use in documentation."""
-    if isinstance(obj, SafeToStr):
+    if attr.has(type(obj)):
         return str(obj)
     if isinstance(obj, np.dtype) and hasattr(obj, "fields"):
         return dict(zip(

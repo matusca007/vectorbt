@@ -3,75 +3,38 @@
 
 """Global registry for chunkable functions."""
 
+import attr
+
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.chunking import chunked, resolve_chunked
 from vectorbt.utils.config import merge_dicts
-from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.template import RepEval
 
 
-class ChunkedSetup(Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class ChunkedSetup(Hashable):
     """Class that represents a chunkable setup.
 
     !!! note
         Hashed solely by `setup_id`."""
 
+    setup_id: tp.Hashable = attr.ib()
+    """Setup id."""
+
+    func: tp.Callable = attr.ib()
+    """Chunkable function."""
+
+    options: tp.DictLike = attr.ib(factory=dict)
+    """Options dictionary."""
+
+    tags: tp.SetLike = attr.ib(factory=set)
+    """Set of tags."""
+
     @staticmethod
     def get_hash(setup_id: tp.Hashable) -> int:
         return hash((setup_id,))
-
-    def __init__(self,
-                 setup_id: tp.Hashable,
-                 func: tp.Callable,
-                 options: tp.DictLike = None,
-                 tags: tp.SetLike = None) -> None:
-        if options is None:
-            options = {}
-        if tags is None:
-            tags = set()
-
-        self._setup_id = setup_id
-        self._func = func
-        self._options = options
-        self._tags = tags
-
-    @property
-    def setup_id(self) -> tp.Hashable:
-        """Setup id."""
-        return self._setup_id
-
-    @property
-    def func(self) -> tp.Callable:
-        """Chunkable function."""
-        return self._func
-
-    @property
-    def options(self) -> tp.DictLike:
-        """Options dictionary."""
-        return self._options
-
-    @property
-    def tags(self) -> set:
-        """Set of tags."""
-        return self._tags
-
-    def to_dict(self) -> dict:
-        """Convert this instance to a dict."""
-        return dict(
-            setup_id=self.setup_id,
-            func=self.func,
-            options=self.options,
-            tags=self.tags
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"setup_id={self.setup_id}, " \
-               f"func={self.func}, " \
-               f"options={prepare_for_doc(self.options)}, " \
-               f"tags={self.tags})"
 
     @property
     def hash_key(self) -> tuple:
@@ -116,7 +79,7 @@ class ChunkableRegistry:
             if expression is None:
                 result = True
             else:
-                result = RepEval(expression).substitute(mapping=merge_dicts(setup.to_dict(), mapping))
+                result = RepEval(expression).substitute(mapping=merge_dicts(attr.asdict(setup), mapping))
                 checks.assert_instance_of(result, bool)
 
             if result:

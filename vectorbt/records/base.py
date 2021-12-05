@@ -305,7 +305,7 @@ respectively. Caching can be disabled globally via `caching` in `vectorbt._setti
 
 ## Saving and loading
 
-Like any other class subclassing `vectorbt.utils.config.Pickleable`, we can save a `Records`
+Like any other class subclassing `vectorbt.utils.pickling.Pickleable`, we can save a `Records`
 instance to the disk with `Records.save` and load it with `Records.load`.
 
 ## Stats

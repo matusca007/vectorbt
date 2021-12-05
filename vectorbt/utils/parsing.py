@@ -4,47 +4,27 @@
 """Utilities for parsing."""
 
 import ast
+import attr
 import inspect
 import re
 import sys
 
 from vectorbt import _typing as tp
-from vectorbt.utils.docs import SafeToStr
-from vectorbt.utils.hashing import Hashable
 
 
-class Regex(Hashable, SafeToStr):
+@attr.s(frozen=True)
+class Regex:
     """Class for matching a regular expression."""
 
-    def __init__(self, pattern: str, flags: int = 0) -> None:
-        self._pattern = pattern
-        self._flags = flags
+    pattern: str = attr.ib()
+    """Pattern."""
 
-    @property
-    def pattern(self) -> str:
-        """Pattern."""
-        return self._pattern
-
-    @property
-    def flags(self) -> int:
-        """Flags."""
-        return self._flags
+    flags: int = attr.ib(default=0)
+    """Flags."""
 
     def matches(self, string: str) -> bool:
         """Return whether the string matches the regular expression pattern."""
         return re.match(self.pattern, string, self.flags) is not None
-
-    @property
-    def hash_key(self) -> tuple:
-        return (
-            self.pattern,
-            self.flags
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"pattern=\"{self.pattern}\", " \
-               f"flags={self.flags})"
 
 
 def get_func_kwargs(func: tp.Callable) -> dict:

@@ -13,10 +13,10 @@ from vectorbt.utils.chunking import ChunkMeta, ArraySlicer
 from vectorbt.utils.config import ReadonlyConfig
 from vectorbt.utils.template import Rep
 
-flex_1d_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper, flex_2d=True)
+flex_1d_array_gl_slicer = FlexArraySlicer(axis=1, mapper=group_lens_mapper, flex_2d=True)
 """Flexible 1-dim array slicer along the column axis based on group lengths."""
 
-flex_array_gl_slicer = FlexArraySlicer(1, mapper=group_lens_mapper)
+flex_array_gl_slicer = FlexArraySlicer(axis=1, mapper=group_lens_mapper)
 """Flexible 2-dim array slicer along the column axis based on group lengths."""
 
 
@@ -24,7 +24,7 @@ def get_init_cash_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
     """Get slicer for `init_cash` based on cash sharing."""
     cash_sharing = ann_args['cash_sharing']['value']
     if cash_sharing:
-        return FlexArraySlicer(0, flex_2d=True)
+        return FlexArraySlicer(axis=0, flex_2d=True)
     return flex_1d_array_gl_slicer
 
 
@@ -32,7 +32,7 @@ def get_cash_deposits_slicer(ann_args: tp.AnnArgs) -> ArraySlicer:
     """Get slicer for `cash_deposits` based on cash sharing."""
     cash_sharing = ann_args['cash_sharing']['value']
     if cash_sharing:
-        return FlexArraySlicer(1)
+        return FlexArraySlicer(axis=1)
     return flex_array_gl_slicer
 
 

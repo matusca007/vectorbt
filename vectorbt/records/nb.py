@@ -205,9 +205,9 @@ def is_col_id_sorted_nb(col_arr: tp.Array1d, id_arr: tp.Array1d) -> bool:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         n=None
     ),
@@ -231,9 +231,9 @@ def top_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp.Ar
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         n=None
     ),
@@ -259,9 +259,9 @@ def bottom_n_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, n: int) -> tp
 # ############# Mapping ############# #
 
 @register_chunkable(
-    size=ch.ArraySizer('records', 0),
+    size=ch.ArraySizer(arg_query='records', axis=0),
     arg_take_spec=dict(
-        records=ch.ArraySlicer(0),
+        records=ch.ArraySlicer(axis=0),
         map_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -280,7 +280,7 @@ def map_records_nb(records: tp.RecordArray, map_func_nb: tp.RecordsMapFunc, *arg
 
 
 @register_chunkable(
-    size=ch.ArgSizer('n_values'),
+    size=ch.ArgSizer(arg_query='n_values'),
     arg_take_spec=dict(
         n_values=ch.CountAdapter(),
         map_func_nb=None,
@@ -301,9 +301,9 @@ def map_records_meta_nb(n_values: int, map_func_nb: tp.MappedReduceMetaFunc, *ar
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         apply_func_nb=None,
         args=ch.ArgsTaker()
@@ -332,7 +332,7 @@ def apply_nb(arr: tp.Array1d, col_map: tp.ColMap, apply_func_nb: tp.ApplyFunc, *
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
         n_values=ch.CountAdapter(mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
@@ -363,13 +363,13 @@ def apply_meta_nb(n_values: int, col_map: tp.ColMap, apply_func_nb: tp.ApplyMeta
 # ############# Reducing ############# #
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        id_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        id_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        segment_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        segment_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -444,9 +444,9 @@ def reduce_mapped_segments_nb(mapped_arr: tp.Array1d,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         fill_value=None,
         reduce_func_nb=None,
@@ -479,7 +479,7 @@ def reduce_mapped_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_value: flo
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
         col_map=records_ch.ColMapSlicer(),
         fill_value=None,
@@ -510,11 +510,11 @@ def reduce_mapped_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         fill_value=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -546,10 +546,10 @@ def reduce_mapped_to_idx_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, idx_arr:
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
         col_map=records_ch.ColMapSlicer(),
-        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         fill_value=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -578,9 +578,9 @@ def reduce_mapped_to_idx_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, fill_v
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         fill_value=None,
         reduce_func_nb=None,
@@ -621,7 +621,7 @@ def reduce_mapped_to_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, fill_v
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
         col_map=records_ch.ColMapSlicer(),
         fill_value=None,
@@ -663,11 +663,11 @@ def reduce_mapped_to_array_meta_nb(col_map: tp.ColMap, fill_value: float,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        mapped_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        mapped_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         fill_value=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -710,10 +710,10 @@ def reduce_mapped_to_idx_array_nb(mapped_arr: tp.Array1d, col_map: tp.ColMap, id
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
         col_map=records_ch.ColMapSlicer(),
-        idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         fill_value=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -756,9 +756,9 @@ def reduce_mapped_to_idx_array_meta_nb(col_map: tp.ColMap, idx_arr: tp.Array1d, 
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        codes=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        codes=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         n_uniques=None,
         col_map=records_ch.ColMapSlicer()
     ),

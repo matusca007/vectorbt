@@ -45,8 +45,8 @@ We can see that two new jitable setups were registered:
 
 ```python-repl
 >>> vbt.jit_registry.jit_registry.jitable_setups['sum']
-{vectorbt.utils.jitting.NumPyJitter: <vectorbt.jit_registry.JitableSetup at 0x7fef114aa6d8>,
- vectorbt.utils.jitting.NumbaJitter: <vectorbt.jit_registry.JitableSetup at 0x7fef114aaa90>}
+{'np': JitableSetup(task_id='sum', jitter_id='np', py_func=<function sum_np at 0x7fea215b1e18>, jitter_kwargs={}, tags=None),
+ 'nb': JitableSetup(task_id='sum', jitter_id='nb', py_func=<function sum_nb at 0x7fea273d41e0>, jitter_kwargs={}, tags=None)}
 ```
 
 Moreover, two jitted setups were registered for our decorated functions:
@@ -56,11 +56,11 @@ Moreover, two jitted setups were registered for our decorated functions:
 
 >>> hash_np = JitableSetup.get_hash('sum', 'np')
 >>> jit_registry.jitted_setups[hash_np]
-{3527539: <vectorbt.jit_registry.JittedSetup at 0x7fef114aaac8>}
+{3527539: JittedSetup(jitter=<vectorbt.utils.jitting.NumPyJitter object at 0x7fea21506080>, jitted_func=<function sum_np at 0x7fea215b1e18>)}
 
 >>> hash_nb = JitableSetup.get_hash('sum', 'nb')
 >>> jit_registry.jitted_setups[hash_nb]
-{-2214287351923578620: <vectorbt.jit_registry.JittedSetup at 0x7fef16b55b70>}
+{6326224984503844995: JittedSetup(jitter=<vectorbt.utils.jitting.NumbaJitter object at 0x7fea214d0ba8>, jitted_func=CPUDispatcher(<function sum_nb at 0x7fea273d41e0>))}
 ```
 
 These setups contain decorated functions with the options passed during the registration.
@@ -70,10 +70,10 @@ When we call `JITRegistry.resolve` without any additional keyword arguments,
 ```python-repl
 >>> jitted_func = jit_registry.resolve('sum', jitter='nb')
 >>> jitted_func
-CPUDispatcher(<function sum_nb at 0x7fef16a99f28>)
+CPUDispatcher(<function sum_nb at 0x7fea273d41e0>)
 
 >>> jitted_func.targetoptions
-{'parallel': False, 'nopython': True, 'nogil': True, 'boundscheck': False}
+{'nopython': True, 'nogil': True, 'parallel': False, 'boundscheck': False}
 ```
 
 Once we pass any other option, the Python function will be redecorated, and another `JittedOption`
@@ -82,14 +82,14 @@ instance will be registered:
 ```python-repl
 >>> jitted_func = jit_registry.resolve('sum', jitter='nb', nopython=False)
 >>> jitted_func
-CPUDispatcher(<function sum_nb at 0x7fef16a99f28>)
+CPUDispatcher(<function sum_nb at 0x7fea273d41e0>)
 
 >>> jitted_func.targetoptions
-{'parallel': False, 'nopython': False, 'nogil': True, 'boundscheck': False}
+{'nopython': False, 'nogil': True, 'parallel': False, 'boundscheck': False}
 
 >>> jit_registry.jitted_setups[hash_nb]
-{-2214287351923578620: <vectorbt.jit_registry.JittedSetup at 0x7fef16b55b70>,
- -2214288625816173245: <vectorbt.jit_registry.JittedSetup at 0x7fef1140e080>}
+{6326224984503844995: JittedSetup(jitter=<vectorbt.utils.jitting.NumbaJitter object at 0x7fea214d0ba8>, jitted_func=CPUDispatcher(<function sum_nb at 0x7fea273d41e0>)),
+ -2979374923679407948: JittedSetup(jitter=<vectorbt.utils.jitting.NumbaJitter object at 0x7fea00bf94e0>, jitted_func=CPUDispatcher(<function sum_nb at 0x7fea273d41e0>))}
 ```
 
 ## Templates
@@ -100,7 +100,7 @@ jitter if there are more than two of them for a given task:
 
 ```python-repl
 >>> jit_registry.resolve('sum', jitter=vbt.RepEval("'nb' if 'nb' in task_setups else None"))
-<function __main__.sum_np(a)>
+CPUDispatcher(<function sum_nb at 0x7fea273d41e0>)
 ```
 
 ## Disabling
@@ -212,7 +212,7 @@ Let's restart the runtime and instruct vectorbt to load the file with settings b
 
 We can also change the registration options for some specific tasks, and even replace Python functions.
 For example, we can change the implementation in the deepest places of the core.
-Let's change the default `ddof` from 0 to 1 in `vectorbt.generic.nb.nanstd_1d` and disable caching with Numba:
+Let's change the default `ddof` from 0 to 1 in `vectorbt.generic.nb.nanstd_1d_nb` and disable caching with Numba:
 
 ```python-repl
 >>> from vectorbt.generic.nb import nanstd_1d_nb, nanvar_1d_nb
@@ -353,10 +353,11 @@ non-precise type pyobject
     from other Numba functions since the convertion operation is done using Python.
 """
 
+import attr
+
 from vectorbt import _typing as tp
 from vectorbt.utils import checks
 from vectorbt.utils.config import merge_dicts, atomic_dict
-from vectorbt.utils.docs import SafeToStr, prepare_for_doc
 from vectorbt.utils.hashing import Hashable
 from vectorbt.utils.jitting import (
     Jitter,
@@ -374,11 +375,27 @@ def get_func_full_name(func: tp.Callable) -> str:
     return func.__module__ + '.' + func.__name__
 
 
-class JitableSetup(Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class JitableSetup(Hashable):
     """Class that represents a jitable setup.
 
     !!! note
         Hashed solely by `task_id` and `jitter_id`."""
+
+    task_id: tp.Hashable = attr.ib()
+    """Task id."""
+
+    jitter_id: tp.Hashable = attr.ib()
+    """Jitter id."""
+
+    py_func: tp.Callable = attr.ib()
+    """Python function to be jitted."""
+
+    jitter_kwargs: tp.KwargsLike = attr.ib(factory=dict)
+    """Keyword arguments passed to `vectorbt.utils.jitting.resolve_jitter`."""
+
+    tags: tp.SetLike = attr.ib(factory=set)
+    """Set of tags."""
 
     @staticmethod
     def get_hash(task_id: tp.Hashable, jitter_id: tp.Hashable) -> int:
@@ -386,66 +403,6 @@ class JitableSetup(Hashable, SafeToStr):
             task_id,
             jitter_id
         ))
-
-    def __init__(self,
-                 task_id: tp.Hashable,
-                 jitter_id: tp.Hashable,
-                 py_func: tp.Callable,
-                 jitter_kwargs: tp.KwargsLike = None,
-                 tags: tp.SetLike = None) -> None:
-        if jitter_kwargs is None:
-            jitter_kwargs = {}
-        if tags is None:
-            tags = set()
-
-        self._task_id = task_id
-        self._jitter_id = jitter_id
-        self._py_func = py_func
-        self._jitter_kwargs = jitter_kwargs
-        self._tags = tags
-
-    @property
-    def task_id(self) -> tp.Hashable:
-        """Task id."""
-        return self._task_id
-
-    @property
-    def jitter_id(self) -> tp.Hashable:
-        """Jitter id."""
-        return self._jitter_id
-
-    @property
-    def py_func(self) -> tp.Callable:
-        """Python function to be jitted."""
-        return self._py_func
-
-    @property
-    def jitter_kwargs(self) -> tp.DictLike:
-        """Keyword arguments passed to `vectorbt.utils.jitting.resolve_jitter`."""
-        return self._jitter_kwargs
-
-    @property
-    def tags(self) -> set:
-        """Set of tags."""
-        return self._tags
-
-    def to_dict(self) -> dict:
-        """Convert this instance to a dict."""
-        return dict(
-            task_id=self.task_id,
-            jitter_id=self.jitter_id,
-            py_func=self.py_func,
-            jitter_kwargs=self.jitter_kwargs,
-            tags=self.tags
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"task_id={self.task_id}, " \
-               f"jitter_id={self.jitter_id}, " \
-               f"py_func={self.py_func}, " \
-               f"jitter_kwargs={prepare_for_doc(self.jitter_kwargs)}, " \
-               f"tags={self.tags})"
 
     @property
     def hash_key(self) -> tuple:
@@ -455,42 +412,23 @@ class JitableSetup(Hashable, SafeToStr):
         )
 
 
-class JittedSetup(Hashable, SafeToStr):
+@attr.s(frozen=True, eq=False)
+class JittedSetup(Hashable):
     """Class that represents a jitted setup.
 
     !!! note
         Hashed solely by sorted config of `jitter`. That is, two jitters with the same config
         will yield the same hash and the function won't be re-decorated."""
 
+    jitter: Jitter = attr.ib()
+    """Jitter that decorated the function."""
+
+    jitted_func: tp.Callable = attr.ib()
+    """Decorated function."""
+
     @staticmethod
     def get_hash(jitter: Jitter) -> int:
         return hash(tuple(sorted(jitter.config.items())))
-
-    def __init__(self, jitter: Jitter, jitted_func: tp.Callable) -> None:
-        self._jitter = jitter
-        self._jitted_func = jitted_func
-
-    @property
-    def jitter(self) -> Jitter:
-        """Jitter that decorated the function."""
-        return self._jitter
-
-    @property
-    def jitted_func(self) -> tp.Callable:
-        """Decorated function."""
-        return self._jitted_func
-
-    def to_dict(self) -> dict:
-        """Convert this instance to a dict."""
-        return dict(
-            jitter=self.jitter,
-            jitted_func=self.jitted_func
-        )
-
-    def __str__(self) -> str:
-        return f"{type(self).__name__}(" \
-               f"jitter={self.jitter}, " \
-               f"jitted_func={self.jitted_func})"
 
     @property
     def hash_key(self) -> tuple:
@@ -562,6 +500,8 @@ class JITRegistry:
                               jitter_kwargs: tp.KwargsLike = None,
                               tags: tp.Optional[set] = None):
         """Decorate a jitable function and register both jitable and jitted setups."""
+        if jitter_kwargs is None:
+            jitter_kwargs = {}
         jitter = resolve_jitter(jitter=jitter, py_func=py_func, **jitter_kwargs)
         jitter_id = get_id_of_jitter_type(type(jitter))
         if jitter_id is None:
@@ -590,7 +530,7 @@ class JITRegistry:
                 if expression is None:
                     result = True
                 else:
-                    result = RepEval(expression).substitute(mapping=merge_dicts(setup.to_dict(), mapping))
+                    result = RepEval(expression).substitute(mapping=merge_dicts(attr.asdict(setup), mapping))
                     checks.assert_instance_of(result, bool)
 
                 if result:
@@ -605,7 +545,7 @@ class JITRegistry:
             if expression is None:
                 result = True
             else:
-                result = RepEval(expression).substitute(mapping=merge_dicts(setup.to_dict(), mapping))
+                result = RepEval(expression).substitute(mapping=merge_dicts(attr.asdict(setup), mapping))
                 checks.assert_instance_of(result, bool)
 
             if result:

@@ -3,6 +3,7 @@
 
 """Utilities for chunking."""
 
+import attr
 import inspect
 import multiprocessing
 import re
@@ -23,71 +24,44 @@ from vectorbt.utils.template import deep_substitute, Rep
 __pdoc__ = {}
 
 
-# ############# Named tuples ############# #
-
-class ChunkMeta(tp.NamedTuple):
-    uuid: str
-    idx: int
-    start: tp.Optional[int]
-    end: tp.Optional[int]
-    indices: tp.Optional[tp.Sequence[int]]
+# ############# Universal ############# #
 
 
-__pdoc__['ChunkMeta'] = "A named tuple representing a chunk metadata."
-__pdoc__['ChunkMeta.uuid'] = """Unique identifier of the chunk.
-
-Used for caching."""
-__pdoc__['ChunkMeta.idx'] = "Chunk index."
-__pdoc__['ChunkMeta.start'] = "Start of the chunk range (including). Can be None."
-__pdoc__['ChunkMeta.end'] = "End of the chunk range (excluding). Can be None."
-__pdoc__['ChunkMeta.indices'] = """Indices included in the chunk range. Can be None.
-
-Has priority over `ChunkMeta.start` and `ChunkMeta.end`."""
+def _assert_value_not_none(instance: object, attribute: attr.Attribute, value: tp.Any) -> None:
+    """Assert that value is not None."""
+    if value is None:
+        raise ValueError("Please provide {}".format(attribute.name))
 
 
-# ############# Mixins ############# #
-
-
-class ArgGetterMixin:
+@attr.s(frozen=True)
+class ArgGetter:
     """Class for getting an argument from annotated arguments."""
 
-    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
-        self._arg_query = arg_query
-
-    @property
-    def arg_query(self) -> tp.AnnArgQuery:
-        """Query for annotated argument to derive the size from."""
-        return self._arg_query
+    arg_query: tp.Optional[tp.AnnArgQuery] = attr.ib(default=None, validator=_assert_value_not_none)
+    """Query for annotated argument to derive the size from."""
 
     def get_arg(self, ann_args: tp.AnnArgs) -> tp.Any:
         """Get argument using `vectorbt.utils.parsing.match_ann_arg`."""
         return match_ann_arg(ann_args, self.arg_query)
 
 
-class AxisMixin:
-    """Mixin class with an attribute for specifying an axis."""
+@attr.s(frozen=True)
+class AxisSpecifier:
+    """Class with an attribute for specifying an axis."""
 
-    def __init__(self, axis: int) -> None:
-        if axis < 0:
-            raise ValueError("Axis cannot be negative")
-        self._axis = axis
-
-    @property
-    def axis(self) -> int:
-        """Axis of the argument to take from."""
-        return self._axis
+    axis: tp.Optional[int] = attr.ib(default=None, validator=[
+        _assert_value_not_none,
+        attr.validators.instance_of(int)
+    ])
+    """Axis of the argument to take from."""
 
 
-class DimRetainerMixin:
-    """Mixin class with an attribute for retaining dimensions."""
+@attr.s(frozen=True)
+class DimRetainer:
+    """Class with an attribute for retaining dimensions."""
 
-    def __init__(self, keep_dims: bool = False) -> None:
-        self._keep_dims = keep_dims
-
-    @property
-    def keep_dims(self) -> bool:
-        """Whether to retain dimensions."""
-        return self._keep_dims
+    keep_dims: bool = attr.ib(default=False)
+    """Whether to retain dimensions."""
 
 
 # ############# Chunk sizing ############# #
@@ -108,19 +82,12 @@ class Sizer:
         raise NotImplementedError
 
 
-class ArgSizer(Sizer, ArgGetterMixin):
+@attr.s(frozen=True)
+class ArgSizer(Sizer, ArgGetter):
     """Class for getting the size from an argument."""
 
-    def __init__(self, arg_query: tp.AnnArgQuery, single_type: tp.Optional[tp.TypeLike] = None) -> None:
-        Sizer.__init__(self)
-        ArgGetterMixin.__init__(self, arg_query)
-
-        self._single_type = single_type
-
-    @property
-    def single_type(self) -> tp.Optional[tp.TypeLike]:
-        """One or multiple types to consider as a single value."""
-        return self._single_type
+    single_type: tp.Optional[tp.TypeLike] = attr.ib(default=None)
+    """One or multiple types to consider as a single value."""
 
     def apply(self, ann_args: tp.AnnArgs) -> int:
         arg = self.get_arg(ann_args)
@@ -140,12 +107,9 @@ class LenSizer(ArgSizer):
         return len(self.get_arg(ann_args))
 
 
-class ShapeSizer(ArgSizer, AxisMixin):
+@attr.s(frozen=True)
+class ShapeSizer(ArgSizer, AxisSpecifier):
     """Class for getting the size from the length of an axis in a shape."""
-
-    def __init__(self, arg_query: tp.AnnArgQuery, axis: int, **kwargs) -> None:
-        ArgSizer.__init__(self, arg_query, **kwargs)
-        AxisMixin.__init__(self, axis)
 
     def get_size(self, ann_args: tp.AnnArgs) -> int:
         arg = self.get_arg(ann_args)
@@ -165,6 +129,29 @@ class ArraySizer(ShapeSizer):
 
 
 # ############# Chunk generation ############# #
+
+@attr.s(frozen=True)
+class ChunkMeta:
+    """Class representing a chunk metadata."""
+
+    uuid: str = attr.ib()
+    """Unique identifier of the chunk.
+
+    Used for caching."""
+
+    idx: int = attr.ib()
+    """Chunk index."""
+
+    start: tp.Optional[int] = attr.ib()
+    """Start of the chunk range (including). Can be None."""
+
+    end: tp.Optional[int] = attr.ib()
+    """End of the chunk range (excluding). Can be None."""
+
+    indices: tp.Optional[tp.Sequence[int]] = attr.ib()
+    """Indices included in the chunk range. Can be None.
+
+    Has priority over `ChunkMeta.start` and `ChunkMeta.end`."""
 
 
 def yield_chunk_meta(n_chunks: tp.Optional[int] = None,
@@ -247,12 +234,8 @@ class ChunkMetaGenerator:
         raise NotImplementedError
 
 
-class ArgChunkMeta(ChunkMetaGenerator, ArgGetterMixin):
+class ArgChunkMeta(ChunkMetaGenerator, ArgGetter):
     """Class for generating chunk metadata from an argument."""
-
-    def __init__(self, arg_query: tp.AnnArgQuery) -> None:
-        ChunkMetaGenerator.__init__(self)
-        ArgGetterMixin.__init__(self, arg_query)
 
     def get_chunk_meta(self, ann_args: tp.AnnArgs) -> tp.Iterable[ChunkMeta]:
         return self.get_arg(ann_args)
@@ -342,6 +325,7 @@ def get_chunk_meta_from_args(ann_args: tp.AnnArgs,
 # ############# Chunk mapping ############# #
 
 
+@attr.s(frozen=True)
 class ChunkMapper:
     """Abstract class for mapping chunk metadata.
 
@@ -352,19 +336,11 @@ class ChunkMapper:
     !!! note
         Use `ChunkMapper.apply` instead of `ChunkMapper.map`."""
 
-    def __init__(self, should_cache: bool = True) -> None:
-        self._should_cache = should_cache
-        self._chunk_meta_cache = dict()
+    should_cache: bool = attr.ib(default=True)
+    """Whether should cache."""
 
-    @property
-    def should_cache(self) -> bool:
-        """Whether should cache."""
-        return self._should_cache
-
-    @property
-    def chunk_meta_cache(self) -> tp.Dict[str, ChunkMeta]:
-        """Cache for outgoing `ChunkMeta` instances keyed by UUID of the incoming ones."""
-        return self._chunk_meta_cache
+    chunk_meta_cache: tp.Dict[str, ChunkMeta] = attr.ib(factory=dict)
+    """Cache for outgoing `ChunkMeta` instances keyed by UUID of the incoming ones."""
 
     def apply(self, chunk_meta: ChunkMeta, **kwargs) -> ChunkMeta:
         """Apply the mapper."""
@@ -386,34 +362,21 @@ class ChunkMapper:
 # ############# Chunk taking ############# #
 
 
+@attr.s(frozen=True)
 class ChunkTaker:
     """Abstract class for taking one or more elements based on the chunk index or range.
 
     !!! note
         Use `ChunkTaker.apply` instead of `ChunkTaker.take`."""
 
-    def __init__(self,
-                 single_type: tp.Optional[tp.TypeLike] = None,
-                 ignore_none: bool = True,
-                 mapper: tp.Optional[ChunkMapper] = None) -> None:
-        self._single_type = single_type
-        self._ignore_none = ignore_none
-        self._mapper = mapper
+    single_type: tp.Optional[tp.TypeLike] = attr.ib(default=None)
+    """One or multiple types to consider as a single value."""
 
-    @property
-    def single_type(self) -> tp.Optional[tp.TypeLike]:
-        """One or multiple types to consider as a single value."""
-        return self._single_type
+    ignore_none: bool = attr.ib(default=True)
+    """Whether to ignore None."""
 
-    @property
-    def ignore_none(self) -> bool:
-        """Whether to ignore None."""
-        return self._ignore_none
-
-    @property
-    def mapper(self) -> tp.Optional[ChunkMapper]:
-        """Chunk mapper of type `ChunkMapper`."""
-        return self._mapper
+    mapper: tp.Optional[ChunkMapper] = attr.ib(default=None)
+    """Chunk mapper of type `ChunkMapper`."""
 
     def should_take(self, obj: tp.Any, chunk_meta: ChunkMeta, **kwargs) -> bool:
         """Check whether should take a chunk or leave the argument as it is."""
@@ -441,12 +404,9 @@ class ChunkTaker:
         raise NotImplementedError
 
 
-class ChunkSelector(ChunkTaker, DimRetainerMixin):
+@attr.s(frozen=True)
+class ChunkSelector(ChunkTaker, DimRetainer):
     """Class for selecting one element based on the chunk index."""
-
-    def __init__(self, keep_dims: bool = False, **kwargs) -> None:
-        ChunkTaker.__init__(self, **kwargs)
-        DimRetainerMixin.__init__(self, keep_dims=keep_dims)
 
     def take(self, obj: tp.Sequence, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
         if self.keep_dims:
@@ -478,12 +438,9 @@ class CountAdapter(ChunkSlicer):
         return min(obj, chunk_meta.end) - chunk_meta.start
 
 
-class ShapeSelector(ChunkSelector, AxisMixin):
+@attr.s(frozen=True)
+class ShapeSelector(ChunkSelector, AxisSpecifier):
     """Class for selecting one element from a shape's axis based on the chunk index."""
-
-    def __init__(self, axis: int, **kwargs) -> None:
-        ChunkSelector.__init__(self, **kwargs)
-        AxisMixin.__init__(self, axis)
 
     def take(self, obj: tp.Shape, chunk_meta: ChunkMeta, **kwargs) -> tp.Shape:
         checks.assert_instance_of(obj, tuple)
@@ -499,12 +456,9 @@ class ShapeSelector(ChunkSelector, AxisMixin):
         return tuple(obj)
 
 
-class ShapeSlicer(ChunkSlicer, AxisMixin):
+@attr.s(frozen=True)
+class ShapeSlicer(ChunkSlicer, AxisSpecifier):
     """Class for slicing multiple elements from a shape's axis based on the chunk range."""
-
-    def __init__(self, axis: int, **kwargs) -> None:
-        ChunkSlicer.__init__(self, **kwargs)
-        AxisMixin.__init__(self, axis)
 
     def take(self, obj: tp.Shape, chunk_meta: ChunkMeta, **kwargs) -> tp.Shape:
         checks.assert_instance_of(obj, tuple)
@@ -558,20 +512,14 @@ class ArraySlicer(ShapeSlicer):
         return obj[tuple(slc)]
 
 
+@attr.s(frozen=True)
 class ContainerTaker(ChunkTaker):
     """Class for taking from a container with other chunk takers.
 
     Accepts the specification of the container."""
 
-    def __init__(self, cont_take_spec: tp.ContainerTakeSpec, **kwargs) -> None:
-        ChunkTaker.__init__(self, **kwargs)
-
-        self._cont_take_spec = cont_take_spec
-
-    @property
-    def cont_take_spec(self) -> tp.ContainerTakeSpec:
-        """Specification of the container."""
-        return self._cont_take_spec
+    cont_take_spec: tp.Optional[tp.ContainerTakeSpec] = attr.ib(default=None, validator=_assert_value_not_none)
+    """Specification of the container."""
 
     def take(self, obj: tp.Any, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
         raise NotImplementedError
@@ -622,15 +570,15 @@ class MappingTaker(ContainerTaker):
 class ArgsTaker(SequenceTaker):
     """Class for taking from a variable arguments container."""
 
-    def __init__(self, *args) -> None:
-        SequenceTaker.__init__(self, args)
+    def __init__(self, *args):
+        SequenceTaker.__init__(self, cont_take_spec=args)
 
 
 class KwargsTaker(MappingTaker):
     """Class for taking from a variable keyword arguments container."""
 
-    def __init__(self, **kwargs) -> None:
-        MappingTaker.__init__(self, kwargs)
+    def __init__(self, **kwargs):
+        SequenceTaker.__init__(self, cont_take_spec=kwargs)
 
 
 def take_from_arg(arg: tp.Any, take_spec: tp.TakeSpec, chunk_meta: ChunkMeta, **kwargs) -> tp.Any:
@@ -806,7 +754,7 @@ def chunked(*args,
 
     >>> @vbt.chunked(
     ...     n_chunks=2,
-    ...     size=vbt.LenSizer('a'),
+    ...     size=vbt.LenSizer(arg_query='a'),
     ...     arg_take_spec=dict(a=vbt.ChunkSlicer()))
     ... def f(a):
     ...     return np.mean(a)
@@ -887,7 +835,7 @@ def chunked(*args,
     ... )
 
     >>> @vbt.chunked(
-    ...     n_chunks=vbt.LenSizer('a'),
+    ...     n_chunks=vbt.LenSizer(arg_query='a'),
     ...     arg_take_spec=arg_take_spec)
     ... def f(a, *args, b=None, **kwargs):
     ...     return a + sum(args) + sum(b) + sum(kwargs['c'].values())
@@ -903,7 +851,7 @@ def chunked(*args,
     ```python-repl
     >>> @vbt.chunked(
     ...     n_chunks=2,
-    ...     size=vbt.LenSizer('a'),
+    ...     size=vbt.LenSizer(arg_query='a'),
     ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
     ...     merge_func=np.concatenate)
     ... def f(a):
@@ -920,7 +868,7 @@ def chunked(*args,
     ```python-repl
     >>> @vbt.chunked(
     ...     n_chunks=2,
-    ...     size=vbt.LenSizer('a'),
+    ...     size=vbt.LenSizer(arg_query='a'),
     ...     merge_func=np.concatenate)
     ... def f(chunk_meta, a):
     ...     return a[chunk_meta.start:chunk_meta.end]
@@ -937,7 +885,7 @@ def chunked(*args,
     ```python-repl
     >>> @vbt.chunked(
     ...     n_chunks=2,
-    ...     size=vbt.LenSizer('a'),
+    ...     size=vbt.LenSizer(arg_query='a'),
     ...     merge_func=np.concatenate,
     ...     prepend_chunk_meta=False)
     ... def f(chunk_meta, a):
@@ -954,7 +902,7 @@ def chunked(*args,
     ```python-repl
     >>> @vbt.chunked(
     ...     n_chunks=2,
-    ...     size=vbt.LenSizer('a'),
+    ...     size=vbt.LenSizer(arg_query='a'),
     ...     arg_take_spec=dict(a=vbt.ChunkSlicer()),
     ...     engine_kwargs=dict(show_progress=True))  # see SequenceEngine
     ... def f(a):

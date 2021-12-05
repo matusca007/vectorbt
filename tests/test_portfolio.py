@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections import namedtuple
 from copy import deepcopy
@@ -43,9 +44,9 @@ big_price_wide = big_price.vbt.tile(1000)
 # ############# Global ############# #
 
 def setup_module():
+    if os.environ.get('VBT_DISABLE_CACHING', '0') == '1':
+        vbt.settings.caching['disable_machinery'] = True
     vbt.settings.pbar['disable'] = True
-    vbt.settings.caching['disable'] = True
-    vbt.settings.caching['disable_whitelist'] = True
     vbt.settings.numba['check_func_suffix'] = True
     vbt.settings.portfolio['attach_call_seq'] = True
 
@@ -5918,10 +5919,10 @@ class TestFromOrderFunc:
         chunked = dict(
             arg_take_spec=dict(
                 order_args=vbt.ArgsTaker(
-                    vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens'))
+                    vbt.FlexArraySlicer(axis=1, mapper=vbt.GroupLensMapper(arg_query='group_lens'))
                 ),
                 flex_order_args=vbt.ArgsTaker(
-                    vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens'))
+                    vbt.FlexArraySlicer(axis=1, mapper=vbt.GroupLensMapper(arg_query='group_lens'))
                 )
             )
         )
@@ -5989,7 +5990,7 @@ class TestFromOrderFunc:
 
         class CustomMapper(vbt.ChunkMapper):
             def map(self, chunk_meta, ann_args=None, **kwargs):
-                mapper = vbt.GroupLensMapper('group_lens')
+                mapper = vbt.GroupLensMapper(arg_query='group_lens')
                 chunk_meta = mapper.apply(chunk_meta, ann_args=ann_args, **kwargs)
                 target_shape = ann_args['target_shape']['value']
                 new_chunk_meta = vbt.ChunkMeta(
@@ -6005,15 +6006,15 @@ class TestFromOrderFunc:
         chunked = dict(
             arg_take_spec=dict(
                 order_args=vbt.ArgsTaker(
-                    vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens'))
+                    vbt.FlexArraySlicer(axis=1, mapper=vbt.GroupLensMapper(arg_query='group_lens'))
                 ),
                 flex_order_args=vbt.ArgsTaker(
-                    vbt.FlexArraySlicer(1, mapper=vbt.GroupLensMapper('group_lens'))
+                    vbt.FlexArraySlicer(axis=1, mapper=vbt.GroupLensMapper(arg_query='group_lens'))
                 ),
                 in_outputs=vbt.ArgsTaker(
-                    vbt.ArraySlicer(0, mapper=vbt.GroupLensMapper('group_lens')),
-                    vbt.ArraySlicer(1),
-                    vbt.ArraySlicer(0, mapper=CustomMapper())
+                    vbt.ArraySlicer(axis=0, mapper=vbt.GroupLensMapper(arg_query='group_lens')),
+                    vbt.ArraySlicer(axis=1),
+                    vbt.ArraySlicer(axis=0, mapper=CustomMapper())
                 )
             )
         )

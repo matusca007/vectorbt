@@ -646,7 +646,7 @@ class SignalsAccessor(GenericAccessor):
             chunked = ch.specialize_chunked_option(
                 chunked,
                 arg_take_spec=dict(args=ch.ArgsTaker(
-                    base_ch.FlexArraySlicer(1, flex_2d=True)
+                    base_ch.FlexArraySlicer(axis=1, flex_2d=True)
                 ))
             )
             return cls.generate(
@@ -663,7 +663,7 @@ class SignalsAccessor(GenericAccessor):
             chunked = ch.specialize_chunked_option(
                 chunked,
                 arg_take_spec=dict(args=ch.ArgsTaker(
-                    base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                    base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                     None,
                     None
                 ))
@@ -782,12 +782,12 @@ class SignalsAccessor(GenericAccessor):
                 chunked,
                 arg_take_spec=dict(
                     entry_args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None
                     ),
                     exit_args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None
                     )
@@ -874,7 +874,7 @@ class SignalsAccessor(GenericAccessor):
             chunked = ch.specialize_chunked_option(
                 chunked,
                 arg_take_spec=dict(args=ch.ArgsTaker(
-                    base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                    base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                     None,
                     None
                 ))
@@ -894,7 +894,7 @@ class SignalsAccessor(GenericAccessor):
         chunked = ch.specialize_chunked_option(
             chunked,
             arg_take_spec=dict(args=ch.ArgsTaker(
-                base_ch.FlexArraySlicer(1, flex_2d=True)
+                base_ch.FlexArraySlicer(axis=1, flex_2d=True)
             ))
         )
         return self.generate_exits(
@@ -990,12 +990,12 @@ class SignalsAccessor(GenericAccessor):
                 chunked,
                 arg_take_spec=dict(
                     entry_args=ch.ArgsTaker(
-                        ch.ArraySlicer(1)
+                        ch.ArraySlicer(axis=1)
                     ),
                     exit_args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None,
                         None
@@ -1030,9 +1030,9 @@ class SignalsAccessor(GenericAccessor):
                 chunked,
                 arg_take_spec=dict(
                     args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None,
                         None
@@ -1293,19 +1293,19 @@ class SignalsAccessor(GenericAccessor):
                 chunked,
                 arg_take_spec=dict(
                     entry_args=ch.ArgsTaker(
-                        ch.ArraySlicer(1)
+                        ch.ArraySlicer(axis=1)
                     ),
                     exit_args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        ch.ArraySlicer(1),
-                        ch.ArraySlicer(1),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        ch.ArraySlicer(axis=1),
+                        ch.ArraySlicer(axis=1),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None,
                         None,
@@ -1354,16 +1354,16 @@ class SignalsAccessor(GenericAccessor):
                 chunked,
                 arg_take_spec=dict(
                     args=ch.ArgsTaker(
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        ch.ArraySlicer(1),
-                        ch.ArraySlicer(1),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
-                        base_ch.FlexArraySlicer(1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        ch.ArraySlicer(axis=1),
+                        ch.ArraySlicer(axis=1),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
+                        base_ch.FlexArraySlicer(axis=1, flex_2d=flex_2d),
                         None,
                         None,
                         None,
@@ -1685,7 +1685,7 @@ class SignalsAccessor(GenericAccessor):
         prepare_func = lambda obj, reset_by: (np.full(obj.shape[1], -1, dtype=np.int_),)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0), None))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=0), None))
         )
         return self.rank(
             jit_registry.resolve_option(nb.sig_pos_rank_nb, jitted),
@@ -1737,7 +1737,7 @@ class SignalsAccessor(GenericAccessor):
         prepare_func = lambda obj, reset_by: (np.full(obj.shape[1], -1, dtype=np.int_),)
         chunked = ch.specialize_chunked_option(
             chunked,
-            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(0)))
+            arg_take_spec=dict(args=ch.ArgsTaker(ch.ArraySlicer(axis=0)))
         )
         return self.rank(
             jit_registry.resolve_option(nb.part_pos_rank_nb, jitted),

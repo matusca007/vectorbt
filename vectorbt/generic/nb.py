@@ -46,9 +46,9 @@ def shuffle_1d_nb(arr: tp.Array1d, seed: tp.Optional[int] = None) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         seed=None
     ),
     merge_func=base_ch.column_stack
@@ -170,9 +170,9 @@ def fillna_1d_nb(arr: tp.Array1d, value: tp.Scalar) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         value=None
     ),
     merge_func=base_ch.column_stack
@@ -184,9 +184,9 @@ def fillna_nb(arr: tp.Array2d, value: tp.Scalar) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -260,9 +260,9 @@ def bshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         n=None,
         fill_value=None
     ),
@@ -325,9 +325,9 @@ def fshift_1d_nb(arr: tp.Array1d, n: int = 1, fill_value: tp.Scalar = np.nan) ->
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         n=None,
         fill_value=None
     ),
@@ -372,9 +372,9 @@ def diff_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         n=None
     ),
     merge_func=base_ch.column_stack
@@ -400,9 +400,9 @@ def pct_change_1d_nb(arr: tp.Array1d, n: int = 1) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         n=None
     ),
     merge_func=base_ch.column_stack
@@ -435,9 +435,9 @@ def bfill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -466,9 +466,9 @@ def ffill_1d_nb(arr: tp.Array1d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -482,9 +482,9 @@ def ffill_nb(arr: tp.Array2d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -511,9 +511,9 @@ def nanprod_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -540,9 +540,9 @@ def nancumsum_nb(arr: tp.Array2d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -579,9 +579,9 @@ def nancnt_1d_nb(arr: tp.Array1d) -> int:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -595,9 +595,9 @@ def nancnt_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -624,9 +624,9 @@ def nansum_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -640,9 +640,9 @@ def nanmin_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -656,9 +656,9 @@ def nanmax_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -672,9 +672,9 @@ def nanmean_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -844,9 +844,9 @@ def nanstd_1d_nb(arr: tp.Array1d, ddof: int = 0) -> float:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         ddof=None
     ),
     merge_func=base_ch.concat
@@ -890,9 +890,9 @@ def rolling_min_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         window=None,
         minp=None
     ),
@@ -934,9 +934,9 @@ def rolling_max_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         window=None,
         minp=None
     ),
@@ -986,9 +986,9 @@ def rolling_mean_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = No
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         window=None,
         minp=None
     ),
@@ -1046,9 +1046,9 @@ def rolling_std_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int] = Non
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         window=None,
         minp=None,
         ddof=None
@@ -1110,9 +1110,9 @@ def ewm_mean_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fal
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         span=None,
         minp=None,
         adjust=None
@@ -1210,9 +1210,9 @@ def ewm_std_1d_nb(arr: tp.Array1d, span: int, minp: int = 0, adjust: bool = Fals
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         span=None,
         minp=None,
         adjust=None,
@@ -1253,9 +1253,9 @@ def expanding_min_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         minp=None
     ),
     merge_func=base_ch.column_stack
@@ -1290,9 +1290,9 @@ def expanding_max_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         minp=None
     ),
     merge_func=base_ch.column_stack
@@ -1315,9 +1315,9 @@ def expanding_mean_1d_nb(arr: tp.Array1d, minp: int = 1) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         minp=None
     ),
     merge_func=base_ch.column_stack
@@ -1340,9 +1340,9 @@ def expanding_std_1d_nb(arr: tp.Array1d, minp: int = 1, ddof: int = 0) -> tp.Arr
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         minp=None,
         ddof=None
     ),
@@ -1374,9 +1374,9 @@ def map_1d_nb(arr: tp.Array1d, map_func_nb: tp.MapFunc, *args) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         map_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1408,9 +1408,9 @@ def map_1d_meta_nb(n: int, col: int, map_func_nb: tp.MapMetaFunc, *args) -> tp.A
 
 
 @register_chunkable(
-    size=ch.ShapeSizer('target_shape', 1),
+    size=ch.ShapeSizer(arg_query='target_shape', axis=1),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
+        target_shape=ch.ShapeSlicer(axis=1),
         map_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1428,9 +1428,9 @@ def map_meta_nb(target_shape: tp.Shape, map_func_nb: tp.MapMetaFunc, *args) -> t
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         apply_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1451,9 +1451,9 @@ def apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ShapeSizer('target_shape', 1),
+    size=ch.ShapeSizer(arg_query='target_shape', axis=1),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
+        target_shape=ch.ShapeSlicer(axis=1),
         apply_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1471,9 +1471,9 @@ def apply_meta_nb(target_shape: tp.Shape, apply_func_nb: tp.ApplyMetaFunc, *args
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 0),
+    size=ch.ArraySizer(arg_query='arr', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=0),
         apply_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1491,9 +1491,9 @@ def row_apply_nb(arr: tp.Array2d, apply_func_nb: tp.ApplyFunc, *args) -> tp.Arra
 
 
 @register_chunkable(
-    size=ch.ShapeSizer('target_shape', 0),
+    size=ch.ShapeSizer(arg_query='target_shape', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(0),
+        target_shape=ch.ShapeSlicer(axis=0),
         apply_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1540,9 +1540,9 @@ def rolling_apply_1d_nb(arr: tp.Array1d, window: int, minp: tp.Optional[int],
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         window=None,
         minp=None,
         apply_func_nb=None,
@@ -1582,9 +1582,9 @@ def rolling_apply_1d_meta_nb(n: int, col: int, window: int, minp: tp.Optional[in
 
 
 @register_chunkable(
-    size=ch.ShapeSizer('target_shape', 1),
+    size=ch.ShapeSizer(arg_query='target_shape', axis=1),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1),
+        target_shape=ch.ShapeSlicer(axis=1),
         window=None,
         minp=None,
         apply_func_nb=None,
@@ -1624,9 +1624,9 @@ def groupby_apply_1d_nb(arr: tp.Array1d, group_map: tp.GroupMap,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         group_map=None,
         apply_func_nb=None,
         args=ch.ArgsTaker()
@@ -1668,7 +1668,7 @@ def groupby_apply_1d_meta_nb(col: int, group_map: tp.GroupMap,
 
 
 @register_chunkable(
-    size=ch.ArgSizer('n_cols'),
+    size=ch.ArgSizer(arg_query='n_cols'),
     arg_take_spec=dict(
         n_cols=ch.CountAdapter(),
         group_map=None,
@@ -1704,9 +1704,9 @@ def apply_and_reduce_1d_nb(arr: tp.Array1d, apply_func_nb: tp.ApplyFunc, apply_a
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         apply_func_nb=None,
         apply_args=ch.ArgsTaker(),
         reduce_func_nb=None,
@@ -1741,7 +1741,7 @@ def apply_and_reduce_1d_meta_nb(col: int, apply_func_nb: tp.ApplyMetaFunc, apply
 
 
 @register_chunkable(
-    size=ch.ArgSizer('n_cols'),
+    size=ch.ArgSizer(arg_query='n_cols'),
     arg_take_spec=dict(
         n_cols=ch.CountAdapter(),
         apply_func_nb=None,
@@ -1764,9 +1764,9 @@ def apply_and_reduce_meta_nb(n_cols: int, apply_func_nb: tp.ApplyMetaFunc, apply
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1786,7 +1786,7 @@ def reduce_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceFunc, *args) -> tp.Array
 
 
 @register_chunkable(
-    size=ch.ArgSizer('n_cols'),
+    size=ch.ArgSizer(arg_query='n_cols'),
     arg_take_spec=dict(
         n_cols=ch.CountAdapter(),
         reduce_func_nb=None,
@@ -1808,9 +1808,9 @@ def reduce_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceMetaFunc, *args) -> tp.
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1828,7 +1828,7 @@ def reduce_to_array_nb(arr: tp.Array2d, reduce_func_nb: tp.ReduceToArrayFunc, *a
 
 
 @register_chunkable(
-    size=ch.ArgSizer('n_cols'),
+    size=ch.ArgSizer(arg_query='n_cols'),
     arg_take_spec=dict(
         n_cols=ch.CountAdapter(),
         reduce_func_nb=None,
@@ -1848,10 +1848,10 @@ def reduce_to_array_meta_nb(n_cols: int, reduce_func_nb: tp.ReduceToArrayMetaFun
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1876,9 +1876,9 @@ def reduce_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        group_lens=ch.ArraySlicer(0),
+        group_lens=ch.ArraySlicer(axis=0),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1903,9 +1903,9 @@ def reduce_grouped_meta_nb(group_lens: tp.Array1d, reduce_func_nb: tp.ReduceGrou
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.concat
 )
@@ -1919,10 +1919,10 @@ def flatten_forder_nb(arr: tp.Array2d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         in_c_order=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -1952,10 +1952,10 @@ def reduce_flat_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_c_order: 
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -1978,9 +1978,9 @@ def reduce_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        group_lens=ch.ArraySlicer(0),
+        group_lens=ch.ArraySlicer(axis=0),
         reduce_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -2003,10 +2003,10 @@ def reduce_grouped_to_array_meta_nb(group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         in_c_order=None,
         reduce_func_nb=None,
         args=ch.ArgsTaker()
@@ -2036,10 +2036,10 @@ def reduce_flat_grouped_to_array_nb(arr: tp.Array2d, group_lens: tp.Array1d, in_
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        arr=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         squeeze_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -2067,10 +2067,10 @@ def squeeze_grouped_nb(arr: tp.Array2d, group_lens: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
         n_rows=None,
-        group_lens=ch.ArraySlicer(0),
+        group_lens=ch.ArraySlicer(axis=0),
         squeeze_func_nb=None,
         args=ch.ArgsTaker()
     ),
@@ -2258,11 +2258,11 @@ def describe_reduce_nb(arr: tp.Array1d, perc: tp.Array1d, ddof: int) -> tp.Array
 
 
 @register_chunkable(
-    size=ch.ArraySizer('codes', 1),
+    size=ch.ArraySizer(arg_query='codes', axis=1),
     arg_take_spec=dict(
-        codes=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        codes=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
         n_uniques=None,
-        group_lens=ch.ArraySlicer(0)
+        group_lens=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.column_stack
 )
@@ -2293,9 +2293,9 @@ def value_counts_1d_nb(codes: tp.Array1d, n_uniques: int) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('codes', 0),
+    size=ch.ArraySizer(arg_query='codes', axis=0),
     arg_take_spec=dict(
-        codes=ch.ArraySlicer(0),
+        codes=ch.ArraySlicer(axis=0),
         n_uniques=None
     ),
     merge_func=base_ch.column_stack
@@ -2328,9 +2328,9 @@ def repartition_nb(arr: tp.Array2d, counts: tp.Array1d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1),
+        arr=ch.ArraySlicer(axis=1),
         gap_value=None
     ),
     merge_func=records_ch.merge_records,
@@ -2419,11 +2419,11 @@ def get_ranges_nb(arr: tp.Array2d, gap_value: tp.Scalar) -> tp.RecordArray:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('start_idx_arr', 0),
+    size=ch.ArraySizer(arg_query='start_idx_arr', axis=0),
     arg_take_spec=dict(
-        start_idx_arr=ch.ArraySlicer(0),
-        end_idx_arr=ch.ArraySlicer(0),
-        status_arr=ch.ArraySlicer(0)
+        start_idx_arr=ch.ArraySlicer(axis=0),
+        end_idx_arr=ch.ArraySlicer(axis=0),
+        status_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2442,13 +2442,13 @@ def range_duration_nb(start_idx_arr: tp.Array1d,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        start_idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        end_idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        status_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        start_idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        end_idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        status_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
-        index_lens=ch.ArraySlicer(0),
+        index_lens=ch.ArraySlicer(axis=0),
         overlapping=None,
         normalize=None
     ),
@@ -2498,11 +2498,11 @@ def range_coverage_nb(start_idx_arr: tp.Array1d,
 
 
 @register_chunkable(
-    size=records_ch.ColLensSizer('col_map'),
+    size=records_ch.ColLensSizer(arg_query='col_map'),
     arg_take_spec=dict(
-        start_idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        end_idx_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
-        status_arr=ch.ArraySlicer(0, mapper=records_ch.col_idxs_mapper),
+        start_idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        end_idx_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
+        status_arr=ch.ArraySlicer(axis=0, mapper=records_ch.col_idxs_mapper),
         col_map=records_ch.ColMapSlicer(),
         index_len=None
     ),
@@ -2549,9 +2549,9 @@ def drawdown_1d_nb(arr: tp.Array1d) -> tp.Array1d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=base_ch.column_stack
 )
@@ -2565,9 +2565,9 @@ def drawdown_nb(arr: tp.Array2d) -> tp.Array2d:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr', 1),
+    size=ch.ArraySizer(arg_query='arr', axis=1),
     arg_take_spec=dict(
-        arr=ch.ArraySlicer(1)
+        arr=ch.ArraySlicer(axis=1)
     ),
     merge_func=records_ch.merge_records,
     merge_kwargs=dict(chunk_meta=Rep('chunk_meta'))
@@ -2678,10 +2678,10 @@ def get_drawdowns_nb(arr: tp.Array2d) -> tp.RecordArray:
 
 
 @register_chunkable(
-    size=ch.ArraySizer('peak_val_arr', 0),
+    size=ch.ArraySizer(arg_query='peak_val_arr', axis=0),
     arg_take_spec=dict(
-        peak_val_arr=ch.ArraySlicer(0),
-        valley_val_arr=ch.ArraySlicer(0)
+        peak_val_arr=ch.ArraySlicer(axis=0),
+        valley_val_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2695,10 +2695,10 @@ def dd_drawdown_nb(peak_val_arr: tp.Array1d, valley_val_arr: tp.Array1d) -> tp.A
 
 
 @register_chunkable(
-    size=ch.ArraySizer('start_idx_arr', 0),
+    size=ch.ArraySizer(arg_query='start_idx_arr', axis=0),
     arg_take_spec=dict(
-        start_idx_arr=ch.ArraySlicer(0),
-        valley_idx_arr=ch.ArraySlicer(0)
+        start_idx_arr=ch.ArraySlicer(axis=0),
+        valley_idx_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2712,10 +2712,10 @@ def dd_decline_duration_nb(start_idx_arr: tp.Array1d, valley_idx_arr: tp.Array1d
 
 
 @register_chunkable(
-    size=ch.ArraySizer('valley_idx_arr', 0),
+    size=ch.ArraySizer(arg_query='valley_idx_arr', axis=0),
     arg_take_spec=dict(
-        valley_idx_arr=ch.ArraySlicer(0),
-        end_idx_arr=ch.ArraySlicer(0)
+        valley_idx_arr=ch.ArraySlicer(axis=0),
+        end_idx_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2729,11 +2729,11 @@ def dd_recovery_duration_nb(valley_idx_arr: tp.Array1d, end_idx_arr: tp.Array1d)
 
 
 @register_chunkable(
-    size=ch.ArraySizer('start_idx_arr', 0),
+    size=ch.ArraySizer(arg_query='start_idx_arr', axis=0),
     arg_take_spec=dict(
-        start_idx_arr=ch.ArraySlicer(0),
-        valley_idx_arr=ch.ArraySlicer(0),
-        end_idx_arr=ch.ArraySlicer(0)
+        start_idx_arr=ch.ArraySlicer(axis=0),
+        valley_idx_arr=ch.ArraySlicer(axis=0),
+        end_idx_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2749,10 +2749,10 @@ def dd_recovery_duration_ratio_nb(start_idx_arr: tp.Array1d,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('valley_val_arr', 0),
+    size=ch.ArraySizer(arg_query='valley_val_arr', axis=0),
     arg_take_spec=dict(
-        valley_val_arr=ch.ArraySlicer(0),
-        end_val_arr=ch.ArraySlicer(0)
+        valley_val_arr=ch.ArraySlicer(axis=0),
+        end_val_arr=ch.ArraySlicer(axis=0)
     ),
     merge_func=base_ch.concat
 )
@@ -2793,10 +2793,10 @@ def crossed_above_1d_nb(arr1: tp.Array1d, arr2: tp.Array1d, wait: int = 0) -> tp
 
 
 @register_chunkable(
-    size=ch.ArraySizer('arr1', 1),
+    size=ch.ArraySizer(arg_query='arr1', axis=1),
     arg_take_spec=dict(
-        arr1=ch.ArraySlicer(1),
-        arr2=ch.ArraySlicer(1),
+        arr1=ch.ArraySlicer(axis=1),
+        arr2=ch.ArraySlicer(axis=1),
         wait=None
     ),
     merge_func=base_ch.column_stack

@@ -123,17 +123,17 @@ PostOrderFuncT = tp.Callable[[PostOrderContext, OrderResult, tp.VarArg()], None]
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
-        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        call_seq=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
         cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         cash_earnings=portfolio_ch.flex_array_gl_slicer,
-        segment_mask=base_ch.FlexArraySlicer(1),
+        segment_mask=base_ch.FlexArraySlicer(axis=1),
         call_pre_segment=None,
         call_post_segment=None,
         pre_sim_func_nb=None,
@@ -1220,17 +1220,17 @@ def simulate_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
-        call_seq=ch.ArraySlicer(1, mapper=base_ch.group_lens_mapper),
+        call_seq=ch.ArraySlicer(axis=1, mapper=base_ch.group_lens_mapper),
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
         cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         cash_earnings=portfolio_ch.flex_array_gl_slicer,
-        segment_mask=base_ch.FlexArraySlicer(1),
+        segment_mask=base_ch.FlexArraySlicer(axis=1),
         call_pre_segment=None,
         call_post_segment=None,
         pre_sim_func_nb=None,
@@ -2130,16 +2130,16 @@ FlexOrderFuncT = tp.Callable[[FlexOrderContext, tp.VarArg()], tp.Tuple[int, Orde
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
         cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         cash_earnings=portfolio_ch.flex_array_gl_slicer,
-        segment_mask=base_ch.FlexArraySlicer(1),
+        segment_mask=base_ch.FlexArraySlicer(axis=1),
         call_pre_segment=None,
         call_post_segment=None,
         pre_sim_func_nb=None,
@@ -3050,16 +3050,16 @@ def flex_simulate_nb(target_shape: tp.Shape,
 
 
 @register_chunkable(
-    size=ch.ArraySizer('group_lens', 0),
+    size=ch.ArraySizer(arg_query='group_lens', axis=0),
     arg_take_spec=dict(
-        target_shape=ch.ShapeSlicer(1, mapper=base_ch.group_lens_mapper),
-        group_lens=ch.ArraySlicer(0),
+        target_shape=ch.ShapeSlicer(axis=1, mapper=base_ch.group_lens_mapper),
+        group_lens=ch.ArraySlicer(axis=0),
         cash_sharing=None,
         init_cash=RepFunc(portfolio_ch.get_init_cash_slicer),
         init_position=portfolio_ch.flex_1d_array_gl_slicer,
         cash_deposits=RepFunc(portfolio_ch.get_cash_deposits_slicer),
         cash_earnings=portfolio_ch.flex_array_gl_slicer,
-        segment_mask=base_ch.FlexArraySlicer(1),
+        segment_mask=base_ch.FlexArraySlicer(axis=1),
         call_pre_segment=None,
         call_post_segment=None,
         pre_sim_func_nb=None,
